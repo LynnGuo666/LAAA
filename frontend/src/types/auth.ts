@@ -8,6 +8,7 @@ export interface User {
   phone?: string;
   phone_verified: boolean;
   is_active: boolean;
+  is_superuser: boolean;  // 添加管理员字段
   created_at: string;
   last_login_at?: string;
 }

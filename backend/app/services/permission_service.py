@@ -189,6 +189,6 @@ class PermissionService:
             user_id = payload.get("sub")
             if user_id is None:
                 return None
-            return {"user_id": uuid.UUID(user_id)}
+            return {"user_id": str(user_id)}  # 保持字符串格式，与数据库一致
         except JWTError:
             return None

@@ -27,6 +27,7 @@ class UserResponse(BaseModel):
     phone: Optional[str] = None
     phone_verified: bool
     is_active: bool
+    is_superuser: bool  # 添加管理员字段
     created_at: datetime
     last_login_at: Optional[datetime] = None
 

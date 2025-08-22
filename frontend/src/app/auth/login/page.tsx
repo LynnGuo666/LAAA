@@ -33,17 +33,19 @@ export default function LoginPage() {
     setError('');
 
     try {
+      console.log('Login: submitting form data...');
       const response = await apiClient.login(data);
+      console.log('Login: API response received:', response);
       
       if (response.requires_mfa) {
         setRequiresMfa(true);
         setError('需要输入TOTP验证码');
       } else if (response.access_token && response.refresh_token) {
-        apiClient.setTokens(response.access_token, response.refresh_token);
-        // 给用户一点时间看到登录成功的反馈
-        setTimeout(() => {
-          router.push('/dashboard');
-        }, 100);
+        console.log('Login: tokens received, calling auth login...');
+        // 使用 useAuth 的 login 方法来正确更新用户状态
+        await login(response.access_token, response.refresh_token);
+        console.log('Login: auth login completed, redirecting...');
+        router.push('/dashboard');
       }
     } catch (err: any) {
       console.error('Login error:', err);
