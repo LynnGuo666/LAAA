@@ -6,8 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
-    "export": "next build && next export"
+    "lint": "next lint"
   },
   "dependencies": {
     "next": "^14.0.0",
@@ -15,11 +14,11 @@
     "react-dom": "^18.2.0",
     "axios": "^1.6.0",
     "react-hook-form": "^7.47.0",
-    "react-query": "^3.39.3",
+    "@tanstack/react-query": "^4.36.1",
     "@hookform/resolvers": "^3.3.2",
     "zod": "^3.22.4",
     "js-cookie": "^3.0.5",
-    "qrcode.js": "^0.0.2",
+    "qrcode": "^1.5.3",
     "react-qr-code": "^2.0.12",
     "uuid": "^9.0.1"
   },
@@ -29,6 +28,7 @@
     "@types/react-dom": "^18.2.0",
     "@types/js-cookie": "^3.0.6",
     "@types/uuid": "^9.0.7",
+    "@types/qrcode": "^1.5.5",
     "typescript": "^5.2.0",
     "eslint": "^8.52.0",
     "eslint-config-next": "^14.0.0",

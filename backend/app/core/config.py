@@ -1,5 +1,5 @@
 from pydantic_settings import BaseSettings
-from typing import List, Optional
+from typing import List, Optional, ClassVar
 import secrets
 
 
@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     OAUTH_ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
     
     # 数据库配置
-    DATABASE_URL: str = "postgresql://laaa:password@localhost:5432/laaa"
+    DATABASE_URL: str = "sqlite:///./laaa.db"
     
     # Redis配置 (用于缓存和会话)
     REDIS_URL: str = "redis://localhost:6379/0"
@@ -46,7 +46,7 @@ class Settings(BaseSettings):
     ]
     
     # 安全等级配置
-    SECURITY_LEVELS = {
+    SECURITY_LEVELS: ClassVar[dict] = {
         1: "低级",
         2: "中级", 
         3: "高级",
