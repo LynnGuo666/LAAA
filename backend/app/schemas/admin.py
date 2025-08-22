@@ -1,7 +1,6 @@
 from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime
-import uuid
 
 
 class InvitationCodeCreate(BaseModel):
@@ -11,7 +10,7 @@ class InvitationCodeCreate(BaseModel):
 
 
 class InvitationCodeResponse(BaseModel):
-    id: uuid.UUID
+    id: str
     code: str
     security_level: int
     max_uses: int
@@ -33,7 +32,7 @@ class ApplicationCreate(BaseModel):
 
 
 class ApplicationResponse(BaseModel):
-    id: uuid.UUID
+    id: str
     name: str
     description: Optional[str]
     client_id: str
@@ -57,7 +56,7 @@ class PermissionCreate(BaseModel):
 
 
 class PermissionResponse(BaseModel):
-    id: uuid.UUID
+    id: str
     name: str
     resource: str
     action: str
@@ -70,7 +69,7 @@ class PermissionResponse(BaseModel):
 
 
 class UserResponse(BaseModel):
-    id: uuid.UUID
+    id: str
     username: str
     email: str
     security_level: int

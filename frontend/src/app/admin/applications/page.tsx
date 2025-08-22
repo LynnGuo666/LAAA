@@ -3,11 +3,33 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../../lib/auth';
 import { useRouter } from 'next/navigation';
+import { apiClient } from '../../../lib/api';
+import { Application } from '../../../types/auth';
 import Link from 'next/link';
+
+interface ApplicationFormData {
+  name: string;
+  description: string;
+  redirect_uris: string;
+  required_security_level: number;
+  require_mfa: boolean;
+}
 
 export default function AdminApplicationsPage() {
   const { user, isLoading, logout } = useAuth();
   const router = useRouter();
+  const [applications, setApplications] = useState<Application[]>([]);
+  const [loadingData, setLoadingData] = useState(true);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [editingApp, setEditingApp] = useState<Application | null>(null);
+  const [formData, setFormData] = useState<ApplicationFormData>({
+    name: '',
+    description: '',
+    redirect_uris: '',
+    required_security_level: 1,
+    require_mfa: false
+  });
 
   useEffect(() => {
     if (!isLoading && (!user || !user.is_superuser)) {
@@ -15,7 +37,124 @@ export default function AdminApplicationsPage() {
     }
   }, [user, isLoading, router]);
 
-  if (isLoading) {
+  const loadApplications = async () => {
+    if (!user?.is_superuser) return;
+    
+    setLoadingData(true);
+    try {
+      const appsData = await apiClient.getApplications();
+      setApplications(appsData);
+    } catch (error) {
+      console.error('Failed to load applications:', error);
+    } finally {
+      setLoadingData(false);
+    }
+  };
+
+  useEffect(() => {
+    if (user?.is_superuser) {
+      loadApplications();
+    }
+  }, [user]);
+
+  const handleCreateApplication = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setCreating(true);
+    
+    try {
+      await apiClient.createApplication({
+        name: formData.name,
+        description: formData.description || undefined,
+        redirect_uris: formData.redirect_uris.split('\n').filter(uri => uri.trim()),
+        required_security_level: formData.required_security_level,
+        require_mfa: formData.require_mfa
+      });
+      
+      setShowCreateModal(false);
+      setFormData({
+        name: '',
+        description: '',
+        redirect_uris: '',
+        required_security_level: 1,
+        require_mfa: false
+      });
+      loadApplications();
+    } catch (error) {
+      console.error('Failed to create application:', error);
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const handleEditApplication = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingApp) return;
+    
+    setCreating(true);
+    
+    try {
+      await apiClient.updateApplication(editingApp.id, {
+        name: formData.name,
+        description: formData.description || undefined,
+        redirect_uris: formData.redirect_uris.split('\n').filter(uri => uri.trim()),
+        required_security_level: formData.required_security_level,
+        require_mfa: formData.require_mfa
+      });
+      
+      setEditingApp(null);
+      loadApplications();
+    } catch (error) {
+      console.error('Failed to update application:', error);
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const handleDeleteApplication = async (appId: string) => {
+    if (!confirm('确认删除此应用？此操作不可撤销。')) return;
+    
+    try {
+      await apiClient.deleteApplication(appId);
+      loadApplications();
+    } catch (error) {
+      console.error('Failed to delete application:', error);
+    }
+  };
+
+  const openEditModal = (app: Application) => {
+    setEditingApp(app);
+    setFormData({
+      name: app.name,
+      description: app.description || '',
+      redirect_uris: app.redirect_uris.join('\n'),
+      required_security_level: app.required_security_level,
+      require_mfa: app.require_mfa
+    });
+  };
+
+  const closeModal = () => {
+    setShowCreateModal(false);
+    setEditingApp(null);
+    setFormData({
+      name: '',
+      description: '',
+      redirect_uris: '',
+      required_security_level: 1,
+      require_mfa: false
+    });
+  };
+
+  const getSecurityLevelColor = (level: number) => {
+    const colors = {
+      1: 'bg-gray-100 text-gray-800',
+      2: 'bg-blue-100 text-blue-800',
+      3: 'bg-yellow-100 text-yellow-800',
+      4: 'bg-red-100 text-red-800'
+    };
+    return colors[level as keyof typeof colors] || 'bg-gray-100 text-gray-800';
+  };
+
+  if (isLoading || loadingData) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
@@ -71,89 +210,332 @@ export default function AdminApplicationsPage() {
       </header>
 
       <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-        <div className="mb-8">
-          <h2 className="text-3xl font-bold text-gray-900 mb-2">应用管理</h2>
-          <p className="text-gray-600">管理接入的OAuth2应用程序</p>
+        <div className="mb-8 flex justify-between items-center">
+          <div>
+            <h2 className="text-3xl font-bold text-gray-900 mb-2">OAuth2 应用管理</h2>
+            <p className="text-gray-600">管理接入的OAuth2应用程序和客户端</p>
+          </div>
+          <div className="flex space-x-3">
+            <button
+              onClick={loadApplications}
+              disabled={loadingData}
+              className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-xl font-medium transition-colors disabled:opacity-50"
+            >
+              {loadingData ? '刷新中...' : '刷新数据'}
+            </button>
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-xl font-medium transition-colors"
+            >
+              创建应用
+            </button>
+          </div>
         </div>
 
-        {/* 功能开发中的提示 */}
-        <div className="bg-white rounded-2xl border border-gray-200 p-12 text-center shadow-sm">
-          <div className="w-24 h-24 bg-purple-100 rounded-3xl flex items-center justify-center mx-auto mb-6">
-            <svg className="w-12 h-12 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-            </svg>
-          </div>
-          <h3 className="text-2xl font-bold text-gray-900 mb-4">OAuth2 应用管理</h3>
-          <p className="text-gray-600 mb-8 max-w-2xl mx-auto">
-            OAuth2应用注册和管理功能正在开发中。此功能将允许您管理第三方应用程序的接入，设置权限范围和回调地址。
-          </p>
-          
-          {/* 即将推出的功能预览 */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-12">
-            <div className="bg-gray-50 rounded-xl p-6">
-              <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center mx-auto mb-4">
-                <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+        {/* 统计卡片 */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <div className="bg-white rounded-xl border border-gray-200 p-6">
+            <div className="flex items-center">
+              <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                 </svg>
               </div>
-              <h4 className="font-semibold text-gray-900 mb-2">应用注册</h4>
-              <p className="text-sm text-gray-600">支持第三方应用注册OAuth2客户端</p>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">总应用数</p>
+                <p className="text-2xl font-bold text-gray-900">{applications.length}</p>
+              </div>
             </div>
-            
-            <div className="bg-gray-50 rounded-xl p-6">
-              <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center mx-auto mb-4">
-                <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          </div>
+
+          <div className="bg-white rounded-xl border border-gray-200 p-6">
+            <div className="flex items-center">
+              <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">活跃应用</p>
+                <p className="text-2xl font-bold text-gray-900">{applications.filter(app => app.is_active).length}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl border border-gray-200 p-6">
+            <div className="flex items-center">
+              <div className="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center">
+                <svg className="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                 </svg>
               </div>
-              <h4 className="font-semibold text-gray-900 mb-2">权限管理</h4>
-              <p className="text-sm text-gray-600">精细化控制应用访问权限</p>
-            </div>
-            
-            <div className="bg-gray-50 rounded-xl p-6">
-              <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center mx-auto mb-4">
-                <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                </svg>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">需要MFA</p>
+                <p className="text-2xl font-bold text-gray-900">{applications.filter(app => app.require_mfa).length}</p>
               </div>
-              <h4 className="font-semibold text-gray-900 mb-2">使用统计</h4>
-              <p className="text-sm text-gray-600">监控应用使用情况和数据统计</p>
             </div>
           </div>
 
-          {/* OAuth2流程图 */}
-          <div className="mt-12 bg-gradient-to-r from-purple-50 to-blue-50 rounded-xl p-8">
-            <h4 className="text-lg font-semibold text-gray-900 mb-6">OAuth2 授权流程</h4>
-            <div className="flex items-center justify-center space-x-8 text-sm">
-              <div className="text-center">
-                <div className="w-12 h-12 bg-blue-500 text-white rounded-xl flex items-center justify-center mx-auto mb-2">1</div>
-                <p className="font-medium">用户授权</p>
+          <div className="bg-white rounded-xl border border-gray-200 p-6">
+            <div className="flex items-center">
+              <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
+                <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
               </div>
-              <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-              </svg>
-              <div className="text-center">
-                <div className="w-12 h-12 bg-green-500 text-white rounded-xl flex items-center justify-center mx-auto mb-2">2</div>
-                <p className="font-medium">授权码返回</p>
-              </div>
-              <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-              </svg>
-              <div className="text-center">
-                <div className="w-12 h-12 bg-purple-500 text-white rounded-xl flex items-center justify-center mx-auto mb-2">3</div>
-                <p className="font-medium">获取访问令牌</p>
-              </div>
-              <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-              </svg>
-              <div className="text-center">
-                <div className="w-12 h-12 bg-orange-500 text-white rounded-xl flex items-center justify-center mx-auto mb-2">4</div>
-                <p className="font-medium">访问用户资源</p>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">高级应用</p>
+                <p className="text-2xl font-bold text-gray-900">{applications.filter(app => app.required_security_level >= 3).length}</p>
               </div>
             </div>
           </div>
         </div>
+
+        {/* 应用列表表格 */}
+        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+          <div className="px-6 py-4 border-b border-gray-200">
+            <h3 className="text-lg font-medium text-gray-900">OAuth2 应用列表</h3>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    应用信息
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Client ID
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    安全设置
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    回调地址
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    状态
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    创建时间
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    操作
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {applications.map((app) => (
+                  <tr key={app.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div>
+                        <div className="text-sm font-medium text-gray-900">{app.name}</div>
+                        {app.description && (
+                          <div className="text-sm text-gray-500">{app.description}</div>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <div className="text-sm font-mono font-medium text-gray-900 bg-gray-100 px-3 py-1 rounded-lg">
+                          {app.client_id}
+                        </div>
+                        <button
+                          onClick={() => navigator.clipboard.writeText(app.client_id)}
+                          className="ml-2 p-1 text-gray-400 hover:text-gray-600"
+                          title="复制Client ID"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                          </svg>
+                        </button>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex flex-col space-y-1">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getSecurityLevelColor(app.required_security_level)}`}>
+                          安全等级 {app.required_security_level}
+                        </span>
+                        {app.require_mfa && (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                            需要MFA
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">
+                        {app.redirect_uris.length > 0 ? (
+                          <div className="space-y-1">
+                            {app.redirect_uris.slice(0, 2).map((uri, index) => (
+                              <div key={index} className="text-xs bg-gray-100 px-2 py-1 rounded">
+                                {uri}
+                              </div>
+                            ))}
+                            {app.redirect_uris.length > 2 && (
+                              <div className="text-xs text-gray-500">
+                                +{app.redirect_uris.length - 2} 个更多
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-gray-500">无</span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        app.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                      }`}>
+                        {app.is_active ? '活跃' : '已停用'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {new Date(app.created_at).toLocaleDateString('zh-CN')}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() => openEditModal(app)}
+                          className="text-blue-600 hover:text-blue-900"
+                        >
+                          编辑
+                        </button>
+                        <button
+                          onClick={() => handleDeleteApplication(app.id)}
+                          className="text-red-600 hover:text-red-900"
+                        >
+                          删除
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
+
+      {/* 创建/编辑应用弹窗 */}
+      {(showCreateModal || editingApp) && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-screen overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-xl font-bold text-gray-900">
+                  {editingApp ? '编辑应用' : '创建OAuth2应用'}
+                </h3>
+                <button
+                  onClick={closeModal}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              <form onSubmit={editingApp ? handleEditApplication : handleCreateApplication}>
+                <div className="space-y-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      应用名称 *
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      placeholder="输入应用名称"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      应用描述
+                    </label>
+                    <textarea
+                      value={formData.description}
+                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                      className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      placeholder="输入应用描述"
+                      rows={3}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      回调地址
+                    </label>
+                    <textarea
+                      value={formData.redirect_uris}
+                      onChange={(e) => setFormData({ ...formData, redirect_uris: e.target.value })}
+                      className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      placeholder="每行一个URL，例如：&#10;https://example.com/callback&#10;https://app.example.com/auth/callback"
+                      rows={4}
+                    />
+                    <p className="text-sm text-gray-500 mt-1">每行输入一个回调URL</p>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        所需安全等级
+                      </label>
+                      <select
+                        value={formData.required_security_level}
+                        onChange={(e) => setFormData({ ...formData, required_security_level: parseInt(e.target.value) })}
+                        className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      >
+                        <option value={1}>等级 1 (普通)</option>
+                        <option value={2}>等级 2 (中级)</option>
+                        <option value={3}>等级 3 (高级)</option>
+                        <option value={4}>等级 4 (管理员)</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        多因子认证
+                      </label>
+                      <div className="flex items-center space-x-3 p-3">
+                        <input
+                          type="checkbox"
+                          id="require_mfa"
+                          checked={formData.require_mfa}
+                          onChange={(e) => setFormData({ ...formData, require_mfa: e.target.checked })}
+                          className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                        />
+                        <label htmlFor="require_mfa" className="text-sm text-gray-700">
+                          要求用户启用MFA才能访问
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-end space-x-3 mt-8">
+                  <button
+                    type="button"
+                    onClick={closeModal}
+                    className="px-6 py-3 text-gray-700 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors"
+                  >
+                    取消
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={creating}
+                    className="px-6 py-3 bg-purple-500 text-white rounded-xl hover:bg-purple-600 transition-colors disabled:opacity-50"
+                  >
+                    {creating ? '保存中...' : (editingApp ? '更新应用' : '创建应用')}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

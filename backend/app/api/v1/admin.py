@@ -107,7 +107,7 @@ async def list_users(
 
 @router.put("/users/{user_id}/security-level")
 async def update_user_security_level(
-    user_id: uuid.UUID,
+    user_id: str,
     security_level: int,
     admin_user: User = Depends(require_admin),
     db: Session = Depends(get_db)
@@ -134,7 +134,7 @@ async def update_user_security_level(
 
 @router.delete("/users/{user_id}")
 async def deactivate_user(
-    user_id: uuid.UUID,
+    user_id: str,
     admin_user: User = Depends(require_admin),
     db: Session = Depends(get_db)
 ):
@@ -195,7 +195,7 @@ async def list_applications(
 
 @router.put("/applications/{app_id}")
 async def update_application(
-    app_id: uuid.UUID,
+    app_id: str,
     app_data: ApplicationCreate,
     admin_user: User = Depends(require_admin),
     db: Session = Depends(get_db)
@@ -223,7 +223,7 @@ async def update_application(
 
 @router.delete("/applications/{app_id}")
 async def delete_application(
-    app_id: uuid.UUID,
+    app_id: str,
     admin_user: User = Depends(require_admin),
     db: Session = Depends(get_db)
 ):
@@ -264,7 +264,7 @@ async def create_permission(
 
 @router.post("/users/{user_id}/permissions/{permission_id}/grant")
 async def grant_permission(
-    user_id: uuid.UUID,
+    user_id: str,
     permission_id: uuid.UUID,
     application_id: uuid.UUID,
     admin_user: User = Depends(require_admin),
@@ -282,7 +282,7 @@ async def grant_permission(
 
 @router.delete("/users/{user_id}/permissions/{permission_id}")
 async def revoke_permission(
-    user_id: uuid.UUID,
+    user_id: str,
     permission_id: uuid.UUID,
     application_id: uuid.UUID,
     admin_user: User = Depends(require_admin),
