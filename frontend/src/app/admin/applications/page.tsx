@@ -137,6 +137,11 @@ export default function AdminApplicationsPage() {
       await apiClient.updateApplication(editingApp.id, {
         name: formData.name,
         description: formData.description || undefined,
+        logo_url: formData.logo_url || undefined,
+        website_url: formData.website_url || undefined,
+        support_email: formData.support_email || undefined,
+        privacy_policy_url: formData.privacy_policy_url || undefined,
+        terms_of_service_url: formData.terms_of_service_url || undefined,
         redirect_uris: formData.redirect_uris.split('\n').filter(uri => uri.trim()),
         required_security_level: formData.required_security_level,
         require_mfa: formData.require_mfa
@@ -167,6 +172,11 @@ export default function AdminApplicationsPage() {
     setFormData({
       name: app.name,
       description: app.description || '',
+      logo_url: app.logo_url || '',
+      website_url: app.website_url || '',
+      support_email: app.support_email || '',
+      privacy_policy_url: app.privacy_policy_url || '',
+      terms_of_service_url: app.terms_of_service_url || '',
       redirect_uris: app.redirect_uris.join('\n'),
       required_security_level: app.required_security_level,
       require_mfa: app.require_mfa
@@ -179,6 +189,11 @@ export default function AdminApplicationsPage() {
     setFormData({
       name: '',
       description: '',
+      logo_url: '',
+      website_url: '',
+      support_email: '',
+      privacy_policy_url: '',
+      terms_of_service_url: '',
       redirect_uris: '',
       required_security_level: 1,
       require_mfa: false
@@ -562,6 +577,76 @@ export default function AdminApplicationsPage() {
                       placeholder="输入应用描述"
                       rows={3}
                     />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      应用图标 URL
+                    </label>
+                    <input
+                      type="url"
+                      value={formData.logo_url}
+                      onChange={(e) => setFormData({ ...formData, logo_url: e.target.value })}
+                      className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      placeholder="https://example.com/logo.png"
+                    />
+                    <p className="text-sm text-gray-500 mt-1">应用图标将在OAuth授权页面显示</p>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        应用官网
+                      </label>
+                      <input
+                        type="url"
+                        value={formData.website_url}
+                        onChange={(e) => setFormData({ ...formData, website_url: e.target.value })}
+                        className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        placeholder="https://example.com"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        支持邮箱
+                      </label>
+                      <input
+                        type="email"
+                        value={formData.support_email}
+                        onChange={(e) => setFormData({ ...formData, support_email: e.target.value })}
+                        className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        placeholder="support@example.com"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        隐私政策链接
+                      </label>
+                      <input
+                        type="url"
+                        value={formData.privacy_policy_url}
+                        onChange={(e) => setFormData({ ...formData, privacy_policy_url: e.target.value })}
+                        className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        placeholder="https://example.com/privacy"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        服务条款链接
+                      </label>
+                      <input
+                        type="url"
+                        value={formData.terms_of_service_url}
+                        onChange={(e) => setFormData({ ...formData, terms_of_service_url: e.target.value })}
+                        className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        placeholder="https://example.com/terms"
+                      />
+                    </div>
                   </div>
 
                   <div>

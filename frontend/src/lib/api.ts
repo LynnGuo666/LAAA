@@ -270,6 +270,17 @@ class ApiClient {
     return response.data;
   }
 
+  // OAuth 相关 API
+  async getOAuthMetadata(): Promise<any> {
+    const response = await axios.get(`${this.baseURL}/oauth/.well-known/oauth-authorization-server`);
+    return response.data;
+  }
+
+  async getApplicationInfo(clientId: string): Promise<any> {
+    const response = await axios.get(`${this.baseURL}/oauth/app-info?client_id=${clientId}`);
+    return response.data;
+  }
+
   async getSystemStats(): Promise<SystemStats> {
     const response: AxiosResponse<SystemStats> = await axios.get(
       `${this.baseURL}/api/v1/admin/stats`

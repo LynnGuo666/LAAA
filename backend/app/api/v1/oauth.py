@@ -13,6 +13,30 @@ from .auth import get_current_user
 router = APIRouter()
 
 
+@router.get("/.well-known/oauth-authorization-server")
+async def oauth_metadata():
+    """OAuth2.0 授权服务器元数据发现端点"""
+    return {
+        "issuer": "http://localhost:8000",
+        "authorization_endpoint": "http://localhost:8000/oauth/authorize",
+        "token_endpoint": "http://localhost:8000/oauth/token",
+        "userinfo_endpoint": "http://localhost:8000/oauth/userinfo",
+        "revocation_endpoint": "http://localhost:8000/oauth/revoke",
+        "jwks_uri": "http://localhost:8000/oauth/.well-known/jwks.json",
+        "response_types_supported": ["code"],
+        "grant_types_supported": ["authorization_code", "refresh_token", "client_credentials"],
+        "subject_types_supported": ["public"],
+        "id_token_signing_alg_values_supported": ["HS256"],
+        "scopes_supported": ["read", "profile", "email"],
+        "token_endpoint_auth_methods_supported": ["client_secret_post", "client_secret_basic"],
+        "claims_supported": [
+            "sub", "iss", "aud", "exp", "iat", "auth_time",
+            "username", "email", "email_verified", "security_level"
+        ],
+        "code_challenge_methods_supported": ["S256", "plain"]
+    }
+
+
 @router.get("/app-info")
 async def get_application_info(
     client_id: str = Query(...),

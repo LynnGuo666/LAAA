@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.security import HTTPBearer
 from .api.v1 import api_router
+from .api.v1.oauth import router as oauth_router
 from .core.config import settings
 from .core.database import engine
 from .models import Base
@@ -34,12 +35,11 @@ app.add_middleware(
 # API路由
 app.include_router(api_router, prefix=settings.API_V1_STR)
 
-# OAuth2端点 (在根路径)
+# OAuth2端点 (直接在根路径下，不加/api/v1前缀)
 app.include_router(
-    api_router, 
+    oauth_router, 
     prefix="/oauth",
-    tags=["oauth"],
-    include_in_schema=False
+    tags=["oauth"]
 )
 
 
