@@ -176,6 +176,11 @@ class ApiClient {
   async createApplication(data: {
     name: string;
     description?: string;
+    logo_url?: string;
+    website_url?: string;
+    support_email?: string;
+    privacy_policy_url?: string;
+    terms_of_service_url?: string;
     redirect_uris?: string[];
     required_security_level?: number;
     require_mfa?: boolean;
@@ -197,6 +202,11 @@ class ApiClient {
   async updateApplication(appId: string, data: {
     name: string;
     description?: string;
+    logo_url?: string;
+    website_url?: string;
+    support_email?: string;
+    privacy_policy_url?: string;
+    terms_of_service_url?: string;
     redirect_uris?: string[];
     required_security_level?: number;
     require_mfa?: boolean;
@@ -207,6 +217,56 @@ class ApiClient {
 
   async deleteApplication(appId: string): Promise<{ message: string }> {
     const response = await axios.delete(`${this.baseURL}/api/v1/admin/applications/${appId}`);
+    return response.data;
+  }
+
+  // 应用用户管理API
+  async getApplicationUsers(appId: string): Promise<{
+    users: Array<{
+      id: string;
+      username: string;
+      email: string;
+      security_level: number;
+      is_active: boolean;
+      granted_at: string;
+    }>
+  }> {
+    const response = await axios.get(
+      `${this.baseURL}/api/v1/admin/applications/${appId}/users`
+    );
+    return response.data;
+  }
+
+  async getAvailableUsersForApplication(appId: string): Promise<{
+    users: Array<{
+      id: string;
+      username: string;
+      email: string;
+      security_level: number;
+    }>
+  }> {
+    const response = await axios.get(
+      `${this.baseURL}/api/v1/admin/applications/${appId}/available-users`
+    );
+    return response.data;
+  }
+
+  async grantApplicationAccess(appId: string, userId: string): Promise<{
+    message: string;
+    permission_id: string;
+  }> {
+    const response = await axios.post(
+      `${this.baseURL}/api/v1/admin/applications/${appId}/users/${userId}/grant-access`
+    );
+    return response.data;
+  }
+
+  async revokeApplicationAccess(appId: string, userId: string): Promise<{
+    message: string;
+  }> {
+    const response = await axios.delete(
+      `${this.baseURL}/api/v1/admin/applications/${appId}/users/${userId}/revoke-access`
+    );
     return response.data;
   }
 

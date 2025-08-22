@@ -54,6 +54,11 @@ export interface Application {
   id: string;
   name: string;
   description?: string;
+  logo_url?: string;
+  website_url?: string;
+  support_email?: string;
+  privacy_policy_url?: string;
+  terms_of_service_url?: string;
   client_id: string;
   redirect_uris: string[];
   required_security_level: number;

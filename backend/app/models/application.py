@@ -11,6 +11,11 @@ class Application(Base):
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     name = Column(String(100), nullable=False)
     description = Column(Text)
+    logo_url = Column(String(500))  # 应用图标URL
+    website_url = Column(String(500))  # 应用官网
+    support_email = Column(String(255))  # 支持邮箱
+    privacy_policy_url = Column(String(500))  # 隐私政策链接
+    terms_of_service_url = Column(String(500))  # 服务条款链接
     client_id = Column(String(255), unique=True, index=True, nullable=False)
     client_secret = Column(String(255), nullable=False)
     redirect_uris = Column(JSON, default=list)

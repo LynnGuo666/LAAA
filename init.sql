@@ -11,6 +11,7 @@ INSERT INTO permissions (id, name, resource, action, required_security_level, re
 (gen_random_uuid(), 'Create Applications', 'applications', 'create', 3, true),
 (gen_random_uuid(), 'Update Applications', 'applications', 'update', 3, true),
 (gen_random_uuid(), 'Delete Applications', 'applications', 'delete', 4, true),
+(gen_random_uuid(), 'Access Applications', 'applications', 'access', 1, false),
 (gen_random_uuid(), 'Manage Invitations', 'invitations', 'manage', 3, false),
 (gen_random_uuid(), 'System Admin', 'system', 'admin', 4, true);
 

@@ -26,6 +26,11 @@ class InvitationCodeResponse(BaseModel):
 class ApplicationCreate(BaseModel):
     name: str
     description: Optional[str] = None
+    logo_url: Optional[str] = None
+    website_url: Optional[str] = None
+    support_email: Optional[str] = None
+    privacy_policy_url: Optional[str] = None
+    terms_of_service_url: Optional[str] = None
     redirect_uris: List[str] = []
     required_security_level: int = 1
     require_mfa: bool = False
@@ -35,6 +40,11 @@ class ApplicationResponse(BaseModel):
     id: str
     name: str
     description: Optional[str]
+    logo_url: Optional[str]
+    website_url: Optional[str]
+    support_email: Optional[str]
+    privacy_policy_url: Optional[str]
+    terms_of_service_url: Optional[str]
     client_id: str
     redirect_uris: List[str]
     required_security_level: int

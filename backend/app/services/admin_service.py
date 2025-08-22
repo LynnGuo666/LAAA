@@ -104,8 +104,10 @@ class AdminService:
         return False
 
     def create_application(self, creator_id: uuid.UUID, name: str, description: str = None,
-                         redirect_uris: List[str] = None, required_security_level: int = 1,
-                         require_mfa: bool = False) -> Application:
+                         logo_url: str = None, website_url: str = None, 
+                         support_email: str = None, privacy_policy_url: str = None,
+                         terms_of_service_url: str = None, redirect_uris: List[str] = None, 
+                         required_security_level: int = 1, require_mfa: bool = False) -> Application:
         """创建应用"""
         import secrets
         
@@ -115,6 +117,11 @@ class AdminService:
         app = Application(
             name=name,
             description=description,
+            logo_url=logo_url,
+            website_url=website_url,
+            support_email=support_email,
+            privacy_policy_url=privacy_policy_url,
+            terms_of_service_url=terms_of_service_url,
             client_id=client_id,
             client_secret=client_secret,
             redirect_uris=redirect_uris or [],
@@ -233,6 +240,142 @@ class AdminService:
             query = query.filter(UserPermission.application_id == application_id)
             
         return query.all()
+
+    def grant_application_access(self, user_id: str, application_id: str) -> UserPermission:
+        """授予用户应用访问权限"""
+        # 获取应用访问权限
+        access_permission = self.db.query(Permission).filter(
+            and_(
+                Permission.resource == "applications",
+                Permission.action == "access"
+            )
+        ).first()
+        
+        if not access_permission:
+            raise ValueError("Application access permission not found")
+            
+        # 检查是否已经有权限
+        existing = self.db.query(UserPermission).filter(
+            and_(
+                UserPermission.user_id == user_id,
+                UserPermission.permission_id == access_permission.id,
+                UserPermission.application_id == application_id
+            )
+        ).first()
+        
+        if existing:
+            return existing
+            
+        # 创建新权限
+        user_permission = UserPermission(
+            user_id=user_id,
+            permission_id=access_permission.id,
+            application_id=application_id
+        )
+        
+        self.db.add(user_permission)
+        self.db.commit()
+        
+        return user_permission
+
+    def revoke_application_access(self, user_id: str, application_id: str) -> bool:
+        """撤销用户应用访问权限"""
+        # 获取应用访问权限
+        access_permission = self.db.query(Permission).filter(
+            and_(
+                Permission.resource == "applications",
+                Permission.action == "access"
+            )
+        ).first()
+        
+        if not access_permission:
+            return False
+            
+        user_permission = self.db.query(UserPermission).filter(
+            and_(
+                UserPermission.user_id == user_id,
+                UserPermission.permission_id == access_permission.id,
+                UserPermission.application_id == application_id
+            )
+        ).first()
+        
+        if user_permission:
+            self.db.delete(user_permission)
+            self.db.commit()
+            return True
+            
+        return False
+
+    def get_application_users(self, application_id: str) -> List[dict]:
+        """获取有权限访问应用的用户列表"""
+        access_permission = self.db.query(Permission).filter(
+            and_(
+                Permission.resource == "applications",
+                Permission.action == "access"
+            )
+        ).first()
+        
+        if not access_permission:
+            return []
+            
+        users = self.db.query(User).join(
+            UserPermission,
+            and_(
+                UserPermission.user_id == User.id,
+                UserPermission.permission_id == access_permission.id,
+                UserPermission.application_id == application_id
+            )
+        ).all()
+        
+        return [{
+            "id": user.id,
+            "username": user.username,
+            "email": user.email,
+            "security_level": user.security_level,
+            "is_active": user.is_active,
+            "granted_at": self.db.query(UserPermission).filter(
+                and_(
+                    UserPermission.user_id == user.id,
+                    UserPermission.permission_id == access_permission.id,
+                    UserPermission.application_id == application_id
+                )
+            ).first().granted_at
+        } for user in users]
+
+    def get_available_users_for_application(self, application_id: str) -> List[dict]:
+        """获取可以授权给应用的用户列表（排除已有权限的用户）"""
+        access_permission = self.db.query(Permission).filter(
+            and_(
+                Permission.resource == "applications",
+                Permission.action == "access"
+            )
+        ).first()
+        
+        if not access_permission:
+            return []
+            
+        # 获取已经有权限的用户ID
+        authorized_user_ids = self.db.query(UserPermission.user_id).filter(
+            and_(
+                UserPermission.permission_id == access_permission.id,
+                UserPermission.application_id == application_id
+            )
+        ).subquery()
+        
+        # 获取没有权限的活跃用户
+        users = self.db.query(User).filter(
+            and_(
+                User.is_active == True,
+                ~User.id.in_(authorized_user_ids)
+            )
+        ).all()
+        
+        return [{
+            "id": user.id,
+            "username": user.username,
+            "email": user.email,
+            "security_level": user.security_level
+        } for user in users]
 
     def get_system_stats(self) -> dict:
         """获取系统统计信息"""

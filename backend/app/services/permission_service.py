@@ -93,6 +93,29 @@ class PermissionService:
         if application.require_mfa and not user.totp_enabled:
             return False
             
+        # 检查用户是否有应用访问权限（白名单验证）
+        access_permission = self.db.query(Permission).filter(
+            and_(
+                Permission.resource == "applications",
+                Permission.action == "access"
+            )
+        ).first()
+        
+        # 如果系统中存在应用访问权限，则必须检查用户是否被授权
+        if access_permission:
+            user_has_access = self.db.query(UserPermission).filter(
+                and_(
+                    UserPermission.user_id == str(user_id),
+                    UserPermission.permission_id == access_permission.id,
+                    UserPermission.application_id == str(application_id)
+                )
+            ).first()
+            
+            # 如果用户没有被明确授权访问这个应用，拒绝访问
+            if not user_has_access:
+                return False
+        # 如果系统中没有应用访问权限配置，则使用传统的检查方式（基于安全等级和MFA）
+        
         return True
 
     def grant_device_permission(self, user_id: uuid.UUID, application_id: uuid.UUID,

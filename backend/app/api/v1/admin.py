@@ -170,6 +170,11 @@ async def create_application(
         creator_id=admin_user.id,
         name=app_data.name,
         description=app_data.description,
+        logo_url=app_data.logo_url,
+        website_url=app_data.website_url,
+        support_email=app_data.support_email,
+        privacy_policy_url=app_data.privacy_policy_url,
+        terms_of_service_url=app_data.terms_of_service_url,
         redirect_uris=app_data.redirect_uris,
         required_security_level=app_data.required_security_level,
         require_mfa=app_data.require_mfa
@@ -207,6 +212,11 @@ async def update_application(
         app_id,
         name=app_data.name,
         description=app_data.description,
+        logo_url=app_data.logo_url,
+        website_url=app_data.website_url,
+        support_email=app_data.support_email,
+        privacy_policy_url=app_data.privacy_policy_url,
+        terms_of_service_url=app_data.terms_of_service_url,
         redirect_uris=app_data.redirect_uris,
         required_security_level=app_data.required_security_level,
         require_mfa=app_data.require_mfa
@@ -315,3 +325,80 @@ async def get_system_stats(
     stats = admin_service.get_system_stats()
     
     return stats
+
+
+@router.get("/applications/{app_id}/users")
+async def get_application_users(
+    app_id: str,
+    admin_user: User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """获取有权限访问应用的用户列表"""
+    admin_service = AdminService(db)
+    
+    users = admin_service.get_application_users(app_id)
+    
+    return {"users": users}
+
+
+@router.get("/applications/{app_id}/available-users")
+async def get_available_users_for_application(
+    app_id: str,
+    admin_user: User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """获取可以授权给应用的用户列表"""
+    admin_service = AdminService(db)
+    
+    users = admin_service.get_available_users_for_application(app_id)
+    
+    return {"users": users}
+
+
+@router.post("/applications/{app_id}/users/{user_id}/grant-access")
+async def grant_application_access(
+    app_id: str,
+    user_id: str,
+    admin_user: User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """授予用户应用访问权限"""
+    admin_service = AdminService(db)
+    
+    try:
+        user_permission = admin_service.grant_application_access(user_id, app_id)
+        return {
+            "message": "Application access granted successfully",
+            "permission_id": user_permission.id
+        }
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to grant application access"
+        )
+
+
+@router.delete("/applications/{app_id}/users/{user_id}/revoke-access")
+async def revoke_application_access(
+    app_id: str,
+    user_id: str,
+    admin_user: User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """撤销用户应用访问权限"""
+    admin_service = AdminService(db)
+    
+    success = admin_service.revoke_application_access(user_id, app_id)
+    
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Application access permission not found"
+        )
+    
+    return {"message": "Application access revoked successfully"}

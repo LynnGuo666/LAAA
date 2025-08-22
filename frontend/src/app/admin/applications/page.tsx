@@ -10,9 +10,30 @@ import Link from 'next/link';
 interface ApplicationFormData {
   name: string;
   description: string;
+  logo_url: string;
+  website_url: string;
+  support_email: string;
+  privacy_policy_url: string;
+  terms_of_service_url: string;
   redirect_uris: string;
   required_security_level: number;
   require_mfa: boolean;
+}
+
+interface AppUser {
+  id: string;
+  username: string;
+  email: string;
+  security_level: number;
+  is_active: boolean;
+  granted_at: string;
+}
+
+interface AvailableUser {
+  id: string;
+  username: string;
+  email: string;
+  security_level: number;
 }
 
 export default function AdminApplicationsPage() {
@@ -23,9 +44,19 @@ export default function AdminApplicationsPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [creating, setCreating] = useState(false);
   const [editingApp, setEditingApp] = useState<Application | null>(null);
+  const [showUserModal, setShowUserModal] = useState<string | null>(null);
+  const [appUsers, setAppUsers] = useState<AppUser[]>([]);
+  const [availableUsers, setAvailableUsers] = useState<AvailableUser[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [managingAccess, setManagingAccess] = useState(false);
   const [formData, setFormData] = useState<ApplicationFormData>({
     name: '',
     description: '',
+    logo_url: '',
+    website_url: '',
+    support_email: '',
+    privacy_policy_url: '',
+    terms_of_service_url: '',
     redirect_uris: '',
     required_security_level: 1,
     require_mfa: false
@@ -65,6 +96,11 @@ export default function AdminApplicationsPage() {
       await apiClient.createApplication({
         name: formData.name,
         description: formData.description || undefined,
+        logo_url: formData.logo_url || undefined,
+        website_url: formData.website_url || undefined,
+        support_email: formData.support_email || undefined,
+        privacy_policy_url: formData.privacy_policy_url || undefined,
+        terms_of_service_url: formData.terms_of_service_url || undefined,
         redirect_uris: formData.redirect_uris.split('\n').filter(uri => uri.trim()),
         required_security_level: formData.required_security_level,
         require_mfa: formData.require_mfa
@@ -74,6 +110,11 @@ export default function AdminApplicationsPage() {
       setFormData({
         name: '',
         description: '',
+        logo_url: '',
+        website_url: '',
+        support_email: '',
+        privacy_policy_url: '',
+        terms_of_service_url: '',
         redirect_uris: '',
         required_security_level: 1,
         require_mfa: false
@@ -142,6 +183,59 @@ export default function AdminApplicationsPage() {
       required_security_level: 1,
       require_mfa: false
     });
+  };
+
+  const loadApplicationUsers = async (appId: string) => {
+    setLoadingUsers(true);
+    try {
+      const [usersData, availableData] = await Promise.all([
+        apiClient.getApplicationUsers(appId),
+        apiClient.getAvailableUsersForApplication(appId)
+      ]);
+      setAppUsers(usersData.users);
+      setAvailableUsers(availableData.users);
+    } catch (error) {
+      console.error('Failed to load application users:', error);
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
+  const openUserModal = async (appId: string) => {
+    setShowUserModal(appId);
+    await loadApplicationUsers(appId);
+  };
+
+  const closeUserModal = () => {
+    setShowUserModal(null);
+    setAppUsers([]);
+    setAvailableUsers([]);
+  };
+
+  const handleGrantAccess = async (appId: string, userId: string) => {
+    setManagingAccess(true);
+    try {
+      await apiClient.grantApplicationAccess(appId, userId);
+      await loadApplicationUsers(appId);
+    } catch (error) {
+      console.error('Failed to grant access:', error);
+    } finally {
+      setManagingAccess(false);
+    }
+  };
+
+  const handleRevokeAccess = async (appId: string, userId: string) => {
+    if (!confirm('确认撤销该用户的访问权限？')) return;
+    
+    setManagingAccess(true);
+    try {
+      await apiClient.revokeApplicationAccess(appId, userId);
+      await loadApplicationUsers(appId);
+    } catch (error) {
+      console.error('Failed to revoke access:', error);
+    } finally {
+      setManagingAccess(false);
+    }
   };
 
   const getSecurityLevelColor = (level: number) => {
@@ -395,6 +489,12 @@ export default function AdminApplicationsPage() {
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <div className="flex space-x-2">
                         <button
+                          onClick={() => openUserModal(app.id)}
+                          className="text-green-600 hover:text-green-900"
+                        >
+                          用户授权
+                        </button>
+                        <button
                           onClick={() => openEditModal(app)}
                           className="text-blue-600 hover:text-blue-900"
                         >
@@ -532,6 +632,119 @@ export default function AdminApplicationsPage() {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 用户授权管理弹窗 */}
+      {showUserModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl max-w-4xl w-full max-h-screen overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-xl font-bold text-gray-900">
+                  应用用户授权管理
+                </h3>
+                <button
+                  onClick={closeUserModal}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              {loadingUsers ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* 已授权用户列表 */}
+                  <div className="bg-green-50 rounded-xl p-6">
+                    <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                      <svg className="w-5 h-5 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      已授权用户 ({appUsers.length})
+                    </h4>
+                    <div className="space-y-3 max-h-96 overflow-y-auto">
+                      {appUsers.length === 0 ? (
+                        <p className="text-gray-500 text-center py-4">暂无用户被授权访问此应用</p>
+                      ) : (
+                        appUsers.map((user) => (
+                          <div key={user.id} className="bg-white rounded-lg p-4 flex items-center justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center">
+                                <h5 className="font-medium text-gray-900">{user.username}</h5>
+                                <span className={`ml-2 px-2 py-1 text-xs rounded-full ${
+                                  user.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                                }`}>
+                                  {user.is_active ? '活跃' : '停用'}
+                                </span>
+                              </div>
+                              <p className="text-sm text-gray-600">{user.email}</p>
+                              <p className="text-xs text-gray-500">
+                                安全等级: {user.security_level} | 授权时间: {new Date(user.granted_at).toLocaleDateString('zh-CN')}
+                              </p>
+                            </div>
+                            <button
+                              onClick={() => handleRevokeAccess(showUserModal, user.id)}
+                              disabled={managingAccess}
+                              className="ml-3 px-3 py-1 bg-red-500 text-white text-sm rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50"
+                            >
+                              撤销
+                            </button>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+
+                  {/* 可授权用户列表 */}
+                  <div className="bg-blue-50 rounded-xl p-6">
+                    <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                      <svg className="w-5 h-5 text-blue-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                      </svg>
+                      可授权用户 ({availableUsers.length})
+                    </h4>
+                    <div className="space-y-3 max-h-96 overflow-y-auto">
+                      {availableUsers.length === 0 ? (
+                        <p className="text-gray-500 text-center py-4">所有用户都已被授权或无可用用户</p>
+                      ) : (
+                        availableUsers.map((user) => (
+                          <div key={user.id} className="bg-white rounded-lg p-4 flex items-center justify-between">
+                            <div className="flex-1">
+                              <h5 className="font-medium text-gray-900">{user.username}</h5>
+                              <p className="text-sm text-gray-600">{user.email}</p>
+                              <p className="text-xs text-gray-500">安全等级: {user.security_level}</p>
+                            </div>
+                            <button
+                              onClick={() => handleGrantAccess(showUserModal, user.id)}
+                              disabled={managingAccess}
+                              className="ml-3 px-3 py-1 bg-blue-500 text-white text-sm rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50"
+                            >
+                              授权
+                            </button>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex justify-end mt-6">
+                <button
+                  onClick={closeUserModal}
+                  className="px-6 py-3 text-gray-700 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors"
+                >
+                  关闭
+                </button>
+              </div>
             </div>
           </div>
         </div>

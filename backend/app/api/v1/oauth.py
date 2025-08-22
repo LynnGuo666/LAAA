@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Request, Form
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 from typing import Optional
@@ -13,8 +13,37 @@ from .auth import get_current_user
 router = APIRouter()
 
 
+@router.get("/app-info")
+async def get_application_info(
+    client_id: str = Query(...),
+    db: Session = Depends(get_db)
+):
+    """获取应用信息用于授权页面展示"""
+    oauth_service = OAuthService(db)
+    
+    application = oauth_service.validate_application(client_id)
+    if not application:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid client"
+        )
+    
+    return {
+        "id": application.id,
+        "name": application.name,
+        "description": application.description,
+        "logo_url": application.logo_url,
+        "website_url": application.website_url,
+        "support_email": application.support_email,
+        "privacy_policy_url": application.privacy_policy_url,
+        "terms_of_service_url": application.terms_of_service_url,
+        "required_security_level": application.required_security_level,
+        "require_mfa": application.require_mfa
+    }
+
+
 @router.get("/authorize")
-async def authorize(
+async def authorize_get(
     response_type: str = Query(...),
     client_id: str = Query(...),
     redirect_uri: str = Query(...),
@@ -23,7 +52,7 @@ async def authorize(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """OAuth2 授权端点"""
+    """OAuth2 授权页面 - 显示应用信息供用户确认"""
     if response_type != "code":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -52,7 +81,80 @@ async def authorize(
     if not permission_service.check_application_access(current_user.id, application.id):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Insufficient permissions to access this application"
+            detail="您没有权限访问此应用"
+        )
+    
+    # 返回授权页面需要的信息
+    return {
+        "application": {
+            "id": application.id,
+            "name": application.name,
+            "description": application.description,
+            "logo_url": application.logo_url,
+            "website_url": application.website_url,
+            "support_email": application.support_email,
+            "privacy_policy_url": application.privacy_policy_url,
+            "terms_of_service_url": application.terms_of_service_url
+        },
+        "user": {
+            "username": current_user.username,
+            "email": current_user.email,
+            "security_level": current_user.security_level
+        },
+        "scopes": scope.split(),
+        "redirect_uri": redirect_uri,
+        "state": state
+    }
+
+
+@router.post("/authorize")
+async def authorize_post(
+    response_type: str = Form(...),
+    client_id: str = Form(...),
+    redirect_uri: str = Form(...),
+    scope: str = Form(default="read"),
+    state: Optional[str] = Form(default=None),
+    authorize: bool = Form(...),  # 用户是否同意授权
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """OAuth2 授权处理"""
+    if response_type != "code":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Unsupported response type"
+        )
+    
+    # 如果用户拒绝授权
+    if not authorize:
+        error_url = f"{redirect_uri}?error=access_denied"
+        if state:
+            error_url += f"&state={state}"
+        return RedirectResponse(url=error_url, status_code=302)
+    
+    oauth_service = OAuthService(db)
+    permission_service = PermissionService(db)
+    
+    # 验证应用
+    application = oauth_service.validate_application(client_id)
+    if not application:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid client"
+        )
+    
+    # 验证重定向URI
+    if not oauth_service.validate_redirect_uri(application, redirect_uri):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid redirect URI"
+        )
+    
+    # 检查应用访问权限
+    if not permission_service.check_application_access(current_user.id, application.id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="您没有权限访问此应用"
         )
     
     # 验证作用域
@@ -72,7 +174,7 @@ async def authorize(
     if state:
         redirect_url += f"&state={state}"
     
-    return RedirectResponse(url=redirect_url)
+    return RedirectResponse(url=redirect_url, status_code=302)
 
 
 @router.post("/token")
