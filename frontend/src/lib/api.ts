@@ -18,11 +18,10 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 class ApiClient {
   private baseURL: string;
-  private deviceId: string;
+  private deviceId: string | null = null;
 
   constructor() {
     this.baseURL = API_BASE_URL;
-    this.deviceId = this.getOrCreateDeviceId();
     
     // 请求拦截器 - 添加认证头和设备ID
     axios.interceptors.request.use((config) => {
@@ -30,7 +29,7 @@ class ApiClient {
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }
-      config.headers['X-Device-ID'] = this.deviceId;
+      config.headers['X-Device-ID'] = this.getDeviceId();
       return config;
     });
 
@@ -59,12 +58,22 @@ class ApiClient {
     );
   }
 
-  private getOrCreateDeviceId(): string {
+  private getDeviceId(): string {
+    if (this.deviceId) return this.deviceId;
+    
+    // 检查是否在浏览器环境
+    if (typeof window === 'undefined') {
+      // 服务端渲染时返回一个临时ID
+      this.deviceId = 'ssr-temp-device';
+      return this.deviceId;
+    }
+    
     let deviceId = localStorage.getItem('device_id');
     if (!deviceId) {
       deviceId = uuidv4();
       localStorage.setItem('device_id', deviceId);
     }
+    this.deviceId = deviceId;
     return deviceId;
   }
 
@@ -227,7 +236,9 @@ class ApiClient {
   logout(): void {
     Cookies.remove('access_token');
     Cookies.remove('refresh_token');
-    window.location.href = '/auth/login';
+    if (typeof window !== 'undefined') {
+      window.location.href = '/auth/login';
+    }
   }
 
   setTokens(accessToken: string, refreshToken: string): void {

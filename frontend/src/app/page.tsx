@@ -20,20 +20,28 @@ export default function Home() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary-500"></div>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="w-16 h-16 bg-blue-100 rounded-xl flex items-center justify-center mx-auto mb-4">
+            <div className="w-8 h-8 bg-blue-600 rounded-lg animate-pulse"></div>
+          </div>
+          <h1 className="text-2xl font-semibold text-gray-900 mb-2">LAAA</h1>
+          <p className="text-gray-600 mb-4">统一身份认证系统</p>
+          <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="max-w-md w-full space-y-8">
-        <div className="text-center">
-          <h1 className="text-4xl font-bold text-gray-900">LAAA</h1>
-          <p className="mt-2 text-sm text-gray-600">统一身份认证系统</p>
-          <p className="mt-4 text-gray-500">正在重定向...</p>
+      <div className="text-center">
+        <div className="w-16 h-16 bg-blue-100 rounded-xl flex items-center justify-center mx-auto mb-4">
+          <div className="w-8 h-8 bg-blue-600 rounded-lg"></div>
         </div>
+        <h1 className="text-2xl font-semibold text-gray-900 mb-2">LAAA</h1>
+        <p className="text-gray-600 mb-4">统一身份认证系统</p>
+        <p className="text-gray-500">正在重定向...</p>
       </div>
     </div>
   );

@@ -56,16 +56,17 @@ export default function RegisterPage() {
 
   if (success) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="max-w-md w-full space-y-8">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 max-w-md w-full mx-4">
           <div className="text-center">
-            <div className="mx-auto h-12 w-12 text-green-500">
-              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="w-16 h-16 bg-green-100 rounded-xl flex items-center justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
             </div>
-            <h2 className="mt-6 text-3xl font-extrabold text-gray-900">注册成功</h2>
-            <p className="mt-2 text-sm text-gray-600">正在跳转到登录页面...</p>
+            <h2 className="text-2xl font-semibold text-gray-900 mb-2">注册成功</h2>
+            <p className="text-gray-600 mb-4">您的账户已创建成功</p>
+            <p className="text-sm text-gray-500">正在跳转到登录页面...</p>
           </div>
         </div>
       </div>
@@ -73,118 +74,145 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
-        <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            注册新账户
-          </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
-            已有账户？{' '}
-            <Link href="/auth/login" className="font-medium text-primary-600 hover:text-primary-500">
-              立即登录
-            </Link>
+    <div className="min-h-screen bg-gray-50 flex">
+      {/* 左侧品牌区域 */}
+      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-indigo-600 to-purple-700 items-center justify-center p-12">
+        <div className="text-center text-white max-w-md">
+          <div className="w-20 h-20 bg-white bg-opacity-20 rounded-xl flex items-center justify-center mb-8 mx-auto">
+            <div className="w-10 h-10 bg-white rounded-lg"></div>
+          </div>
+          <h1 className="text-4xl font-light mb-4">加入 LAAA</h1>
+          <p className="text-xl font-light mb-6">开始您的安全认证之旅</p>
+          <p className="text-purple-100 leading-relaxed">
+            使用邀请码创建账户，享受企业级的身份认证服务。多重安全保障，让您的数字身份更安全。
           </p>
         </div>
-        
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit(onSubmit)}>
-          <div className="space-y-4">
-            <div>
-              <label htmlFor="username" className="block text-sm font-medium text-gray-700">
-                用户名
-              </label>
-              <input
-                {...register('username')}
-                type="text"
-                autoComplete="username"
-                className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-                placeholder="请输入用户名"
-              />
-              {errors.username && (
-                <p className="mt-1 text-sm text-red-600">{errors.username.message}</p>
-              )}
+      </div>
+
+      {/* 右侧注册表单 */}
+      <div className="flex-1 flex items-center justify-center p-8">
+        <div className="w-full max-w-md">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
+            <div className="text-center mb-8">
+              <h2 className="text-2xl font-semibold text-gray-900 mb-2">创建账户</h2>
+              <p className="text-gray-600">请填写以下信息完成注册</p>
             </div>
-            
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                邮箱地址
-              </label>
-              <input
-                {...register('email')}
-                type="email"
-                autoComplete="email"
-                className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-                placeholder="请输入邮箱地址"
-              />
-              {errors.email && (
-                <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
+
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+              <div>
+                <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2">
+                  用户名
+                </label>
+                <input
+                  {...register('username')}
+                  type="text"
+                  autoComplete="username"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-colors"
+                  placeholder="请输入用户名"
+                />
+                {errors.username && (
+                  <p className="mt-1 text-sm text-red-600">{errors.username.message}</p>
+                )}
+              </div>
+
+              <div>
+                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                  邮箱地址
+                </label>
+                <input
+                  {...register('email')}
+                  type="email"
+                  autoComplete="email"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-colors"
+                  placeholder="请输入邮箱地址"
+                />
+                {errors.email && (
+                  <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
+                )}
+              </div>
+
+              <div>
+                <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+                  密码
+                </label>
+                <input
+                  {...register('password')}
+                  type="password"
+                  autoComplete="new-password"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-colors"
+                  placeholder="请输入密码"
+                />
+                {errors.password && (
+                  <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>
+                )}
+              </div>
+
+              <div>
+                <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-2">
+                  确认密码
+                </label>
+                <input
+                  {...register('confirmPassword')}
+                  type="password"
+                  autoComplete="new-password"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-colors"
+                  placeholder="请再次输入密码"
+                />
+                {errors.confirmPassword && (
+                  <p className="mt-1 text-sm text-red-600">{errors.confirmPassword.message}</p>
+                )}
+              </div>
+
+              <div>
+                <label htmlFor="invitation_code" className="block text-sm font-medium text-gray-700 mb-2">
+                  邀请码
+                </label>
+                <input
+                  {...register('invitation_code')}
+                  type="text"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-colors"
+                  placeholder="请输入邀请码"
+                />
+                {errors.invitation_code && (
+                  <p className="mt-1 text-sm text-red-600">{errors.invitation_code.message}</p>
+                )}
+              </div>
+
+              {error && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                  <div className="flex">
+                    <div className="ml-3">
+                      <p className="text-sm text-red-700">{error}</p>
+                    </div>
+                  </div>
+                </div>
               )}
-            </div>
-            
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                密码
-              </label>
-              <input
-                {...register('password')}
-                type="password"
-                autoComplete="new-password"
-                className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-                placeholder="请输入密码"
-              />
-              {errors.password && (
-                <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>
-              )}
-            </div>
-            
-            <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
-                确认密码
-              </label>
-              <input
-                {...register('confirmPassword')}
-                type="password"
-                autoComplete="new-password"
-                className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-                placeholder="请再次输入密码"
-              />
-              {errors.confirmPassword && (
-                <p className="mt-1 text-sm text-red-600">{errors.confirmPassword.message}</p>
-              )}
-            </div>
-            
-            <div>
-              <label htmlFor="invitation_code" className="block text-sm font-medium text-gray-700">
-                邀请码
-              </label>
-              <input
-                {...register('invitation_code')}
-                type="text"
-                className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-                placeholder="请输入邀请码"
-              />
-              {errors.invitation_code && (
-                <p className="mt-1 text-sm text-red-600">{errors.invitation_code.message}</p>
-              )}
+
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="w-full bg-indigo-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-indigo-700 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {isLoading ? '注册中...' : '创建账户'}
+              </button>
+            </form>
+
+            <div className="mt-6 text-center">
+              <p className="text-gray-600">
+                已有账户？{' '}
+                <Link href="/auth/login" className="text-indigo-600 hover:text-indigo-700 font-medium">
+                  立即登录
+                </Link>
+              </p>
             </div>
           </div>
 
-          {error && (
-            <div className="rounded-md bg-red-50 p-4">
-              <div className="text-sm text-red-800">{error}</div>
-            </div>
-          )}
-
-          <div>
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isLoading ? '注册中...' : '注册'}
-            </button>
+          {/* 底部信息 */}
+          <div className="mt-8 text-center text-sm text-gray-500">
+            <p>注册即表示您同意我们的服务条款</p>
+            <p className="mt-1">© 2025 LAAA. 保留所有权利。</p>
           </div>
-        </form>
+        </div>
       </div>
     </div>
   );
