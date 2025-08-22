@@ -37,22 +37,7 @@ class ApiClient {
     axios.interceptors.response.use(
       (response) => response,
       async (error) => {
-        if (error.response?.status === 401) {
-          // 尝试刷新令牌
-          const refreshToken = Cookies.get('refresh_token');
-          if (refreshToken) {
-            try {
-              const response = await this.refreshToken(refreshToken);
-              Cookies.set('access_token', response.access_token);
-              // 重试原请求
-              return axios.request(error.config);
-            } catch (refreshError) {
-              this.logout();
-            }
-          } else {
-            this.logout();
-          }
-        }
+        // 暂时禁用自动token刷新，直接返回错误让组件处理
         return Promise.reject(error);
       }
     );
