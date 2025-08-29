@@ -395,7 +395,7 @@ async def get_user_permissions(
     for perm in permissions:
         # 获取关联的应用信息
         client = db.query(ClientApplication).filter(
-            ClientApplication.id == perm.client_id
+            ClientApplication.client_id == perm.client_id
         ).first()
         
         perm_data = {
@@ -446,12 +446,12 @@ async def grant_user_permission(
     
     # 确保权限组存在
     permission_group = db.query(ApplicationPermissionGroup).filter(
-        ApplicationPermissionGroup.client_id == client.id
+        ApplicationPermissionGroup.client_id == client.client_id
     ).first()
     
     if not permission_group:
         permission_group = ApplicationPermissionGroup(
-            client_id=client.id,
+            client_id=client.client_id,
             name="默认权限组",
             default_allowed=False,
             allowed_scopes=json.dumps(["openid", "profile", "email"])
@@ -463,7 +463,7 @@ async def grant_user_permission(
     # 查找现有权限
     existing = db.query(UserApplicationAccess).filter(
         UserApplicationAccess.user_id == user_id,
-        UserApplicationAccess.client_id == client.id
+        UserApplicationAccess.client_id == client.client_id
     ).first()
     
     if existing:
@@ -481,7 +481,7 @@ async def grant_user_permission(
         # 创建新权限
         new_permission = UserApplicationAccess(
             user_id=user_id,
-            client_id=client.id,
+            client_id=client.client_id,
             permission_group_id=permission_group.id,
             access_type=permission_data.get("access_type", "allowed"),
             custom_scopes=json.dumps(permission_data.get("scopes", [])),
@@ -526,7 +526,7 @@ async def revoke_user_permission(
     # 查找并删除权限
     permission = db.query(UserApplicationAccess).filter(
         UserApplicationAccess.user_id == user_id,
-        UserApplicationAccess.client_id == client.id
+        UserApplicationAccess.client_id == client.client_id
     ).first()
     
     if not permission:

@@ -90,7 +90,7 @@ class UserAuthorization(Base):
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     user_id = Column(String, ForeignKey("users.id"), nullable=False)
-    client_id = Column(String, ForeignKey("client_applications.id"), nullable=False)
+    client_id = Column(String, ForeignKey("client_applications.client_id"), nullable=False)
     scope = Column(String, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
@@ -105,7 +105,7 @@ class AuthorizationCode(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     code = Column(String, unique=True, index=True, nullable=False)
     user_id = Column(String, ForeignKey("users.id"), nullable=False)
-    client_id = Column(String, ForeignKey("client_applications.id"), nullable=False)
+    client_id = Column(String, ForeignKey("client_applications.client_id"), nullable=False)
     redirect_uri = Column(String, nullable=False)
     scope = Column(String, nullable=False)
     code_challenge = Column(String)  # PKCE
@@ -126,7 +126,7 @@ class ApplicationPermissionGroup(Base):
     __tablename__ = "application_permission_groups"
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    client_id = Column(String, ForeignKey("client_applications.id"), nullable=False)
+    client_id = Column(String, ForeignKey("client_applications.client_id"), nullable=False)
     
     # 权限组设置
     name = Column(String, nullable=False, default="默认权限组")
@@ -141,7 +141,7 @@ class ApplicationPermissionGroup(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
     # 关系
-    client = relationship("ClientApplication", back_populates="permission_groups")
+    client = relationship("ClientApplication", back_populates="permission_groups", foreign_keys=[client_id])
     user_permissions = relationship("UserApplicationAccess", back_populates="permission_group")
 
 
@@ -150,7 +150,7 @@ class UserApplicationAccess(Base):
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     user_id = Column(String, ForeignKey("users.id"), nullable=False)
-    client_id = Column(String, ForeignKey("client_applications.id"), nullable=False)
+    client_id = Column(String, ForeignKey("client_applications.client_id"), nullable=False)
     permission_group_id = Column(String, ForeignKey("application_permission_groups.id"), nullable=False)
     
     # 用户特定设置
@@ -191,7 +191,7 @@ class OAuth2Token(Base):
     scope = Column(String)
     
     user_id = Column(String, ForeignKey("users.id"), nullable=False)
-    client_id = Column(String, ForeignKey("client_applications.id"), nullable=False)
+    client_id = Column(String, ForeignKey("client_applications.client_id"), nullable=False)
     
     expires_at = Column(DateTime(timezone=True), nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -220,7 +220,7 @@ class LoginLog(Base):
     
     # 会话信息
     session_id = Column(String)
-    client_id = Column(String, ForeignKey("client_applications.id"))  # 如果通过OAuth登录
+    client_id = Column(String, ForeignKey("client_applications.client_id"))  # 如果通过OAuth登录
     
     # 地理位置信息（可选）
     country = Column(String)

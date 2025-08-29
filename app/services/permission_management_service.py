@@ -34,9 +34,9 @@ class PermissionManagementService:
                 requires_approval=False
             )
         
-        # 获取应用的权限组（使用应用的数据库ID）
+        # 获取应用的权限组
         permission_group = db.query(ApplicationPermissionGroup).filter(
-            ApplicationPermissionGroup.client_id == client_app.id
+            ApplicationPermissionGroup.client_id == client_app.client_id
         ).first()
         
         if not permission_group:
@@ -49,10 +49,10 @@ class PermissionManagementService:
                 requires_approval=False
             )
         
-        # 查找用户的访问记录（使用应用的数据库ID）
+        # 查找用户的访问记录
         user_access = db.query(UserApplicationAccess).filter(
             UserApplicationAccess.user_id == user_id,
-            UserApplicationAccess.client_id == client_app.id
+            UserApplicationAccess.client_id == client_app.client_id
         ).first()
         
         # 检查权限是否过期

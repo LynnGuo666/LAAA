@@ -179,13 +179,13 @@ async def get_permission_group(
         )
     
     group = db.query(ApplicationPermissionGroup).filter(
-        ApplicationPermissionGroup.client_id == client.id
+        ApplicationPermissionGroup.client_id == client.client_id
     ).first()
     
     if not group:
         # 如果不存在，创建默认权限组
         group = ApplicationPermissionGroup(
-            client_id=client.id,
+            client_id=client.client_id,
             name="默认权限组",
             default_allowed=False,
             allowed_scopes=json.dumps(["openid", "profile", "email"])
@@ -227,7 +227,7 @@ async def create_permission_group(
     
     result = PermissionManagementService.create_or_update_permission_group(
         db=db,
-        client_id=client_id,
+        client_id=client_id,  # 直接使用client_id
         name=group.name,
         description=group.description,
         default_allowed=group.default_allowed,
@@ -303,7 +303,7 @@ async def update_permission_group(
     # 获取现有权限组
     from app.models import ApplicationPermissionGroup
     existing_group = db.query(ApplicationPermissionGroup).filter(
-        ApplicationPermissionGroup.client_id == client_id
+        ApplicationPermissionGroup.client_id == client_id  # 直接使用client_id
     ).first()
     
     if not existing_group:

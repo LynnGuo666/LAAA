@@ -270,7 +270,7 @@ class OAuth2Service:
         if not client:
             raise HTTPException(status_code=400, detail="Invalid client")
         
-        if auth_code.client_id != client.id:
+        if auth_code.client_id != client.client_id:
             raise HTTPException(status_code=400, detail="Client mismatch")
         
         if auth_code.redirect_uri != redirect_uri:
@@ -334,7 +334,7 @@ class OAuth2Service:
             refresh_token=refresh_token,
             scope=auth_code.scope,
             user_id=user.id,
-            client_id=client.id,
+            client_id=client.client_id,
             expires_at=expires_at
         )
         db.add(oauth_token)
@@ -342,13 +342,13 @@ class OAuth2Service:
         # 创建或更新用户授权
         existing_auth = db.query(UserAuthorization).filter(
             UserAuthorization.user_id == user.id,
-            UserAuthorization.client_id == client.id
+            UserAuthorization.client_id == client.client_id
         ).first()
         
         if not existing_auth:
             user_auth = UserAuthorization(
                 user_id=user.id,
-                client_id=client.id,
+                client_id=client.client_id,
                 scope=auth_code.scope
             )
             db.add(user_auth)
@@ -419,7 +419,7 @@ class OAuth2Service:
             refresh_token=new_refresh_token,
             scope=original_token.scope,
             user_id=user_id,
-            client_id=client.id,
+            client_id=client.client_id,
             expires_at=expires_at
         )
         db.add(new_token)
