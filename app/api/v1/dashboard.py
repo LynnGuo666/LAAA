@@ -394,7 +394,7 @@ async def update_client(
     db: Session = Depends(get_db)
 ):
     """更新应用信息"""
-    client = db.query(ClientApplication).filter(ClientApplication.id == client_id).first()
+    client = db.query(ClientApplication).filter(ClientApplication.client_id == client_id).first()
     if not client:
         raise HTTPException(status_code=404, detail="应用不存在")
     
@@ -428,7 +428,7 @@ async def delete_client(
     db: Session = Depends(get_db)
 ):
     """删除应用"""
-    client = db.query(ClientApplication).filter(ClientApplication.id == client_id).first()
+    client = db.query(ClientApplication).filter(ClientApplication.client_id == client_id).first()
     if not client:
         raise HTTPException(status_code=404, detail="应用不存在")
     
