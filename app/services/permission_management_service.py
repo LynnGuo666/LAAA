@@ -20,9 +20,23 @@ class PermissionManagementService:
     ) -> PermissionCheckResponse:
         """检查用户是否有权限使用指定应用的指定作用域"""
         
-        # 获取应用的权限组
+        # 首先获取应用信息
+        client_app = db.query(ClientApplication).filter(
+            ClientApplication.client_id == client_id
+        ).first()
+        
+        if not client_app:
+            return PermissionCheckResponse(
+                has_permission=False,
+                allowed_scopes=[],
+                denied_scopes=requested_scopes,
+                reason="应用不存在",
+                requires_approval=False
+            )
+        
+        # 获取应用的权限组（使用应用的数据库ID）
         permission_group = db.query(ApplicationPermissionGroup).filter(
-            ApplicationPermissionGroup.client_id == client_id
+            ApplicationPermissionGroup.client_id == client_app.id
         ).first()
         
         if not permission_group:
@@ -35,10 +49,10 @@ class PermissionManagementService:
                 requires_approval=False
             )
         
-        # 查找用户的访问记录
+        # 查找用户的访问记录（使用应用的数据库ID）
         user_access = db.query(UserApplicationAccess).filter(
             UserApplicationAccess.user_id == user_id,
-            UserApplicationAccess.client_id == client_id
+            UserApplicationAccess.client_id == client_app.id
         ).first()
         
         # 检查权限是否过期

@@ -37,7 +37,7 @@ def create_admin_user(db: Session):
     
     # 创建默认管理员用户
     admin_data = UserCreate(
-        email="admin@laaa.local",
+        email="admin@example.com",
         username="admin",
         password="admin123",
         full_name="系统管理员"
@@ -85,7 +85,7 @@ def create_dashboard_app(db: Session, admin_user: User):
         ],
         scope="openid profile email",
         client_uri="http://localhost:8000",
-        logo_uri="http://localhost:8000/static/logo.png"
+        logo_uri=None  # 暂时移除logo
     )
     
     print("创建LAAA Dashboard应用...")

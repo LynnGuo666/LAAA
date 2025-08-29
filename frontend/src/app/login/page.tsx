@@ -65,18 +65,25 @@ export default function LoginPage() {
         
         router.push(`/authorize?${params.toString()}`);
       } else {
-        // 普通登录流程
-        const tokenResponse = await authApi.login({ username, password });
+        // 仪表盘登录 - 使用OAuth授权流程
+        const dashboardClientId = '0ad8034b58e35484f23c163be2648580'; // LAAA Dashboard Client ID
+        const redirectUri = `${window.location.origin}/callback`;
         
-        // 保存tokens
-        Cookies.set('access_token', tokenResponse.access_token, { expires: 1 });
-        if (tokenResponse.refresh_token) {
-          Cookies.set('refresh_token', tokenResponse.refresh_token, { expires: 7 });
-        }
+        const oauthParams = new URLSearchParams({
+          response_type: 'code',
+          client_id: dashboardClientId,
+          redirect_uri: redirectUri,
+          scope: 'openid profile email',
+          state: 'dashboard_login'
+        });
         
-        // 重定向到dashboard或指定页面
-        const returnUrl = searchParams.get('return_url') || '/dashboard';
-        router.push(returnUrl);
+        // 添加登录信息作为查询参数，这样授权页面可以自动填充
+        oauthParams.append('username', username);
+        oauthParams.append('password', password);
+        oauthParams.append('auto_login', 'true');
+        
+        // 重定向到OAuth授权页面
+        window.location.href = `/oauth/authorize?${oauthParams.toString()}`;
       }
     } catch (err: any) {
       setError(err.response?.data?.detail || '登录失败，请检查用户名和密码');

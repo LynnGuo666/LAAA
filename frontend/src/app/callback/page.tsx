@@ -1,51 +1,112 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { Suspense } from 'react';
+import Cookies from 'js-cookie';
 
 function CallbackContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const [result, setResult] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    try {
-      const code = searchParams.get('code');
-      const error = searchParams.get('error');
-      const errorDescription = searchParams.get('error_description');
-      const state = searchParams.get('state');
+    const handleCallback = async () => {
+      try {
+        const code = searchParams.get('code');
+        const error = searchParams.get('error');
+        const errorDescription = searchParams.get('error_description');
+        const state = searchParams.get('state');
 
-      if (error) {
-        setResult({
-          success: false,
-          error: error,
-          error_description: errorDescription,
-          state: state
-        });
-      } else if (code) {
+        if (error) {
+          setResult({
+            success: false,
+            error: error,
+            error_description: errorDescription,
+            state: state
+          });
+          setLoading(false);
+          return;
+        }
+
+        if (!code) {
+          setResult({
+            success: false,
+            error: 'invalid_request',
+            error_description: 'No authorization code received'
+          });
+          setLoading(false);
+          return;
+        }
+
+        // 如果是dashboard登录，自动交换token并跳转
+        if (state === 'dashboard_login') {
+          try {
+            const clientId = '0ad8034b58e35484f23c163be2648580';
+            const redirectUri = `${window.location.origin}/callback`;
+
+            const tokenData = {
+              grant_type: 'authorization_code',
+              code: code,
+              redirect_uri: redirectUri,
+              client_id: clientId
+            };
+
+            const response = await fetch('/oauth/token', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+              },
+              body: new URLSearchParams(tokenData)
+            });
+
+            if (!response.ok) {
+              const errorData = await response.json();
+              throw new Error(errorData.detail || '令牌交换失败');
+            }
+
+            const tokens = await response.json();
+
+            // 保存tokens
+            Cookies.set('access_token', tokens.access_token, { expires: 1 });
+            if (tokens.refresh_token) {
+              Cookies.set('refresh_token', tokens.refresh_token, { expires: 7 });
+            }
+
+            // 跳转到dashboard
+            router.push('/dashboard');
+            return;
+          } catch (err: any) {
+            setResult({
+              success: false,
+              error: 'token_exchange_failed',
+              error_description: err.message || '令牌交换失败'
+            });
+            setLoading(false);
+            return;
+          }
+        }
+
+        // 对于其他授权，只显示结果
         setResult({
           success: true,
           code: code,
           state: state
         });
-      } else {
+      } catch (err) {
         setResult({
           success: false,
-          error: 'invalid_request',
-          error_description: 'No authorization code or error received'
+          error: 'client_error',
+          error_description: 'Failed to parse callback parameters'
         });
       }
-    } catch (err) {
-      setResult({
-        success: false,
-        error: 'client_error',
-        error_description: 'Failed to parse callback parameters'
-      });
-    }
-    
-    setLoading(false);
-  }, [searchParams]);
+      
+      setLoading(false);
+    };
+
+    handleCallback();
+  }, [searchParams, router]);
 
   if (loading) {
     return (
@@ -115,7 +176,7 @@ Content-Type: application/x-www-form-urlencoded
 
 grant_type=authorization_code
 code=${result.code}
-redirect_uri=http://localhost:3000/callback
+redirect_uri=http://localhost:8000/callback
 client_id=YOUR_CLIENT_ID`}
                 </pre>
               </div>

@@ -89,7 +89,13 @@ class SecurityManager:
     def verify_token(self, token: str) -> Dict[str, Any]:
         """验证令牌"""
         try:
-            payload = jwt.decode(token, self.secret_key, algorithms=[self.algorithm])
+            payload = jwt.decode(
+                token, 
+                self.secret_key, 
+                algorithms=[self.algorithm],
+                audience=settings.jwt_audience,
+                issuer=settings.jwt_issuer
+            )
             return payload
         except JWTError as e:
             raise HTTPException(

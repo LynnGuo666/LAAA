@@ -61,6 +61,7 @@ if os.path.exists(static_dir):
         return FileResponse(os.path.join(static_dir, "authorize", "index.html"))
     
     @app.get("/callback")
+    @app.post("/callback")
     async def serve_callback():
         return FileResponse(os.path.join(static_dir, "callback", "index.html"))
     

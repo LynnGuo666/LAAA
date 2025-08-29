@@ -20,6 +20,7 @@ function AuthorizeContent() {
   // 从URL参数提取OAuth请求信息
   const username = searchParams.get('username') || '';
   const password = searchParams.get('password') || '';
+  const autoLogin = searchParams.get('auto_login') === 'true';
 
   useEffect(() => {
     try {
@@ -48,7 +49,14 @@ function AuthorizeContent() {
       
       // 获取客户端信息
       authApi.getClientInfo(clientId)
-        .then(setClientInfo)
+        .then(client => {
+          setClientInfo(client);
+          
+          // 如果是自动登录（比如LAAA Dashboard），直接授权
+          if (autoLogin) {
+            handleAuthorize(true);
+          }
+        })
         .catch(err => {
           console.error('Failed to fetch client info:', err);
           setError('无效的客户端应用');
@@ -56,7 +64,7 @@ function AuthorizeContent() {
     } catch (err) {
       setError('解析授权参数失败');
     }
-  }, [searchParams, username, password]);
+  }, [searchParams, username, password, autoLogin]);
 
   const getScopeDescription = (scope: string): string => {
     const descriptions: Record<string, string> = {
@@ -91,16 +99,16 @@ function AuthorizeContent() {
 
       const response = await authApi.authorize(authData);
       
-      // 如果是302重定向，提取Location头并重定向
-      if (response.status === 302 && response.headers.location) {
+      // 如果是重定向响应，提取Location头并重定向
+      if (response.status >= 300 && response.status < 400 && response.headers.location) {
         window.location.href = response.headers.location;
       } else {
         // 如果没有重定向，检查响应数据
         setError('授权处理异常，请稍后重试');
       }
     } catch (err: any) {
-      if (err.response?.status === 302 && err.response.headers.location) {
-        // axios将302视为错误，但我们需要处理重定向
+      if (err.response?.status >= 300 && err.response?.status < 400 && err.response.headers.location) {
+        // axios将重定向视为错误，但我们需要处理重定向
         window.location.href = err.response.headers.location;
       } else {
         setError(err.response?.data?.detail || '授权失败，请重试');

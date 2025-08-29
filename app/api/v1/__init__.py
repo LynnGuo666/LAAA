@@ -5,6 +5,7 @@ from typing import List
 from app.core.database import get_db
 from app.core.security import security
 from app.services import UserService, ClientService
+from app.models import ClientApplication
 from app.schemas import (
     UserCreate, UserResponse, UserUpdate,
     ClientApplicationCreate, ClientApplicationResponse,
@@ -61,7 +62,7 @@ async def login(
     """用户登录"""
     user = UserService.authenticate_user(db, login_data.username, login_data.password)
     if not user:
-        # 记录失败的登录尝试
+        # 记录失败的登录尝试 - 归属到LAAA Dashboard应用
         from app.api.v1.dashboard import log_login
         from app.models import User
         failed_user = db.query(User).filter(

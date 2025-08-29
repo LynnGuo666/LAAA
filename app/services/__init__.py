@@ -217,7 +217,12 @@ class OAuth2Service:
         if auth_code.expires_at < datetime.utcnow():
             raise HTTPException(status_code=400, detail="Authorization code expired")
         
-        if auth_code.client_id != client_id:
+        # 获取客户端信息以比较
+        client = db.query(ClientApplication).filter(ClientApplication.client_id == client_id).first()
+        if not client:
+            raise HTTPException(status_code=400, detail="Invalid client")
+        
+        if auth_code.client_id != client.id:
             raise HTTPException(status_code=400, detail="Client mismatch")
         
         if auth_code.redirect_uri != redirect_uri:
@@ -235,12 +240,11 @@ class OAuth2Service:
         auth_code.used = True
         db.commit()
         
-        # 获取用户和客户端信息
+        # 获取用户信息
         user = db.query(User).filter(User.id == auth_code.user_id).first()
-        client = db.query(ClientApplication).filter(ClientApplication.client_id == client_id).first()
         
-        if not user or not client:
-            raise HTTPException(status_code=400, detail="Invalid user or client")
+        if not user:
+            raise HTTPException(status_code=400, detail="Invalid user")
         
         # 生成令牌
         scopes = security.parse_scope(auth_code.scope)

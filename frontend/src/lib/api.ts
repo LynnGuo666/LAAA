@@ -81,7 +81,7 @@ export const authApi = {
         'Content-Type': 'application/x-www-form-urlencoded',
       },
       maxRedirects: 0,  // 不自动跟随重定向
-      validateStatus: (status) => status < 400 || status === 302,  // 允许重定向状态码
+      validateStatus: (status) => status < 400 || (status >= 300 && status < 400),  // 允许所有重定向状态码
     });
     
     return response;

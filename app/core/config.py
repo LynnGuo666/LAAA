@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     jwt_issuer: str = "http://localhost:8000"
     jwt_audience: str = "oauth-client"
     cors_origins: List[str] = ["http://localhost:3000", "http://localhost:8080"]
+    laaa_dashboard_client_id: str = "laaa-dashboard"  # LAAA Dashboard的默认Client ID
 
     @validator('cors_origins', pre=True)
     def assemble_cors_origins(cls, v):
