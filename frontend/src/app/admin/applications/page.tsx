@@ -154,7 +154,7 @@ export default function ApplicationManagePage() {
         await authApi.createClient(submitData);
         alert('应用创建成功！');
       } else if (mode === 'edit' && selectedApplication) {
-        await authApi.updateClient(selectedApplication.id, submitData);
+        await authApi.updateClient(selectedApplication.client_id, submitData);
         alert('应用更新成功！');
       }
       
@@ -318,7 +318,7 @@ export default function ApplicationManagePage() {
                           编辑
                         </button>
                         <button
-                          onClick={() => handleDelete(app.id, app.client_name)}
+                          onClick={() => handleDelete(app.client_id, app.client_name)}
                           className="px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700"
                         >
                           删除
