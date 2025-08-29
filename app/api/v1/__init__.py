@@ -201,7 +201,33 @@ async def create_client_application(
     db: Session = Depends(get_db)
 ):
     """创建OAuth客户端应用"""
-    return ClientService.create_client(db, client, current_user.id)
+    import json
+    created_client = ClientService.create_client(db, client, current_user.id)
+    
+    # 处理序列化问题
+    client_data = created_client.__dict__.copy()
+    
+    # 处理redirect_uris和contacts字段
+    if created_client.redirect_uris:
+        try:
+            client_data['redirect_uris'] = json.loads(created_client.redirect_uris)
+        except (json.JSONDecodeError, TypeError):
+            client_data['redirect_uris'] = []
+    else:
+        client_data['redirect_uris'] = []
+        
+    if created_client.contacts:
+        try:
+            client_data['contacts'] = json.loads(created_client.contacts)
+        except (json.JSONDecodeError, TypeError):
+            client_data['contacts'] = []
+    else:
+        client_data['contacts'] = []
+    
+    # 移除SQLAlchemy内部属性
+    client_data.pop('_sa_instance_state', None)
+    
+    return client_data
 
 
 @router.get("/clients", response_model=List[ClientApplicationResponse])
