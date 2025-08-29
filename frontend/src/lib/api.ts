@@ -138,6 +138,80 @@ export const authApi = {
     const response = await apiClient.get(`/api/v1/permissions/user/${userId}`);
     return response.data;
   },
+
+  // 管理员API - 用户管理
+  getAllUsers: async (): Promise<any[]> => {
+    const response = await apiClient.get('/api/v1/users');
+    return response.data;
+  },
+
+  getUserById: async (userId: string): Promise<any> => {
+    const response = await apiClient.get(`/api/v1/users/${userId}`);
+    return response.data;
+  },
+
+  updateUser: async (userId: string, userData: any): Promise<any> => {
+    const response = await apiClient.put(`/api/v1/users/${userId}`, userData);
+    return response.data;
+  },
+
+  deleteUser: async (userId: string): Promise<any> => {
+    const response = await apiClient.delete(`/api/v1/users/${userId}`);
+    return response.data;
+  },
+
+  // 管理员API - 应用管理
+  getAllClients: async (): Promise<any[]> => {
+    const response = await apiClient.get('/api/v1/clients');
+    return response.data;
+  },
+
+  updateClient: async (clientId: string, clientData: any): Promise<any> => {
+    const response = await apiClient.put(`/api/v1/clients/${clientId}`, clientData);
+    return response.data;
+  },
+
+  deleteClient: async (clientId: string): Promise<any> => {
+    const response = await apiClient.delete(`/api/v1/clients/${clientId}`);
+    return response.data;
+  },
+
+  createClient: async (clientData: any): Promise<any> => {
+    const response = await apiClient.post('/api/v1/clients', clientData);
+    return response.data;
+  },
+
+  // 管理员API - 权限管理
+  getUserPermissionsByAdmin: async (userId: string): Promise<any[]> => {
+    const response = await apiClient.get(`/api/v1/admin/users/${userId}/permissions`);
+    return response.data;
+  },
+
+  grantUserPermission: async (userId: string, clientId: string, permissionData: any): Promise<any> => {
+    const response = await apiClient.post(`/api/v1/admin/users/${userId}/permissions/${clientId}`, permissionData);
+    return response.data;
+  },
+
+  revokeUserPermission: async (userId: string, clientId: string): Promise<any> => {
+    const response = await apiClient.delete(`/api/v1/admin/users/${userId}/permissions/${clientId}`);
+    return response.data;
+  },
+
+  // 权限组管理
+  getPermissionGroups: async (): Promise<any[]> => {
+    const response = await apiClient.get('/api/v1/permissions/groups');
+    return response.data;
+  },
+
+  getPermissionGroup: async (clientId: string): Promise<any> => {
+    const response = await apiClient.get(`/api/v1/permissions/groups/${clientId}`);
+    return response.data;
+  },
+
+  updatePermissionGroup: async (clientId: string, groupData: any): Promise<any> => {
+    const response = await apiClient.put(`/api/v1/permissions/groups/${clientId}`, groupData);
+    return response.data;
+  },
 };
 
 export default apiClient;

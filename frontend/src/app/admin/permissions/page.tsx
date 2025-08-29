@@ -83,7 +83,7 @@ export default function AdminPermissionsPage() {
 
   const loadClients = async () => {
     try {
-      const response = await fetch('/api/v1/clients/my', {
+      const response = await fetch('/api/v1/clients', {
         headers: {
           'Authorization': `Bearer ${document.cookie.match(/access_token=([^;]+)/)?.[1]}`,
         }
@@ -105,7 +105,7 @@ export default function AdminPermissionsPage() {
 
   const loadUsers = async () => {
     try {
-      const response = await fetch('/api/v1/users/', {
+      const response = await fetch('/api/v1/users', {
         headers: {
           'Authorization': `Bearer ${document.cookie.match(/access_token=([^;]+)/)?.[1]}`,
         }

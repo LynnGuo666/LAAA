@@ -135,7 +135,7 @@ export default function AdminDashboardPage() {
 
   const loadUsers = async () => {
     try {
-      const response = await fetch('/api/v1/dashboard/admin/users', {
+      const response = await fetch('/api/v1/users', {
         headers: {
           'Authorization': `Bearer ${document.cookie.match(/access_token=([^;]+)/)?.[1]}`,
         }
@@ -152,7 +152,7 @@ export default function AdminDashboardPage() {
 
   const loadClients = async () => {
     try {
-      const response = await fetch('/api/v1/dashboard/admin/clients', {
+      const response = await fetch('/api/v1/clients', {
         headers: {
           'Authorization': `Bearer ${document.cookie.match(/access_token=([^;]+)/)?.[1]}`,
         }
@@ -191,7 +191,7 @@ export default function AdminDashboardPage() {
     }
 
     try {
-      const response = await fetch('/api/v1/dashboard/admin/users', {
+      const response = await fetch('/api/v1/users', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -226,7 +226,7 @@ export default function AdminDashboardPage() {
     if (!editingUser) return;
 
     try {
-      const response = await fetch(`/api/v1/dashboard/admin/users/${userId}`, {
+      const response = await fetch(`/api/v1/users/${userId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -261,7 +261,7 @@ export default function AdminDashboardPage() {
     }
 
     try {
-      const response = await fetch(`/api/v1/dashboard/admin/users/${userId}`, {
+      const response = await fetch(`/api/v1/users/${userId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${document.cookie.match(/access_token=([^;]+)/)?.[1]}`,
@@ -285,7 +285,7 @@ export default function AdminDashboardPage() {
     if (!editingClient) return;
 
     try {
-      const response = await fetch(`/api/v1/dashboard/admin/clients/${clientId}`, {
+      const response = await fetch(`/api/v1/clients/${clientId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -318,7 +318,7 @@ export default function AdminDashboardPage() {
     }
 
     try {
-      const response = await fetch(`/api/v1/dashboard/admin/clients/${clientId}`, {
+      const response = await fetch(`/api/v1/clients/${clientId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${document.cookie.match(/access_token=([^;]+)/)?.[1]}`,

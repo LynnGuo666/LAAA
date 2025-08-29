@@ -72,7 +72,7 @@ export default function DashboardPage() {
 
   const loadProfile = async () => {
     try {
-      const response = await fetch('/api/v1/dashboard/profile', {
+      const response = await fetch('/api/v1/users/me', {
         headers: {
           'Authorization': `Bearer ${document.cookie.match(/access_token=([^;]+)/)?.[1]}`,
         }
@@ -125,7 +125,7 @@ export default function DashboardPage() {
   const updateProfile = async () => {
     setSaving(true);
     try {
-      const response = await fetch('/api/v1/dashboard/profile', {
+      const response = await fetch('/api/v1/users/me', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

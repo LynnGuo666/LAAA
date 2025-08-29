@@ -129,6 +129,83 @@ async def check_permission(
 
 
 # Permission Group Management APIs
+@router.get("/groups", response_model=List[PermissionGroupResponse])
+async def list_permission_groups(
+    db: Session = Depends(get_db),
+    admin_user = Depends(require_admin)
+):
+    """获取所有权限组（管理员）"""
+    import json
+    from app.models import ApplicationPermissionGroup
+    
+    groups = db.query(ApplicationPermissionGroup).all()
+    result = []
+    for group in groups:
+        group_data = group.__dict__.copy()
+        # 处理allowed_scopes字段
+        if group.allowed_scopes:
+            try:
+                group_data['allowed_scopes'] = json.loads(group.allowed_scopes)
+            except (json.JSONDecodeError, TypeError):
+                group_data['allowed_scopes'] = []
+        else:
+            group_data['allowed_scopes'] = []
+        
+        group_data.pop('_sa_instance_state', None)
+        result.append(group_data)
+    
+    return result
+
+
+@router.get("/groups/{client_id}", response_model=PermissionGroupResponse) 
+async def get_permission_group(
+    client_id: str,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+    """获取应用权限组"""
+    import json
+    from app.models import ApplicationPermissionGroup
+    
+    # 检查权限
+    client = ClientService.get_client_by_id(db, client_id)
+    if not client:
+        raise HTTPException(status_code=404, detail="应用不存在")
+    
+    if client.owner_id != current_user.id and not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="只有应用拥有者或管理员可以查看此应用的权限"
+        )
+    
+    group = db.query(ApplicationPermissionGroup).filter(
+        ApplicationPermissionGroup.client_id == client.id
+    ).first()
+    
+    if not group:
+        # 如果不存在，创建默认权限组
+        group = ApplicationPermissionGroup(
+            client_id=client.id,
+            name="默认权限组",
+            default_allowed=False,
+            allowed_scopes=json.dumps(["openid", "profile", "email"])
+        )
+        db.add(group)
+        db.commit()
+        db.refresh(group)
+    
+    # 处理序列化
+    group_data = group.__dict__.copy()
+    if group.allowed_scopes:
+        try:
+            group_data['allowed_scopes'] = json.loads(group.allowed_scopes)
+        except (json.JSONDecodeError, TypeError):
+            group_data['allowed_scopes'] = []
+    else:
+        group_data['allowed_scopes'] = []
+    
+    group_data.pop('_sa_instance_state', None)
+    return group_data
 @router.post("/groups/{client_id}", response_model=PermissionGroupResponse)
 async def create_permission_group(
     client_id: str,

@@ -71,6 +71,17 @@ class UserService:
         return user
 
     @staticmethod
+    def delete_user(db: Session, user_id: str) -> bool:
+        """删除用户"""
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            return False
+        
+        db.delete(user)
+        db.commit()
+        return True
+
+    @staticmethod
     def get_user_info_claims(user: User, scopes: List[str]) -> Dict[str, Any]:
         """根据作用域获取用户信息"""
         claims = {"sub": user.id}
@@ -161,6 +172,43 @@ class ClientService:
         """验证重定向URI"""
         registered_uris = json.loads(client.redirect_uris)
         return redirect_uri in registered_uris
+
+    @staticmethod
+    def update_client(db: Session, client_id: str, client_update: ClientApplicationUpdate) -> Optional[ClientApplication]:
+        """更新客户端应用"""
+        client = db.query(ClientApplication).filter(
+            ClientApplication.client_id == client_id
+        ).first()
+        if not client:
+            return None
+        
+        update_data = client_update.model_dump(exclude_unset=True)
+        
+        # 处理需要JSON序列化的字段
+        if 'redirect_uris' in update_data and update_data['redirect_uris']:
+            update_data['redirect_uris'] = json.dumps(update_data['redirect_uris'])
+        if 'contacts' in update_data and update_data['contacts']:
+            update_data['contacts'] = json.dumps(update_data['contacts'])
+        
+        for field, value in update_data.items():
+            setattr(client, field, value)
+        
+        db.commit()
+        db.refresh(client)
+        return client
+
+    @staticmethod
+    def delete_client(db: Session, client_id: str) -> bool:
+        """删除客户端应用"""
+        client = db.query(ClientApplication).filter(
+            ClientApplication.client_id == client_id
+        ).first()
+        if not client:
+            return False
+        
+        db.delete(client)
+        db.commit()
+        return True
 
 
 class OAuth2Service:
