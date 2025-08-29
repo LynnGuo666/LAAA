@@ -43,7 +43,7 @@ function CallbackContent() {
         // 如果是dashboard登录，自动交换token并跳转
         if (state === 'dashboard_login') {
           try {
-            const clientId = '0ad8034b58e35484f23c163be2648580';
+            const clientId = process.env.NEXT_PUBLIC_LAAA_DASHBOARD_CLIENT_ID;
             const redirectUri = `${window.location.origin}/callback`;
 
             const tokenData = {

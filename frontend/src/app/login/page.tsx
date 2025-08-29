@@ -66,7 +66,7 @@ export default function LoginPage() {
         router.push(`/authorize?${params.toString()}`);
       } else {
         // 仪表盘登录 - 使用OAuth授权流程
-        const dashboardClientId = '0ad8034b58e35484f23c163be2648580'; // LAAA Dashboard Client ID
+        const dashboardClientId = process.env.NEXT_PUBLIC_LAAA_DASHBOARD_CLIENT_ID;
         const redirectUri = `${window.location.origin}/callback`;
         
         const oauthParams = new URLSearchParams({
