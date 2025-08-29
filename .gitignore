@@ -64,6 +64,9 @@ out/
 dist
 .cache/
 
+# Allow frontend dist directory
+!frontend/dist/
+
 # npm
 npm-debug.log*
 yarn-debug.log*
