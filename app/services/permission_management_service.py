@@ -39,8 +39,13 @@ class PermissionManagementService:
             ApplicationPermissionGroup.client_id == client_app.client_id
         ).first()
         
+        # 调试信息
+        print(f"DEBUG: Checking permissions for client_id: {client_app.client_id}")
+        print(f"DEBUG: Permission group found: {permission_group is not None}")
+        
         if not permission_group:
             # 如果没有配置权限组，默认拒绝访问
+            print(f"DEBUG: No permission group found for client_id: {client_app.client_id}")
             return PermissionCheckResponse(
                 has_permission=False,
                 allowed_scopes=[],

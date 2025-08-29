@@ -149,6 +149,28 @@ async def handle_authorization(
     if not ClientService.validate_redirect_uri(client, redirect_uri):
         raise HTTPException(status_code=400, detail="Invalid redirect_uri")
     
+    # 确保应用有权限组，如果没有则自动创建
+    from app.models import ApplicationPermissionGroup
+    import json
+    
+    permission_group = db.query(ApplicationPermissionGroup).filter(
+        ApplicationPermissionGroup.client_id == client.client_id
+    ).first()
+    
+    if not permission_group:
+        # 为应用创建默认权限组
+        permission_group = ApplicationPermissionGroup(
+            client_id=client.client_id,
+            name="默认权限组",
+            description="系统自动创建的默认权限组",
+            default_allowed=True,  # 默认允许所有用户
+            allowed_scopes=json.dumps(["openid", "profile", "email"])
+        )
+        db.add(permission_group)
+        db.commit()
+        db.refresh(permission_group)
+        print(f"DEBUG: Created permission group for client_id: {client.client_id}")
+    
     # 检查用户权限
     requested_scopes = security.parse_scope(scope)
     permission_check = PermissionManagementService.check_user_access(
