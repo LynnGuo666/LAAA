@@ -83,39 +83,38 @@ function AuthorizeContent() {
     setLoading(true);
     setError('');
 
-    try {
-      const authData = {
-        username,
-        password,
-        client_id: authRequest.client_id,
-        redirect_uri: authRequest.redirect_uri,
-        scope: authRequest.scope || 'openid',
-        state: authRequest.state,
-        code_challenge: authRequest.code_challenge,
-        code_challenge_method: authRequest.code_challenge_method,
-        nonce: authRequest.nonce,
-        consent,
-      };
+    // 创建表单并提交，让浏览器自然处理重定向
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '/oauth/authorize';
+    
+    // 添加所有必需的表单字段
+    const fields = {
+      username,
+      password,
+      client_id: authRequest.client_id,
+      redirect_uri: authRequest.redirect_uri,
+      scope: authRequest.scope || 'openid',
+      state: authRequest.state || '',
+      code_challenge: authRequest.code_challenge || '',
+      code_challenge_method: authRequest.code_challenge_method || '',
+      nonce: authRequest.nonce || '',
+      consent: consent.toString(),
+    };
 
-      const response = await authApi.authorize(authData);
-      
-      // 如果是重定向响应，提取Location头并重定向
-      if (response.status >= 300 && response.status < 400 && response.headers.location) {
-        window.location.href = response.headers.location;
-      } else {
-        // 如果没有重定向，检查响应数据
-        setError('授权处理异常，请稍后重试');
+    Object.entries(fields).forEach(([key, value]) => {
+      if (value) {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = key;
+        input.value = value;
+        form.appendChild(input);
       }
-    } catch (err: any) {
-      if (err.response?.status >= 300 && err.response?.status < 400 && err.response.headers.location) {
-        // axios将重定向视为错误，但我们需要处理重定向
-        window.location.href = err.response.headers.location;
-      } else {
-        setError(err.response?.data?.detail || '授权失败，请重试');
-      }
-    } finally {
-      setLoading(false);
-    }
+    });
+
+    // 将表单添加到页面并提交
+    document.body.appendChild(form);
+    form.submit();
   };
 
   const handleDeny = () => {
