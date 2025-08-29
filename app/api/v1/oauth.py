@@ -8,6 +8,7 @@ from app.core.database import get_db
 from app.core.security import security
 from app.core.config import settings
 from app.services import OAuth2Service, ClientService, UserService
+from app.services.permission_management_service import PermissionManagementService
 from app.schemas import (
     AuthorizationRequest, TokenRequest, TokenResponse, 
     UserInfo, WellKnownConfiguration
@@ -129,14 +130,9 @@ async def handle_authorization(
     if not user:
         raise HTTPException(status_code=401, detail="Invalid credentials")
     
-    if not consent:
-        error_params = {
-            "error": "access_denied",
-            "error_description": "The user denied the request"
-        }
-        if state:
-            error_params["state"] = state
-        return RedirectResponse(f"{redirect_uri}?{urlencode(error_params)}")
+    # 记录登录日志
+    from app.api.v1.dashboard import log_login
+    await log_login(db, user, request, success=True, client_id=client_id)
     
     # 验证客户端
     client = ClientService.get_client_by_id(db, client_id)
@@ -153,13 +149,42 @@ async def handle_authorization(
     if not ClientService.validate_redirect_uri(client, redirect_uri):
         raise HTTPException(status_code=400, detail="Invalid redirect_uri")
     
+    # 检查用户权限
+    requested_scopes = security.parse_scope(scope)
+    permission_check = PermissionManagementService.check_user_access(
+        db, user.id, client_id, requested_scopes
+    )
+    
+    if not permission_check.has_permission:
+        # 用户没有权限
+        error_params = {
+            "error": "access_denied",
+            "error_description": permission_check.reason or "用户没有权限使用此应用"
+        }
+        if state:
+            error_params["state"] = state
+        
+        return RedirectResponse(f"{redirect_uri}?{urlencode(error_params)}")
+    
+    if not consent:
+        error_params = {
+            "error": "access_denied",
+            "error_description": "The user denied the request"
+        }
+        if state:
+            error_params["state"] = state
+        return RedirectResponse(f"{redirect_uri}?{urlencode(error_params)}")
+    
+    # 使用允许的作用域（而不是请求的所有作用域）
+    allowed_scope = " ".join(permission_check.allowed_scopes)
+    
     # 生成授权码
     auth_code = OAuth2Service.create_authorization_code(
         db=db,
         user_id=user.id,
         client_id=client.id,
         redirect_uri=redirect_uri,
-        scope=scope,
+        scope=allowed_scope,  # 使用实际允许的作用域
         code_challenge=code_challenge,
         code_challenge_method=code_challenge_method,
         nonce=nonce

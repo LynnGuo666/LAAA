@@ -201,3 +201,93 @@ class WellKnownConfiguration(BaseModel):
         "updated_at", "aud", "exp", "iat", "nonce"
     ]
     code_challenge_methods_supported: List[str] = ["plain", "S256"]
+
+
+# 权限管理相关 schemas
+class PermissionBase(BaseModel):
+    is_allowed: bool = False
+    is_blocked: bool = False
+    allowed_scopes: Optional[List[str]] = None
+    denied_scopes: Optional[List[str]] = None
+    approval_reason: Optional[str] = None
+    expires_at: Optional[datetime] = None
+
+
+class PermissionCreate(PermissionBase):
+    user_id: str
+    client_id: str
+
+
+class PermissionUpdate(BaseModel):
+    is_allowed: Optional[bool] = None
+    is_blocked: Optional[bool] = None
+    allowed_scopes: Optional[List[str]] = None
+    denied_scopes: Optional[List[str]] = None
+    approval_reason: Optional[str] = None
+    expires_at: Optional[datetime] = None
+
+
+class PermissionResponse(PermissionBase):
+    id: str
+    user_id: str
+    client_id: str
+    approved_by: Optional[str] = None
+    approved_at: Optional[datetime] = None
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+    
+    # 关联对象
+    user: Optional[UserResponse] = None
+    client: Optional[ClientApplicationPublic] = None
+    approver: Optional[UserResponse] = None
+
+    class Config:
+        from_attributes = True
+
+
+class PermissionRequestBase(BaseModel):
+    requested_scopes: List[str]
+    request_reason: Optional[str] = None
+
+
+class PermissionRequestCreate(PermissionRequestBase):
+    client_id: str
+
+
+class PermissionRequestUpdate(BaseModel):
+    status: str  # approved, denied
+    review_reason: Optional[str] = None
+
+
+class PermissionRequestResponse(PermissionRequestBase):
+    id: str
+    user_id: str
+    client_id: str
+    status: str
+    reviewed_by: Optional[str] = None
+    reviewed_at: Optional[datetime] = None
+    review_reason: Optional[str] = None
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+    
+    # 关联对象
+    user: Optional[UserResponse] = None
+    client: Optional[ClientApplicationPublic] = None
+    reviewer: Optional[UserResponse] = None
+
+    class Config:
+        from_attributes = True
+
+
+class PermissionCheckRequest(BaseModel):
+    user_id: str
+    client_id: str
+    requested_scopes: List[str]
+
+
+class PermissionCheckResponse(BaseModel):
+    has_permission: bool
+    allowed_scopes: List[str]
+    denied_scopes: List[str]
+    reason: Optional[str] = None
+    requires_approval: bool = False

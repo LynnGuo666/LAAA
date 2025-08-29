@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from typing import List
@@ -8,11 +8,18 @@ from app.services import UserService, ClientService
 from app.schemas import (
     UserCreate, UserResponse, UserUpdate,
     ClientApplicationCreate, ClientApplicationResponse,
-    ClientApplicationUpdate, ClientApplicationPublic
+    ClientApplicationUpdate, ClientApplicationPublic,
+    TokenResponse
 )
+from pydantic import BaseModel
 
 router = APIRouter(prefix="/api/v1", tags=["API"])
 security_scheme = HTTPBearer()
+
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
 
 
 def get_current_user(
@@ -43,6 +50,46 @@ def get_current_user(
             detail="Could not validate credentials",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+
+@router.post("/auth/login", response_model=TokenResponse)
+async def login(
+    request: Request,
+    login_data: LoginRequest,
+    db: Session = Depends(get_db)
+):
+    """用户登录"""
+    user = UserService.authenticate_user(db, login_data.username, login_data.password)
+    if not user:
+        # 记录失败的登录尝试
+        from app.api.v1.dashboard import log_login
+        from app.models import User
+        failed_user = db.query(User).filter(
+            (User.username == login_data.username) | (User.email == login_data.username)
+        ).first()
+        if failed_user:
+            await log_login(db, failed_user, request, success=False, failure_reason="密码错误")
+        
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="用户名或密码不正确"
+        )
+    
+    # 记录成功的登录
+    from app.api.v1.dashboard import log_login
+    await log_login(db, user, request, success=True)
+    
+    # 生成token
+    from app.services import OAuth2Service
+    access_token = security.create_access_token(data={"sub": user.id})
+    refresh_token = security.create_refresh_token(data={"sub": user.id})
+    
+    return TokenResponse(
+        access_token=access_token,
+        token_type="Bearer",
+        expires_in=1800,  # 30 minutes
+        refresh_token=refresh_token
+    )
 
 
 @router.post("/users", response_model=UserResponse)
@@ -77,8 +124,8 @@ async def create_client_application(
     return ClientService.create_client(db, client, current_user.id)
 
 
-@router.get("/clients", response_model=List[ClientApplicationResponse])
-async def list_client_applications(
+@router.get("/clients/my", response_model=List[ClientApplicationResponse])
+async def list_my_client_applications(
     current_user = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):

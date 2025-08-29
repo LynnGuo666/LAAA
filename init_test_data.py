@@ -40,7 +40,13 @@ def create_test_user(db: Session):
         )
         
         user = UserService.create_user(db, user_data)
-        print(f"✅ 测试用户创建成功: {user.username} (ID: {user.id})")
+        
+        # 设置为管理员
+        user.is_admin = True
+        db.commit()
+        db.refresh(user)
+        
+        print(f"✅ 测试用户创建成功: {user.username} (ID: {user.id}) - 管理员权限已启用")
         return user
     except Exception as e:
         print(f"❌ 创建测试用户失败: {e}")

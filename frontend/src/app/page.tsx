@@ -1,6 +1,107 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+
 export default function HomePage() {
+  const router = useRouter();
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [user, setUser] = useState<any>(null);
+
+  useEffect(() => {
+    checkLoginStatus();
+  }, []);
+
+  const checkLoginStatus = async () => {
+    const token = document.cookie.match(/access_token=([^;]+)/)?.[1];
+    if (token) {
+      try {
+        const response = await fetch('/api/v1/dashboard/profile', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          }
+        });
+
+        if (response.ok) {
+          const userData = await response.json();
+          setUser(userData);
+          setIsLoggedIn(true);
+        }
+      } catch (error) {
+        console.error('Failed to check login status:', error);
+      }
+    }
+  };
+
+  const logout = () => {
+    document.cookie = 'access_token=; Max-Age=0; path=/';
+    document.cookie = 'refresh_token=; Max-Age=0; path=/';
+    setIsLoggedIn(false);
+    setUser(null);
+  };
+
   return (
     <div className="min-h-full">
+      {/* Navigation */}
+      <nav className="bg-white shadow">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between h-16">
+            <div className="flex items-center">
+              <h1 className="text-xl font-bold text-gray-900">OAuth 2.0 服务器</h1>
+            </div>
+            <div className="flex items-center space-x-4">
+              {isLoggedIn ? (
+                <>
+                  <span className="text-sm text-gray-600">
+                    欢迎，{user?.full_name || user?.username}
+                    {user?.is_admin && (
+                      <span className="ml-1 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                        管理员
+                      </span>
+                    )}
+                  </span>
+                  <button
+                    onClick={() => router.push('/dashboard')}
+                    className="text-sm font-medium text-gray-700 hover:text-gray-900"
+                  >
+                    仪表盘
+                  </button>
+                  {user?.is_admin && (
+                    <button
+                      onClick={() => router.push('/admin/dashboard')}
+                      className="text-sm font-medium text-gray-700 hover:text-gray-900"
+                    >
+                      管理后台
+                    </button>
+                  )}
+                  <button
+                    onClick={logout}
+                    className="text-sm font-medium text-gray-700 hover:text-gray-900"
+                  >
+                    退出登录
+                  </button>
+                </>
+              ) : (
+                <>
+                  <a
+                    href="/login"
+                    className="text-sm font-medium text-gray-700 hover:text-gray-900"
+                  >
+                    登录
+                  </a>
+                  <a
+                    href="/register"
+                    className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700"
+                  >
+                    注册
+                  </a>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      </nav>
+
       {/* Hero Section */}
       <div className="bg-white">
         <div className="max-w-7xl mx-auto py-16 px-4 sm:py-24 sm:px-6 lg:px-8">
@@ -12,18 +113,29 @@ export default function HomePage() {
               安全、可靠的OAuth 2.0和OpenID Connect身份认证与授权服务
             </p>
             <div className="mt-8 flex justify-center space-x-4">
-              <a
-                href="/login"
-                className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-              >
-                用户登录
-              </a>
-              <a
-                href="/register"
-                className="inline-flex items-center px-6 py-3 border border-gray-300 text-base font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-              >
-                注册账户
-              </a>
+              {!isLoggedIn ? (
+                <>
+                  <a
+                    href="/login"
+                    className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                  >
+                    用户登录
+                  </a>
+                  <a
+                    href="/register"
+                    className="inline-flex items-center px-6 py-3 border border-gray-300 text-base font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                  >
+                    注册账户
+                  </a>
+                </>
+              ) : (
+                <button
+                  onClick={() => router.push('/dashboard')}
+                  className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                >
+                  进入仪表盘
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -39,7 +151,7 @@ export default function HomePage() {
             </p>
           </div>
           
-          <div className="mt-12 grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-12 grid gap-8 md:grid-cols-2 lg:grid-cols-4">
             {/* OAuth 2.0 */}
             <div className="bg-white rounded-lg shadow px-6 py-8">
               <div className="text-center">
@@ -70,6 +182,21 @@ export default function HomePage() {
               </div>
             </div>
 
+            {/* Permission Management */}
+            <div className="bg-white rounded-lg shadow px-6 py-8">
+              <div className="text-center">
+                <div className="h-12 w-12 mx-auto bg-primary-100 rounded-lg flex items-center justify-center">
+                  <svg className="h-6 w-6 text-primary-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                  </svg>
+                </div>
+                <h3 className="mt-4 text-lg font-medium text-gray-900">权限管理</h3>
+                <p className="mt-2 text-sm text-gray-500">
+                  细粒度权限控制，应用拥有者可配置用户访问权限
+                </p>
+              </div>
+            </div>
+
             {/* Security */}
             <div className="bg-white rounded-lg shadow px-6 py-8">
               <div className="text-center">
@@ -80,7 +207,7 @@ export default function HomePage() {
                 </div>
                 <h3 className="mt-4 text-lg font-medium text-gray-900">安全保障</h3>
                 <p className="mt-2 text-sm text-gray-500">
-                  JWT签名验证、HTTPS传输、安全的密钥管理
+                  JWT签名验证、HTTPS传输、安全的密钥管理、登录日志追踪
                 </p>
               </div>
             </div>

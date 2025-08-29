@@ -109,6 +109,35 @@ export const authApi = {
     const response = await apiClient.post('/api/v1/users', userData);
     return response.data;
   },
+
+  // 权限相关API
+  checkPermission: async (userId: string, clientId: string, scopes: string[]): Promise<any> => {
+    const response = await apiClient.post('/api/v1/permissions/check', {
+      user_id: userId,
+      client_id: clientId,
+      requested_scopes: scopes
+    });
+    return response.data;
+  },
+
+  createPermissionRequest: async (data: {
+    client_id: string;
+    requested_scopes: string[];
+    request_reason?: string;
+  }): Promise<any> => {
+    const response = await apiClient.post('/api/v1/permissions/requests', data);
+    return response.data;
+  },
+
+  getMyPermissionRequests: async (): Promise<any[]> => {
+    const response = await apiClient.get('/api/v1/permissions/requests/my');
+    return response.data;
+  },
+
+  getUserPermissions: async (userId: string): Promise<any[]> => {
+    const response = await apiClient.get(`/api/v1/permissions/user/${userId}`);
+    return response.data;
+  },
 };
 
 export default apiClient;
