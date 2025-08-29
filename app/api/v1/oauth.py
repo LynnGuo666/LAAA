@@ -169,7 +169,6 @@ async def handle_authorization(
         db.add(permission_group)
         db.commit()
         db.refresh(permission_group)
-        print(f"DEBUG: Created permission group for client_id: {client.client_id}")
     
     # 检查用户权限
     requested_scopes = security.parse_scope(scope)
@@ -204,7 +203,7 @@ async def handle_authorization(
     auth_code = OAuth2Service.create_authorization_code(
         db=db,
         user_id=user.id,
-        client_id=client.id,
+        client_id=client.client_id,  # 使用client_id而不是数据库UUID
         redirect_uri=redirect_uri,
         scope=allowed_scope,  # 使用实际允许的作用域
         code_challenge=code_challenge,
