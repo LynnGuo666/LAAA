@@ -1,13 +1,12 @@
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
-import { AuthProvider } from '../lib/auth'
 
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'LAAA - 统一身份认证系统',
-  description: '基于OAuth2.0的统一身份认证系统',
+  title: 'OAuth 2.0 Authorization Server',
+  description: 'Secure OAuth 2.0 and OpenID Connect authorization server',
 }
 
 export default function RootLayout({
@@ -16,11 +15,11 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="zh-CN">
-      <body className={inter.className}>
-        <AuthProvider>
+    <html lang="zh-CN" className="h-full">
+      <body className={`${inter.className} h-full`}>
+        <main className="min-h-full">
           {children}
-        </AuthProvider>
+        </main>
       </body>
     </html>
   )

@@ -1,336 +1,265 @@
-# LAAA - 统一身份认证系统
+# OAuth 2.0 / OIDC 授权服务器
 
-基于 OAuth2.0 的企业级统一身份认证系统，支持多因子认证、设备管理、邀请制注册等高级安全特性。
+一个完整的OAuth 2.0和OpenID Connect (OIDC)授权服务器实现，使用FastAPI作为后端，Next.js作为前端界面。
 
-## 🌟 核心特性
+## 🚀 功能特性
 
-### 安全认证
-- **四级安全等级**: 低级(1) → 中级(2) → 高级(3) → 管理员级(4)
-- **多因子认证**: 支持 TOTP、邮箱验证、备用验证码
-- **设备管理**: 设备信任、设备指纹识别
-- **邀请制注册**: 基于邀请码的用户注册机制
+### OAuth 2.0 支持
+- ✅ 授权码流程 (Authorization Code Flow)
+- ✅ PKCE (Proof Key for Code Exchange)
+- ✅ 客户端认证 (Client Authentication)
+- ✅ 令牌刷新 (Refresh Token)
+- ✅ 令牌撤销 (Token Revocation)
+- ✅ 令牌内省 (Token Introspection)
 
-### OAuth2.0 支持
-- **标准流程**: Authorization Code Flow、Client Credentials Flow
-- **令牌管理**: Access Token、Refresh Token 自动刷新
-- **作用域控制**: 细粒度的权限作用域管理
-- **应用隔离**: 按应用维度的权限管理
+### OpenID Connect 支持
+- ✅ ID Token
+- ✅ UserInfo端点
+- ✅ Discovery端点
+- ✅ JWKS端点
+- ✅ 标准Claims (profile, email, phone等)
+- ✅ Nonce支持
 
-### 权限系统
-- **基于资源-操作**: 细粒度的权限控制模型
-- **设备级权限**: 支持按设备分配应用权限
-- **敏感操作验证**: 高危操作需要额外身份验证
-- **动态权限检查**: 实时权限验证和过期控制
+### 安全特性
+- 🔒 JWT签名验证
+- 🔒 HTTPS传输支持
+- 🔒 安全的密钥管理
+- 🔒 密码哈希存储
+- 🔒 CORS配置
+- 🔒 输入验证
 
-### 管理功能
-- **用户管理**: 用户创建、安全等级调整、状态管理
-- **应用管理**: OAuth 应用注册、配置、权限要求设置
-- **邀请码管理**: 批量生成、使用限制、过期控制
-- **系统监控**: 实时统计、审计日志、安全报告
+### 用户界面
+- 🎨 现代化的登录界面
+- 🎨 授权同意页面
+- 🎨 用户注册功能
+- 🎨 响应式设计
+- 🎨 多语言支持
 
-## 🏗️ 技术架构
+## 📋 技术栈
 
-### 后端技术栈
-- **Python 3.11** + **FastAPI** - 高性能异步API框架
-- **SQLAlchemy 2.0** + **PostgreSQL** - 现代ORM和关系数据库
-- **Redis** - 缓存和会话存储
-- **PyOTP** - TOTP双因子认证
-- **Jose** - JWT令牌处理
-- **Pydantic** - 数据验证和序列化
+### 后端
+- **FastAPI** - 高性能Web框架
+- **SQLAlchemy** - ORM
+- **PostgreSQL** - 数据库
+- **Alembic** - 数据库迁移
+- **Pydantic** - 数据验证
+- **python-jose** - JWT处理
+- **passlib** - 密码哈希
 
-### 前端技术栈
-- **Next.js 14** + **React 18** - 现代前端框架
-- **TypeScript** - 类型安全的JavaScript
-- **Tailwind CSS** - 原子化CSS框架
-- **React Hook Form** + **Zod** - 表单处理和验证
+### 前端
+- **Next.js 14** - React框架
+- **TypeScript** - 类型安全
+- **Tailwind CSS** - 样式框架
 - **Axios** - HTTP客户端
 
-### 部署架构
-- **Docker** + **Docker Compose** - 容器化部署
-- **Nginx** - 前端静态文件服务
-- **PostgreSQL 15** - 主数据库
-- **Redis 7** - 缓存服务
+## 🛠 快速开始
 
-## 🚀 快速开始
+### 环境要求
+- Python 3.8+
+- Node.js 18+
+- PostgreSQL 12+
 
-### 前置要求
-- Docker 20.10+
-- Docker Compose 2.0+
-- Git
+### 安装步骤
 
-### 一键部署
+1. **克隆项目**
+   ```bash
+   git clone <repository-url>
+   cd LAAA
+   ```
 
+2. **配置环境变量**
+   ```bash
+   cp .env.example .env
+   # 编辑 .env 文件配置数据库连接等信息
+   ```
+
+3. **启动开发环境**
+   ```bash
+   chmod +x dev-start.sh
+   ./dev-start.sh
+   ```
+
+4. **访问服务**
+   - 前端界面: http://localhost:3000
+   - 后端API: http://localhost:8000
+   - API文档: http://localhost:8000/docs
+
+### 手动启动
+
+**启动后端：**
 ```bash
-# 克隆项目
-git clone <repository-url>
-cd LAAA
-
-# 构建并启动
-./scripts/start.sh
-```
-
-### 访问系统
-
-- **前端界面**: http://localhost:3000
-- **API文档**: http://localhost:8000/docs
-- **管理面板**: http://localhost:3000/dashboard
-
-### 默认账户
-
-- **管理员用户名**: `admin`
-- **管理员密码**: `admin123`
-- **默认邀请码**: `CODE123456`
-
-⚠️ **重要**: 首次部署后请立即修改默认密码和配置！
-
-## 📋 详细配置
-
-### 环境变量配置
-
-编辑 `.env` 文件：
-
-```bash
-# 数据库配置
-DB_PASSWORD=your_secure_database_password
-
-# JWT密钥 (请使用强密钥)
-SECRET_KEY=your_jwt_secret_key_at_least_32_chars
-
-# 邮件配置 (SendGrid)
-SENDGRID_API_KEY=your_sendgrid_api_key
-FROM_EMAIL=noreply@yourdomain.com
-
-# API地址
-NEXT_PUBLIC_API_URL=http://localhost:8000
-```
-
-### 数据库初始化
-
-系统首次启动时会自动：
-- 创建所有数据表
-- 插入基础权限数据
-- 创建默认管理员账户
-- 生成初始邀请码
-
-### 权限系统配置
-
-系统预置以下权限：
-
-| 资源 | 操作 | 所需安全等级 | 额外验证 |
-|------|------|--------------|----------|
-| users | read | 2 | 否 |
-| users | create | 3 | 是 |
-| users | update | 3 | 是 |
-| users | delete | 4 | 是 |
-| applications | read | 2 | 否 |
-| applications | create | 3 | 是 |
-| applications | update | 3 | 是 |
-| applications | delete | 4 | 是 |
-| invitations | manage | 3 | 否 |
-| system | admin | 4 | 是 |
-
-## 🔧 开发指南
-
-### 本地开发环境
-
-#### 后端开发
-
-```bash
-cd backend
-
-# 创建虚拟环境
-python -m venv venv
-source venv/bin/activate  # Linux/Mac
-# 或 venv\Scripts\activate  # Windows
-
 # 安装依赖
 pip install -r requirements.txt
 
-# 启动开发服务器
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+# 运行数据库迁移
+alembic upgrade head
+
+# 启动服务器
+python main.py
 ```
 
-#### 前端开发
-
+**启动前端：**
 ```bash
 cd frontend
-
-# 安装依赖
 npm install
-
-# 启动开发服务器
 npm run dev
 ```
 
-### API 文档
+## 📖 API文档
 
-启动后端服务后，访问以下地址查看完整API文档：
-- **Swagger UI**: http://localhost:8000/docs
-- **ReDoc**: http://localhost:8000/redoc
+### 核心端点
 
-### 主要API端点
-
-#### 认证相关
-- `POST /api/v1/auth/login` - 用户登录
-- `POST /api/v1/auth/register` - 用户注册
-- `GET /api/v1/auth/me` - 获取当前用户信息
-- `POST /api/v1/auth/enable-totp` - 启用TOTP
-- `GET /api/v1/auth/devices` - 获取设备列表
-
-#### OAuth2.0
+#### OAuth 2.0 端点
 - `GET /oauth/authorize` - 授权端点
 - `POST /oauth/token` - 令牌端点
+- `POST /oauth/revoke` - 令牌撤销
+- `GET /oauth/introspect` - 令牌内省
+
+#### OpenID Connect 端点
+- `GET /oauth/.well-known/openid_configuration` - Discovery端点
 - `GET /oauth/userinfo` - 用户信息端点
-- `POST /oauth/revoke` - 撤销令牌
+- `GET /oauth/jwks` - JWKS端点
 
-#### 管理功能
-- `POST /api/v1/admin/invitation-codes` - 创建邀请码
-- `GET /api/v1/admin/users` - 用户列表
-- `POST /api/v1/admin/applications` - 创建应用
-- `GET /api/v1/admin/stats` - 系统统计
+#### API端点
+- `POST /api/v1/users` - 用户注册
+- `GET /api/v1/users/me` - 获取当前用户信息
+- `POST /api/v1/clients` - 创建OAuth客户端
+- `GET /api/v1/clients` - 获取客户端列表
 
-## 🔐 安全特性
+### 使用示例
 
-### 认证安全
-- **密码哈希**: 使用 bcrypt 算法
-- **JWT签名**: HS256 算法签名
-- **令牌过期**: Access Token 15分钟，Refresh Token 30天
-- **账户锁定**: 5次失败登录后锁定30分钟
+#### 授权码流程
 
-### 传输安全
-- **HTTPS强制**: 生产环境强制HTTPS
-- **CORS配置**: 严格的跨域资源共享配置
-- **安全头**: X-Frame-Options, X-Content-Type-Options等
+1. **重定向用户到授权端点：**
+   ```
+   GET /oauth/authorize?
+     response_type=code&
+     client_id=YOUR_CLIENT_ID&
+     redirect_uri=YOUR_REDIRECT_URI&
+     scope=openid profile email&
+     state=random_state&
+     code_challenge=CODE_CHALLENGE&
+     code_challenge_method=S256
+   ```
 
-### 应用安全
-- **SQL注入防护**: 使用SQLAlchemy ORM
-- **XSS防护**: 输入验证和输出编码
-- **CSRF防护**: 状态令牌验证
+2. **用户授权后，获取授权码：**
+   ```
+   YOUR_REDIRECT_URI?code=AUTHORIZATION_CODE&state=random_state
+   ```
 
-## 📊 系统监控
+3. **交换授权码获取令牌：**
+   ```bash
+   curl -X POST http://localhost:8000/oauth/token \
+     -H "Content-Type: application/x-www-form-urlencoded" \
+     -d "grant_type=authorization_code" \
+     -d "code=AUTHORIZATION_CODE" \
+     -d "redirect_uri=YOUR_REDIRECT_URI" \
+     -d "client_id=YOUR_CLIENT_ID" \
+     -d "code_verifier=CODE_VERIFIER"
+   ```
 
-### 日志管理
+## 🗄 数据库架构
+
+### 主要表结构
+
+- **users** - 用户信息
+- **client_applications** - OAuth客户端应用
+- **authorization_codes** - 授权码
+- **oauth2_tokens** - OAuth令牌
+- **user_authorizations** - 用户授权记录
+
+## ⚙️ 配置选项
+
+### 环境变量
 
 ```bash
-# 查看所有服务日志
-docker-compose logs -f
+# 数据库配置
+DATABASE_URL=postgresql://user:password@localhost:5432/oauth_db
 
-# 查看特定服务日志
-docker-compose logs -f backend
-docker-compose logs -f frontend
+# JWT配置
+SECRET_KEY=your-super-secret-key
+ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=30
+REFRESH_TOKEN_EXPIRE_DAYS=7
+
+# OIDC配置
+JWT_ISSUER=https://localhost:8000
+JWT_AUDIENCE=oauth-client
+
+# CORS配置
+CORS_ORIGINS=["http://localhost:3000", "http://localhost:8080"]
 ```
 
-### 健康检查
+## 🧪 测试
 
-- **后端健康检查**: http://localhost:8000/health
-- **数据库连接**: 自动重连机制
-- **Redis连接**: 连接池管理
-
-## 🔄 常用操作
-
-### 重启服务
+### 运行测试
 ```bash
-docker-compose restart
+# 后端测试
+pytest
+
+# 前端测试
+cd frontend
+npm test
 ```
 
-### 停止服务
-```bash
-docker-compose down
-```
+### OAuth 2.0 合规性测试
 
-### 重建服务
-```bash
-docker-compose down
-docker-compose build
-docker-compose up -d
-```
+可以使用以下工具测试OAuth 2.0合规性：
+- [OAuth 2.0 Security Best Current Practice](https://tools.ietf.org/html/draft-ietf-oauth-security-topics)
+- [OpenID Connect Certification](https://openid.net/certification/)
 
-### 备份数据库
-```bash
-docker-compose exec db pg_dump -U laaa laaa > backup.sql
-```
+## 📦 部署
 
-### 恢复数据库
-```bash
-docker-compose exec -T db psql -U laaa laaa < backup.sql
-```
+### Docker部署
 
-## 🧩 扩展开发
+1. **构建镜像**
+   ```bash
+   docker build -t oauth-server .
+   ```
 
-### 添加新权限
+2. **运行容器**
+   ```bash
+   docker run -p 8000:8000 oauth-server
+   ```
 
-1. 在数据库中插入新权限：
-```sql
-INSERT INTO permissions (name, resource, action, required_security_level) 
-VALUES ('新权限', '资源名', '操作名', 所需等级);
-```
+### 生产环境配置
 
-2. 在代码中使用权限检查：
-```python
-if permission_service.check_permission(user_id, '资源名', '操作名'):
-    # 执行操作
-```
+1. **使用HTTPS**
+2. **配置反向代理**
+3. **设置环境变量**
+4. **数据库连接池**
+5. **日志配置**
 
-### 集成新的认证方式
-
-系统支持扩展其他认证方式，如：
-- LDAP/AD集成
-- 第三方OAuth (GitHub, Google等)
-- 硬件密钥 (FIDO2/WebAuthn)
-- 短信验证
-
-### 自定义前端主题
-
-修改 `frontend/tailwind.config.js` 中的颜色配置：
-
-```javascript
-theme: {
-  extend: {
-    colors: {
-      primary: {
-        50: '#your-color',
-        500: '#your-color',
-        // ...
-      }
-    }
-  }
-}
-```
-
-## 📝 更新日志
-
-### v1.0.0
-- ✅ 完整的OAuth2.0实现
-- ✅ 四级安全等级系统
-- ✅ TOTP双因子认证
-- ✅ 设备管理功能
-- ✅ 邀请制注册
-- ✅ 完整的管理后台
-- ✅ Docker容器化部署
-
-## 🤝 贡献指南
+## 🤝 贡献
 
 1. Fork 项目
-2. 创建特性分支 (`git checkout -b feature/AmazingFeature`)
+2. 创建功能分支 (`git checkout -b feature/AmazingFeature`)
 3. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
 4. 推送到分支 (`git push origin feature/AmazingFeature`)
-5. 开启 Pull Request
+5. 打开 Pull Request
 
 ## 📄 许可证
 
-本项目采用 MIT 许可证 - 查看 [LICENSE](LICENSE) 文件了解详情
+此项目采用 MIT 许可证 - 查看 [LICENSE](LICENSE) 文件了解详情。
 
-## 📞 支持与联系
+## 🆘 支持
 
-- **问题反馈**: 请通过 Issues 页面提交
-- **功能建议**: 欢迎提交 Feature Request
-- **安全问题**: 请通过私有渠道联系
+如有问题或需要帮助，请：
+
+1. 查看[文档](docs/)
+2. 提交[Issue](https://github.com/your-repo/issues)
+3. 参与[讨论](https://github.com/your-repo/discussions)
+
+## 🎯 路线图
+
+- [ ] 多因子认证 (MFA)
+- [ ] 设备流程 (Device Flow)
+- [ ] SAML支持
+- [ ] 管理后台界面
+- [ ] 审计日志
+- [ ] 国际化 (i18n)
+- [ ] 主题定制
 
 ---
 
-**⚠️ 安全提醒**: 本系统涉及身份认证和授权，部署到生产环境前请：
-1. 修改所有默认密码和密钥
-2. 启用 HTTPS
-3. 配置防火墙规则
-4. 定期更新依赖包
-5. 监控安全日志
+Made with ❤️ using FastAPI and Next.js
