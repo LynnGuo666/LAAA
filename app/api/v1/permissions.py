@@ -234,7 +234,22 @@ async def create_permission_group(
         allowed_scopes=group.allowed_scopes,
         creator_id=current_user.id
     )
-    return result
+    
+    # 处理序列化问题
+    import json
+    group_data = result.__dict__.copy()
+    
+    # 处理allowed_scopes字段
+    if result.allowed_scopes:
+        try:
+            group_data['allowed_scopes'] = json.loads(result.allowed_scopes)
+        except (json.JSONDecodeError, TypeError):
+            group_data['allowed_scopes'] = []
+    else:
+        group_data['allowed_scopes'] = []
+    
+    group_data.pop('_sa_instance_state', None)
+    return group_data
 
 
 @router.get("/groups/{client_id}", response_model=PermissionGroupResponse)
@@ -309,7 +324,20 @@ async def update_permission_group(
     db.commit()
     db.refresh(existing_group)
     
-    return existing_group
+    # 处理序列化问题
+    group_data = existing_group.__dict__.copy()
+    
+    # 处理allowed_scopes字段
+    if existing_group.allowed_scopes:
+        try:
+            group_data['allowed_scopes'] = json.loads(existing_group.allowed_scopes)
+        except (json.JSONDecodeError, TypeError):
+            group_data['allowed_scopes'] = []
+    else:
+        group_data['allowed_scopes'] = []
+    
+    group_data.pop('_sa_instance_state', None)
+    return group_data
 
 
 # User Access Management APIs
