@@ -81,6 +81,14 @@ if os.path.exists(static_dir):
     async def serve_admin_permissions():
         return FileResponse(os.path.join(static_dir, "admin", "permissions", "index.html"))
     
+    @app.get("/admin/users")
+    async def serve_admin_users():
+        return FileResponse(os.path.join(static_dir, "admin", "users", "index.html"))
+    
+    @app.get("/admin/applications")
+    async def serve_admin_applications():
+        return FileResponse(os.path.join(static_dir, "admin", "applications", "index.html"))
+    
     # 前端静态资源
     @app.get("/_next/{file_path:path}")
     async def serve_next_assets(file_path: str):

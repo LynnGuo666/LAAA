@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from app.core.database import get_db
 from app.core.security import security
 from app.services.permission_management_service import PermissionManagementService
@@ -35,11 +35,11 @@ class PermissionGroupResponse(BaseModel):
     id: str
     client_id: str
     name: str
-    description: str = None
+    description: Optional[str] = None
     default_allowed: bool
-    allowed_scopes: List[str] = None
+    allowed_scopes: Optional[List[str]] = None
     created_at: datetime
-    updated_at: datetime = None
+    updated_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
@@ -65,13 +65,13 @@ class UserAccessResponse(BaseModel):
     user_id: str
     client_id: str
     access_type: str
-    custom_scopes: List[str] = None
-    granted_by: str = None
-    granted_at: datetime = None
-    notes: str = None
-    expires_at: datetime = None
+    custom_scopes: Optional[List[str]] = None
+    granted_by: Optional[str] = None
+    granted_at: Optional[datetime] = None
+    notes: Optional[str] = None
+    expires_at: Optional[datetime] = None
     created_at: datetime
-    updated_at: datetime = None
+    updated_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True

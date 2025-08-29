@@ -247,7 +247,7 @@ export default function DashboardPage() {
             <div className="flex space-x-3">
               {user.is_admin && (
                 <button
-                  onClick={() => router.push('/admin/permissions')}
+                  onClick={() => router.push('/admin/dashboard')}
                   className="btn-secondary"
                 >
                   管理后台
