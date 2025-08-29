@@ -2,7 +2,10 @@ import axios from 'axios';
 import Cookies from 'js-cookie';
 import { LoginCredentials, User, ClientApplication, TokenResponse } from '@/types';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
+// 在静态部署时，API基础URL应该是当前域名
+const API_BASE_URL = typeof window !== 'undefined' 
+  ? `${window.location.protocol}//${window.location.host}` 
+  : 'http://localhost:8000';
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -30,7 +33,7 @@ apiClient.interceptors.response.use(
       Cookies.remove('refresh_token');
       // 如果不在登录页面，重定向到登录页面
       if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
-        window.location.href = '/login';
+        window.location.href = '/login/';
       }
     }
     return Promise.reject(error);

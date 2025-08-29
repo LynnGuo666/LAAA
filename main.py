@@ -1,12 +1,15 @@
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from sqlalchemy.exc import SQLAlchemyError
 from app.core.config import settings
 from app.core.database import Base, engine
 from app.api.v1 import router as api_router
 from app.api.v1.oauth import router as oauth_router
 import logging
+import os
 
 # 配置日志
 logging.basicConfig(level=logging.INFO)
@@ -36,6 +39,61 @@ app.add_middleware(
 app.include_router(oauth_router)
 app.include_router(api_router)
 
+# 静态文件服务
+static_dir = os.path.join(os.path.dirname(__file__), "frontend", "dist")
+if os.path.exists(static_dir):
+    app.mount("/static", StaticFiles(directory=static_dir), name="static")
+    
+    @app.get("/login")
+    async def serve_login():
+        return FileResponse(os.path.join(static_dir, "login", "index.html"))
+    
+    @app.get("/register")
+    async def serve_register():
+        return FileResponse(os.path.join(static_dir, "register", "index.html"))
+    
+    @app.get("/authorize")
+    async def serve_authorize():
+        return FileResponse(os.path.join(static_dir, "authorize", "index.html"))
+    
+    @app.get("/callback")
+    async def serve_callback():
+        return FileResponse(os.path.join(static_dir, "callback", "index.html"))
+    
+    # 前端静态资源
+    @app.get("/_next/{file_path:path}")
+    async def serve_next_assets(file_path: str):
+        asset_path = os.path.join(static_dir, "_next", file_path)
+        if os.path.exists(asset_path):
+            return FileResponse(asset_path)
+        return {"error": "Not found"}, 404
+    
+    # 根路径服务前端
+    @app.get("/")
+    async def serve_frontend():
+        return FileResponse(os.path.join(static_dir, "index.html"))
+    
+    logger.info(f"Frontend static files served from: {static_dir}")
+else:
+    logger.warning(f"Frontend static directory not found: {static_dir}")
+    
+    @app.get("/")
+    async def root():
+        """根端点"""
+        return {
+            "message": "OAuth 2.0 / OIDC Authorization Server",
+            "version": "1.0.0",
+            "endpoints": {
+                "authorization": "/oauth/authorize",
+                "token": "/oauth/token",
+                "userinfo": "/oauth/userinfo",
+                "jwks": "/oauth/jwks",
+                "discovery": "/oauth/.well-known/openid_configuration",
+                "api": "/api/v1",
+                "docs": "/docs"
+            }
+        }
+
 
 @app.exception_handler(SQLAlchemyError)
 async def sqlalchemy_exception_handler(request: Request, exc: SQLAlchemyError):
@@ -44,24 +102,6 @@ async def sqlalchemy_exception_handler(request: Request, exc: SQLAlchemyError):
         status_code=500,
         content={"detail": "Database error occurred"}
     )
-
-
-@app.get("/")
-async def root():
-    """根端点"""
-    return {
-        "message": "OAuth 2.0 / OIDC Authorization Server",
-        "version": "1.0.0",
-        "endpoints": {
-            "authorization": "/oauth/authorize",
-            "token": "/oauth/token",
-            "userinfo": "/oauth/userinfo",
-            "jwks": "/oauth/jwks",
-            "discovery": "/oauth/.well-known/openid_configuration",
-            "api": "/api/v1",
-            "docs": "/docs"
-        }
-    }
 
 
 @app.get("/health")

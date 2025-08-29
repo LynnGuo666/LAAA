@@ -1,17 +1,14 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  async rewrites() {
-    return [
-      {
-        source: '/api/:path*',
-        destination: 'http://localhost:8000/api/:path*',
-      },
-      {
-        source: '/oauth/:path*',
-        destination: 'http://localhost:8000/oauth/:path*',
-      },
-    ]
+  output: 'export',
+  trailingSlash: true,
+  skipTrailingSlashRedirect: true,
+  distDir: 'dist',
+  images: {
+    unoptimized: true
   },
+  assetPrefix: '',
+  basePath: '',
 }
 
 module.exports = nextConfig

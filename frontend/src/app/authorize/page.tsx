@@ -4,8 +4,9 @@ import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { authApi } from '@/lib/api';
 import { ClientApplication, AuthorizationRequest, User } from '@/types';
+import { Suspense } from 'react';
 
-export default function AuthorizePage() {
+function AuthorizeContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   
@@ -21,36 +22,40 @@ export default function AuthorizePage() {
   const password = searchParams.get('password') || '';
 
   useEffect(() => {
-    const responseType = searchParams.get('response_type');
-    const clientId = searchParams.get('client_id');
-    const redirectUri = searchParams.get('redirect_uri');
-    
-    if (!responseType || !clientId || !redirectUri || !username || !password) {
-      setError('缺少必要的授权参数');
-      return;
+    try {
+      const responseType = searchParams.get('response_type');
+      const clientId = searchParams.get('client_id');
+      const redirectUri = searchParams.get('redirect_uri');
+      
+      if (!responseType || !clientId || !redirectUri || !username || !password) {
+        setError('缺少必要的授权参数');
+        return;
+      }
+      
+      const authReq: AuthorizationRequest = {
+        response_type: responseType,
+        client_id: clientId,
+        redirect_uri: redirectUri,
+        scope: searchParams.get('scope') || 'openid',
+        state: searchParams.get('state') || undefined,
+        code_challenge: searchParams.get('code_challenge') || undefined,
+        code_challenge_method: searchParams.get('code_challenge_method') || undefined,
+        nonce: searchParams.get('nonce') || undefined,
+      };
+      
+      setAuthRequest(authReq);
+      setScopes(authReq.scope ? authReq.scope.split(' ') : ['openid']);
+      
+      // 获取客户端信息
+      authApi.getClientInfo(clientId)
+        .then(setClientInfo)
+        .catch(err => {
+          console.error('Failed to fetch client info:', err);
+          setError('无效的客户端应用');
+        });
+    } catch (err) {
+      setError('解析授权参数失败');
     }
-    
-    const authReq: AuthorizationRequest = {
-      response_type: responseType,
-      client_id: clientId,
-      redirect_uri: redirectUri,
-      scope: searchParams.get('scope') || 'openid',
-      state: searchParams.get('state') || undefined,
-      code_challenge: searchParams.get('code_challenge') || undefined,
-      code_challenge_method: searchParams.get('code_challenge_method') || undefined,
-      nonce: searchParams.get('nonce') || undefined,
-    };
-    
-    setAuthRequest(authReq);
-    setScopes(authReq.scope ? authReq.scope.split(' ') : ['openid']);
-    
-    // 获取客户端信息
-    authApi.getClientInfo(clientId)
-      .then(setClientInfo)
-      .catch(err => {
-        console.error('Failed to fetch client info:', err);
-        setError('无效的客户端应用');
-      });
   }, [searchParams, username, password]);
 
   const getScopeDescription = (scope: string): string => {
@@ -260,5 +265,20 @@ export default function AuthorizePage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function AuthorizePage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-full flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">加载中...</p>
+        </div>
+      </div>
+    }>
+      <AuthorizeContent />
+    </Suspense>
   );
 }

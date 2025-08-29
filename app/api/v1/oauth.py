@@ -89,7 +89,6 @@ async def authorize(
         scope = "openid"
     
     # 重定向到前端登录页面，带上所有OAuth参数
-    frontend_url = "http://localhost:3000"  # 这应该从配置读取
     login_params = {
         "response_type": response_type,
         "client_id": client_id,
@@ -104,7 +103,7 @@ async def authorize(
     if nonce:
         login_params["nonce"] = nonce
     
-    login_url = f"{frontend_url}/login?{urlencode(login_params)}"
+    login_url = f"/login?{urlencode(login_params)}"
     return RedirectResponse(login_url)
 
 
