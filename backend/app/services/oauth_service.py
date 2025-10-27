@@ -20,6 +20,11 @@ class OAuthService:
     """OAuth 2.0 service"""
 
     @staticmethod
+    def check_user_access(user: User, client: Client) -> bool:
+        """检查用户是否有权限访问该应用"""
+        return user.can_access_client(client)
+
+    @staticmethod
     def get_client_by_id(db: Session, client_id: str) -> Optional[Client]:
         """Get client by client_id"""
         return db.query(Client).filter(Client.client_id == client_id).first()

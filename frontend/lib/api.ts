@@ -125,6 +125,50 @@ export const clientApi = {
 
   resetSecret: (id: number) =>
     api.post(`/api/clients/${id}/secret`),
+
+  getAccessControl: (id: number) =>
+    api.get(`/api/clients/${id}/access-control`),
+
+  updateAccessControl: (id: number, data: {
+    allowed_group_ids: number[];
+    denied_group_ids: number[];
+  }) =>
+    api.put(`/api/clients/${id}/access-control`, data),
+};
+
+// Group API
+export const groupApi = {
+  list: () =>
+    api.get('/api/groups'),
+
+  get: (id: number) =>
+    api.get(`/api/groups/${id}`),
+
+  create: (data: {
+    name: string;
+    description?: string;
+    is_default: boolean;
+  }) =>
+    api.post('/api/groups', data),
+
+  update: (id: number, data: {
+    name?: string;
+    description?: string;
+    is_default?: boolean;
+  }) =>
+    api.put(`/api/groups/${id}`, data),
+
+  delete: (id: number) =>
+    api.delete(`/api/groups/${id}`),
+
+  addMembers: (id: number, user_ids: number[]) =>
+    api.post(`/api/groups/${id}/members`, { user_ids }),
+
+  removeMembers: (id: number, user_ids: number[]) =>
+    api.delete(`/api/groups/${id}/members`, { data: { user_ids } }),
+
+  setMembers: (id: number, user_ids: number[]) =>
+    api.put(`/api/groups/${id}/members`, { user_ids }),
 };
 
 export default api;

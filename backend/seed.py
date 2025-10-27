@@ -3,7 +3,7 @@ Database initialization and seed data
 """
 from sqlalchemy.orm import Session
 from app.database import SessionLocal, init_db
-from app.models import User, Role, Permission, Client, role_permissions
+from app.models import User, Role, Permission, Client, Group, role_permissions
 from app.utils.security import get_password_hash, generate_random_string, hash_token
 import json
 
@@ -79,7 +79,13 @@ def create_default_admin(db: Session):
         admin_role = db.query(Role).filter(Role.name == "admin").first()
         if admin_role:
             admin.roles.append(admin_role)
-            db.commit()
+
+        # Assign to default group
+        default_group = db.query(Group).filter(Group.is_default == True).first()
+        if default_group:
+            admin.groups.append(default_group)
+
+        db.commit()
 
         print(f"  ✓ Created admin user (username: admin, password: admin123)")
     else:
@@ -113,6 +119,35 @@ def create_internal_client(db: Session):
         print(f"  ℹ Internal client already exists")
 
 
+def create_default_groups(db: Session):
+    """Create default user groups"""
+    groups_data = [
+        ("所有用户", "默认用户组，所有新用户自动加入", True),
+        ("开发者", "应用开发者组", False),
+        ("测试用户", "用于测试的用户组", False),
+    ]
+
+    for name, description, is_default in groups_data:
+        group = db.query(Group).filter(Group.name == name).first()
+        if not group:
+            # If this should be default, unset other defaults first
+            if is_default:
+                db.query(Group).filter(Group.is_default == True).update({'is_default': False})
+
+            group = Group(
+                name=name,
+                description=description,
+                is_default=is_default
+            )
+            db.add(group)
+            print(f"  ✓ Created group: {name}")
+        else:
+            print(f"  ℹ Group already exists: {name}")
+
+    db.commit()
+
+
+
 def seed_database():
     """Initialize database with seed data"""
     print("🌱 Seeding database...")
@@ -124,6 +159,9 @@ def seed_database():
     try:
         print("\n📋 Creating roles and permissions...")
         create_roles_and_permissions(db)
+
+        print("\n👥 Creating default groups...")
+        create_default_groups(db)
 
         print("\n👤 Creating default admin user...")
         create_default_admin(db)

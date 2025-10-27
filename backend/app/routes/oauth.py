@@ -8,7 +8,7 @@ from app.services.oauth_service import OAuthService
 from app.middleware.auth import get_optional_user
 from app.models import User
 
-router = APIRouter(prefix="/oauth", tags=["OAuth 2.0"])
+router = APIRouter(prefix="/api/oauth", tags=["OAuth 2.0"])
 
 
 @router.get("/authorize")
@@ -19,7 +19,8 @@ async def authorize_get(
     scope: str = Query(default="profile"),
     state: Optional[str] = Query(default=None),
     current_user: Optional[User] = Depends(get_optional_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    request: Request = None
 ):
     """OAuth authorization endpoint (GET) - Shows authorization page"""
     # Verify client
@@ -43,6 +44,13 @@ async def authorize_get(
             login_url += f"&state={state}"
         return RedirectResponse(url=login_url, status_code=302)
 
+    # Check if user has access to this client based on group permissions
+    if not OAuthService.check_user_access(current_user, client):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="您没有权限访问此应用"
+        )
+
     # Check if client is trusted or user has already authorized
     if client.trusted or OAuthService.has_user_authorized_client(db, current_user.id, client.id):
         # Auto-approve
@@ -57,63 +65,25 @@ async def authorize_get(
 
         return RedirectResponse(url=redirect_url, status_code=302)
 
-    # Show authorization page (for now, return HTML)
-    # In production, this should render from Next.js
-    html_content = f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <title>Authorize Application</title>
-        <style>
-            body {{
-                font-family: Arial, sans-serif;
-                max-width: 500px;
-                margin: 50px auto;
-                padding: 20px;
-                border: 1px solid #ddd;
-                border-radius: 8px;
-            }}
-            h2 {{ color: #333; }}
-            .app-info {{ background: #f5f5f5; padding: 15px; border-radius: 5px; margin: 20px 0; }}
-            .scopes {{ margin: 20px 0; }}
-            .scope-item {{ padding: 5px 0; }}
-            .buttons {{ margin-top: 20px; }}
-            button {{
-                padding: 10px 20px;
-                margin-right: 10px;
-                border: none;
-                border-radius: 5px;
-                cursor: pointer;
-                font-size: 16px;
-            }}
-            .approve {{ background: #4CAF50; color: white; }}
-            .deny {{ background: #f44336; color: white; }}
-        </style>
-    </head>
-    <body>
-        <h2>Authorize Application</h2>
-        <div class="app-info">
-            <strong>{client.name}</strong> wants to access your account
-        </div>
-        <div class="scopes">
-            <p><strong>This application will be able to:</strong></p>
-            {''.join([f'<div class="scope-item">✓ {s}</div>' for s in scope.split()])}
-        </div>
-        <form method="POST" action="/oauth/authorize">
-            <input type="hidden" name="response_type" value="{response_type}">
-            <input type="hidden" name="client_id" value="{client_id}">
-            <input type="hidden" name="redirect_uri" value="{redirect_uri}">
-            <input type="hidden" name="scope" value="{scope}">
-            {'<input type="hidden" name="state" value="' + state + '">' if state else ''}
-            <div class="buttons">
-                <button type="submit" name="action" value="approve" class="approve">Authorize</button>
-                <button type="submit" name="action" value="deny" class="deny">Deny</button>
-            </div>
-        </form>
-    </body>
-    </html>
-    """
-    return HTMLResponse(content=html_content)
+    # Need user confirmation - return client info as JSON for frontend to display
+    # Check if request is from frontend (has Accept: application/json)
+    accept_header = request.headers.get("accept", "") if request else ""
+    if "application/json" in accept_header:
+        return {
+            "client": {
+                "name": client.name,
+                "description": client.description,
+                "logo": client.logo,
+            },
+            "scope": scope,
+            "needs_approval": True
+        }
+
+    # For backward compatibility or direct browser access, redirect to frontend authorize page
+    frontend_url = f"/oauth/authorize?response_type={response_type}&client_id={client_id}&redirect_uri={redirect_uri}&scope={scope}"
+    if state:
+        frontend_url += f"&state={state}"
+    return RedirectResponse(url=frontend_url, status_code=302)
 
 
 @router.post("/authorize")
@@ -140,6 +110,13 @@ async def authorize_post(
     # Verify redirect_uri
     if not OAuthService.verify_redirect_uri(client, redirect_uri):
         raise HTTPException(status_code=400, detail="Invalid redirect_uri")
+
+    # Check if user has access to this client based on group permissions
+    if not OAuthService.check_user_access(current_user, client):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="您没有权限访问此应用"
+        )
 
     # Handle denial
     if action == "deny":

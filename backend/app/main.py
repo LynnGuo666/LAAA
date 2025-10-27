@@ -5,6 +5,7 @@ from fastapi.responses import FileResponse
 from app.config import get_settings
 from app.database import init_db
 from app.routes import auth, oauth, user, client
+from app.api import groups
 import os
 
 settings = get_settings()
@@ -32,6 +33,7 @@ app.include_router(auth.router)
 app.include_router(oauth.router)
 app.include_router(user.router)
 app.include_router(client.router)
+app.include_router(groups.router, prefix="/api/groups", tags=["groups"])
 
 
 # Health check
@@ -51,7 +53,7 @@ if os.path.exists(static_dir):
     @app.get("/{full_path:path}")
     async def serve_frontend(full_path: str):
         # Don't serve frontend for API routes
-        if full_path.startswith("api") or full_path.startswith("oauth"):
+        if full_path.startswith("api/"):
             return {"error": "Not found"}
 
         # Root path

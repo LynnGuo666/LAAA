@@ -24,6 +24,34 @@ role_permissions = Table(
 )
 
 
+# User-Group association table
+user_groups = Table(
+    'user_groups',
+    Base.metadata,
+    Column('user_id', Integer, ForeignKey('users.id', ondelete='CASCADE')),
+    Column('group_id', Integer, ForeignKey('groups.id', ondelete='CASCADE')),
+    Column('created_at', DateTime, default=datetime.utcnow)
+)
+
+
+# Client-Group association tables for access control
+client_allowed_groups = Table(
+    'client_allowed_groups',
+    Base.metadata,
+    Column('client_id', Integer, ForeignKey('clients.id', ondelete='CASCADE')),
+    Column('group_id', Integer, ForeignKey('groups.id', ondelete='CASCADE')),
+    Column('created_at', DateTime, default=datetime.utcnow)
+)
+
+client_denied_groups = Table(
+    'client_denied_groups',
+    Base.metadata,
+    Column('client_id', Integer, ForeignKey('clients.id', ondelete='CASCADE')),
+    Column('group_id', Integer, ForeignKey('groups.id', ondelete='CASCADE')),
+    Column('created_at', DateTime, default=datetime.utcnow)
+)
+
+
 class User(Base):
     __tablename__ = 'users'
 
@@ -38,6 +66,7 @@ class User(Base):
 
     # Relationships
     roles = relationship('Role', secondary=user_roles, back_populates='users')
+    groups = relationship('Group', secondary=user_groups, back_populates='users')
     clients = relationship('Client', back_populates='owner', cascade='all, delete-orphan')
     authorizations = relationship('UserAuthorization', back_populates='user', cascade='all, delete-orphan')
     tokens = relationship('Token', back_populates='user', cascade='all, delete-orphan')
@@ -58,6 +87,29 @@ class User(Base):
         """Check if user has a specific role"""
         return any(role.name == role_name for role in self.roles)
 
+    def in_group(self, group_name: str) -> bool:
+        """Check if user is in a specific group"""
+        return any(group.name == group_name for group in self.groups)
+
+    def can_access_client(self, client) -> bool:
+        """Check if user can access a specific client based on group permissions"""
+        # If no access control is set, allow access
+        if not client.allowed_groups and not client.denied_groups:
+            return True
+
+        # Check if user is in any denied group
+        user_group_ids = {g.id for g in self.groups}
+        denied_group_ids = {g.id for g in client.denied_groups}
+        if user_group_ids & denied_group_ids:  # Intersection
+            return False
+
+        # Check if whitelist is enabled
+        if client.allowed_groups:
+            allowed_group_ids = {g.id for g in client.allowed_groups}
+            return bool(user_group_ids & allowed_group_ids)  # User must be in at least one allowed group
+
+        return True
+
 
 class Client(Base):
     __tablename__ = 'clients'
@@ -76,6 +128,8 @@ class Client(Base):
 
     # Relationships
     owner = relationship('User', back_populates='clients')
+    allowed_groups = relationship('Group', secondary=client_allowed_groups, back_populates='allowed_clients')
+    denied_groups = relationship('Group', secondary=client_denied_groups, back_populates='denied_clients')
     authorizations = relationship('UserAuthorization', back_populates='client', cascade='all, delete-orphan')
     tokens = relationship('Token', back_populates='client', cascade='all, delete-orphan')
 
@@ -158,6 +212,22 @@ class Permission(Base):
 
     # Relationships
     roles = relationship('Role', secondary=role_permissions, back_populates='permissions')
+
+
+class Group(Base):
+    __tablename__ = 'groups'
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(50), unique=True, nullable=False)
+    description = Column(Text, nullable=True)
+    is_default = Column(Boolean, default=False)  # Auto-assign new users to this group
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationships
+    users = relationship('User', secondary=user_groups, back_populates='groups')
+    allowed_clients = relationship('Client', secondary=client_allowed_groups, back_populates='allowed_groups')
+    denied_clients = relationship('Client', secondary=client_denied_groups, back_populates='denied_groups')
 
 
 class AuditLog(Base):
