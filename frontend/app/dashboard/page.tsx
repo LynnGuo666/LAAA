@@ -30,7 +30,7 @@ export default function DashboardPage() {
         sessions: sessionsResponse.data.length,
       });
     } catch (err) {
-      console.error('Failed to load stats', err);
+      console.error('加载统计数据失败', err);
     } finally {
       setLoading(false);
     }
@@ -38,7 +38,7 @@ export default function DashboardPage() {
 
   return (
     <div className="px-4 sm:px-0">
-      <h1 className="text-3xl font-bold text-gray-900 mb-8">Dashboard</h1>
+      <h1 className="text-3xl font-bold text-gray-900 mb-8">控制台</h1>
 
       {loading ? (
         <div className="text-center py-12">
@@ -51,7 +51,7 @@ export default function DashboardPage() {
             <Link href="/dashboard/apps" className="card hover:shadow-lg transition-shadow">
               <div className="flex items-center">
                 <div className="flex-1">
-                  <p className="text-sm font-medium text-gray-500">My Applications</p>
+                  <p className="text-sm font-medium text-gray-500">我的应用</p>
                   <p className="text-3xl font-bold text-gray-900 mt-2">{stats.apps}</p>
                 </div>
                 <div className="text-4xl">📱</div>
@@ -61,7 +61,7 @@ export default function DashboardPage() {
             <div className="card">
               <div className="flex items-center">
                 <div className="flex-1">
-                  <p className="text-sm font-medium text-gray-500">Authorized Apps</p>
+                  <p className="text-sm font-medium text-gray-500">已授权应用</p>
                   <p className="text-3xl font-bold text-gray-900 mt-2">{stats.authorizations}</p>
                 </div>
                 <div className="text-4xl">🔐</div>
@@ -71,7 +71,7 @@ export default function DashboardPage() {
             <Link href="/dashboard/sessions" className="card hover:shadow-lg transition-shadow">
               <div className="flex items-center">
                 <div className="flex-1">
-                  <p className="text-sm font-medium text-gray-500">Active Sessions</p>
+                  <p className="text-sm font-medium text-gray-500">活跃会话</p>
                   <p className="text-3xl font-bold text-gray-900 mt-2">{stats.sessions}</p>
                 </div>
                 <div className="text-4xl">💻</div>
@@ -81,15 +81,15 @@ export default function DashboardPage() {
 
           {/* Quick Actions */}
           <div className="card">
-            <h2 className="text-xl font-semibold mb-4">Quick Actions</h2>
+            <h2 className="text-xl font-semibold mb-4">快速操作</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Link
                 href="/dashboard/apps"
                 className="p-4 border-2 border-gray-200 rounded-lg hover:border-blue-500 transition-colors"
               >
-                <h3 className="font-semibold mb-1">Create New App</h3>
+                <h3 className="font-semibold mb-1">创建新应用</h3>
                 <p className="text-sm text-gray-600">
-                  Register a new OAuth 2.0 application
+                  注册一个新的 OAuth 2.0 应用
                 </p>
               </Link>
 
@@ -97,9 +97,9 @@ export default function DashboardPage() {
                 href="/dashboard/profile"
                 className="p-4 border-2 border-gray-200 rounded-lg hover:border-blue-500 transition-colors"
               >
-                <h3 className="font-semibold mb-1">Update Profile</h3>
+                <h3 className="font-semibold mb-1">更新资料</h3>
                 <p className="text-sm text-gray-600">
-                  Manage your account settings
+                  管理你的账号设置
                 </p>
               </Link>
 
@@ -107,9 +107,9 @@ export default function DashboardPage() {
                 href="/dashboard/sessions"
                 className="p-4 border-2 border-gray-200 rounded-lg hover:border-blue-500 transition-colors"
               >
-                <h3 className="font-semibold mb-1">Manage Sessions</h3>
+                <h3 className="font-semibold mb-1">管理会话</h3>
                 <p className="text-sm text-gray-600">
-                  View and revoke active sessions
+                  查看和撤销活跃会话
                 </p>
               </Link>
 
@@ -118,9 +118,9 @@ export default function DashboardPage() {
                 target="_blank"
                 className="p-4 border-2 border-gray-200 rounded-lg hover:border-blue-500 transition-colors"
               >
-                <h3 className="font-semibold mb-1">API Documentation</h3>
+                <h3 className="font-semibold mb-1">API 文档</h3>
                 <p className="text-sm text-gray-600">
-                  View API reference and examples
+                  查看 API 参考和示例
                 </p>
               </a>
             </div>

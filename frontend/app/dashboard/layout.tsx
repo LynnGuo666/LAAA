@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useAuthStore } from '@/lib/store';
 import { authApi } from '@/lib/api';
@@ -12,6 +12,7 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const { user, isAuthenticated, setUser, logout } = useAuthStore();
 
   useEffect(() => {
@@ -52,11 +53,18 @@ export default function DashboardLayout({
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
+          <p className="mt-4 text-gray-600">加载中...</p>
         </div>
       </div>
     );
   }
+
+  const navLinks = [
+    { href: '/dashboard', label: '控制台' },
+    { href: '/dashboard/apps', label: '我的应用' },
+    { href: '/dashboard/sessions', label: '会话管理' },
+    { href: '/dashboard/profile', label: '个人资料' },
+  ];
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -66,34 +74,26 @@ export default function DashboardLayout({
           <div className="flex justify-between h-16">
             <div className="flex">
               <Link href="/dashboard" className="flex items-center px-2 py-2 text-xl font-bold">
-                OAuth Server
+                OAuth 服务器
               </Link>
 
               <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
-                <Link
-                  href="/dashboard"
-                  className="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-900 border-b-2 border-transparent hover:border-gray-300"
-                >
-                  Dashboard
-                </Link>
-                <Link
-                  href="/dashboard/apps"
-                  className="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-500 border-b-2 border-transparent hover:border-gray-300"
-                >
-                  My Apps
-                </Link>
-                <Link
-                  href="/dashboard/sessions"
-                  className="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-500 border-b-2 border-transparent hover:border-gray-300"
-                >
-                  Sessions
-                </Link>
-                <Link
-                  href="/dashboard/profile"
-                  className="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-500 border-b-2 border-transparent hover:border-gray-300"
-                >
-                  Profile
-                </Link>
+                {navLinks.map((link) => {
+                  const isActive = pathname === link.href;
+                  return (
+                    <Link
+                      key={link.href}
+                      href={link.href}
+                      className={`inline-flex items-center px-1 pt-1 text-sm font-medium border-b-2 ${
+                        isActive
+                          ? 'text-blue-600 border-blue-600'
+                          : 'text-gray-500 border-transparent hover:border-gray-300'
+                      }`}
+                    >
+                      {link.label}
+                    </Link>
+                  );
+                })}
               </div>
             </div>
 
@@ -105,7 +105,7 @@ export default function DashboardLayout({
                 onClick={handleLogout}
                 className="btn btn-secondary text-sm"
               >
-                Logout
+                退出登录
               </button>
             </div>
           </div>
