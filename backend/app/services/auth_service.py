@@ -75,7 +75,7 @@ class AuthService:
         """Create access and refresh tokens for a user"""
 
         # Create JWT tokens
-        token_data = {"sub": user.id, "scope": scope}
+        token_data = {"sub": str(user.id), "scope": scope}
         access_token = create_access_token(token_data)
         refresh_token = create_refresh_token(token_data, remember_me)
 
@@ -163,7 +163,7 @@ class AuthService:
             return None
 
         # Create new tokens
-        token_data = {"sub": user.id, "scope": token_record.scope}
+        token_data = {"sub": str(user.id), "scope": token_record.scope}
         new_access_token = create_access_token(token_data)
         new_refresh_token = create_refresh_token(token_data)
 

@@ -40,6 +40,16 @@ def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+    # Convert sub from string to int
+    try:
+        user_id = int(user_id)
+    except (ValueError, TypeError):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid user ID in token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
     user = db.query(User).filter(User.id == user_id).first()
     if user is None:
         raise HTTPException(
@@ -74,6 +84,12 @@ def get_optional_user(
 
     user_id: int = payload.get("sub")
     if user_id is None:
+        return None
+
+    # Convert sub from string to int
+    try:
+        user_id = int(user_id)
+    except (ValueError, TypeError):
         return None
 
     user = db.query(User).filter(User.id == user_id, User.status == 'active').first()
