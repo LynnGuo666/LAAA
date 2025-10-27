@@ -1,0 +1,102 @@
+# .gitignore for LAAA project
+# OS
+.DS_Store
+Thumbs.db
+
+# Node / Next.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+.next/
+out/
+.next/cache/
+.next/static/
+.next/standalone/
+.next/server/
+.build/
+dist/
+
+# Frontend build output (if any)
+frontend/out/
+
+# Logs
+logs
+*.log
+logs/*
+
+# Environment variables
+.env
+.env.*.local
+.env.local
+
+# Editor directories and files
+.vscode/
+.idea/
+*.sublime-workspace
+*.sublime-project
+*.code-workspace
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.python-version
+env/
+.venv/
+venv/
+ENV/
+build/
+*.egg-info/
+pip-wheel-metadata/
+*.egg
+
+# Test and coverage
+.pytest_cache/
+.mypy_cache/
+coverage/
+.coverage
+coverage.xml
+htmlcov/
+
+# Database files
+*.sqlite3
+*.db
+backend/oauth.db
+
+# Static and temporary
+*.tmp
+*.temp
+*.local
+.cache/
+
+# Secrets and keys
+*.pem
+*.key
+*.crt
+secrets.json
+
+# Misc
+.Dockerfile.swp
+*.swp
+
+# Lock files (optional - keep if you want to track them)
+# package-lock.json
+# yarn.lock
+# pnpm-lock.yaml
+
+# JetBrains
+*.iml
+
+# macOS
+.AppleDouble
+.LSOverride
+
+# Coverage and profiling
+.prof
+
+# Ignore compiled assets
+*.pyc
+
+# Allow any other local files to be ignored below
+# end of .gitignore
