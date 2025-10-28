@@ -30,9 +30,16 @@ export default function GroupsPage() {
   const loadGroups = async () => {
     try {
       const response = await groupApi.list();
-      setGroups(response.data);
+      // Ensure we have an array before setting groups
+      if (Array.isArray(response.data)) {
+        setGroups(response.data);
+      } else {
+        console.error('Invalid response format:', response.data);
+        setGroups([]);
+      }
     } catch (err) {
       console.error('加载用户组失败', err);
+      setGroups([]); // Ensure groups is always an array even on error
     } finally {
       setLoading(false);
     }
@@ -138,7 +145,7 @@ export default function GroupsPage() {
       )}
 
       <div className="space-y-4">
-        {groups.length === 0 ? (
+        {!groups || groups.length === 0 ? (
           <div className="card text-center py-12">
             <p className="text-gray-500">还没有用户组，创建一个开始吧！</p>
           </div>

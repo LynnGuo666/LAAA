@@ -63,6 +63,7 @@ export default function DashboardLayout({
     { href: '/dashboard', label: '控制台' },
     { href: '/dashboard/apps', label: '我的应用' },
     { href: '/dashboard/groups', label: '用户组' },
+    { href: '/dashboard/users', label: '用户管理' },
     { href: '/dashboard/sessions', label: '会话管理' },
     { href: '/dashboard/profile', label: '个人资料' },
   ];

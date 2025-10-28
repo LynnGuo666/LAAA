@@ -139,7 +139,7 @@ export const clientApi = {
 // Group API
 export const groupApi = {
   list: () =>
-    api.get('/api/groups'),
+    api.get('/api/groups/'),
 
   get: (id: number) =>
     api.get(`/api/groups/${id}`),
@@ -149,7 +149,7 @@ export const groupApi = {
     description?: string;
     is_default: boolean;
   }) =>
-    api.post('/api/groups', data),
+    api.post('/api/groups/', data),
 
   update: (id: number, data: {
     name?: string;
@@ -169,6 +169,45 @@ export const groupApi = {
 
   setMembers: (id: number, user_ids: number[]) =>
     api.put(`/api/groups/${id}/members`, { user_ids }),
+};
+
+// Admin API
+export const adminApi = {
+  // 用户管理
+  listUsers: (skip: number = 0, limit: number = 100) =>
+    api.get('/api/admin/users', { params: { skip, limit } }),
+
+  getUser: (id: number) =>
+    api.get(`/api/admin/users/${id}`),
+
+  createUser: (data: {
+    username: string;
+    email: string;
+    password: string;
+    status?: string;
+  }) =>
+    api.post('/api/admin/users', data),
+
+  updateUser: (id: number, data: {
+    email?: string;
+    avatar?: string;
+    status?: string;
+    password?: string;
+  }) =>
+    api.put(`/api/admin/users/${id}`, data),
+
+  deleteUser: (id: number) =>
+    api.delete(`/api/admin/users/${id}`),
+
+  updateUserGroups: (id: number, group_ids: number[]) =>
+    api.put(`/api/admin/users/${id}/groups`, { group_ids }),
+
+  updateUserRoles: (id: number, role_ids: number[]) =>
+    api.put(`/api/admin/users/${id}/roles`, { role_ids }),
+
+  // 角色管理
+  listRoles: () =>
+    api.get('/api/admin/roles'),
 };
 
 export default api;

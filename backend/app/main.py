@@ -5,7 +5,7 @@ from fastapi.responses import FileResponse
 from app.config import get_settings
 from app.database import init_db
 from app.routes import auth, oauth, user, client
-from app.api import groups
+from app.api import groups, admin
 import os
 
 settings = get_settings()
@@ -34,6 +34,7 @@ app.include_router(oauth.router)
 app.include_router(user.router)
 app.include_router(client.router)
 app.include_router(groups.router, prefix="/api/groups", tags=["groups"])
+app.include_router(admin.router, prefix="/api/admin", tags=["admin"])
 
 
 # Health check
