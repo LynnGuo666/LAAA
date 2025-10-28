@@ -34,6 +34,8 @@ export default function AppsPage() {
   const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [showEditForm, setShowEditForm] = useState(false);
+  const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [showAccessControl, setShowAccessControl] = useState(false);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [accessControl, setAccessControl] = useState({
@@ -43,6 +45,7 @@ export default function AppsPage() {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
+    logo: '',
     redirect_uris: '',
     allowed_scopes: ['profile', 'email'],  // 默认选中
     trusted: false,
@@ -105,6 +108,7 @@ export default function AppsPage() {
       setFormData({
         name: '',
         description: '',
+        logo: '',
         redirect_uris: '',
         allowed_scopes: ['profile', 'email'],
         trusted: false,
@@ -112,6 +116,55 @@ export default function AppsPage() {
       loadClients();
     } catch (err: any) {
       alert('创建应用失败: ' + (err.response?.data?.detail || '未知错误'));
+    }
+  };
+
+  const openEditForm = (client: Client) => {
+    setEditingClient(client);
+    setFormData({
+      name: client.name,
+      description: client.description || '',
+      logo: '', // logo 需要从后端获取
+      redirect_uris: client.redirect_uris.join('\n'),
+      allowed_scopes: client.allowed_scopes,
+      trusted: client.trusted,
+    });
+    setShowEditForm(true);
+  };
+
+  const handleUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingClient) return;
+
+    if (formData.allowed_scopes.length === 0) {
+      alert('请至少选择一个权限范围');
+      return;
+    }
+
+    try {
+      await clientApi.update(editingClient.id, {
+        name: formData.name,
+        description: formData.description || undefined,
+        logo: formData.logo || undefined,
+        redirect_uris: formData.redirect_uris.split('\n').filter(u => u.trim()),
+        allowed_scopes: formData.allowed_scopes,
+        trusted: formData.trusted,
+      });
+
+      alert('应用更新成功！');
+      setShowEditForm(false);
+      setEditingClient(null);
+      setFormData({
+        name: '',
+        description: '',
+        logo: '',
+        redirect_uris: '',
+        allowed_scopes: ['profile', 'email'],
+        trusted: false,
+      });
+      loadClients();
+    } catch (err: any) {
+      alert('更新应用失败: ' + (err.response?.data?.detail || '未知错误'));
     }
   };
 
@@ -228,6 +281,18 @@ export default function AppsPage() {
           </div>
 
           <div>
+            <label className="block text-sm font-medium mb-2">应用 Logo URL</label>
+            <input
+              type="url"
+              className="input"
+              placeholder="https://example.com/logo.png"
+              value={formData.logo}
+              onChange={(e) => setFormData({ ...formData, logo: e.target.value })}
+            />
+            <p className="text-xs text-gray-500 mt-1">Logo 将显示在授权页面上</p>
+          </div>
+
+          <div>
             <label className="block text-sm font-medium mb-2">回调地址 * (每行一个)</label>
             <textarea
               required
@@ -282,6 +347,111 @@ export default function AppsPage() {
         </form>
       )}
 
+      {/* 编辑应用表单 */}
+      {showEditForm && editingClient && (
+        <form onSubmit={handleUpdate} className="card mb-8 space-y-4">
+          <h2 className="text-xl font-semibold">编辑应用: {editingClient.name}</h2>
+
+          <div>
+            <label className="block text-sm font-medium mb-2">应用名称 *</label>
+            <input
+              type="text"
+              required
+              className="input"
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2">应用描述</label>
+            <textarea
+              className="input"
+              rows={3}
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2">应用 Logo URL</label>
+            <input
+              type="url"
+              className="input"
+              placeholder="https://example.com/logo.png"
+              value={formData.logo}
+              onChange={(e) => setFormData({ ...formData, logo: e.target.value })}
+            />
+            <p className="text-xs text-gray-500 mt-1">Logo 将显示在授权页面上</p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2">回调地址 * (每行一个)</label>
+            <textarea
+              required
+              className="input font-mono text-sm"
+              rows={3}
+              placeholder="http://localhost:3000/callback&#10;https://myapp.com/callback"
+              value={formData.redirect_uris}
+              onChange={(e) => setFormData({ ...formData, redirect_uris: e.target.value })}
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-3">权限范围 *</label>
+            <div className="space-y-3">
+              {AVAILABLE_SCOPES.map((scope) => (
+                <div key={scope.value} className="flex items-start">
+                  <input
+                    type="checkbox"
+                    id={`edit-scope-${scope.value}`}
+                    checked={formData.allowed_scopes.includes(scope.value)}
+                    onChange={() => handleScopeToggle(scope.value)}
+                    className="h-4 w-4 mt-1 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <label htmlFor={`edit-scope-${scope.value}`} className="ml-3 flex-1 cursor-pointer">
+                    <div className="font-medium text-sm">{scope.label}</div>
+                    <div className="text-xs text-gray-500 mt-0.5">{scope.description}</div>
+                  </label>
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-gray-500 mt-2">
+              已选择 {formData.allowed_scopes.length} 项权限
+            </p>
+          </div>
+
+          <div className="flex items-center">
+            <input
+              type="checkbox"
+              id="edit-trusted"
+              checked={formData.trusted}
+              onChange={(e) => setFormData({ ...formData, trusted: e.target.checked })}
+              className="h-4 w-4"
+            />
+            <label htmlFor="edit-trusted" className="ml-2 text-sm">
+              信任的应用（跳过授权确认）
+            </label>
+          </div>
+
+          <div className="flex space-x-3">
+            <button type="submit" className="btn btn-primary">
+              保存更改
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setShowEditForm(false);
+                setEditingClient(null);
+              }}
+              className="btn btn-secondary"
+            >
+              取消
+            </button>
+          </div>
+        </form>
+      )}
+
       <div className="space-y-4">
         {clients.length === 0 ? (
           <div className="card text-center py-12">
@@ -310,6 +480,12 @@ export default function AppsPage() {
                   </div>
                 </div>
                 <div className="flex gap-2">
+                  <button
+                    onClick={() => openEditForm(client)}
+                    className="btn btn-secondary text-sm"
+                  >
+                    编辑
+                  </button>
                   <button
                     onClick={() => openAccessControl(client)}
                     className="btn btn-secondary text-sm"
