@@ -11,6 +11,24 @@ from app.models import User
 router = APIRouter(prefix="/api/oauth", tags=["OAuth 2.0"])
 
 
+@router.get("/client/{client_id}")
+async def get_client_info(
+    client_id: str,
+    db: Session = Depends(get_db)
+):
+    """Get client information by client_id"""
+    client = OAuthService.get_client_by_id(db, client_id)
+    if not client:
+        raise HTTPException(status_code=404, detail="Client not found")
+
+    return {
+        "client_id": client.client_id,
+        "name": client.name,
+        "description": client.description,
+        "logo": client.logo,
+    }
+
+
 @router.get("/authorize")
 async def authorize_get(
     response_type: str = Query(...),
@@ -65,10 +83,13 @@ async def authorize_get(
 
         return RedirectResponse(url=redirect_url, status_code=302)
 
-    # Need user confirmation - return client info as JSON for frontend to display
-    # Check if request is from frontend (has Accept: application/json)
+    # Need user confirmation - check if request wants JSON
+    # Check Accept header or if Authorization header is present (API call from frontend)
     accept_header = request.headers.get("accept", "") if request else ""
-    if "application/json" in accept_header:
+    auth_header = request.headers.get("authorization", "") if request else ""
+
+    # If it's an API call (has Authorization header or wants JSON), return JSON
+    if auth_header or "application/json" in accept_header:
         return {
             "client": {
                 "name": client.name,
@@ -79,7 +100,7 @@ async def authorize_get(
             "needs_approval": True
         }
 
-    # For backward compatibility or direct browser access, redirect to frontend authorize page
+    # For direct browser access, redirect to frontend authorize page
     frontend_url = f"/oauth/authorize?response_type={response_type}&client_id={client_id}&redirect_uri={redirect_uri}&scope={scope}"
     if state:
         frontend_url += f"&state={state}"

@@ -13,10 +13,17 @@ interface ClientInfo {
   logo?: string;
 }
 
+interface UserInfo {
+  username: string;
+  email: string;
+  avatar?: string;
+}
+
 function AuthorizeContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [clientInfo, setClientInfo] = useState<ClientInfo | null>(null);
+  const [currentUser, setCurrentUser] = useState<UserInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [accessDenied, setAccessDenied] = useState(false);
@@ -49,7 +56,25 @@ function AuthorizeContent() {
     }
 
     try {
-      // 验证参数并获取客户端信息
+      // 获取当前用户信息
+      const userResponse = await authApi.getMe(token);
+      setCurrentUser(userResponse.data);
+
+      // 获取客户端信息
+      const clientResponse = await axios.get(`${API_URL}/api/oauth/client/${clientId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      console.log('Client info from API:', clientResponse.data);
+      setClientInfo({
+        name: clientResponse.data.name,
+        description: clientResponse.data.description,
+        logo: clientResponse.data.logo,
+      });
+
+      // 验证授权参数
       const response = await axios.get(`${API_URL}/api/oauth/authorize`, {
         params: {
           response_type: responseType,
@@ -71,11 +96,6 @@ function AuthorizeContent() {
         return;
       }
 
-      // 解析客户端信息（从返回的 HTML 中提取，或者调用专门的 API）
-      setClientInfo({
-        name: clientId || 'Unknown App',
-        description: '正在请求访问您的账号',
-      });
       setLoading(false);
     } catch (err: any) {
       console.error('授权检查失败', err);
@@ -154,6 +174,14 @@ function AuthorizeContent() {
     }
   };
 
+  const handleSwitchAccount = () => {
+    // 退出当前账号并重定向回授权页面
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
+    const returnUrl = `/oauth/authorize?${searchParams.toString()}`;
+    router.push(`/login?redirect=${encodeURIComponent(returnUrl)}`);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -220,6 +248,37 @@ function AuthorizeContent() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
       <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8">
+        {/* 当前用户信息 */}
+        {currentUser && (
+          <div className="mb-6 pb-4 border-b border-gray-200">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                {currentUser.avatar ? (
+                  <img
+                    src={currentUser.avatar}
+                    alt={currentUser.username}
+                    className="w-10 h-10 rounded-full mr-3"
+                  />
+                ) : (
+                  <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white font-medium mr-3">
+                    {currentUser.username.charAt(0).toUpperCase()}
+                  </div>
+                )}
+                <div>
+                  <p className="text-sm font-medium text-gray-900">{currentUser.username}</p>
+                  <p className="text-xs text-gray-500">{currentUser.email}</p>
+                </div>
+              </div>
+              <button
+                onClick={handleSwitchAccount}
+                className="text-sm text-blue-600 hover:text-blue-800"
+              >
+                切换账号
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="text-center mb-6">
           {clientInfo?.logo && (
             <img
@@ -232,6 +291,9 @@ function AuthorizeContent() {
           <p className="text-gray-600">
             <strong className="text-gray-900">{clientInfo?.name}</strong> 想要访问您的账号
           </p>
+          {clientInfo?.description && (
+            <p className="text-sm text-gray-500 mt-2">{clientInfo.description}</p>
+          )}
         </div>
 
         <div className="bg-gray-50 rounded-lg p-4 mb-6">
