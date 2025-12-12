@@ -8,7 +8,8 @@ from app.utils.security import (
     create_access_token,
     create_refresh_token,
     decode_token,
-    hash_token
+    hash_token,
+    verify_client_secret
 )
 from app.utils.device import generate_device_id, get_device_name, parse_device_type
 from app.config import get_settings
@@ -41,11 +42,18 @@ class AuthService:
         db.refresh(user)
 
         # Assign default 'user' role
-        from app.models import Role
+        from app.models import Role, Group
         user_role = db.query(Role).filter(Role.name == 'user').first()
         if user_role:
             user.roles.append(user_role)
-            db.commit()
+        
+        # Assign default groups (is_default=True)
+        default_groups = db.query(Group).filter(Group.is_default == True).all()
+        for group in default_groups:
+            if group not in user.groups:
+                user.groups.append(group)
+
+        db.commit()
 
         return user
 
@@ -74,8 +82,19 @@ class AuthService:
     ) -> Tuple[str, str]:
         """Create access and refresh tokens for a user"""
 
+        # Resolve client early so tokens are bound to a real client_id
+        from app.models import Client
+        client = db.query(Client).filter(Client.client_id == client_id).first()
+        if not client:
+            # Fallback for internal auth or legacy data
+            client = db.query(Client).first()
+
         # Create JWT tokens
-        token_data = {"sub": str(user.id), "scope": scope}
+        token_data = {
+            "sub": str(user.id),
+            "scope": scope,
+            "client_id": client.client_id if client else client_id,
+        }
         access_token = create_access_token(token_data)
         refresh_token = create_refresh_token(token_data, remember_me)
 
@@ -85,13 +104,6 @@ class AuthService:
             refresh_expires = datetime.utcnow() + timedelta(days=settings.refresh_token_remember_me_days)
         else:
             refresh_expires = datetime.utcnow() + timedelta(days=settings.refresh_token_expire_days)
-
-        # Get or create client (for internal auth, we use a default client)
-        from app.models import Client
-        client = db.query(Client).filter(Client.client_id == client_id).first()
-        if not client:
-            # This shouldn't happen in production, but handle gracefully
-            client = db.query(Client).first()
 
         # Store refresh token
         refresh_token_record = Token(
@@ -139,7 +151,12 @@ class AuthService:
         return access_token, refresh_token
 
     @staticmethod
-    def refresh_access_token(db: Session, refresh_token: str) -> Optional[Tuple[str, str]]:
+    def refresh_access_token(
+        db: Session,
+        refresh_token: str,
+        client_id: Optional[str] = None,
+        client_secret: Optional[str] = None
+    ) -> Optional[Tuple[str, str]]:
         """Refresh an access token using a refresh token"""
         # Decode refresh token
         payload = decode_token(refresh_token)
@@ -157,13 +174,31 @@ class AuthService:
         if not token_record:
             return None
 
+        # Ensure the refresh token is still bound to a valid client
+        from app.models import Client
+        bound_client = token_record.client
+        if not bound_client:
+            return None
+
+        # If caller provides client_id, require it to match the bound client
+        if client_id and bound_client.client_id != client_id:
+            return None
+
+        # If caller provides client_secret, verify it against the bound client
+        if client_secret and not verify_client_secret(client_secret, bound_client.client_secret_hash):
+            return None
+
         # Get user
         user = token_record.user
         if not user or user.status != 'active':
             return None
 
         # Create new tokens
-        token_data = {"sub": str(user.id), "scope": token_record.scope}
+        token_data = {
+            "sub": str(user.id),
+            "scope": token_record.scope,
+            "client_id": bound_client.client_id,
+        }
         new_access_token = create_access_token(token_data)
         new_refresh_token = create_refresh_token(token_data)
 

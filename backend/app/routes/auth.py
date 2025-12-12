@@ -77,7 +77,12 @@ async def login(
 @router.post("/refresh", response_model=TokenResponse)
 async def refresh(refresh_data: RefreshTokenRequest, db: Session = Depends(get_db)):
     """Refresh access token"""
-    result = AuthService.refresh_access_token(db, refresh_data.refresh_token)
+    result = AuthService.refresh_access_token(
+        db,
+        refresh_data.refresh_token,
+        client_id=refresh_data.client_id,
+        client_secret=refresh_data.client_secret
+    )
     if not result:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

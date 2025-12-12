@@ -29,11 +29,13 @@ function LoginContent() {
   const [loading, setLoading] = useState(false);
   const [clientInfo, setClientInfo] = useState<ClientInfo | null>(null);
   const [loadingClient, setLoadingClient] = useState(true);
+  const [mounted, setMounted] = useState(false);
 
   // 获取 redirect 参数
   const redirectUrl = searchParams.get('redirect');
 
   useEffect(() => {
+    setMounted(true);
     // 检查是否是从 OAuth 授权页面跳转过来的
     if (redirectUrl && redirectUrl.includes('/oauth/authorize')) {
       // 从 redirect URL 中提取 client_id

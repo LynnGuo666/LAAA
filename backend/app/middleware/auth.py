@@ -98,7 +98,11 @@ def get_optional_user(
 
 def require_admin(current_user: User = Depends(get_current_user)) -> User:
     """Require user to be an admin"""
-    if not current_user.has_role('admin'):
+    if not (
+        current_user.has_role('admin') or
+        current_user.has_permission('admin.*') or
+        current_user.has_permission('admin.groups')
+    ):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin privileges required"

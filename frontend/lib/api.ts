@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { useAuthStore } from './store';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -48,10 +49,14 @@ api.interceptors.response.use(
           originalRequest.headers.Authorization = `Bearer ${access_token}`;
           return api(originalRequest);
         } catch (refreshError) {
-          // Refresh failed, logout user
+          // Refresh failed, logout user (let app router navigate, avoid full reload)
           localStorage.removeItem('access_token');
           localStorage.removeItem('refresh_token');
-          window.location.href = '/login';
+          try {
+            useAuthStore.getState().logout();
+          } catch {
+            // ignore if store isn't initialized
+          }
           return Promise.reject(refreshError);
         }
       }

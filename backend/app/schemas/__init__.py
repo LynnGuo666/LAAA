@@ -45,6 +45,8 @@ class TokenResponse(BaseModel):
 
 class RefreshTokenRequest(BaseModel):
     refresh_token: str
+    client_id: Optional[str] = None
+    client_secret: Optional[str] = None
 
 
 # Client Schemas
