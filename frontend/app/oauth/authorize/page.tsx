@@ -83,14 +83,13 @@ function AuthorizeContent() {
         },
         headers: {
           Authorization: `Bearer ${token}`,
+          Accept: 'application/json',
         },
-        maxRedirects: 0,
-        validateStatus: (status) => status < 400 || status === 302,
       });
 
-      // 如果后端返回 302，说明已经自动授权（trusted app 或已授权）
-      if (response.status === 302 || response.headers.location) {
-        window.location.href = response.headers.location;
+      // 如果后端返回 redirect_url，说明已经自动授权（trusted app 或已授权）
+      if (response.data?.redirect_url) {
+        window.location.href = response.data.redirect_url;
         return;
       }
 
@@ -137,23 +136,18 @@ function AuthorizeContent() {
           headers: {
             Authorization: `Bearer ${token}`,
             'Content-Type': 'application/x-www-form-urlencoded',
+            Accept: 'application/json',
           },
-          maxRedirects: 0,
-          validateStatus: (status) => status < 400 || status === 302,
         }
       );
 
-      // 重定向到回调地址
-      if (response.headers.location) {
-        window.location.href = response.headers.location;
-      } else if (response.status === 302) {
-        // 手动处理重定向
-        window.location.href = response.headers.location;
+      if (response.data?.redirect_url) {
+        window.location.href = response.data.redirect_url;
+      } else {
+        alert('授权失败: 未收到跳转地址');
       }
     } catch (err: any) {
-      if (err.response?.status === 302 && err.response?.headers?.location) {
-        window.location.href = err.response.headers.location;
-      } else if (err.response?.status === 403) {
+      if (err.response?.status === 403) {
         setAccessDenied(true);
         setError(err.response?.data?.detail || '您没有权限访问此应用');
       } else {

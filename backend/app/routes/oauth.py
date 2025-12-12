@@ -52,6 +52,10 @@ async def authorize_get(
     request: Request = None
 ):
     """OAuth authorization endpoint (GET) - Shows authorization page"""
+    accept_header = request.headers.get("accept", "") if request else ""
+    auth_header = request.headers.get("authorization", "") if request else ""
+    is_api_call = bool(auth_header) or "application/json" in accept_header
+
     # Verify client
     client = OAuthService.get_client_by_id(db, client_id)
     if not client:
@@ -93,15 +97,14 @@ async def authorize_get(
         if state:
             redirect_url += f"&state={state}"
 
+        if is_api_call:
+            return {"redirect_url": redirect_url}
         return RedirectResponse(url=redirect_url, status_code=302)
 
     # Need user confirmation - check if request wants JSON
     # Check Accept header or if Authorization header is present (API call from frontend)
-    accept_header = request.headers.get("accept", "") if request else ""
-    auth_header = request.headers.get("authorization", "") if request else ""
-
     # If it's an API call (has Authorization header or wants JSON), return JSON
-    if auth_header or "application/json" in accept_header:
+    if is_api_call:
         return {
             "client": {
                 "name": client.name,
@@ -128,9 +131,14 @@ async def authorize_post(
     state: Optional[str] = Form(default=None),
     action: str = Form(...),
     current_user: Optional[User] = Depends(get_optional_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    request: Request = None,
 ):
     """OAuth authorization endpoint (POST) - Handle user approval/denial"""
+    accept_header = request.headers.get("accept", "") if request else ""
+    auth_header = request.headers.get("authorization", "") if request else ""
+    is_api_call = bool(auth_header) or "application/json" in accept_header
+
     # Check if user is logged in
     if not current_user:
         raise HTTPException(status_code=401, detail="Not authenticated")
@@ -156,6 +164,8 @@ async def authorize_post(
         redirect_url = f"{redirect_uri}?error=access_denied"
         if state:
             redirect_url += f"&state={state}"
+        if is_api_call:
+            return {"redirect_url": redirect_url}
         return RedirectResponse(url=redirect_url, status_code=302)
 
     # Handle approval
@@ -174,6 +184,8 @@ async def authorize_post(
         if state:
             redirect_url += f"&state={state}"
 
+        if is_api_call:
+            return {"redirect_url": redirect_url}
         return RedirectResponse(url=redirect_url, status_code=302)
 
     raise HTTPException(status_code=400, detail="Invalid action")
