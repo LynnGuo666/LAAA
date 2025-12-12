@@ -38,6 +38,8 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
 def create_refresh_token(data: dict, remember_me: bool = False) -> str:
     """Create a JWT refresh token"""
     to_encode = data.copy()
+    # Add unique ID to avoid collisions across rapid refreshes
+    to_encode.update({"jti": secrets.token_urlsafe(16)})
     if remember_me:
         expire = datetime.utcnow() + timedelta(days=settings.refresh_token_remember_me_days)
     else:

@@ -58,7 +58,7 @@ export default function DashboardPage() {
               </div>
             </Link>
 
-            <div className="card">
+            <Link href="/dashboard/authorizations" className="card hover:shadow-lg transition-shadow">
               <div className="flex items-center">
                 <div className="flex-1">
                   <p className="text-sm font-medium text-gray-500">已授权应用</p>
@@ -66,7 +66,7 @@ export default function DashboardPage() {
                 </div>
                 <div className="text-4xl">🔐</div>
               </div>
-            </div>
+            </Link>
 
             <Link href="/dashboard/sessions" className="card hover:shadow-lg transition-shadow">
               <div className="flex items-center">

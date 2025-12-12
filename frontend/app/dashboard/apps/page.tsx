@@ -9,6 +9,7 @@ interface Client {
   client_id: string;
   name: string;
   description?: string;
+  logo?: string;
   redirect_uris: string[];
   allowed_scopes: string[];
   trusted: boolean;
@@ -98,6 +99,7 @@ export default function AppsPage() {
       const response = await clientApi.create({
         name: formData.name,
         description: formData.description || undefined,
+        logo: formData.logo || undefined,
         redirect_uris: formData.redirect_uris.split('\n').filter(u => u.trim()),
         allowed_scopes: formData.allowed_scopes,
         trusted: formData.trusted,
@@ -125,7 +127,7 @@ export default function AppsPage() {
     setFormData({
       name: client.name,
       description: client.description || '',
-      logo: '', // logo 需要从后端获取
+      logo: client.logo || '',
       redirect_uris: client.redirect_uris.join('\n'),
       allowed_scopes: client.allowed_scopes,
       trusted: client.trusted,

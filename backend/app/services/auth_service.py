@@ -11,6 +11,7 @@ from app.utils.security import (
     hash_token,
     verify_client_secret
 )
+from sqlalchemy.exc import IntegrityError
 from app.utils.device import generate_device_id, get_device_name, parse_device_type
 from app.config import get_settings
 
@@ -221,21 +222,27 @@ class AuthService:
         refresh_expires = datetime.utcnow() + timedelta(days=settings.refresh_token_expire_days)
 
         # Update old refresh token record
-        token_record.token_hash = hash_token(new_refresh_token)
-        token_record.expires_at = refresh_expires
+        for _ in range(3):
+            token_record.token_hash = hash_token(new_refresh_token)
+            token_record.expires_at = refresh_expires
 
-        # Update session if exists
-        session = db.query(SessionModel).filter(
-            SessionModel.refresh_token_hash == token_hash_value
-        ).first()
-        if session:
-            session.refresh_token_hash = hash_token(new_refresh_token)
-            session.last_active = datetime.utcnow()
-            session.expires_at = refresh_expires
+            # Update session if exists
+            session = db.query(SessionModel).filter(
+                SessionModel.refresh_token_hash == token_hash_value
+            ).first()
+            if session:
+                session.refresh_token_hash = hash_token(new_refresh_token)
+                session.last_active = datetime.utcnow()
+                session.expires_at = refresh_expires
 
-        db.commit()
+            try:
+                db.commit()
+                return new_access_token, new_refresh_token
+            except IntegrityError:
+                db.rollback()
+                new_refresh_token = create_refresh_token(token_data)
 
-        return new_access_token, new_refresh_token
+        return None
 
     @staticmethod
     def logout(db: Session, refresh_token: str) -> bool:
