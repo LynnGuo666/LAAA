@@ -5,6 +5,7 @@ from typing import Optional, Dict, Any
 from app.config import get_settings
 import secrets
 import hashlib
+import base64
 
 settings = get_settings()
 
@@ -45,6 +46,37 @@ def create_refresh_token(data: dict, remember_me: bool = False) -> str:
     to_encode.update({"exp": expire, "type": "refresh"})
     encoded_jwt = jwt.encode(to_encode, settings.secret_key, algorithm=settings.algorithm)
     return encoded_jwt
+
+
+def create_id_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
+    """Create an OpenID Connect ID Token (JWT)"""
+    to_encode = data.copy()
+    now = datetime.utcnow()
+    if expires_delta:
+        expire = now + expires_delta
+    else:
+        expire = now + timedelta(minutes=settings.access_token_expire_minutes)
+    to_encode.update({"exp": expire, "iat": now, "type": "id"})
+    encoded_jwt = jwt.encode(to_encode, settings.secret_key, algorithm=settings.algorithm)
+    return encoded_jwt
+
+
+def get_jwks() -> Dict[str, Any]:
+    """Return JWKS for current signing key (HS* via oct key)."""
+    secret_bytes = settings.secret_key.encode("utf-8")
+    k = base64.urlsafe_b64encode(secret_bytes).rstrip(b"=").decode("ascii")
+    kid = hashlib.sha256(secret_bytes).hexdigest()[:16]
+    return {
+        "keys": [
+            {
+                "kty": "oct",
+                "use": "sig",
+                "alg": settings.algorithm,
+                "kid": kid,
+                "k": k,
+            }
+        ]
+    }
 
 
 def decode_token(token: str) -> Optional[Dict[str, Any]]:
