@@ -5,8 +5,8 @@ COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
 COPY frontend/ ./
 ENV NEXT_TELEMETRY_DISABLED=1
-# Static export for FastAPI to serve from /frontend/out
-RUN npm run export
+# Static export is handled by Next via output: 'export' in next.config.js
+RUN npm run build
 
 FROM python:3.11-slim AS runner
 WORKDIR /app
@@ -25,4 +25,3 @@ COPY --from=frontend-builder /frontend/out /app/frontend/out
 
 EXPOSE 8000
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
-
