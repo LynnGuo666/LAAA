@@ -7,12 +7,13 @@ from app.schemas import TokenRequest, UserInfoResponse
 from app.services.oauth_service import OAuthService
 from app.middleware.auth import get_optional_user
 from app.models import User
-from app.utils.security import create_id_token, decode_token
+from app.utils.security import create_id_token, decode_token, verify_client_secret
 from app.config import get_settings
 from urllib.parse import quote
 import base64
 import hashlib
 import logging
+from fastapi.responses import JSONResponse
 
 settings = get_settings()
 
@@ -184,6 +185,18 @@ async def token(
     request: Request = None
 ):
     """OAuth token endpoint"""
+    def oauth_error(
+        status_code: int,
+        error: str,
+        error_description: str,
+        headers: Optional[dict] = None,
+    ) -> JSONResponse:
+        return JSONResponse(
+            status_code=status_code,
+            content={"error": error, "error_description": error_description},
+            headers=headers or {},
+        )
+
     async def parse_token_request(req: Request) -> dict:
         body_bytes = await req.body()
         body_len = len(body_bytes)
@@ -266,7 +279,7 @@ async def token(
 
     if not grant_type:
         logger.warning("oauth token: missing grant_type client_id=%s", client_id)
-        raise HTTPException(status_code=400, detail="grant_type required")
+        return oauth_error(400, "invalid_request", "grant_type required")
     if not client_id or not client_secret:
         logger.warning(
             "oauth token: missing client credentials grant_type=%s has_client_id=%s has_client_secret=%s",
@@ -274,7 +287,21 @@ async def token(
             bool(client_id),
             bool(client_secret),
         )
-        raise HTTPException(status_code=400, detail="client_id and client_secret required")
+        return oauth_error(
+            401,
+            "invalid_client",
+            "client authentication failed (missing client_id/client_secret)",
+            headers={"WWW-Authenticate": 'Basic realm="oauth"'},
+        )
+
+    client = OAuthService.get_client_by_id(db, client_id)
+    if not client or not verify_client_secret(client_secret, client.client_secret_hash):
+        return oauth_error(
+            401,
+            "invalid_client",
+            "client authentication failed (invalid client_secret)",
+            headers={"WWW-Authenticate": 'Basic realm="oauth"'},
+        )
 
     base = str(request.base_url).rstrip("/") if request else ""
     issuer = settings.oidc_issuer or base
@@ -311,7 +338,7 @@ async def token(
                 bool(code),
                 bool(redirect_uri),
             )
-            raise HTTPException(status_code=400, detail="code and redirect_uri required")
+            return oauth_error(400, "invalid_request", "code and redirect_uri required")
 
         result = OAuthService.exchange_code_for_token(
             db, code, client_id, client_secret, redirect_uri
@@ -323,7 +350,7 @@ async def token(
                 client_id,
                 redirect_uri,
             )
-            raise HTTPException(status_code=400, detail="Invalid authorization code")
+            return oauth_error(400, "invalid_grant", "invalid authorization code")
 
         access_token, refresh_token_value, expires_in = result
 
@@ -339,7 +366,7 @@ async def token(
         # Refresh token flow
         if not refresh_token:
             logger.warning("oauth token: missing refresh_token client_id=%s", client_id)
-            raise HTTPException(status_code=400, detail="refresh_token required")
+            return oauth_error(400, "invalid_request", "refresh_token required")
 
         result = OAuthService.refresh_token_grant(
             db, refresh_token, client_id, client_secret
@@ -347,7 +374,7 @@ async def token(
 
         if not result:
             logger.warning("oauth token: refresh_token grant failed client_id=%s", client_id)
-            raise HTTPException(status_code=400, detail="Invalid refresh token")
+            return oauth_error(400, "invalid_grant", "invalid refresh token")
 
         access_token, new_refresh_token, expires_in = result
 
@@ -368,7 +395,7 @@ async def token(
                 bool(username),
                 bool(password),
             )
-            raise HTTPException(status_code=400, detail="username and password required")
+            return oauth_error(400, "invalid_request", "username and password required")
 
         result = OAuthService.password_grant(
             db, username, password, client_id, client_secret, scope or "profile"
@@ -376,7 +403,7 @@ async def token(
 
         if not result:
             logger.warning("oauth token: password grant failed client_id=%s username=%s", client_id, username)
-            raise HTTPException(status_code=400, detail="Invalid credentials or client not trusted")
+            return oauth_error(400, "invalid_grant", "invalid credentials or client not trusted")
 
         access_token, refresh_token_value, expires_in = result
 
@@ -389,7 +416,7 @@ async def token(
         return maybe_add_id_token(response, access_token)
 
     else:
-        raise HTTPException(status_code=400, detail="Unsupported grant_type")
+        return oauth_error(400, "unsupported_grant_type", "unsupported grant_type")
 
 
 @router.get("/userinfo", response_model=UserInfoResponse)

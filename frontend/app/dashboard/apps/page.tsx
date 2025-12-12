@@ -40,6 +40,12 @@ export default function AppsPage() {
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [showAccessControl, setShowAccessControl] = useState(false);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  const [newClientCredentials, setNewClientCredentials] = useState<{
+    client_id: string;
+    client_secret: string;
+  } | null>(null);
+  const [showNewSecret, setShowNewSecret] = useState(true);
+  const [copyStatus, setCopyStatus] = useState<string | null>(null);
   const [accessControl, setAccessControl] = useState({
     allowed_group_ids: [] as number[],
     denied_group_ids: [] as number[],
@@ -87,6 +93,17 @@ export default function AppsPage() {
     }));
   };
 
+  const copyToClipboard = async (text: string, label: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopyStatus(`${label} 已复制`);
+      window.setTimeout(() => setCopyStatus(null), 1500);
+    } catch {
+      setCopyStatus('复制失败，请手动复制');
+      window.setTimeout(() => setCopyStatus(null), 2000);
+    }
+  };
+
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -105,7 +122,12 @@ export default function AppsPage() {
         trusted: formData.trusted,
       });
 
-      alert(`应用创建成功！\n\nClient ID: ${response.data.client_id}\nClient Secret: ${response.data.client_secret}\n\n⚠️ 请立即保存密钥，它不会再次显示！`);
+      setNewClientCredentials({
+        client_id: response.data.client_id,
+        client_secret: response.data.client_secret,
+      });
+      setShowNewSecret(true);
+      setCopyStatus(null);
 
       setShowCreateForm(false);
       setFormData({
@@ -257,6 +279,69 @@ export default function AppsPage() {
           {showCreateForm ? '取消' : '+ 创建应用'}
         </button>
       </div>
+
+      {newClientCredentials && (
+        <div className="card mb-8 border-l-4 border-yellow-400">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1">
+              <h2 className="text-lg font-semibold">应用密钥（仅本次显示）</h2>
+              <p className="text-sm text-gray-600 mt-1">
+                请立即保存 `Client Secret`，关闭页面后将无法再次查看（可在此页面重置）。
+              </p>
+            </div>
+            <button
+              type="button"
+              className="btn btn-secondary text-sm"
+              onClick={() => setNewClientCredentials(null)}
+            >
+              关闭
+            </button>
+          </div>
+
+          <div className="mt-4 space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+              <div className="sm:w-28 text-sm font-medium">Client ID</div>
+              <div className="flex-1 flex items-center gap-2">
+                <code className="bg-gray-100 px-2 py-1 rounded font-mono text-sm break-all select-all flex-1">
+                  {newClientCredentials.client_id}
+                </code>
+                <button
+                  type="button"
+                  className="btn btn-secondary text-sm"
+                  onClick={() => copyToClipboard(newClientCredentials.client_id, 'Client ID')}
+                >
+                  复制
+                </button>
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+              <div className="sm:w-28 text-sm font-medium">Client Secret</div>
+              <div className="flex-1 flex items-center gap-2">
+                <code className="bg-gray-100 px-2 py-1 rounded font-mono text-sm break-all select-all flex-1">
+                  {showNewSecret ? newClientCredentials.client_secret : '••••••••••••••••'}
+                </code>
+                <button
+                  type="button"
+                  className="btn btn-secondary text-sm"
+                  onClick={() => setShowNewSecret((v) => !v)}
+                >
+                  {showNewSecret ? '隐藏' : '显示'}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-secondary text-sm"
+                  onClick={() => copyToClipboard(newClientCredentials.client_secret, 'Client Secret')}
+                >
+                  复制
+                </button>
+              </div>
+            </div>
+
+            {copyStatus && <div className="text-sm text-gray-600">{copyStatus}</div>}
+          </div>
+        </div>
+      )}
 
       {showCreateForm && (
         <form onSubmit={handleCreate} className="card mb-8 space-y-4">
