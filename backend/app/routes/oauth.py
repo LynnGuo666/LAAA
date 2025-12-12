@@ -11,10 +11,13 @@ from app.utils.security import create_id_token, decode_token
 from app.config import get_settings
 from urllib.parse import quote
 import base64
+import hashlib
+import logging
 
 settings = get_settings()
 
 router = APIRouter(prefix="/api/oauth", tags=["OAuth 2.0"])
+logger = logging.getLogger("app.oauth")
 
 
 @router.get("/client/{client_id}")
@@ -181,18 +184,33 @@ async def token(
 ):
     """OAuth token endpoint"""
     async def parse_token_request(req: Request) -> dict:
+        body_bytes = await req.body()
+        body_len = len(body_bytes)
+        body_hash = hashlib.sha256(body_bytes).hexdigest()[:12] if body_bytes else "empty"
         content_type = (req.headers.get("content-type") or "").lower()
         if "application/json" in content_type:
             try:
                 data = await req.json()
                 return data if isinstance(data, dict) else {}
             except Exception:
-                raise HTTPException(status_code=400, detail="Invalid JSON body")
+                logger.warning(
+                    "oauth token: invalid json body (len=%s hash=%s ct=%s)",
+                    body_len,
+                    body_hash,
+                    content_type,
+                )
+                raise HTTPException(status_code=400, detail=f"Invalid JSON body (error_id={body_hash})")
 
         try:
             form = await req.form()
         except Exception:
-            raise HTTPException(status_code=400, detail="Invalid form body")
+            logger.warning(
+                "oauth token: invalid form body (len=%s hash=%s ct=%s)",
+                body_len,
+                body_hash,
+                content_type,
+            )
+            raise HTTPException(status_code=400, detail=f"Invalid form body (error_id={body_hash})")
 
         data: dict = {}
         for k, v in form.multi_items():
@@ -218,6 +236,11 @@ async def token(
         raise HTTPException(status_code=400, detail="Missing request context")
 
     payload = await parse_token_request(request)
+    logger.debug(
+        "oauth token: parsed keys=%s ct=%s",
+        sorted(list(payload.keys())),
+        (request.headers.get("content-type") or "").lower(),
+    )
 
     grant_type = payload.get("grant_type")
     code = payload.get("code")
