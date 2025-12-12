@@ -224,6 +224,21 @@ export default function AppsPage() {
     }
   };
 
+  const handleResetSecret = async (client: Client) => {
+    if (!confirm(`确定要重置 "${client.name}" 的 Client Secret 吗？重置后旧密钥将立即失效。`)) return;
+    try {
+      const response = await clientApi.resetSecret(client.id);
+      setNewClientCredentials({
+        client_id: response.data.client_id,
+        client_secret: response.data.client_secret,
+      });
+      setShowNewSecret(true);
+      setCopyStatus(null);
+    } catch (err: any) {
+      alert('重置密钥失败: ' + (err.response?.data?.detail || '未知错误'));
+    }
+  };
+
   const handleAccessControlSave = async () => {
     if (!selectedClient) return;
 
@@ -574,6 +589,12 @@ export default function AppsPage() {
                       className="btn btn-secondary text-sm"
                     >
                       编辑
+                    </button>
+                    <button
+                      onClick={() => handleResetSecret(client)}
+                      className="btn btn-secondary text-sm"
+                    >
+                      重置密钥
                     </button>
                     <button
                       onClick={() => openAccessControl(client)}
