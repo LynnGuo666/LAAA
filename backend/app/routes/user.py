@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 from typing import List
 from app.database import get_db
@@ -10,6 +10,7 @@ from app.schemas import (
 )
 from app.middleware.auth import get_current_user
 from app.models import User, UserAuthorization, Session as SessionModel
+from app.utils.device import generate_device_id
 from datetime import datetime
 
 router = APIRouter(prefix="/api/user", tags=["User Management"])
@@ -102,10 +103,15 @@ async def revoke_authorization(
 
 @router.get("/sessions", response_model=List[SessionResponse])
 async def get_sessions(
+    request: Request,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Get list of active sessions (remembered devices)"""
+    user_agent = request.headers.get("user-agent", "") or "unknown"
+    client_ip = request.client.host if request.client else "unknown"
+    current_device_id = generate_device_id(current_user.id, user_agent, client_ip)
+
     sessions = db.query(SessionModel).filter(
         SessionModel.user_id == current_user.id,
         SessionModel.expires_at > datetime.utcnow()
@@ -121,7 +127,7 @@ async def get_sessions(
             ip_address=session.ip_address,
             last_active=session.last_active,
             expires_at=session.expires_at,
-            is_current=False  # TODO: detect current session
+            is_current=session.device_id == current_device_id
         ))
 
     return result

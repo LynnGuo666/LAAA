@@ -82,6 +82,13 @@ class AuthService:
     ) -> Tuple[str, str]:
         """Create access and refresh tokens for a user"""
 
+        safe_user_agent = user_agent or "unknown"
+        safe_ip_address = ip_address or "unknown"
+
+        device_id: Optional[str] = None
+        if remember_me:
+            device_id = generate_device_id(user.id, safe_user_agent, safe_ip_address)
+
         # Resolve client early so tokens are bound to a real client_id
         from app.models import Client
         client = db.query(Client).filter(Client.client_id == client_id).first()
@@ -95,6 +102,8 @@ class AuthService:
             "scope": scope,
             "client_id": client.client_id if client else client_id,
         }
+        if device_id:
+            token_data["device_id"] = device_id
         access_token = create_access_token(token_data)
         refresh_token = create_refresh_token(token_data, remember_me)
 
@@ -117,31 +126,34 @@ class AuthService:
         db.add(refresh_token_record)
 
         # Create or update session if remember_me
-        if remember_me and device_name and ip_address and user_agent:
-            device_id = generate_device_id(user_agent, ip_address)
-            device_type = parse_device_type(user_agent)
-            device_display_name = device_name or get_device_name(user_agent)
+        if remember_me:
+            device_type = parse_device_type(safe_user_agent)
+            device_display_name = device_name or get_device_name(safe_user_agent)
 
-            # Check if session exists
+            # Check if session exists for this user+device
             session = db.query(SessionModel).filter(
+                SessionModel.user_id == user.id,
                 SessionModel.device_id == device_id
             ).first()
 
             if session:
-                # Update existing session
                 session.refresh_token_hash = hash_token(refresh_token)
                 session.last_active = datetime.utcnow()
                 session.expires_at = refresh_expires
+                session.ip_address = safe_ip_address
+                session.user_agent = safe_user_agent
+                if device_name:
+                    session.device_name = device_display_name
+                session.device_type = device_type
             else:
-                # Create new session
                 session = SessionModel(
                     user_id=user.id,
                     device_id=device_id,
                     device_name=device_display_name,
                     device_type=device_type,
                     refresh_token_hash=hash_token(refresh_token),
-                    ip_address=ip_address,
-                    user_agent=user_agent,
+                    ip_address=safe_ip_address,
+                    user_agent=safe_user_agent,
                     expires_at=refresh_expires
                 )
                 db.add(session)
@@ -162,6 +174,7 @@ class AuthService:
         payload = decode_token(refresh_token)
         if not payload or payload.get("type") != "refresh":
             return None
+        device_id = payload.get("device_id")
 
         # Check if refresh token exists and is valid
         token_hash_value = hash_token(refresh_token)
@@ -199,6 +212,8 @@ class AuthService:
             "scope": token_record.scope,
             "client_id": bound_client.client_id,
         }
+        if device_id:
+            token_data["device_id"] = device_id
         new_access_token = create_access_token(token_data)
         new_refresh_token = create_refresh_token(token_data)
 

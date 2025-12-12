@@ -1,12 +1,16 @@
-from typing import Optional
 import hashlib
-import secrets
+from typing import Optional
 
 
-def generate_device_id(user_agent: str, ip_address: str) -> str:
-    """Generate a unique device ID based on user agent and IP"""
-    # Create a hash of user agent and IP
-    data = f"{user_agent}:{ip_address}:{secrets.token_hex(8)}"
+def generate_device_id(user_id: int, user_agent: str, ip_address: Optional[str] = None) -> str:
+    """Generate a stable device ID based on user, user-agent and IP.
+
+    This is used for "remember me" session tracking. It is deterministic so that
+    repeated logins from the same environment map to the same remembered device.
+    """
+    ua = user_agent or "unknown"
+    ip = ip_address or "unknown"
+    data = f"{user_id}:{ua}:{ip}"
     return hashlib.sha256(data.encode()).hexdigest()[:32]
 
 

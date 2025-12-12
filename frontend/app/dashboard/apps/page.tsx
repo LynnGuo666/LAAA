@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { clientApi, groupApi } from '@/lib/api';
+import SidePanel from '@/components/SidePanel';
 
 interface Client {
   id: number;
@@ -240,7 +241,7 @@ export default function AppsPage() {
   };
 
   if (loading) {
-    return <div className="text-center py-12">Loading...</div>;
+    return <div className="text-center py-12 text-gray-600">加载中...</div>;
   }
 
   return (
@@ -452,72 +453,78 @@ export default function AppsPage() {
         </form>
       )}
 
-      <div className="space-y-4">
-        {clients.length === 0 ? (
-          <div className="card text-center py-12">
-            <p className="text-gray-500">还没有应用，创建一个开始使用吧！</p>
-          </div>
-        ) : (
-          clients.map((client) => (
-            <div key={client.id} className="card">
-              <div className="flex justify-between items-start">
-                <div className="flex-1">
-                  <h3 className="text-lg font-semibold">{client.name}</h3>
-                  {client.description && (
-                    <p className="text-sm text-gray-600 mt-1">{client.description}</p>
-                  )}
-                  <div className="mt-3 space-y-1 text-sm">
-                    <p>
-                      <span className="font-medium">Client ID:</span>{' '}
-                      <code className="bg-gray-100 px-2 py-1 rounded">{client.client_id}</code>
-                    </p>
-                    <p>
-                      <span className="font-medium">权限范围:</span> {client.allowed_scopes.join(', ')}
-                    </p>
-                    {client.trusted && (
-                      <p className="text-green-600">✓ 信任的应用</p>
+      <div className="flex flex-col lg:flex-row gap-6">
+        <section className="flex-1 space-y-4">
+          {clients.length === 0 ? (
+            <div className="card text-center py-12">
+              <p className="text-gray-500">还没有应用，创建一个开始使用吧！</p>
+            </div>
+          ) : (
+            clients.map((client) => (
+              <div key={client.id} className="card">
+                <div className="flex justify-between items-start">
+                  <div className="flex-1">
+                    <h3 className="text-lg font-semibold">{client.name}</h3>
+                    {client.description && (
+                      <p className="text-sm text-gray-600 mt-1">{client.description}</p>
                     )}
+                    <div className="mt-3 space-y-1 text-sm">
+                      <p>
+                        <span className="font-medium">Client ID:</span>{' '}
+                        <code className="bg-gray-100 px-2 py-1 rounded">{client.client_id}</code>
+                      </p>
+                      <p>
+                        <span className="font-medium">权限范围:</span> {client.allowed_scopes.join(', ')}
+                      </p>
+                      {client.trusted && (
+                        <p className="text-green-600">已设为信任应用</p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => openEditForm(client)}
+                      className="btn btn-secondary text-sm"
+                    >
+                      编辑
+                    </button>
+                    <button
+                      onClick={() => openAccessControl(client)}
+                      className="btn btn-secondary text-sm"
+                    >
+                      访问控制
+                    </button>
+                    <button
+                      onClick={() => handleDelete(client.id, client.name)}
+                      className="btn btn-danger text-sm"
+                    >
+                      删除
+                    </button>
                   </div>
                 </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => openEditForm(client)}
-                    className="btn btn-secondary text-sm"
-                  >
-                    编辑
-                  </button>
-                  <button
-                    onClick={() => openAccessControl(client)}
-                    className="btn btn-secondary text-sm"
-                  >
-                    访问控制
-                  </button>
-                  <button
-                    onClick={() => handleDelete(client.id, client.name)}
-                    className="btn btn-danger text-sm"
-                  >
-                    删除
-                  </button>
-                </div>
               </div>
-            </div>
-          ))
-        )}
-      </div>
+            ))
+          )}
+        </section>
 
-      {/* Access Control Modal */}
-      {showAccessControl && selectedClient && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto">
-            <h2 className="text-2xl font-bold mb-4">访问控制 - {selectedClient.name}</h2>
-            <p className="text-sm text-gray-600 mb-6">
-              设置哪些用户组可以访问此应用。如果不设置任何限制，所有用户都可以访问。
-            </p>
-
+        <SidePanel
+          title={selectedClient ? `访问控制：${selectedClient.name}` : '访问控制'}
+          open={showAccessControl && !!selectedClient}
+          onClose={() => {
+            setShowAccessControl(false);
+            setSelectedClient(null);
+          }}
+        >
+          {!selectedClient ? (
+            <div className="text-sm text-gray-500">请选择左侧应用</div>
+          ) : (
             <div className="space-y-6">
-              {/* 白名单 */}
+              <p className="text-sm text-gray-600">
+                设置哪些用户组可以访问此应用。不设置任何限制时，所有用户都可访问。
+              </p>
+
               <div>
-                <h3 className="font-semibold mb-2">✅ 允许访问（白名单）</h3>
+                <h3 className="font-semibold mb-2">允许访问（白名单）</h3>
                 <p className="text-sm text-gray-500 mb-3">
                   只有这些用户组的成员可以访问此应用
                 </p>
@@ -542,9 +549,8 @@ export default function AppsPage() {
                 </div>
               </div>
 
-              {/* 黑名单 */}
               <div>
-                <h3 className="font-semibold mb-2">🚫 禁止访问（黑名单）</h3>
+                <h3 className="font-semibold mb-2">禁止访问（黑名单）</h3>
                 <p className="text-sm text-gray-500 mb-3">
                   这些用户组的成员无法访问此应用
                 </p>
@@ -568,28 +574,28 @@ export default function AppsPage() {
                   ))}
                 </div>
               </div>
-            </div>
 
-            <div className="flex gap-2 mt-6 pt-4 border-t">
-              <button
-                onClick={handleAccessControlSave}
-                className="btn btn-primary flex-1"
-              >
-                保存
-              </button>
-              <button
-                onClick={() => {
-                  setShowAccessControl(false);
-                  setSelectedClient(null);
-                }}
-                className="btn btn-secondary flex-1"
-              >
-                取消
-              </button>
+              <div className="flex gap-2 pt-2 border-t">
+                <button
+                  onClick={handleAccessControlSave}
+                  className="btn btn-primary flex-1 text-sm"
+                >
+                  保存
+                </button>
+                <button
+                  onClick={() => {
+                    setShowAccessControl(false);
+                    setSelectedClient(null);
+                  }}
+                  className="btn btn-secondary flex-1 text-sm"
+                >
+                  取消
+                </button>
+              </div>
             </div>
-          </div>
-        </div>
-      )}
+          )}
+        </SidePanel>
+      </div>
     </div>
   );
 }
