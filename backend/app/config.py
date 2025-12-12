@@ -1,5 +1,6 @@
 from pydantic_settings import BaseSettings
 from functools import lru_cache
+from typing import Optional
 
 
 class Settings(BaseSettings):
@@ -18,6 +19,9 @@ class Settings(BaseSettings):
 
     host: str = "0.0.0.0"
     port: int = 8000
+    # Optional override for frontend static export directory.
+    # Env var: STATIC_DIR
+    static_dir: Optional[str] = None
 
     class Config:
         env_file = ".env"

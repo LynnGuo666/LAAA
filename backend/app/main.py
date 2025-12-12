@@ -44,8 +44,12 @@ async def health_check():
 
 
 # Serve Next.js static files
-# This will be configured after frontend is built
-static_dir = os.path.join(os.path.dirname(__file__), "..", "..", "frontend", "out")
+# This will be configured after frontend is built.
+# Allow override via STATIC_DIR env var.
+static_dir = settings.static_dir or os.path.join(
+    os.path.dirname(__file__), "..", "..", "frontend", "out"
+)
+static_dir = os.path.abspath(static_dir)
 if os.path.exists(static_dir):
     # Mount static files (for _next, images, etc.)
     app.mount("/_next", StaticFiles(directory=os.path.join(static_dir, "_next")), name="next-static")
