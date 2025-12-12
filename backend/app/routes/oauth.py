@@ -7,6 +7,11 @@ from app.schemas import TokenRequest, UserInfoResponse
 from app.services.oauth_service import OAuthService
 from app.middleware.auth import get_optional_user
 from app.models import User
+from app.utils.security import create_id_token, decode_token
+from app.config import get_settings
+from urllib.parse import quote
+
+settings = get_settings()
 
 router = APIRouter(prefix="/api/oauth", tags=["OAuth 2.0"])
 
@@ -57,9 +62,10 @@ async def authorize_get(
     # Check if user is logged in
     if not current_user:
         # Redirect to login page with return URL
-        login_url = f"/login?redirect=/oauth/authorize?response_type={response_type}&client_id={client_id}&redirect_uri={redirect_uri}&scope={scope}"
+        return_url = f"/oauth/authorize?response_type={response_type}&client_id={client_id}&redirect_uri={redirect_uri}&scope={scope}"
         if state:
-            login_url += f"&state={state}"
+            return_url += f"&state={state}"
+        login_url = f"/login?redirect={quote(return_url, safe='')}"
         return RedirectResponse(url=login_url, status_code=302)
 
     # Check if user has access to this client based on group permissions
@@ -178,9 +184,35 @@ async def token(
     client_id: str = Form(...),
     client_secret: str = Form(...),
     scope: Optional[str] = Form(default="profile"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    request: Request = None
 ):
     """OAuth token endpoint"""
+    base = str(request.base_url).rstrip("/") if request else ""
+    issuer = settings.oidc_issuer or base
+
+    def maybe_add_id_token(response_dict: dict, access_token_value: str) -> dict:
+        payload = decode_token(access_token_value) or {}
+        if "openid" not in (payload.get("scope") or "").split():
+            return response_dict
+        user = None
+        try:
+            user_id = int(payload.get("sub"))
+            user = db.query(User).filter(User.id == user_id).first()
+        except Exception:
+            user = None
+        id_token = create_id_token(
+            {
+                "sub": payload.get("sub"),
+                "aud": payload.get("client_id"),
+                "iss": issuer or None,
+                "username": getattr(user, "username", None),
+                "email": getattr(user, "email", None),
+                "avatar": getattr(user, "avatar", None),
+            }
+        )
+        response_dict["id_token"] = id_token
+        return response_dict
 
     if grant_type == "authorization_code":
         # Authorization code flow
@@ -196,12 +228,13 @@ async def token(
 
         access_token, refresh_token_value, expires_in = result
 
-        return {
+        response = {
             "access_token": access_token,
             "refresh_token": refresh_token_value,
             "token_type": "bearer",
             "expires_in": expires_in
         }
+        return maybe_add_id_token(response, access_token)
 
     elif grant_type == "refresh_token":
         # Refresh token flow
@@ -217,12 +250,13 @@ async def token(
 
         access_token, new_refresh_token, expires_in = result
 
-        return {
+        response = {
             "access_token": access_token,
             "refresh_token": new_refresh_token,
             "token_type": "bearer",
             "expires_in": expires_in
         }
+        return maybe_add_id_token(response, access_token)
 
     elif grant_type == "password":
         # Password flow (for trusted clients)
@@ -238,12 +272,13 @@ async def token(
 
         access_token, refresh_token_value, expires_in = result
 
-        return {
+        response = {
             "access_token": access_token,
             "refresh_token": refresh_token_value,
             "token_type": "bearer",
             "expires_in": expires_in
         }
+        return maybe_add_id_token(response, access_token)
 
     else:
         raise HTTPException(status_code=400, detail="Unsupported grant_type")

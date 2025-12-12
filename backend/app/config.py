@@ -22,6 +22,9 @@ class Settings(BaseSettings):
     # Optional override for frontend static export directory.
     # Env var: STATIC_DIR
     static_dir: Optional[str] = None
+    # Optional OpenID Connect issuer override.
+    # Env var: OIDC_ISSUER
+    oidc_issuer: Optional[str] = None
 
     class Config:
         env_file = ".env"
