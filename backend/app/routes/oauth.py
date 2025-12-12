@@ -17,7 +17,8 @@ import logging
 settings = get_settings()
 
 router = APIRouter(prefix="/api/oauth", tags=["OAuth 2.0"])
-logger = logging.getLogger("app.oauth")
+# Use uvicorn's configured logger so messages always show up in container logs.
+logger = logging.getLogger("uvicorn.error")
 
 
 @router.get("/client/{client_id}")
@@ -234,6 +235,13 @@ async def token(
 
     if not request:
         raise HTTPException(status_code=400, detail="Missing request context")
+
+    logger.info(
+        "oauth token: received ct=%s cl=%s has_auth=%s",
+        (request.headers.get("content-type") or "").lower(),
+        request.headers.get("content-length"),
+        bool(request.headers.get("authorization")),
+    )
 
     payload = await parse_token_request(request)
     logger.debug(
