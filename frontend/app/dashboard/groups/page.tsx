@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react';
 import { adminApi, groupApi } from '@/lib/api';
 import SidePanel from '@/components/SidePanel';
+import { useAuthStore } from '@/lib/store';
+import { isAdmin } from '@/lib/authz';
 
 interface Group {
   id: number;
@@ -24,6 +26,8 @@ interface User {
 }
 
 export default function GroupsPage() {
+  const user = useAuthStore((s) => s.user);
+  const canManageGroups = isAdmin(user);
   const [groups, setGroups] = useState<Group[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
@@ -40,8 +44,18 @@ export default function GroupsPage() {
   });
 
   useEffect(() => {
+    if (!canManageGroups) return;
     void Promise.all([loadGroups(), loadUsers()]);
-  }, []);
+  }, [canManageGroups]);
+
+  if (!canManageGroups) {
+    return (
+      <div className="card">
+        <h1 className="text-xl font-semibold mb-2">无权限</h1>
+        <p className="text-gray-600">该页面仅管理员可访问。</p>
+      </div>
+    );
+  }
 
   const loadGroups = async () => {
     try {
@@ -404,4 +418,3 @@ export default function GroupsPage() {
     </div>
   );
 }
-

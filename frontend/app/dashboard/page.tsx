@@ -3,8 +3,11 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { userApi, clientApi } from '@/lib/api';
+import { useAuthStore } from '@/lib/store';
+import { isAdmin } from '@/lib/authz';
 
 export default function DashboardPage() {
+  const user = useAuthStore((s) => s.user);
   const [stats, setStats] = useState({
     apps: 0,
     authorizations: 0,
@@ -13,15 +16,17 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadStats();
-  }, []);
+    if (!user) return;
+    void loadStats();
+  }, [user]);
 
   const loadStats = async () => {
     try {
-      const [appsResponse, authsResponse, sessionsResponse] = await Promise.all([
-        clientApi.list(),
+      const canManageClients = isAdmin(user);
+      const [authsResponse, sessionsResponse, appsResponse] = await Promise.all([
         userApi.getAuthorizations(),
         userApi.getSessions(),
+        canManageClients ? clientApi.list() : Promise.resolve({ data: [] as any[] }),
       ]);
 
       setStats({
@@ -36,6 +41,8 @@ export default function DashboardPage() {
     }
   };
 
+  const canManageClients = isAdmin(user);
+
   return (
     <div className="px-4 sm:px-0">
       <h1 className="text-3xl font-bold text-gray-900 mb-8">控制台</h1>
@@ -48,15 +55,17 @@ export default function DashboardPage() {
         <>
           {/* Stats Grid */}
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-3 mb-8">
-            <Link href="/dashboard/apps" className="card hover:shadow-lg transition-shadow">
-              <div className="flex items-center">
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-gray-500">我的应用</p>
-                  <p className="text-3xl font-bold text-gray-900 mt-2">{stats.apps}</p>
+            {canManageClients && (
+              <Link href="/dashboard/apps" className="card hover:shadow-lg transition-shadow">
+                <div className="flex items-center">
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-gray-500">应用管理</p>
+                    <p className="text-3xl font-bold text-gray-900 mt-2">{stats.apps}</p>
+                  </div>
+                  <div className="text-4xl">📱</div>
                 </div>
-                <div className="text-4xl">📱</div>
-              </div>
-            </Link>
+              </Link>
+            )}
 
             <Link href="/dashboard/authorizations" className="card hover:shadow-lg transition-shadow">
               <div className="flex items-center">
@@ -83,15 +92,17 @@ export default function DashboardPage() {
           <div className="card">
             <h2 className="text-xl font-semibold mb-4">快速操作</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Link
-                href="/dashboard/apps"
-                className="p-4 border-2 border-gray-200 rounded-lg hover:border-blue-500 transition-colors"
-              >
-                <h3 className="font-semibold mb-1">创建新应用</h3>
-                <p className="text-sm text-gray-600">
-                  注册一个新的 OAuth 2.0 应用
-                </p>
-              </Link>
+              {canManageClients && (
+                <Link
+                  href="/dashboard/apps"
+                  className="p-4 border-2 border-gray-200 rounded-lg hover:border-blue-500 transition-colors"
+                >
+                  <h3 className="font-semibold mb-1">创建新应用</h3>
+                  <p className="text-sm text-gray-600">
+                    注册一个新的 OAuth 2.0 应用
+                  </p>
+                </Link>
+              )}
 
               <Link
                 href="/dashboard/profile"

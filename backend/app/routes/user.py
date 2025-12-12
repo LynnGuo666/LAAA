@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from typing import List
 from app.database import get_db
 from app.schemas import (
-    UserResponse,
+    UserMeResponse,
     UserUpdate,
     AuthorizationListItem,
     SessionResponse
@@ -16,13 +16,28 @@ from datetime import datetime
 router = APIRouter(prefix="/api/user", tags=["User Management"])
 
 
-@router.get("/me", response_model=UserResponse)
+@router.get("/me", response_model=UserMeResponse)
 async def get_profile(current_user: User = Depends(get_current_user)):
     """Get current user profile"""
-    return current_user
+    permissions = sorted({p.code for r in current_user.roles for p in r.permissions})
+    roles = sorted({r.name for r in current_user.roles})
+    groups = sorted({g.name for g in current_user.groups})
+
+    return UserMeResponse(
+        id=current_user.id,
+        username=current_user.username,
+        email=current_user.email,
+        avatar=current_user.avatar,
+        status=current_user.status,
+        created_at=current_user.created_at,
+        groups=groups,
+        roles=roles,
+        permissions=permissions,
+        is_admin=current_user.has_permission("admin.*") or current_user.has_role("admin"),
+    )
 
 
-@router.put("/me", response_model=UserResponse)
+@router.put("/me", response_model=UserMeResponse)
 async def update_profile(
     user_data: UserUpdate,
     current_user: User = Depends(get_current_user),
@@ -46,7 +61,22 @@ async def update_profile(
     db.commit()
     db.refresh(current_user)
 
-    return current_user
+    permissions = sorted({p.code for r in current_user.roles for p in r.permissions})
+    roles = sorted({r.name for r in current_user.roles})
+    groups = sorted({g.name for g in current_user.groups})
+
+    return UserMeResponse(
+        id=current_user.id,
+        username=current_user.username,
+        email=current_user.email,
+        avatar=current_user.avatar,
+        status=current_user.status,
+        created_at=current_user.created_at,
+        groups=groups,
+        roles=roles,
+        permissions=permissions,
+        is_admin=current_user.has_permission("admin.*") or current_user.has_role("admin"),
+    )
 
 
 @router.get("/authorizations", response_model=List[AuthorizationListItem])

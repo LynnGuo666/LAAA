@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react';
 import { clientApi, groupApi } from '@/lib/api';
 import SidePanel from '@/components/SidePanel';
+import { useAuthStore } from '@/lib/store';
+import { isAdmin } from '@/lib/authz';
 
 interface Client {
   id: number;
@@ -32,6 +34,8 @@ const AVAILABLE_SCOPES = [
 ];
 
 export default function AppsPage() {
+  const user = useAuthStore((s) => s.user);
+  const canManageClients = isAdmin(user);
   const [clients, setClients] = useState<Client[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
@@ -60,9 +64,19 @@ export default function AppsPage() {
   });
 
   useEffect(() => {
+    if (!canManageClients) return;
     loadClients();
     loadGroups();
-  }, []);
+  }, [canManageClients]);
+
+  if (!canManageClients) {
+    return (
+      <div className="card">
+        <h1 className="text-xl font-semibold mb-2">无权限</h1>
+        <p className="text-gray-600">该页面仅管理员可访问。</p>
+      </div>
+    );
+  }
 
   const loadClients = async () => {
     try {

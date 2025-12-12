@@ -4,6 +4,7 @@ from app.database import get_db
 from app.schemas import (
     UserCreate,
     UserResponse,
+    UserMeResponse,
     LoginRequest,
     TokenResponse,
     RefreshTokenRequest
@@ -110,7 +111,22 @@ async def logout(
     return {"message": "Logged out successfully"}
 
 
-@router.get("/me", response_model=UserResponse)
+@router.get("/me", response_model=UserMeResponse)
 async def get_current_user_info(current_user: User = Depends(get_current_user)):
     """Get current user information"""
-    return current_user
+    permissions = sorted({p.code for r in current_user.roles for p in r.permissions})
+    roles = sorted({r.name for r in current_user.roles})
+    groups = sorted({g.name for g in current_user.groups})
+
+    return UserMeResponse(
+        id=current_user.id,
+        username=current_user.username,
+        email=current_user.email,
+        avatar=current_user.avatar,
+        status=current_user.status,
+        created_at=current_user.created_at,
+        groups=groups,
+        roles=roles,
+        permissions=permissions,
+        is_admin=current_user.has_permission("admin.*") or current_user.has_role("admin"),
+    )

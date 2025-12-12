@@ -1,12 +1,16 @@
 import { create } from 'zustand';
 
-interface User {
+export interface User {
   id: number;
   username: string;
   email: string;
   avatar?: string;
   status: string;
   created_at: string;
+  groups?: string[];
+  roles?: string[];
+  permissions?: string[];
+  is_admin?: boolean;
 }
 
 interface AuthState {

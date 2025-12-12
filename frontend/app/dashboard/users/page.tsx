@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { adminApi, groupApi } from '@/lib/api';
+import { useAuthStore } from '@/lib/store';
+import { isAdmin } from '@/lib/authz';
 
 interface User {
   id: number;
@@ -29,6 +31,8 @@ interface Role {
 }
 
 export default function UsersPage() {
+  const user = useAuthStore((s) => s.user);
+  const canManageUsers = isAdmin(user);
   const [users, setUsers] = useState<User[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
@@ -59,10 +63,20 @@ export default function UsersPage() {
   });
 
   useEffect(() => {
+    if (!canManageUsers) return;
     loadUsers();
     loadGroups();
     loadRoles();
-  }, []);
+  }, [canManageUsers]);
+
+  if (!canManageUsers) {
+    return (
+      <div className="card">
+        <h1 className="text-xl font-semibold mb-2">无权限</h1>
+        <p className="text-gray-600">该页面仅管理员可访问。</p>
+      </div>
+    );
+  }
 
   const loadUsers = async () => {
     try {

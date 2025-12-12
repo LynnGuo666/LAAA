@@ -10,7 +10,7 @@ from app.schemas import (
     ClientSecretResetResponse
 )
 from app.schemas.group import ClientAccessControlUpdate
-from app.middleware.auth import get_current_user
+from app.middleware.auth import require_admin
 from app.models import User, Client
 from app.services.group_service import GroupService
 from app.utils.security import generate_random_string, hash_token
@@ -22,7 +22,7 @@ router = APIRouter(prefix="/api/clients", tags=["Client Management"])
 @router.post("", response_model=ClientWithSecretResponse, status_code=status.HTTP_201_CREATED)
 async def create_client(
     client_data: ClientCreate,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
     db: Session = Depends(get_db)
 ):
     """Create a new OAuth client application"""
@@ -65,11 +65,11 @@ async def create_client(
 
 @router.get("", response_model=List[ClientResponse])
 async def list_clients(
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
     db: Session = Depends(get_db)
 ):
-    """Get list of user's OAuth clients"""
-    clients = db.query(Client).filter(Client.owner_id == current_user.id).all()
+    """Get list of OAuth clients (admin)"""
+    clients = db.query(Client).all()
 
     result = []
     for client in clients:
@@ -92,14 +92,11 @@ async def list_clients(
 @router.get("/{client_id}", response_model=ClientResponse)
 async def get_client(
     client_id: int,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
     db: Session = Depends(get_db)
 ):
-    """Get a specific OAuth client"""
-    client = db.query(Client).filter(
-        Client.id == client_id,
-        Client.owner_id == current_user.id
-    ).first()
+    """Get a specific OAuth client (admin)"""
+    client = db.query(Client).filter(Client.id == client_id).first()
 
     if not client:
         raise HTTPException(status_code=404, detail="Client not found")
@@ -122,14 +119,11 @@ async def get_client(
 async def update_client(
     client_id: int,
     client_data: ClientUpdate,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
     db: Session = Depends(get_db)
 ):
-    """Update an OAuth client"""
-    client = db.query(Client).filter(
-        Client.id == client_id,
-        Client.owner_id == current_user.id
-    ).first()
+    """Update an OAuth client (admin)"""
+    client = db.query(Client).filter(Client.id == client_id).first()
 
     if not client:
         raise HTTPException(status_code=404, detail="Client not found")
@@ -168,14 +162,11 @@ async def update_client(
 @router.delete("/{client_id}")
 async def delete_client(
     client_id: int,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
     db: Session = Depends(get_db)
 ):
-    """Delete an OAuth client"""
-    client = db.query(Client).filter(
-        Client.id == client_id,
-        Client.owner_id == current_user.id
-    ).first()
+    """Delete an OAuth client (admin)"""
+    client = db.query(Client).filter(Client.id == client_id).first()
 
     if not client:
         raise HTTPException(status_code=404, detail="Client not found")
@@ -189,14 +180,11 @@ async def delete_client(
 @router.post("/{client_id}/secret", response_model=ClientSecretResetResponse)
 async def reset_client_secret(
     client_id: int,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
     db: Session = Depends(get_db)
 ):
-    """Reset client secret"""
-    client = db.query(Client).filter(
-        Client.id == client_id,
-        Client.owner_id == current_user.id
-    ).first()
+    """Reset client secret (admin)"""
+    client = db.query(Client).filter(Client.id == client_id).first()
 
     if not client:
         raise HTTPException(status_code=404, detail="Client not found")
@@ -217,15 +205,11 @@ async def reset_client_secret(
 async def update_client_access_control(
     client_id: int,
     access_control: ClientAccessControlUpdate,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
     db: Session = Depends(get_db)
 ):
     """更新应用的用户组访问控制"""
-    # Check if user owns this client
-    client = db.query(Client).filter(
-        Client.id == client_id,
-        Client.owner_id == current_user.id
-    ).first()
+    client = db.query(Client).filter(Client.id == client_id).first()
 
     if not client:
         raise HTTPException(status_code=404, detail="Client not found")
@@ -250,14 +234,11 @@ async def update_client_access_control(
 @router.get("/{client_id}/access-control")
 async def get_client_access_control(
     client_id: int,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
     db: Session = Depends(get_db)
 ):
     """获取应用的用户组访问控制"""
-    client = db.query(Client).filter(
-        Client.id == client_id,
-        Client.owner_id == current_user.id
-    ).first()
+    client = db.query(Client).filter(Client.id == client_id).first()
 
     if not client:
         raise HTTPException(status_code=404, detail="Client not found")
@@ -266,4 +247,3 @@ async def get_client_access_control(
         "allowed_groups": [{"id": g.id, "name": g.name} for g in client.allowed_groups],
         "denied_groups": [{"id": g.id, "name": g.name} for g in client.denied_groups]
     }
-

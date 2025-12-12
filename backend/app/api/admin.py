@@ -19,8 +19,8 @@ router = APIRouter()
 
 def check_admin(current_user: User = Depends(get_current_user)):
     """检查当前用户是否为管理员"""
-    # 检查是否有管理员权限（admin.* 或具体的 admin.users 权限）
-    if not (current_user.has_permission('admin.*') or current_user.has_permission('admin.users')):
+    # 仅允许系统管理员（admin.*）
+    if not current_user.has_permission('admin.*'):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="需要管理员权限"

@@ -28,6 +28,13 @@ class UserResponse(UserBase):
         from_attributes = True
 
 
+class UserMeResponse(UserResponse):
+    groups: List[str] = []
+    roles: List[str] = []
+    permissions: List[str] = []
+    is_admin: bool = False
+
+
 # Auth Schemas
 class LoginRequest(BaseModel):
     username: str

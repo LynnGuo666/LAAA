@@ -5,6 +5,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useAuthStore } from '@/lib/store';
 import { authApi } from '@/lib/api';
+import { isAdmin } from '@/lib/authz';
 
 export default function DashboardLayout({
   children,
@@ -35,6 +36,16 @@ export default function DashboardLayout({
     }
   }, [user, setUser, router]);
 
+  useEffect(() => {
+    if (!user) return;
+
+    const adminOnlyPrefixes = ['/dashboard/apps', '/dashboard/groups', '/dashboard/users'];
+    const match = adminOnlyPrefixes.find((prefix) => pathname.startsWith(prefix));
+    if (match && !isAdmin(user)) {
+      router.replace('/dashboard');
+    }
+  }, [user, pathname, router]);
+
   const handleLogout = async () => {
     const refreshToken = localStorage.getItem('refresh_token');
     if (refreshToken) {
@@ -61,18 +72,18 @@ export default function DashboardLayout({
 
   const navLinks = [
     { href: '/dashboard', label: '控制台' },
-    { href: '/dashboard/apps', label: '我的应用' },
+    ...(isAdmin(user) ? [{ href: '/dashboard/apps', label: '应用管理' }] : []),
     { href: '/dashboard/authorizations', label: '授权管理' },
-    { href: '/dashboard/groups', label: '用户组' },
-    { href: '/dashboard/users', label: '用户管理' },
+    ...(isAdmin(user) ? [{ href: '/dashboard/groups', label: '用户组' }] : []),
+    ...(isAdmin(user) ? [{ href: '/dashboard/users', label: '用户管理' }] : []),
     { href: '/dashboard/sessions', label: '会话管理' },
     { href: '/dashboard/profile', label: '个人资料' },
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
       {/* Navigation */}
-      <nav className="bg-white shadow-sm">
+      <nav className="bg-white dark:bg-gray-900 shadow-sm border-b border-transparent dark:border-gray-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
             <div className="flex">
@@ -90,7 +101,7 @@ export default function DashboardLayout({
                       className={`inline-flex items-center px-1 pt-1 text-sm font-medium border-b-2 ${
                         isActive
                           ? 'text-blue-600 border-blue-600'
-                          : 'text-gray-500 border-transparent hover:border-gray-300'
+                          : 'text-gray-500 dark:text-gray-300 border-transparent hover:border-gray-300 dark:hover:border-gray-600'
                       }`}
                     >
                       {link.label}
@@ -101,7 +112,7 @@ export default function DashboardLayout({
             </div>
 
             <div className="flex items-center">
-              <span className="text-sm text-gray-700 mr-4">
+              <span className="text-sm text-gray-700 dark:text-gray-200 mr-4">
                 {user.username}
               </span>
               <button

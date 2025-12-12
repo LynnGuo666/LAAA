@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
 from app.database import get_db
-from app.middleware.auth import get_current_user, require_admin
+from app.middleware.auth import require_admin
 from app.models import User
 from app.schemas.group import (
     GroupCreate,
@@ -43,9 +43,9 @@ def list_groups(
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_admin)
 ):
-    """获取用户组列表"""
+    """获取用户组列表（管理员）"""
     groups = GroupService.list_groups(db, skip, limit)
 
     # Add member counts
@@ -62,9 +62,9 @@ def list_groups(
 def get_group(
     group_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_admin)
 ):
-    """获取用户组详情"""
+    """获取用户组详情（管理员）"""
     group = GroupService.get_group(db, group_id)
     if not group:
         raise HTTPException(
