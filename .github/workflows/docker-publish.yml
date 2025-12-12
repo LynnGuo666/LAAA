@@ -29,8 +29,8 @@ jobs:
           file: ./Dockerfile
           push: true
           tags: |
-            ghcr.io/${{ github.repository_owner }}/laaa:latest
-            ghcr.io/${{ github.repository_owner }}/laaa:${{ github.sha }}
+            ghcr.io/${{ toLower(github.repository_owner) }}/laaa:latest
+            ghcr.io/${{ toLower(github.repository_owner) }}/laaa:${{ github.sha }}
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
