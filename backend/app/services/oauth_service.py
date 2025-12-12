@@ -12,12 +12,21 @@ from app.utils.security import (
 )
 from app.config import get_settings
 import json
+import hashlib
+import logging
 
 settings = get_settings()
+logger = logging.getLogger("uvicorn.error")
 
 
 class OAuthService:
     """OAuth 2.0 service"""
+
+    @staticmethod
+    def _short_hash(value: str) -> str:
+        if not value:
+            return "empty"
+        return hashlib.sha256(value.encode("utf-8")).hexdigest()[:10]
 
     @staticmethod
     def check_user_access(user: User, client: Client) -> bool:
@@ -107,10 +116,12 @@ class OAuthService:
         # Get client
         client = OAuthService.get_client_by_id(db, client_id)
         if not client:
+            logger.info("oauth exchange_code: client not found client_id=%s", client_id)
             return None
 
         # Verify client secret
         if not verify_client_secret(client_secret, client.client_secret_hash):
+            logger.info("oauth exchange_code: invalid client_secret client_id=%s", client_id)
             return None
 
         # Get authorization code
@@ -122,15 +133,31 @@ class OAuthService:
         ).first()
 
         if not token:
+            logger.info(
+                "oauth exchange_code: code not found/expired client_id=%s code_hash=%s",
+                client_id,
+                OAuthService._short_hash(code),
+            )
             return None
 
         # Verify redirect_uri matches
         if token.redirect_uri != redirect_uri:
+            logger.info(
+                "oauth exchange_code: redirect_uri mismatch client_id=%s token_redirect_uri=%s request_redirect_uri=%s",
+                client_id,
+                token.redirect_uri,
+                redirect_uri,
+            )
             return None
 
         # Get user
         user = token.user
         if not user or user.status != 'active':
+            logger.info(
+                "oauth exchange_code: user inactive/missing client_id=%s user_id=%s",
+                client_id,
+                getattr(user, "id", None),
+            )
             return None
 
         # Create tokens
@@ -180,24 +207,29 @@ class OAuthService:
         # Get client
         client = OAuthService.get_client_by_id(db, client_id)
         if not client:
+            logger.info("oauth password_grant: client not found client_id=%s", client_id)
             return None
 
         # Verify client secret
         if not verify_client_secret(client_secret, client.client_secret_hash):
+            logger.info("oauth password_grant: invalid client_secret client_id=%s", client_id)
             return None
 
         # Check if client is trusted
         if not client.trusted:
+            logger.info("oauth password_grant: client not trusted client_id=%s", client_id)
             return None
 
         # Authenticate user
         from app.services.auth_service import AuthService
         user = AuthService.authenticate_user(db, username, password)
         if not user:
+            logger.info("oauth password_grant: invalid user credentials client_id=%s username=%s", client_id, username)
             return None
 
         # Verify scope
         if not OAuthService.verify_scope(client, scope):
+            logger.info("oauth password_grant: invalid scope client_id=%s scope=%s", client_id, scope)
             return None
 
         # Create tokens
@@ -250,10 +282,12 @@ class OAuthService:
         # Get client
         client = OAuthService.get_client_by_id(db, client_id)
         if not client:
+            logger.info("oauth refresh_token: client not found client_id=%s", client_id)
             return None
 
         # Verify client secret
         if not verify_client_secret(client_secret, client.client_secret_hash):
+            logger.info("oauth refresh_token: invalid client_secret client_id=%s", client_id)
             return None
 
         # Verify refresh token
@@ -266,11 +300,21 @@ class OAuthService:
         ).first()
 
         if not token:
+            logger.info(
+                "oauth refresh_token: token not found/expired client_id=%s token_hash=%s",
+                client_id,
+                OAuthService._short_hash(refresh_token),
+            )
             return None
 
         # Get user
         user = token.user
         if not user or user.status != 'active':
+            logger.info(
+                "oauth refresh_token: user inactive/missing client_id=%s user_id=%s",
+                client_id,
+                getattr(user, "id", None),
+            )
             return None
 
         # Create new tokens

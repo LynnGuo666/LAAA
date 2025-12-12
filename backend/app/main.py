@@ -1,14 +1,19 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+from fastapi.responses import JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from app.config import get_settings
 from app.database import init_db
 from app.routes import auth, oauth, user, client, oidc
 from app.api import groups, admin
 import os
+import logging
 
 settings = get_settings()
+logger = logging.getLogger("uvicorn.error")
 
 # Create FastAPI app
 app = FastAPI(
@@ -18,6 +23,18 @@ app = FastAPI(
     docs_url="/api/docs",
     redoc_url="/api/redoc"
 )
+
+@app.exception_handler(RequestValidationError)
+async def request_validation_error_handler(request: Request, exc: RequestValidationError):
+    logger.warning("validation error path=%s errors=%s", request.url.path, exc.errors())
+    return JSONResponse(status_code=422, content={"detail": exc.errors()})
+
+
+@app.exception_handler(StarletteHTTPException)
+async def http_exception_handler(request: Request, exc: StarletteHTTPException):
+    if exc.status_code >= 400:
+        logger.warning("http error path=%s status=%s detail=%s", request.url.path, exc.status_code, exc.detail)
+    return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
 
 # CORS middleware
 app.add_middleware(
@@ -105,8 +122,8 @@ if os.path.exists(static_dir):
 @app.on_event("startup")
 async def startup_event():
     init_db()
-    print("✅ Database initialized")
-    print(f"📝 API documentation: http://localhost:{settings.port}/api/docs")
+    logger.info("startup: db initialized debug=%s", settings.debug)
+    logger.info("docs: http://localhost:%s/api/docs", settings.port)
 
 
 if __name__ == "__main__":

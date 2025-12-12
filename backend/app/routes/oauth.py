@@ -265,8 +265,15 @@ async def token(
     client_secret = client_secret or basic_client_secret
 
     if not grant_type:
+        logger.warning("oauth token: missing grant_type client_id=%s", client_id)
         raise HTTPException(status_code=400, detail="grant_type required")
     if not client_id or not client_secret:
+        logger.warning(
+            "oauth token: missing client credentials grant_type=%s has_client_id=%s has_client_secret=%s",
+            grant_type,
+            bool(client_id),
+            bool(client_secret),
+        )
         raise HTTPException(status_code=400, detail="client_id and client_secret required")
 
     base = str(request.base_url).rstrip("/") if request else ""
@@ -298,6 +305,12 @@ async def token(
     if grant_type == "authorization_code":
         # Authorization code flow
         if not code or not redirect_uri:
+            logger.warning(
+                "oauth token: missing code/redirect_uri client_id=%s has_code=%s has_redirect_uri=%s",
+                client_id,
+                bool(code),
+                bool(redirect_uri),
+            )
             raise HTTPException(status_code=400, detail="code and redirect_uri required")
 
         result = OAuthService.exchange_code_for_token(
@@ -305,6 +318,11 @@ async def token(
         )
 
         if not result:
+            logger.warning(
+                "oauth token: authorization_code exchange failed client_id=%s redirect_uri=%s",
+                client_id,
+                redirect_uri,
+            )
             raise HTTPException(status_code=400, detail="Invalid authorization code")
 
         access_token, refresh_token_value, expires_in = result
@@ -320,6 +338,7 @@ async def token(
     elif grant_type == "refresh_token":
         # Refresh token flow
         if not refresh_token:
+            logger.warning("oauth token: missing refresh_token client_id=%s", client_id)
             raise HTTPException(status_code=400, detail="refresh_token required")
 
         result = OAuthService.refresh_token_grant(
@@ -327,6 +346,7 @@ async def token(
         )
 
         if not result:
+            logger.warning("oauth token: refresh_token grant failed client_id=%s", client_id)
             raise HTTPException(status_code=400, detail="Invalid refresh token")
 
         access_token, new_refresh_token, expires_in = result
@@ -342,6 +362,12 @@ async def token(
     elif grant_type == "password":
         # Password flow (for trusted clients)
         if not username or not password:
+            logger.warning(
+                "oauth token: missing username/password client_id=%s has_username=%s has_password=%s",
+                client_id,
+                bool(username),
+                bool(password),
+            )
             raise HTTPException(status_code=400, detail="username and password required")
 
         result = OAuthService.password_grant(
@@ -349,6 +375,7 @@ async def token(
         )
 
         if not result:
+            logger.warning("oauth token: password grant failed client_id=%s username=%s", client_id, username)
             raise HTTPException(status_code=400, detail="Invalid credentials or client not trusted")
 
         access_token, refresh_token_value, expires_in = result
