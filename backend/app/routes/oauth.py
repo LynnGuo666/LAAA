@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query, Form, Request
 from fastapi.responses import RedirectResponse, HTMLResponse
 from sqlalchemy.orm import Session
-from typing import Optional
+from typing import Optional, Tuple
 from app.database import get_db
 from app.schemas import TokenRequest, UserInfoResponse
 from app.services.oauth_service import OAuthService
@@ -10,6 +10,7 @@ from app.models import User
 from app.utils.security import create_id_token, decode_token
 from app.config import get_settings
 from urllib.parse import quote
+import base64
 
 settings = get_settings()
 
@@ -175,19 +176,68 @@ async def authorize_post(
 
 @router.post("/token")
 async def token(
-    grant_type: str = Form(...),
-    code: Optional[str] = Form(default=None),
-    redirect_uri: Optional[str] = Form(default=None),
-    refresh_token: Optional[str] = Form(default=None),
-    username: Optional[str] = Form(default=None),
-    password: Optional[str] = Form(default=None),
-    client_id: str = Form(...),
-    client_secret: str = Form(...),
-    scope: Optional[str] = Form(default="profile"),
     db: Session = Depends(get_db),
     request: Request = None
 ):
     """OAuth token endpoint"""
+    async def parse_token_request(req: Request) -> dict:
+        content_type = (req.headers.get("content-type") or "").lower()
+        if "application/json" in content_type:
+            try:
+                data = await req.json()
+                return data if isinstance(data, dict) else {}
+            except Exception:
+                raise HTTPException(status_code=400, detail="Invalid JSON body")
+
+        try:
+            form = await req.form()
+        except Exception:
+            raise HTTPException(status_code=400, detail="Invalid form body")
+
+        data: dict = {}
+        for k, v in form.multi_items():
+            if k not in data:
+                data[k] = v
+        return data
+
+    def parse_basic_client_credentials(req: Request) -> Tuple[Optional[str], Optional[str]]:
+        auth = req.headers.get("authorization") or ""
+        if not auth.lower().startswith("basic "):
+            return None, None
+        encoded = auth.split(" ", 1)[1].strip()
+        try:
+            decoded = base64.b64decode(encoded).decode("utf-8")
+        except Exception:
+            return None, None
+        if ":" not in decoded:
+            return None, None
+        client_id_value, client_secret_value = decoded.split(":", 1)
+        return client_id_value or None, client_secret_value or None
+
+    if not request:
+        raise HTTPException(status_code=400, detail="Missing request context")
+
+    payload = await parse_token_request(request)
+
+    grant_type = payload.get("grant_type")
+    code = payload.get("code")
+    redirect_uri = payload.get("redirect_uri")
+    refresh_token = payload.get("refresh_token")
+    username = payload.get("username")
+    password = payload.get("password")
+    scope = payload.get("scope") or "profile"
+
+    client_id = payload.get("client_id")
+    client_secret = payload.get("client_secret")
+    basic_client_id, basic_client_secret = parse_basic_client_credentials(request)
+    client_id = client_id or basic_client_id
+    client_secret = client_secret or basic_client_secret
+
+    if not grant_type:
+        raise HTTPException(status_code=400, detail="grant_type required")
+    if not client_id or not client_secret:
+        raise HTTPException(status_code=400, detail="client_id and client_secret required")
+
     base = str(request.base_url).rstrip("/") if request else ""
     issuer = settings.oidc_issuer or base
 
