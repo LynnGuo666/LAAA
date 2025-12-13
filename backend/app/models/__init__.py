@@ -167,7 +167,7 @@ class User(Base):
                 return True
 
         # 5. Default access policy
-        return client.default_access
+        return bool(client.default_access)
 
 
 class Client(Base):
@@ -183,7 +183,7 @@ class Client(Base):
     redirect_uris = Column(Text, nullable=False)  # JSON array stored as text
     allowed_scopes = Column(Text, nullable=False)  # JSON array stored as text
     trusted = Column(Boolean, default=False)  # Skip authorization for trusted apps
-    default_access = Column(Boolean, default=True)  # Default access policy (True=open, False=requires permission)
+    default_access = Column(Boolean, default=False)  # Default access policy (True=open, False=requires permission)
     owner_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 

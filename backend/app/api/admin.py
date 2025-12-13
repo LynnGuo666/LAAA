@@ -468,8 +468,8 @@ def _compute_app_permission(user: User, client: Client) -> ComputedAppPermission
                 user_permission=user_permission
             )
 
-    # 5. Default (treat None as True for backwards compatibility)
-    default_access = client.default_access if client.default_access is not None else True
+    # 5. Default
+    default_access = bool(client.default_access)
     return ComputedAppPermission(
         app_id=client.id,
         client_id=client.client_id,

@@ -66,6 +66,7 @@ class ClientBase(BaseModel):
     redirect_uris: List[str]
     allowed_scopes: List[str]
     trusted: bool = False
+    default_access: bool = False
 
 
 class ClientCreate(ClientBase):
@@ -80,6 +81,7 @@ class ClientUpdate(BaseModel):
     redirect_uris: Optional[List[str]] = None
     allowed_scopes: Optional[List[str]] = None
     trusted: Optional[bool] = None
+    default_access: Optional[bool] = None
 
 
 class ClientResponse(ClientBase):

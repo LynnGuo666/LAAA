@@ -16,6 +16,7 @@ interface Client {
   redirect_uris: string[];
   allowed_scopes: string[];
   trusted: boolean;
+  default_access: boolean;
   created_at: string;
 }
 
@@ -69,6 +70,7 @@ export default function AppsPage() {
     redirect_uris: '',
     allowed_scopes: ['profile', 'email'],  // 默认选中
     trusted: false,
+    default_access: false,
   });
 
   useEffect(() => {
@@ -145,6 +147,7 @@ export default function AppsPage() {
         redirect_uris: formData.redirect_uris.split('\n').filter(u => u.trim()),
         allowed_scopes: formData.allowed_scopes,
         trusted: formData.trusted,
+        default_access: formData.default_access,
       });
 
       setNewClientCredentials({
@@ -163,6 +166,7 @@ export default function AppsPage() {
         redirect_uris: '',
         allowed_scopes: ['profile', 'email'],
         trusted: false,
+        default_access: false,
       });
       await loadClients();
     } catch (err: any) {
@@ -182,6 +186,7 @@ export default function AppsPage() {
       redirect_uris: client.redirect_uris.join('\n'),
       allowed_scopes: client.allowed_scopes,
       trusted: client.trusted,
+      default_access: client.default_access,
     });
     setShowEditForm(true);
   };
@@ -206,6 +211,7 @@ export default function AppsPage() {
         redirect_uris: formData.redirect_uris.split('\n').filter(u => u.trim()),
         allowed_scopes: formData.allowed_scopes,
         trusted: formData.trusted,
+        default_access: formData.default_access,
       });
 
       alert('应用更新成功！');
@@ -219,6 +225,7 @@ export default function AppsPage() {
         redirect_uris: '',
         allowed_scopes: ['profile', 'email'],
         trusted: false,
+        default_access: false,
       });
       await loadClients();
     } catch (err: any) {
@@ -513,6 +520,33 @@ export default function AppsPage() {
               </label>
             </div>
 
+            <div>
+              <label className="block text-sm font-medium mb-2">默认访问</label>
+              <div className="flex items-center gap-6 text-sm">
+                <label className="inline-flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="default_access"
+                    checked={formData.default_access === true}
+                    onChange={() => setFormData({ ...formData, default_access: true })}
+                    className="h-4 w-4"
+                  />
+                  <span>允许</span>
+                </label>
+                <label className="inline-flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="default_access"
+                    checked={formData.default_access === false}
+                    onChange={() => setFormData({ ...formData, default_access: false })}
+                    className="h-4 w-4"
+                  />
+                  <span>拒绝</span>
+                </label>
+              </div>
+              <p className="text-xs text-gray-500 mt-1">当未配置用户/用户组的应用权限时生效</p>
+            </div>
+
             <button
               type="submit"
               className="btn btn-primary disabled:opacity-60 disabled:cursor-not-allowed"
@@ -632,6 +666,33 @@ export default function AppsPage() {
               </label>
             </div>
 
+            <div>
+              <label className="block text-sm font-medium mb-2">默认访问</label>
+              <div className="flex items-center gap-6 text-sm">
+                <label className="inline-flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="edit_default_access"
+                    checked={formData.default_access === true}
+                    onChange={() => setFormData({ ...formData, default_access: true })}
+                    className="h-4 w-4"
+                  />
+                  <span>允许</span>
+                </label>
+                <label className="inline-flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="edit_default_access"
+                    checked={formData.default_access === false}
+                    onChange={() => setFormData({ ...formData, default_access: false })}
+                    className="h-4 w-4"
+                  />
+                  <span>拒绝</span>
+                </label>
+              </div>
+              <p className="text-xs text-gray-500 mt-1">当未配置用户/用户组的应用权限时生效</p>
+            </div>
+
             <div className="flex space-x-3">
               <button
                 type="submit"
@@ -693,6 +754,9 @@ export default function AppsPage() {
                           </p>
                           <p className="truncate">
                             <span className="font-medium">权限范围:</span> {client.allowed_scopes.join(', ')}
+                          </p>
+                          <p className="truncate">
+                            <span className="font-medium">默认访问:</span> {client.default_access ? '允许' : '拒绝'}
                           </p>
                           {client.trusted && (
                             <p className="text-green-600 dark:text-green-400">已设为信任应用</p>

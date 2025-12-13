@@ -41,6 +41,7 @@ async def create_client(
         redirect_uris=json.dumps(client_data.redirect_uris),
         allowed_scopes=json.dumps(client_data.allowed_scopes),
         trusted=client_data.trusted,
+        default_access=getattr(client_data, "default_access", False),
         owner_id=current_user.id
     )
 
@@ -60,6 +61,7 @@ async def create_client(
         redirect_uris=json.loads(client.redirect_uris),
         allowed_scopes=json.loads(client.allowed_scopes),
         trusted=client.trusted,
+        default_access=bool(client.default_access),
         owner_id=client.owner_id,
         created_at=client.created_at
     )
@@ -85,6 +87,7 @@ async def list_clients(
             redirect_uris=json.loads(client.redirect_uris),
             allowed_scopes=json.loads(client.allowed_scopes),
             trusted=client.trusted,
+            default_access=bool(client.default_access),
             owner_id=client.owner_id,
             created_at=client.created_at
         ))
@@ -114,6 +117,7 @@ async def get_client(
         redirect_uris=json.loads(client.redirect_uris),
         allowed_scopes=json.loads(client.allowed_scopes),
         trusted=client.trusted,
+        default_access=bool(client.default_access),
         owner_id=client.owner_id,
         created_at=client.created_at
     )
@@ -147,6 +151,8 @@ async def update_client(
         client.allowed_scopes = json.dumps(client_data.allowed_scopes)
     if client_data.trusted is not None:
         client.trusted = client_data.trusted
+    if getattr(client_data, "default_access", None) is not None:
+        client.default_access = client_data.default_access
 
     db.commit()
     db.refresh(client)
@@ -161,6 +167,7 @@ async def update_client(
         redirect_uris=json.loads(client.redirect_uris),
         allowed_scopes=json.loads(client.allowed_scopes),
         trusted=client.trusted,
+        default_access=bool(client.default_access),
         owner_id=client.owner_id,
         created_at=client.created_at
     )

@@ -130,6 +130,7 @@ export const clientApi = {
     redirect_uris: string[];
     allowed_scopes: string[];
     trusted: boolean;
+    default_access: boolean;
   }) =>
     api.post('/api/clients', data),
 
