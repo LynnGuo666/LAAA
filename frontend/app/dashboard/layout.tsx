@@ -80,7 +80,7 @@ export default function DashboardLayout({
   }
 
   const navLinks = [
-    { href: '/dashboard', label: '控制台' },
+    ...(isAdmin(user) ? [{ href: '/dashboard', label: '控制台' }] : []),
     ...(isAdmin(user) ? [{ href: '/dashboard/apps', label: '应用管理' }] : []),
     ...(!isAdmin(user) ? [{ href: '/dashboard/my-apps', label: '我的应用' }] : []),
     { href: '/dashboard/authorizations', label: '授权管理' },
@@ -99,7 +99,10 @@ export default function DashboardLayout({
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
             <div className="flex">
-              <Link href="/dashboard" className="flex items-center px-2 py-2 text-xl font-bold">
+              <Link
+                href={isAdmin(user) ? "/dashboard" : "/dashboard/my-apps"}
+                className="flex items-center px-2 py-2 text-xl font-bold"
+              >
                 {siteName}
               </Link>
 

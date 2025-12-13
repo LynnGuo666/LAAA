@@ -6,9 +6,11 @@ import { userApi, clientApi } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { isAdmin } from '@/lib/authz';
 import { AppWindow, ChevronRight, ExternalLink, Lock, Monitor } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 export default function DashboardPage() {
   const user = useAuthStore((s) => s.user);
+  const router = useRouter();
   const [stats, setStats] = useState({
     apps: 0,
     authorizations: 0,
@@ -18,8 +20,12 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (!user) return;
+    if (!isAdmin(user)) {
+      router.replace('/dashboard/my-apps');
+      return;
+    }
     void loadStats();
-  }, [user]);
+  }, [user, router]);
 
   const loadStats = async () => {
     try {
@@ -43,6 +49,10 @@ export default function DashboardPage() {
   };
 
   const canManageClients = isAdmin(user);
+
+  if (user && !canManageClients) {
+    return null;
+  }
 
   return (
     <div className="px-4 sm:px-0 animate-fade-in">
