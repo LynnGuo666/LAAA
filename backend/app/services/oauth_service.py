@@ -1,9 +1,6 @@
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
 from typing import Optional, Tuple
-from dataclasses import dataclass
-from threading import Lock
-from time import monotonic
 from app.models import Client, User, Token, UserAuthorization
 from app.utils.security import (
     generate_random_string,
@@ -20,69 +17,6 @@ import logging
 
 settings = get_settings()
 logger = logging.getLogger("uvicorn.error")
-
-_AUTH_CODE_EXCHANGE_TTL_SECONDS = 5.0
-
-
-@dataclass(frozen=True)
-class _AuthCodeExchangeCacheEntry:
-    created_at: float
-    client_id: str
-    redirect_uri: str
-    access_token: str
-    refresh_token: str
-    expires_in: int
-
-
-_AUTH_CODE_EXCHANGE_CACHE: dict[str, _AuthCodeExchangeCacheEntry] = {}
-_AUTH_CODE_EXCHANGE_CACHE_LOCK = Lock()
-
-
-def _get_cached_auth_code_exchange(
-    *,
-    code_hash: str,
-    client_id: str,
-    redirect_uri: str,
-) -> Optional[Tuple[str, str, int]]:
-    now = monotonic()
-    with _AUTH_CODE_EXCHANGE_CACHE_LOCK:
-        entry = _AUTH_CODE_EXCHANGE_CACHE.get(code_hash)
-        if not entry:
-            return None
-        if now - entry.created_at > _AUTH_CODE_EXCHANGE_TTL_SECONDS:
-            _AUTH_CODE_EXCHANGE_CACHE.pop(code_hash, None)
-            return None
-        if entry.client_id != client_id or entry.redirect_uri != redirect_uri:
-            return None
-        return entry.access_token, entry.refresh_token, entry.expires_in
-
-
-def _set_cached_auth_code_exchange(
-    *,
-    code_hash: str,
-    client_id: str,
-    redirect_uri: str,
-    access_token: str,
-    refresh_token: str,
-    expires_in: int,
-) -> None:
-    now = monotonic()
-    with _AUTH_CODE_EXCHANGE_CACHE_LOCK:
-        # Best-effort prune to avoid unbounded growth.
-        expired: list[str] = []
-        for k, v in _AUTH_CODE_EXCHANGE_CACHE.items():
-            if now - v.created_at > _AUTH_CODE_EXCHANGE_TTL_SECONDS:
-                expired.append(k)
-        for k in expired:
-            _AUTH_CODE_EXCHANGE_CACHE.pop(k, None)
-        _AUTH_CODE_EXCHANGE_CACHE[code_hash] = _AuthCodeExchangeCacheEntry(
-            created_at=now,
-            client_id=client_id,
-            redirect_uri=redirect_uri,
-            access_token=access_token,
-            refresh_token=refresh_token,
-            expires_in=expires_in,
-        )
 
 
 class OAuthService:
@@ -199,18 +133,6 @@ class OAuthService:
         ).first()
 
         if not token:
-            cached = _get_cached_auth_code_exchange(
-                code_hash=code_hash,
-                client_id=client_id,
-                redirect_uri=redirect_uri,
-            )
-            if cached:
-                logger.info(
-                    "oauth exchange_code: code already exchanged recently client_id=%s code_hash=%s",
-                    client_id,
-                    OAuthService._short_hash(code),
-                )
-                return cached
             logger.info(
                 "oauth exchange_code: code not found/expired client_id=%s code_hash=%s",
                 client_id,
@@ -270,16 +192,7 @@ class OAuthService:
 
         db.commit()
 
-        expires_in = settings.access_token_expire_minutes * 60
-        _set_cached_auth_code_exchange(
-            code_hash=code_hash,
-            client_id=client_id,
-            redirect_uri=redirect_uri,
-            access_token=access_token,
-            refresh_token=refresh_token,
-            expires_in=expires_in,
-        )
-        return access_token, refresh_token, expires_in
+        return access_token, refresh_token, settings.access_token_expire_minutes * 60
 
     @staticmethod
     def password_grant(
