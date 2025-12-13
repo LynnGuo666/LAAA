@@ -211,9 +211,31 @@ export const adminApi = {
   updateUserRoles: (id: number, role_ids: number[]) =>
     api.put(`/api/admin/users/${id}/roles`, { role_ids }),
 
+  // 用户应用权限
+  getUserAppPermissions: (id: number) =>
+    api.get(`/api/admin/users/${id}/app-permissions`),
+
+  updateUserAppPermissions: (id: number, data: {
+    allowed_app_ids: number[];
+    denied_app_ids: number[];
+  }) =>
+    api.put(`/api/admin/users/${id}/app-permissions`, data),
+
   // 角色管理
   listRoles: () =>
     api.get('/api/admin/roles'),
+};
+
+// Group API extensions for app permissions
+export const groupAppApi = {
+  getAppPermissions: (id: number) =>
+    api.get(`/api/groups/${id}/app-permissions`),
+
+  updateAppPermissions: (id: number, data: {
+    allowed_app_ids: number[];
+    denied_app_ids: number[];
+  }) =>
+    api.put(`/api/groups/${id}/app-permissions`, data),
 };
 
 export default api;

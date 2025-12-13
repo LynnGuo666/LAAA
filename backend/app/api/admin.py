@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
 from app.database import get_db
-from app.models import User, Group, user_groups, Role, user_roles
+from app.models import User, Group, user_groups, Role, user_roles, Client, user_allowed_apps, user_denied_apps
 from app.schemas.admin import (
     AdminUserResponse,
     AdminUserCreate,
@@ -10,22 +10,15 @@ from app.schemas.admin import (
     AdminUserGroupsUpdate,
     AdminUserRolesUpdate,
     RoleResponse,
+    AppPermissionItem,
+    UserAppPermissionsResponse,
+    UserAppPermissionsUpdate,
 )
 from app.middleware.auth import get_current_user
+from app.middleware.permission import require_permission
 from app.utils.security import get_password_hash
 
 router = APIRouter()
-
-
-def check_admin(current_user: User = Depends(get_current_user)):
-    """检查当前用户是否为管理员"""
-    # 仅允许系统管理员（admin.*）
-    if not current_user.has_permission('admin.*'):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="需要管理员权限"
-        )
-    return current_user
 
 
 @router.get("/users", response_model=List[AdminUserResponse])
@@ -33,7 +26,7 @@ async def list_users(
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db),
-    _: User = Depends(check_admin)
+    _: User = Depends(require_permission('admin.users'))
 ):
     """获取所有用户列表（管理员）"""
     users = db.query(User).offset(skip).limit(limit).all()
@@ -59,7 +52,7 @@ async def list_users(
 async def get_user(
     user_id: int,
     db: Session = Depends(get_db),
-    _: User = Depends(check_admin)
+    _: User = Depends(require_permission('admin.users'))
 ):
     """获取单个用户详情（管理员）"""
     user = db.query(User).filter(User.id == user_id).first()
@@ -86,7 +79,7 @@ async def get_user(
 async def create_user(
     user_data: AdminUserCreate,
     db: Session = Depends(get_db),
-    _: User = Depends(check_admin)
+    _: User = Depends(require_permission('admin.users'))
 ):
     """创建新用户（管理员）"""
     # 检查用户名是否已存在
@@ -133,7 +126,7 @@ async def update_user(
     user_id: int,
     user_data: AdminUserUpdate,
     db: Session = Depends(get_db),
-    _: User = Depends(check_admin)
+    _: User = Depends(require_permission('admin.users'))
 ):
     """更新用户信息（管理员）"""
     user = db.query(User).filter(User.id == user_id).first()
@@ -186,7 +179,7 @@ async def update_user(
 async def delete_user(
     user_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(check_admin)
+    current_user: User = Depends(require_permission('admin.users'))
 ):
     """删除用户（管理员）"""
     # 不允许删除自己
@@ -214,7 +207,7 @@ async def update_user_groups(
     user_id: int,
     groups_data: AdminUserGroupsUpdate,
     db: Session = Depends(get_db),
-    _: User = Depends(check_admin)
+    _: User = Depends(require_permission('admin.users'))
 ):
     """更新用户所属的组（管理员）"""
     user = db.query(User).filter(User.id == user_id).first()
@@ -259,7 +252,7 @@ async def update_user_roles(
     user_id: int,
     roles_data: AdminUserRolesUpdate,
     db: Session = Depends(get_db),
-    _: User = Depends(check_admin)
+    _: User = Depends(require_permission('admin.roles'))
 ):
     """更新用户的角色（管理员）"""
     user = db.query(User).filter(User.id == user_id).first()
@@ -301,8 +294,88 @@ async def update_user_roles(
 @router.get("/roles", response_model=List[RoleResponse])
 async def list_roles(
     db: Session = Depends(get_db),
-    _: User = Depends(check_admin)
+    _: User = Depends(require_permission('admin.roles'))
 ):
     """获取所有角色列表（管理员）"""
     roles = db.query(Role).all()
     return roles
+
+
+# ==================== User App Permissions ====================
+
+@router.get("/users/{user_id}/app-permissions", response_model=UserAppPermissionsResponse)
+async def get_user_app_permissions(
+    user_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_permission('admin.users'))
+):
+    """获取用户的应用权限"""
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="用户不存在"
+        )
+
+    return UserAppPermissionsResponse(
+        user_id=user.id,
+        username=user.username,
+        allowed_apps=[
+            AppPermissionItem(id=app.id, client_id=app.client_id, name=app.name, logo=app.logo)
+            for app in user.allowed_apps
+        ],
+        denied_apps=[
+            AppPermissionItem(id=app.id, client_id=app.client_id, name=app.name, logo=app.logo)
+            for app in user.denied_apps
+        ]
+    )
+
+
+@router.put("/users/{user_id}/app-permissions", response_model=UserAppPermissionsResponse)
+async def update_user_app_permissions(
+    user_id: int,
+    permissions: UserAppPermissionsUpdate,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_permission('admin.users'))
+):
+    """更新用户的应用权限"""
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="用户不存在"
+        )
+
+    # 检查应用ID是否有效
+    allowed_apps = db.query(Client).filter(Client.id.in_(permissions.allowed_app_ids)).all() if permissions.allowed_app_ids else []
+    denied_apps = db.query(Client).filter(Client.id.in_(permissions.denied_app_ids)).all() if permissions.denied_app_ids else []
+
+    # 检查是否有重复（同一应用不能同时在允许和拒绝列表中）
+    allowed_ids = set(permissions.allowed_app_ids)
+    denied_ids = set(permissions.denied_app_ids)
+    if allowed_ids & denied_ids:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="同一应用不能同时在允许和拒绝列表中"
+        )
+
+    # 更新用户的应用权限
+    user.allowed_apps = allowed_apps
+    user.denied_apps = denied_apps
+
+    db.commit()
+    db.refresh(user)
+
+    return UserAppPermissionsResponse(
+        user_id=user.id,
+        username=user.username,
+        allowed_apps=[
+            AppPermissionItem(id=app.id, client_id=app.client_id, name=app.name, logo=app.logo)
+            for app in user.allowed_apps
+        ],
+        denied_apps=[
+            AppPermissionItem(id=app.id, client_id=app.client_id, name=app.name, logo=app.logo)
+            for app in user.denied_apps
+        ]
+    )
+

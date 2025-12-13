@@ -13,12 +13,15 @@ def create_roles_and_permissions(db: Session):
 
     # Create permissions
     permissions_data = [
+        # Admin permissions (hierarchical)
         ("admin.*", "Admin All", "Full administrative access"),
-        ("user.read", "Read User", "View user information"),
-        ("user.write", "Write User", "Edit user information"),
-        ("client.read", "Read Client", "View OAuth clients"),
-        ("client.write", "Write Client", "Create/edit OAuth clients"),
-        ("client.delete", "Delete Client", "Delete OAuth clients"),
+        ("admin.users", "Manage Users", "View and manage all users"),
+        ("admin.roles", "Manage Roles", "View and manage roles"),
+        ("admin.groups", "Manage Groups", "View and manage user groups"),
+        ("admin.clients", "Manage Clients", "View and manage all OAuth clients"),
+        # User permissions (for own profile)
+        ("user.read", "Read Profile", "View own profile"),
+        ("user.write", "Write Profile", "Edit own profile"),
     ]
 
     permissions = {}
@@ -35,13 +38,13 @@ def create_roles_and_permissions(db: Session):
     # Create roles
     roles_data = [
         ("admin", "Administrator", 100, [
-            "admin.*"
+            "admin.*"  # Full admin access (includes admin.users, admin.roles, etc.)
         ]),
         ("user", "User", 10, [
-            "user.read", "user.write", "client.read", "client.write", "client.delete"
+            "user.read", "user.write"  # Own profile only
         ]),
         ("guest", "Guest", 1, [
-            "user.read"
+            "user.read"  # Read-only access to own profile
         ])
     ]
 

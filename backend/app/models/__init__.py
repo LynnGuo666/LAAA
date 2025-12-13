@@ -34,7 +34,7 @@ user_groups = Table(
 )
 
 
-# Client-Group association tables for access control
+# Client-Group association tables for access control (legacy, will be deprecated)
 client_allowed_groups = Table(
     'client_allowed_groups',
     Base.metadata,
@@ -48,6 +48,42 @@ client_denied_groups = Table(
     Base.metadata,
     Column('client_id', Integer, ForeignKey('clients.id', ondelete='CASCADE')),
     Column('group_id', Integer, ForeignKey('groups.id', ondelete='CASCADE')),
+    Column('created_at', DateTime, default=datetime.utcnow)
+)
+
+
+# Group-App permission tables (new)
+group_allowed_apps = Table(
+    'group_allowed_apps',
+    Base.metadata,
+    Column('group_id', Integer, ForeignKey('groups.id', ondelete='CASCADE')),
+    Column('client_id', Integer, ForeignKey('clients.id', ondelete='CASCADE')),
+    Column('created_at', DateTime, default=datetime.utcnow)
+)
+
+group_denied_apps = Table(
+    'group_denied_apps',
+    Base.metadata,
+    Column('group_id', Integer, ForeignKey('groups.id', ondelete='CASCADE')),
+    Column('client_id', Integer, ForeignKey('clients.id', ondelete='CASCADE')),
+    Column('created_at', DateTime, default=datetime.utcnow)
+)
+
+
+# User-App permission tables (new, for individual overrides)
+user_allowed_apps = Table(
+    'user_allowed_apps',
+    Base.metadata,
+    Column('user_id', Integer, ForeignKey('users.id', ondelete='CASCADE')),
+    Column('client_id', Integer, ForeignKey('clients.id', ondelete='CASCADE')),
+    Column('created_at', DateTime, default=datetime.utcnow)
+)
+
+user_denied_apps = Table(
+    'user_denied_apps',
+    Base.metadata,
+    Column('user_id', Integer, ForeignKey('users.id', ondelete='CASCADE')),
+    Column('client_id', Integer, ForeignKey('clients.id', ondelete='CASCADE')),
     Column('created_at', DateTime, default=datetime.utcnow)
 )
 
@@ -71,16 +107,27 @@ class User(Base):
     authorizations = relationship('UserAuthorization', back_populates='user', cascade='all, delete-orphan')
     tokens = relationship('Token', back_populates='user', cascade='all, delete-orphan')
     sessions = relationship('Session', back_populates='user', cascade='all, delete-orphan')
+    # App permissions (individual overrides)
+    allowed_apps = relationship('Client', secondary=user_allowed_apps, backref='users_allowed')
+    denied_apps = relationship('Client', secondary=user_denied_apps, backref='users_denied')
 
     def has_permission(self, permission_code: str) -> bool:
-        """Check if user has a specific permission"""
+        """Check if user has a specific permission
+
+        Supports wildcard matching:
+        - 'admin.*' grants all admin.* permissions (admin.users, admin.roles, etc.)
+        - Exact match for specific permissions
+        """
         for role in self.roles:
-            # Check for wildcard admin permission
-            if any(p.code == 'admin.*' for p in role.permissions):
-                return True
-            # Check for specific permission
-            if any(p.code == permission_code for p in role.permissions):
-                return True
+            for perm in role.permissions:
+                # Exact match
+                if perm.code == permission_code:
+                    return True
+                # Wildcard match: admin.* matches admin.users, admin.roles, etc.
+                if perm.code.endswith('.*'):
+                    prefix = perm.code[:-1]  # 'admin.' from 'admin.*'
+                    if permission_code.startswith(prefix) or permission_code == perm.code:
+                        return True
         return False
 
     def has_role(self, role_name: str) -> bool:
@@ -92,23 +139,35 @@ class User(Base):
         return any(group.name == group_name for group in self.groups)
 
     def can_access_client(self, client) -> bool:
-        """Check if user can access a specific client based on group permissions"""
-        # If no access control is set, allow access
-        if not client.allowed_groups and not client.denied_groups:
-            return True
+        """Check if user can access a specific client based on app permissions.
 
-        # Check if user is in any denied group
-        user_group_ids = {g.id for g in self.groups}
-        denied_group_ids = {g.id for g in client.denied_groups}
-        if user_group_ids & denied_group_ids:  # Intersection
+        Priority (highest to lowest):
+        1. User denied_apps -> Deny
+        2. User allowed_apps -> Allow
+        3. Group denied_apps -> Deny
+        4. Group allowed_apps -> Allow
+        5. Client default_access -> Allow/Deny based on setting
+        """
+        # 1. User-level deny (highest priority)
+        if client in self.denied_apps:
             return False
 
-        # Check if whitelist is enabled
-        if client.allowed_groups:
-            allowed_group_ids = {g.id for g in client.allowed_groups}
-            return bool(user_group_ids & allowed_group_ids)  # User must be in at least one allowed group
+        # 2. User-level allow
+        if client in self.allowed_apps:
+            return True
 
-        return True
+        # 3. Group-level deny
+        for group in self.groups:
+            if client in group.denied_apps:
+                return False
+
+        # 4. Group-level allow
+        for group in self.groups:
+            if client in group.allowed_apps:
+                return True
+
+        # 5. Default access policy
+        return client.default_access
 
 
 class Client(Base):
@@ -123,6 +182,7 @@ class Client(Base):
     redirect_uris = Column(Text, nullable=False)  # JSON array stored as text
     allowed_scopes = Column(Text, nullable=False)  # JSON array stored as text
     trusted = Column(Boolean, default=False)  # Skip authorization for trusted apps
+    default_access = Column(Boolean, default=True)  # Default access policy (True=open, False=requires permission)
     owner_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
@@ -228,6 +288,9 @@ class Group(Base):
     users = relationship('User', secondary=user_groups, back_populates='groups')
     allowed_clients = relationship('Client', secondary=client_allowed_groups, back_populates='allowed_groups')
     denied_clients = relationship('Client', secondary=client_denied_groups, back_populates='denied_groups')
+    # App permissions (new)
+    allowed_apps = relationship('Client', secondary=group_allowed_apps, backref='groups_allowed')
+    denied_apps = relationship('Client', secondary=group_denied_apps, backref='groups_denied')
 
 
 class AuditLog(Base):

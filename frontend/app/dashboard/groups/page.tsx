@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { adminApi, groupApi } from '@/lib/api';
+import { adminApi, groupApi, clientApi, groupAppApi } from '@/lib/api';
 import SidePanel from '@/components/SidePanel';
 import { useAuthStore } from '@/lib/store';
 import { isAdmin } from '@/lib/authz';
@@ -25,6 +25,13 @@ interface User {
   groups: string[];
 }
 
+interface AppItem {
+  id: number;
+  client_id: string;
+  name: string;
+  logo?: string;
+}
+
 export default function GroupsPage() {
   const user = useAuthStore((s) => s.user);
   const canManageGroups = isAdmin(user);
@@ -44,10 +51,14 @@ export default function GroupsPage() {
     description: '',
     is_default: false,
   });
+  const [apps, setApps] = useState<AppItem[]>([]);
+  const [selectedGroupAllowedApps, setSelectedGroupAllowedApps] = useState<number[]>([]);
+  const [selectedGroupDeniedApps, setSelectedGroupDeniedApps] = useState<number[]>([]);
+  const [appPermissionsLoading, setAppPermissionsLoading] = useState(false);
 
   useEffect(() => {
     if (!canManageGroups) return;
-    void Promise.all([loadGroups(), loadUsers()]);
+    void Promise.all([loadGroups(), loadUsers(), loadApps()]);
   }, [canManageGroups]);
 
   if (!canManageGroups) {
@@ -89,6 +100,19 @@ export default function GroupsPage() {
     }
   };
 
+  const loadApps = async () => {
+    try {
+      const response = await clientApi.list();
+      if (Array.isArray(response.data)) {
+        setApps(response.data);
+      } else {
+        setApps([]);
+      }
+    } catch {
+      setApps([]);
+    }
+  };
+
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     setPanelError(null);
@@ -126,7 +150,7 @@ export default function GroupsPage() {
     }
   };
 
-  const openPanel = (group: Group) => {
+  const openPanel = async (group: Group) => {
     setSelectedGroup(group);
     setPanelOpen(true);
     setPanelError(null);
@@ -134,6 +158,19 @@ export default function GroupsPage() {
     setSearch('');
     setEditingMeta(false);
     setMetaForm({ name: group.name, description: group.description || '' });
+
+    // 加载用户组的应用权限
+    setAppPermissionsLoading(true);
+    try {
+      const response = await groupAppApi.getAppPermissions(group.id);
+      setSelectedGroupAllowedApps(response.data.allowed_apps.map((app: AppItem) => app.id));
+      setSelectedGroupDeniedApps(response.data.denied_apps.map((app: AppItem) => app.id));
+    } catch {
+      setSelectedGroupAllowedApps([]);
+      setSelectedGroupDeniedApps([]);
+    } finally {
+      setAppPermissionsLoading(false);
+    }
   };
 
   const handleUpdateMeta = async (e: React.FormEvent) => {
@@ -197,6 +234,43 @@ export default function GroupsPage() {
     } catch (err: any) {
       setPanelError(err.response?.data?.detail || '移除成员失败（可能需要管理员权限）');
     }
+  };
+
+  const handleUpdateAppPermissions = async () => {
+    if (!selectedGroup) return;
+    setPanelError(null);
+    try {
+      await groupAppApi.updateAppPermissions(selectedGroup.id, {
+        allowed_app_ids: selectedGroupAllowedApps,
+        denied_app_ids: selectedGroupDeniedApps,
+      });
+    } catch (err: any) {
+      setPanelError(err.response?.data?.detail || '更新应用权限失败');
+    }
+  };
+
+  const toggleAllowedApp = (appId: number) => {
+    // 如果在拒绝列表中，先移除
+    if (selectedGroupDeniedApps.includes(appId)) {
+      setSelectedGroupDeniedApps(prev => prev.filter(id => id !== appId));
+    }
+    setSelectedGroupAllowedApps(prev =>
+      prev.includes(appId)
+        ? prev.filter(id => id !== appId)
+        : [...prev, appId]
+    );
+  };
+
+  const toggleDeniedApp = (appId: number) => {
+    // 如果在允许列表中，先移除
+    if (selectedGroupAllowedApps.includes(appId)) {
+      setSelectedGroupAllowedApps(prev => prev.filter(id => id !== appId));
+    }
+    setSelectedGroupDeniedApps(prev =>
+      prev.includes(appId)
+        ? prev.filter(id => id !== appId)
+        : [...prev, appId]
+    );
   };
 
   if (loading) {
@@ -496,6 +570,70 @@ export default function GroupsPage() {
                       添加到用户组
                     </button>
                   </>
+                )}
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="text-sm font-medium text-gray-700 dark:text-gray-200">应用权限</div>
+                  <button
+                    type="button"
+                    onClick={handleUpdateAppPermissions}
+                    className="btn btn-primary text-sm"
+                    disabled={appPermissionsLoading}
+                  >
+                    保存权限
+                  </button>
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+                  优先级：用户拒绝 &gt; 用户允许 &gt; 用户组拒绝 &gt; 用户组允许 &gt; 应用默认
+                </p>
+                {appPermissionsLoading ? (
+                  <div className="text-sm text-gray-500">加载中...</div>
+                ) : apps.length === 0 ? (
+                  <div className="text-sm text-gray-500">暂无应用</div>
+                ) : (
+                  <div className="max-h-64 overflow-y-auto border rounded dark:border-gray-700">
+                    {apps.map(app => (
+                      <div key={app.id} className="flex items-center justify-between px-3 py-2 border-b last:border-b-0 dark:border-gray-700">
+                        <div className="flex items-center gap-2 min-w-0">
+                          {app.logo ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={app.logo}
+                              alt={app.name}
+                              className="h-6 w-6 rounded border border-gray-200 dark:border-gray-700"
+                            />
+                          ) : (
+                            <div className="h-6 w-6 rounded bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-gray-500 dark:text-gray-400 text-xs">
+                              {app.name.charAt(0).toUpperCase()}
+                            </div>
+                          )}
+                          <span className="text-sm text-gray-900 dark:text-gray-100 truncate">{app.name}</span>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <label className="flex items-center gap-1 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={selectedGroupAllowedApps.includes(app.id)}
+                              onChange={() => toggleAllowedApp(app.id)}
+                              className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
+                            />
+                            <span className="text-xs text-green-600 dark:text-green-400">允许</span>
+                          </label>
+                          <label className="flex items-center gap-1 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={selectedGroupDeniedApps.includes(app.id)}
+                              onChange={() => toggleDeniedApp(app.id)}
+                              className="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 rounded"
+                            />
+                            <span className="text-xs text-red-600 dark:text-red-400">拒绝</span>
+                          </label>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 )}
               </div>
 

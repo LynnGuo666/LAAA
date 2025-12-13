@@ -55,3 +55,40 @@ class RoleResponse(BaseModel):
     class Config:
         from_attributes = True
 
+
+# App Permission Schemas
+class AppPermissionItem(BaseModel):
+    """应用权限项"""
+    id: int
+    client_id: str
+    name: str
+    logo: Optional[str] = None
+
+
+class UserAppPermissionsResponse(BaseModel):
+    """用户应用权限响应"""
+    user_id: int
+    username: str
+    allowed_apps: List[AppPermissionItem] = []
+    denied_apps: List[AppPermissionItem] = []
+
+
+class UserAppPermissionsUpdate(BaseModel):
+    """更新用户应用权限"""
+    allowed_app_ids: List[int] = []
+    denied_app_ids: List[int] = []
+
+
+class GroupAppPermissionsResponse(BaseModel):
+    """用户组应用权限响应"""
+    group_id: int
+    group_name: str
+    allowed_apps: List[AppPermissionItem] = []
+    denied_apps: List[AppPermissionItem] = []
+
+
+class GroupAppPermissionsUpdate(BaseModel):
+    """更新用户组应用权限"""
+    allowed_app_ids: List[int] = []
+    denied_app_ids: List[int] = []
+

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { adminApi, groupApi } from '@/lib/api';
+import { adminApi, groupApi, clientApi } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { isAdmin } from '@/lib/authz';
 
@@ -30,6 +30,13 @@ interface Role {
   level: number;
 }
 
+interface AppItem {
+  id: number;
+  client_id: string;
+  name: string;
+  logo?: string;
+}
+
 export default function UsersPage() {
   const user = useAuthStore((s) => s.user);
   const canManageUsers = isAdmin(user);
@@ -46,6 +53,10 @@ export default function UsersPage() {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [selectedUserGroups, setSelectedUserGroups] = useState<number[]>([]);
   const [selectedUserRoles, setSelectedUserRoles] = useState<number[]>([]);
+  const [apps, setApps] = useState<AppItem[]>([]);
+  const [showAppsModal, setShowAppsModal] = useState(false);
+  const [selectedUserAllowedApps, setSelectedUserAllowedApps] = useState<number[]>([]);
+  const [selectedUserDeniedApps, setSelectedUserDeniedApps] = useState<number[]>([]);
 
   // 创建用户表单
   const [createForm, setCreateForm] = useState({
@@ -68,6 +79,7 @@ export default function UsersPage() {
     loadUsers();
     loadGroups();
     loadRoles();
+    loadApps();
   }, [canManageUsers]);
 
   if (!canManageUsers) {
@@ -107,6 +119,15 @@ export default function UsersPage() {
       setRoles(response.data);
     } catch (err) {
       console.error('加载角色列表失败:', err);
+    }
+  };
+
+  const loadApps = async () => {
+    try {
+      const response = await clientApi.list();
+      setApps(response.data);
+    } catch (err) {
+      console.error('加载应用列表失败:', err);
     }
   };
 
@@ -233,6 +254,57 @@ export default function UsersPage() {
       prev.includes(roleId)
         ? prev.filter(id => id !== roleId)
         : [...prev, roleId]
+    );
+  };
+
+  const openAppsModal = async (user: User) => {
+    setSelectedUser(user);
+    try {
+      const response = await adminApi.getUserAppPermissions(user.id);
+      setSelectedUserAllowedApps(response.data.allowed_apps.map((app: AppItem) => app.id));
+      setSelectedUserDeniedApps(response.data.denied_apps.map((app: AppItem) => app.id));
+      setShowAppsModal(true);
+    } catch (err: any) {
+      setError(err.response?.data?.detail || '获取用户应用权限失败');
+    }
+  };
+
+  const handleUpdateAppPermissions = async () => {
+    if (!selectedUser) return;
+
+    try {
+      await adminApi.updateUserAppPermissions(selectedUser.id, {
+        allowed_app_ids: selectedUserAllowedApps,
+        denied_app_ids: selectedUserDeniedApps,
+      });
+      setShowAppsModal(false);
+      setSelectedUser(null);
+    } catch (err: any) {
+      setError(err.response?.data?.detail || '更新用户应用权限失败');
+    }
+  };
+
+  const toggleAllowedApp = (appId: number) => {
+    // 如果在拒绝列表中，先移除
+    if (selectedUserDeniedApps.includes(appId)) {
+      setSelectedUserDeniedApps(prev => prev.filter(id => id !== appId));
+    }
+    setSelectedUserAllowedApps(prev =>
+      prev.includes(appId)
+        ? prev.filter(id => id !== appId)
+        : [...prev, appId]
+    );
+  };
+
+  const toggleDeniedApp = (appId: number) => {
+    // 如果在允许列表中，先移除
+    if (selectedUserAllowedApps.includes(appId)) {
+      setSelectedUserAllowedApps(prev => prev.filter(id => id !== appId));
+    }
+    setSelectedUserDeniedApps(prev =>
+      prev.includes(appId)
+        ? prev.filter(id => id !== appId)
+        : [...prev, appId]
     );
   };
 
@@ -378,6 +450,12 @@ export default function UsersPage() {
                         className="btn btn-secondary text-sm"
                       >
                         角色
+                      </button>
+                      <button
+                        onClick={() => openAppsModal(u)}
+                        className="btn btn-secondary text-sm"
+                      >
+                        应用权限
                       </button>
                       <button
                         onClick={() => handleDeleteUser(u.id)}
@@ -659,6 +737,90 @@ export default function UsersPage() {
               <button
                 type="button"
                 onClick={handleUpdateRoles}
+                className="btn btn-primary"
+              >
+                保存
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 管理用户应用权限模态框 */}
+      {showAppsModal && selectedUser && (
+        <div
+          className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) setShowAppsModal(false);
+          }}
+        >
+          <div className="surface max-w-lg w-full p-6 animate-slide-up">
+            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">
+              管理应用权限: {selectedUser.username}
+            </h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+              优先级：用户拒绝 &gt; 用户允许 &gt; 用户组拒绝 &gt; 用户组允许 &gt; 应用默认
+            </p>
+            <div className="surface overflow-hidden max-h-96 overflow-y-auto">
+              <div className="list">
+                {apps.map((app) => (
+                  <div key={app.id} className="list-item flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      {app.logo ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={app.logo}
+                          alt={app.name}
+                          className="h-8 w-8 rounded border border-gray-200 dark:border-gray-700"
+                        />
+                      ) : (
+                        <div className="h-8 w-8 rounded bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-gray-500 dark:text-gray-400 text-xs">
+                          {app.name.charAt(0).toUpperCase()}
+                        </div>
+                      )}
+                      <div className="min-w-0">
+                        <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{app.name}</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400 truncate">{app.client_id}</div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <label className="flex items-center gap-1 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={selectedUserAllowedApps.includes(app.id)}
+                          onChange={() => toggleAllowedApp(app.id)}
+                          className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
+                        />
+                        <span className="text-xs text-green-600 dark:text-green-400">允许</span>
+                      </label>
+                      <label className="flex items-center gap-1 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={selectedUserDeniedApps.includes(app.id)}
+                          onChange={() => toggleDeniedApp(app.id)}
+                          className="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 rounded"
+                        />
+                        <span className="text-xs text-red-600 dark:text-red-400">拒绝</span>
+                      </label>
+                    </div>
+                  </div>
+                ))}
+                {apps.length === 0 && (
+                  <div className="p-4 text-center text-sm text-gray-500">暂无应用</div>
+                )}
+              </div>
+            </div>
+            <div className="mt-6 flex justify-end space-x-3">
+              <button
+                type="button"
+                onClick={() => setShowAppsModal(false)}
+                className="btn btn-secondary"
+              >
+                取消
+              </button>
+              <button
+                type="button"
+                onClick={handleUpdateAppPermissions}
                 className="btn btn-primary"
               >
                 保存
