@@ -23,6 +23,7 @@ function AuthorizeContent() {
   const [clientInfo, setClientInfo] = useState<ClientInfo | null>(null);
   const [currentUser, setCurrentUser] = useState<UserInfo | null>(null);
   const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState<'approve' | 'deny' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [accessDenied, setAccessDenied] = useState(false);
 
@@ -114,6 +115,7 @@ function AuthorizeContent() {
   };
 
   const handleApprove = async () => {
+    if (submitting) return;
     const token = localStorage.getItem('access_token');
     if (!token) {
       router.push('/login');
@@ -121,6 +123,7 @@ function AuthorizeContent() {
     }
 
     try {
+      setSubmitting('approve');
       const formData = new URLSearchParams();
       formData.append('response_type', responseType || '');
       formData.append('client_id', clientId || '');
@@ -145,6 +148,7 @@ function AuthorizeContent() {
         window.location.href = response.data.redirect_url;
       } else {
         alert('授权失败: 未收到跳转地址');
+        setSubmitting(null);
       }
     } catch (err: any) {
       if (err.response?.status === 403) {
@@ -153,10 +157,13 @@ function AuthorizeContent() {
       } else {
         alert('授权失败: ' + (err.response?.data?.detail || '未知错误'));
       }
+      setSubmitting(null);
     }
   };
 
   const handleDeny = () => {
+    if (submitting) return;
+    setSubmitting('deny');
     if (redirectUri) {
       let url = `${redirectUri}?error=access_denied`;
       if (state) url += `&state=${state}`;
@@ -263,7 +270,8 @@ function AuthorizeContent() {
               </div>
               <button
                 onClick={handleSwitchAccount}
-                className="text-sm text-blue-600 hover:text-blue-800"
+                className="text-sm text-blue-600 hover:text-blue-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={!!submitting}
               >
                 切换账号
               </button>
@@ -310,15 +318,31 @@ function AuthorizeContent() {
         <div className="space-y-3">
           <button
             onClick={handleApprove}
-            className="btn btn-primary w-full"
+            className="btn btn-primary w-full disabled:opacity-60 disabled:cursor-not-allowed"
+            disabled={!!submitting}
           >
-            授权
+            {submitting === 'approve' ? (
+              <span className="inline-flex items-center justify-center gap-2">
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                授权中...
+              </span>
+            ) : (
+              '授权'
+            )}
           </button>
           <button
             onClick={handleDeny}
-            className="btn btn-secondary w-full"
+            className="btn btn-secondary w-full disabled:opacity-60 disabled:cursor-not-allowed"
+            disabled={!!submitting}
           >
-            拒绝
+            {submitting === 'deny' ? (
+              <span className="inline-flex items-center justify-center gap-2">
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-gray-400/40 border-t-gray-600 dark:border-gray-500/40 dark:border-t-gray-200" />
+                正在返回...
+              </span>
+            ) : (
+              '拒绝'
+            )}
           </button>
         </div>
 
