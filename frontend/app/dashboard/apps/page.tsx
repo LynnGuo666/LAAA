@@ -12,6 +12,7 @@ interface Client {
   name: string;
   description?: string;
   logo?: string;
+  website_url?: string;
   redirect_uris: string[];
   allowed_scopes: string[];
   trusted: boolean;
@@ -64,6 +65,7 @@ export default function AppsPage() {
     name: '',
     description: '',
     logo: '',
+    website_url: '',
     redirect_uris: '',
     allowed_scopes: ['profile', 'email'],  // 默认选中
     trusted: false,
@@ -139,6 +141,7 @@ export default function AppsPage() {
         name: formData.name,
         description: formData.description || undefined,
         logo: formData.logo || undefined,
+        website_url: formData.website_url || undefined,
         redirect_uris: formData.redirect_uris.split('\n').filter(u => u.trim()),
         allowed_scopes: formData.allowed_scopes,
         trusted: formData.trusted,
@@ -156,6 +159,7 @@ export default function AppsPage() {
         name: '',
         description: '',
         logo: '',
+        website_url: '',
         redirect_uris: '',
         allowed_scopes: ['profile', 'email'],
         trusted: false,
@@ -174,6 +178,7 @@ export default function AppsPage() {
       name: client.name,
       description: client.description || '',
       logo: client.logo || '',
+      website_url: client.website_url || '',
       redirect_uris: client.redirect_uris.join('\n'),
       allowed_scopes: client.allowed_scopes,
       trusted: client.trusted,
@@ -197,6 +202,7 @@ export default function AppsPage() {
         name: formData.name,
         description: formData.description || undefined,
         logo: formData.logo || undefined,
+        website_url: formData.website_url || undefined,
         redirect_uris: formData.redirect_uris.split('\n').filter(u => u.trim()),
         allowed_scopes: formData.allowed_scopes,
         trusted: formData.trusted,
@@ -209,6 +215,7 @@ export default function AppsPage() {
         name: '',
         description: '',
         logo: '',
+        website_url: '',
         redirect_uris: '',
         allowed_scopes: ['profile', 'email'],
         trusted: false,
@@ -445,6 +452,17 @@ export default function AppsPage() {
             </div>
 
             <div>
+              <label className="block text-sm font-medium mb-2">应用官网（可选）</label>
+              <input
+                type="url"
+                className="input"
+                placeholder="https://example.com"
+                value={formData.website_url}
+                onChange={(e) => setFormData({ ...formData, website_url: e.target.value })}
+              />
+            </div>
+
+            <div>
               <label className="block text-sm font-medium mb-2">回调地址 * (每行一个)</label>
               <textarea
                 required
@@ -550,6 +568,17 @@ export default function AppsPage() {
                 onChange={(e) => setFormData({ ...formData, logo: e.target.value })}
               />
               <p className="text-xs text-gray-500 mt-1">Logo 将显示在授权页面上</p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">应用官网（可选）</label>
+              <input
+                type="url"
+                className="input"
+                placeholder="https://example.com"
+                value={formData.website_url}
+                onChange={(e) => setFormData({ ...formData, website_url: e.target.value })}
+              />
             </div>
 
             <div>

@@ -37,6 +37,7 @@ async def get_client_info(
         "name": client.name,
         "description": client.description,
         "logo": client.logo,
+        "website_url": getattr(client, "website_url", None),
     }
 
 

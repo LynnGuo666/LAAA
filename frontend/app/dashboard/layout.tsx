@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useAuthStore } from '@/lib/store';
-import { authApi } from '@/lib/api';
+import { authApi, siteApi } from '@/lib/api';
 import { isAdmin } from '@/lib/authz';
 
 export default function DashboardLayout({
@@ -15,6 +15,7 @@ export default function DashboardLayout({
   const router = useRouter();
   const pathname = usePathname();
   const { user, isAuthenticated, setUser, logout } = useAuthStore();
+  const [siteName, setSiteName] = useState('OAuth 服务器');
 
   useEffect(() => {
     // Check if user is authenticated
@@ -37,9 +38,17 @@ export default function DashboardLayout({
   }, [user, setUser, router]);
 
   useEffect(() => {
+    siteApi.get()
+      .then((res) => setSiteName(res.data?.site_name || 'OAuth 服务器'))
+      .catch(() => {
+        // ignore
+      });
+  }, []);
+
+  useEffect(() => {
     if (!user) return;
 
-    const adminOnlyPrefixes = ['/dashboard/apps', '/dashboard/groups', '/dashboard/users', '/dashboard/invites'];
+    const adminOnlyPrefixes = ['/dashboard/apps', '/dashboard/groups', '/dashboard/users', '/dashboard/invites', '/dashboard/settings'];
     const match = adminOnlyPrefixes.find((prefix) => pathname.startsWith(prefix));
     if (match && !isAdmin(user)) {
       router.replace('/dashboard');
@@ -73,10 +82,12 @@ export default function DashboardLayout({
   const navLinks = [
     { href: '/dashboard', label: '控制台' },
     ...(isAdmin(user) ? [{ href: '/dashboard/apps', label: '应用管理' }] : []),
+    ...(!isAdmin(user) ? [{ href: '/dashboard/my-apps', label: '我的应用' }] : []),
     { href: '/dashboard/authorizations', label: '授权管理' },
     ...(isAdmin(user) ? [{ href: '/dashboard/groups', label: '用户组' }] : []),
     ...(isAdmin(user) ? [{ href: '/dashboard/users', label: '用户管理' }] : []),
     ...(isAdmin(user) ? [{ href: '/dashboard/invites', label: '邀请码' }] : []),
+    ...(isAdmin(user) ? [{ href: '/dashboard/settings', label: '站点设置' }] : []),
     { href: '/dashboard/sessions', label: '会话管理' },
     { href: '/dashboard/profile', label: '个人资料' },
   ];
@@ -89,7 +100,7 @@ export default function DashboardLayout({
           <div className="flex justify-between h-16">
             <div className="flex">
               <Link href="/dashboard" className="flex items-center px-2 py-2 text-xl font-bold">
-                OAuth 服务器
+                {siteName}
               </Link>
 
               <div className="hidden sm:ml-6 sm:flex sm:space-x-8">

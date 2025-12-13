@@ -1,10 +1,24 @@
+'use client';
+
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { siteApi } from '@/lib/api';
 
 export default function Home() {
+  const [siteName, setSiteName] = useState('OAuth 服务器');
+
+  useEffect(() => {
+    siteApi.get()
+      .then((res) => setSiteName(res.data?.site_name || 'OAuth 服务器'))
+      .catch(() => {
+        // ignore
+      });
+  }, []);
+
   return (
     <main className="min-h-screen flex items-center justify-center p-8">
       <div className="max-w-2xl w-full space-y-8 text-center">
-        <h1 className="text-6xl font-bold">OAuth 服务器</h1>
+        <h1 className="text-6xl font-bold">{siteName}</h1>
         <p className="text-xl text-gray-600">
           个人 OAuth 2.0 认证授权服务器
         </p>

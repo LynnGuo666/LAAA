@@ -10,6 +10,7 @@ interface ClientInfo {
   name: string;
   description?: string;
   logo?: string;
+  website_url?: string;
 }
 
 interface UserInfo {
@@ -72,6 +73,7 @@ function AuthorizeContent() {
         name: clientResponse.data.name,
         description: clientResponse.data.description,
         logo: clientResponse.data.logo,
+        website_url: clientResponse.data.website_url,
       });
 
       // 验证授权参数
@@ -298,6 +300,16 @@ function AuthorizeContent() {
           </p>
           {clientInfo?.description && (
             <p className="text-sm text-gray-500 mt-2">{clientInfo.description}</p>
+          )}
+          {clientInfo?.website_url && (
+            <a
+              className="inline-block text-sm text-blue-600 hover:text-blue-800 mt-2"
+              href={clientInfo.website_url}
+              target="_blank"
+              rel="noreferrer"
+            >
+              访问应用官网
+            </a>
           )}
         </div>
 

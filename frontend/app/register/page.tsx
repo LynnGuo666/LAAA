@@ -63,7 +63,7 @@ export default function RegisterPage() {
       <div className="max-w-md w-full space-y-8 animate-fade-in">
         <div className="text-center">
           <h2 className="text-3xl font-bold text-gray-900 dark:text-gray-100">创建账号</h2>
-          <p className="mt-2 text-gray-600 dark:text-gray-300">开始使用 OAuth 服务器</p>
+          <p className="mt-2 text-gray-600 dark:text-gray-300">开始使用本站服务</p>
         </div>
 
         <form onSubmit={handleSubmit} className="surface p-6 space-y-6">

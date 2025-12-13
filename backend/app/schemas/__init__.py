@@ -62,6 +62,7 @@ class ClientBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
     description: Optional[str] = None
     logo: Optional[str] = None
+    website_url: Optional[str] = Field(None, max_length=500)
     redirect_uris: List[str]
     allowed_scopes: List[str]
     trusted: bool = False
@@ -75,6 +76,7 @@ class ClientUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=100)
     description: Optional[str] = None
     logo: Optional[str] = None
+    website_url: Optional[str] = Field(None, max_length=500)
     redirect_uris: Optional[List[str]] = None
     allowed_scopes: Optional[List[str]] = None
     trusted: Optional[bool] = None
@@ -92,6 +94,19 @@ class ClientResponse(ClientBase):
 
 class ClientWithSecretResponse(ClientResponse):
     client_secret: str  # Only returned once when created
+
+
+class ClientPublicResponse(BaseModel):
+    id: int
+    client_id: str
+    name: str
+    description: Optional[str] = None
+    logo: Optional[str] = None
+    website_url: Optional[str] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
 
 
 class ClientSecretResetResponse(BaseModel):

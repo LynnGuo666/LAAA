@@ -1,14 +1,17 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Depends, HTTPException
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from fastapi.responses import JSONResponse
+from fastapi.openapi.docs import get_swagger_ui_html, get_redoc_html
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from app.config import get_settings
 from app.database import init_db
-from app.routes import auth, oauth, user, client, oidc
+from app.routes import auth, oauth, user, client, oidc, site
 from app.api import groups, admin, invites
+from app.middleware.auth import get_current_user
+from app.models import User
 import os
 import logging
 
@@ -20,8 +23,9 @@ app = FastAPI(
     title=settings.app_name,
     description="Personal OAuth 2.0 Authorization Server",
     version="1.0.0",
-    docs_url="/api/docs",
-    redoc_url="/api/redoc"
+    docs_url=None,
+    redoc_url=None,
+    openapi_url=None,
 )
 
 @app.exception_handler(RequestValidationError)
@@ -51,9 +55,36 @@ app.include_router(oauth.router)
 app.include_router(user.router)
 app.include_router(client.router)
 app.include_router(oidc.router)
+app.include_router(site.router)
 app.include_router(groups.router, prefix="/api/groups", tags=["groups"])
 app.include_router(admin.router, prefix="/api/admin", tags=["admin"])
 app.include_router(invites.router, prefix="/api/admin/invites", tags=["admin"])
+
+def require_docs_admin(current_user: User = Depends(get_current_user)) -> User:
+    if current_user.has_role("admin") or current_user.has_permission("admin.*"):
+        return current_user
+    raise HTTPException(status_code=404, detail="Not found")
+
+
+@app.get("/api/openapi.json", include_in_schema=False)
+def openapi_json(_: User = Depends(require_docs_admin)):
+    return app.openapi()
+
+
+@app.get("/api/docs", include_in_schema=False)
+def swagger_ui(_: User = Depends(require_docs_admin)):
+    return get_swagger_ui_html(
+        openapi_url="/api/openapi.json",
+        title=f"{settings.app_name} - API Docs",
+    )
+
+
+@app.get("/api/redoc", include_in_schema=False)
+def redoc(_: User = Depends(require_docs_admin)):
+    return get_redoc_html(
+        openapi_url="/api/openapi.json",
+        title=f"{settings.app_name} - API Docs",
+    )
 
 
 # Health check

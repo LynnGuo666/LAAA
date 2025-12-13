@@ -37,6 +37,7 @@ async def create_client(
         name=client_data.name,
         description=client_data.description,
         logo=client_data.logo,
+        website_url=getattr(client_data, "website_url", None),
         redirect_uris=json.dumps(client_data.redirect_uris),
         allowed_scopes=json.dumps(client_data.allowed_scopes),
         trusted=client_data.trusted,
@@ -55,6 +56,7 @@ async def create_client(
         name=client.name,
         description=client.description,
         logo=client.logo,
+        website_url=client.website_url,
         redirect_uris=json.loads(client.redirect_uris),
         allowed_scopes=json.loads(client.allowed_scopes),
         trusted=client.trusted,
@@ -79,6 +81,7 @@ async def list_clients(
             name=client.name,
             description=client.description,
             logo=client.logo,
+            website_url=client.website_url,
             redirect_uris=json.loads(client.redirect_uris),
             allowed_scopes=json.loads(client.allowed_scopes),
             trusted=client.trusted,
@@ -107,6 +110,7 @@ async def get_client(
         name=client.name,
         description=client.description,
         logo=client.logo,
+        website_url=client.website_url,
         redirect_uris=json.loads(client.redirect_uris),
         allowed_scopes=json.loads(client.allowed_scopes),
         trusted=client.trusted,
@@ -135,6 +139,8 @@ async def update_client(
         client.description = client_data.description
     if client_data.logo is not None:
         client.logo = client_data.logo
+    if getattr(client_data, "website_url", None) is not None:
+        client.website_url = client_data.website_url
     if client_data.redirect_uris:
         client.redirect_uris = json.dumps(client_data.redirect_uris)
     if client_data.allowed_scopes:
@@ -151,6 +157,7 @@ async def update_client(
         name=client.name,
         description=client.description,
         logo=client.logo,
+        website_url=client.website_url,
         redirect_uris=json.loads(client.redirect_uris),
         allowed_scopes=json.loads(client.allowed_scopes),
         trusted=client.trusted,

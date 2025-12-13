@@ -179,6 +179,7 @@ class Client(Base):
     name = Column(String(100), nullable=False)
     description = Column(Text, nullable=True)
     logo = Column(String(255), nullable=True)
+    website_url = Column(String(500), nullable=True)
     redirect_uris = Column(Text, nullable=False)  # JSON array stored as text
     allowed_scopes = Column(Text, nullable=False)  # JSON array stored as text
     trusted = Column(Boolean, default=False)  # Skip authorization for trusted apps
@@ -330,6 +331,14 @@ class InviteRedemption(Base):
 
     invite = relationship('InviteCode', back_populates='redemptions')
     user = relationship('User')
+
+
+class SystemSetting(Base):
+    __tablename__ = 'system_settings'
+
+    key = Column(String(100), primary_key=True)
+    value = Column(Text, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
 class AuditLog(Base):

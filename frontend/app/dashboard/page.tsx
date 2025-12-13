@@ -133,20 +133,22 @@ export default function DashboardPage() {
                 </Link>
               </li>
 
-              <li className="list-item">
-                <a
-                  href="/api/docs"
-                  target="_blank"
-                  className="flex items-center justify-between gap-4"
-                  rel="noreferrer"
-                >
-                  <div className="min-w-0">
-                    <p className="font-medium text-gray-900 dark:text-gray-100">API 文档</p>
-                    <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">查看 API 参考和示例</p>
-                  </div>
-                  <ExternalLink className="h-5 w-5 text-gray-400 dark:text-gray-500" aria-hidden />
-                </a>
-              </li>
+              {isAdmin(user) && (
+                <li className="list-item">
+                  <a
+                    href="/api/docs"
+                    target="_blank"
+                    className="flex items-center justify-between gap-4"
+                    rel="noreferrer"
+                  >
+                    <div className="min-w-0">
+                      <p className="font-medium text-gray-900 dark:text-gray-100">API 文档</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">查看 API 参考和示例</p>
+                    </div>
+                    <ExternalLink className="h-5 w-5 text-gray-400 dark:text-gray-500" aria-hidden />
+                  </a>
+                </li>
+              )}
             </ul>
           </div>
         </>

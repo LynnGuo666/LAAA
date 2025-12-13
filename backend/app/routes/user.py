@@ -6,10 +6,11 @@ from app.schemas import (
     UserMeResponse,
     UserUpdate,
     AuthorizationListItem,
-    SessionResponse
+    SessionResponse,
+    ClientPublicResponse,
 )
 from app.middleware.auth import get_current_user
-from app.models import User, UserAuthorization, Session as SessionModel
+from app.models import User, UserAuthorization, Session as SessionModel, Client
 from app.utils.device import generate_device_id
 from datetime import datetime
 
@@ -188,3 +189,32 @@ async def revoke_session(
     db.commit()
 
     return {"message": "Session revoked"}
+
+
+@router.get("/apps", response_model=List[ClientPublicResponse])
+async def list_accessible_apps(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """List apps the current user can access (based on app permissions)."""
+    clients = db.query(Client).order_by(Client.id.desc()).all()
+    result: List[ClientPublicResponse] = []
+    for client in clients:
+        try:
+            can_access = current_user.can_access_client(client)
+        except Exception:
+            can_access = False
+        if not can_access:
+            continue
+        result.append(
+            ClientPublicResponse(
+                id=client.id,
+                client_id=client.client_id,
+                name=client.name,
+                description=client.description,
+                logo=client.logo,
+                website_url=getattr(client, "website_url", None),
+                created_at=client.created_at,
+            )
+        )
+    return result

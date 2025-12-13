@@ -84,6 +84,12 @@ export const authApi = {
   },
 };
 
+// Site API (public + admin)
+export const siteApi = {
+  get: () => api.get('/api/site'),
+  update: (siteName: string) => api.put('/api/site', { site_name: siteName }),
+};
+
 // User API
 export const userApi = {
   getProfile: () =>
@@ -103,6 +109,9 @@ export const userApi = {
 
   revokeSession: (id: number) =>
     api.delete(`/api/user/sessions/${id}`),
+
+  listApps: () =>
+    api.get('/api/user/apps'),
 };
 
 // Client API
@@ -117,6 +126,7 @@ export const clientApi = {
     name: string;
     description?: string;
     logo?: string;
+    website_url?: string;
     redirect_uris: string[];
     allowed_scopes: string[];
     trusted: boolean;
