@@ -39,6 +39,12 @@ export default function AppsPage() {
   const [clients, setClients] = useState<Client[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
+  const [updating, setUpdating] = useState(false);
+  const [resettingClientId, setResettingClientId] = useState<number | null>(null);
+  const [deletingClientId, setDeletingClientId] = useState<number | null>(null);
+  const [accessControlLoading, setAccessControlLoading] = useState(false);
+  const [accessControlSaving, setAccessControlSaving] = useState(false);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [showEditForm, setShowEditForm] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
@@ -71,7 +77,7 @@ export default function AppsPage() {
 
   if (!canManageClients) {
     return (
-      <div className="card">
+      <div className="surface p-6">
         <h1 className="text-xl font-semibold mb-2">无权限</h1>
         <p className="text-gray-600">该页面仅管理员可访问。</p>
       </div>
@@ -120,6 +126,7 @@ export default function AppsPage() {
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (creating) return;
 
     if (formData.allowed_scopes.length === 0) {
       alert('请至少选择一个权限范围');
@@ -127,6 +134,7 @@ export default function AppsPage() {
     }
 
     try {
+      setCreating(true);
       const response = await clientApi.create({
         name: formData.name,
         description: formData.description || undefined,
@@ -152,9 +160,11 @@ export default function AppsPage() {
         allowed_scopes: ['profile', 'email'],
         trusted: false,
       });
-      loadClients();
+      await loadClients();
     } catch (err: any) {
       alert('创建应用失败: ' + (err.response?.data?.detail || '未知错误'));
+    } finally {
+      setCreating(false);
     }
   };
 
@@ -174,6 +184,7 @@ export default function AppsPage() {
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingClient) return;
+    if (updating) return;
 
     if (formData.allowed_scopes.length === 0) {
       alert('请至少选择一个权限范围');
@@ -181,6 +192,7 @@ export default function AppsPage() {
     }
 
     try {
+      setUpdating(true);
       await clientApi.update(editingClient.id, {
         name: formData.name,
         description: formData.description || undefined,
@@ -201,25 +213,33 @@ export default function AppsPage() {
         allowed_scopes: ['profile', 'email'],
         trusted: false,
       });
-      loadClients();
+      await loadClients();
     } catch (err: any) {
       alert('更新应用失败: ' + (err.response?.data?.detail || '未知错误'));
+    } finally {
+      setUpdating(false);
     }
   };
 
   const handleDelete = async (id: number, name: string) => {
+    if (deletingClientId) return;
     if (!confirm(`确定要删除应用 "${name}" 吗？`)) return;
 
     try {
+      setDeletingClientId(id);
       await clientApi.delete(id);
-      loadClients();
+      await loadClients();
     } catch (err) {
       alert('删除应用失败');
+    } finally {
+      setDeletingClientId(null);
     }
   };
 
   const openAccessControl = async (client: Client) => {
     setSelectedClient(client);
+    setShowAccessControl(true);
+    setAccessControlLoading(true);
     try {
       const response = await clientApi.getAccessControl(client.id);
       const data = response.data;
@@ -231,16 +251,19 @@ export default function AppsPage() {
           ? data.denied_groups.map((g: Group) => g.id)
           : [],
       });
-      setShowAccessControl(true);
     } catch (err) {
       console.error('加载访问控制失败', err);
       alert('加载访问控制失败');
+    } finally {
+      setAccessControlLoading(false);
     }
   };
 
   const handleResetSecret = async (client: Client) => {
+    if (resettingClientId) return;
     if (!confirm(`确定要重置 "${client.name}" 的 Client Secret 吗？重置后旧密钥将立即失效。`)) return;
     try {
+      setResettingClientId(client.id);
       const response = await clientApi.resetSecret(client.id);
       setNewClientCredentials({
         client_id: response.data.client_id,
@@ -250,11 +273,14 @@ export default function AppsPage() {
       setCopyStatus(null);
     } catch (err: any) {
       alert('重置密钥失败: ' + (err.response?.data?.detail || '未知错误'));
+    } finally {
+      setResettingClientId(null);
     }
   };
 
   const handleAccessControlSave = async () => {
     if (!selectedClient) return;
+    if (accessControlSaving) return;
 
     // 检查是否有重复
     const overlap = accessControl.allowed_group_ids.filter(id =>
@@ -266,12 +292,15 @@ export default function AppsPage() {
     }
 
     try {
+      setAccessControlSaving(true);
       await clientApi.updateAccessControl(selectedClient.id, accessControl);
       alert('访问控制更新成功');
       setShowAccessControl(false);
       setSelectedClient(null);
     } catch (err: any) {
       alert('更新失败: ' + (err.response?.data?.detail || '未知错误'));
+    } finally {
+      setAccessControlSaving(false);
     }
   };
 
@@ -298,23 +327,24 @@ export default function AppsPage() {
   }
 
   return (
-    <div className="px-4 sm:px-0">
+    <div className="px-4 sm:px-0 animate-fade-in">
       <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold">我的应用</h1>
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">我的应用</h1>
         <button
           onClick={() => setShowCreateForm(!showCreateForm)}
           className="btn btn-primary"
+          disabled={creating || updating || accessControlSaving}
         >
           {showCreateForm ? '取消' : '+ 创建应用'}
         </button>
       </div>
 
       {newClientCredentials && (
-        <div className="card mb-8 border-l-4 border-yellow-400">
+        <div className="surface p-6 mb-8 border-l-4 border-yellow-400">
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1">
-              <h2 className="text-lg font-semibold">应用密钥（仅本次显示）</h2>
-              <p className="text-sm text-gray-600 mt-1">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">应用密钥（仅本次显示）</h2>
+              <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
                 请立即保存 `Client Secret`，关闭页面后将无法再次查看（可在此页面重置）。
               </p>
             </div>
@@ -331,7 +361,7 @@ export default function AppsPage() {
             <div className="flex flex-col sm:flex-row sm:items-center gap-2">
               <div className="sm:w-28 text-sm font-medium">Client ID</div>
               <div className="flex-1 flex items-center gap-2">
-                <code className="bg-gray-100 px-2 py-1 rounded font-mono text-sm break-all select-all flex-1">
+                <code className="bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded font-mono text-sm break-all select-all flex-1">
                   {newClientCredentials.client_id}
                 </code>
                 <button
@@ -347,7 +377,7 @@ export default function AppsPage() {
             <div className="flex flex-col sm:flex-row sm:items-center gap-2">
               <div className="sm:w-28 text-sm font-medium">Client Secret</div>
               <div className="flex-1 flex items-center gap-2">
-                <code className="bg-gray-100 px-2 py-1 rounded font-mono text-sm break-all select-all flex-1">
+                <code className="bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded font-mono text-sm break-all select-all flex-1">
                   {showNewSecret ? newClientCredentials.client_secret : '••••••••••••••••'}
                 </code>
                 <button
@@ -367,265 +397,336 @@ export default function AppsPage() {
               </div>
             </div>
 
-            {copyStatus && <div className="text-sm text-gray-600">{copyStatus}</div>}
+            {copyStatus && (
+              <div className="text-sm text-gray-600 dark:text-gray-300">
+                {copyStatus}
+              </div>
+            )}
           </div>
         </div>
       )}
 
       {showCreateForm && (
-        <form onSubmit={handleCreate} className="card mb-8 space-y-4">
-          <h2 className="text-xl font-semibold">创建新应用</h2>
+        <form onSubmit={handleCreate} className="surface mb-8 p-6 space-y-4 animate-slide-up">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">创建新应用</h2>
 
-          <div>
-            <label className="block text-sm font-medium mb-2">应用名称 *</label>
-            <input
-              type="text"
-              required
-              className="input"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-2">应用描述</label>
-            <textarea
-              className="input"
-              rows={3}
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-2">应用 Logo URL</label>
-            <input
-              type="url"
-              className="input"
-              placeholder="https://example.com/logo.png"
-              value={formData.logo}
-              onChange={(e) => setFormData({ ...formData, logo: e.target.value })}
-            />
-            <p className="text-xs text-gray-500 mt-1">Logo 将显示在授权页面上</p>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-2">回调地址 * (每行一个)</label>
-            <textarea
-              required
-              className="input font-mono text-sm"
-              rows={3}
-              placeholder="http://localhost:3000/callback&#10;https://myapp.com/callback"
-              value={formData.redirect_uris}
-              onChange={(e) => setFormData({ ...formData, redirect_uris: e.target.value })}
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-3">权限范围 *</label>
-            <div className="space-y-3">
-              {AVAILABLE_SCOPES.map((scope) => (
-                <div key={scope.value} className="flex items-start">
-                  <input
-                    type="checkbox"
-                    id={`scope-${scope.value}`}
-                    checked={formData.allowed_scopes.includes(scope.value)}
-                    onChange={() => handleScopeToggle(scope.value)}
-                    className="h-4 w-4 mt-1 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                  />
-                  <label htmlFor={`scope-${scope.value}`} className="ml-3 flex-1 cursor-pointer">
-                    <div className="font-medium text-sm">{scope.label}</div>
-                    <div className="text-xs text-gray-500 mt-0.5">{scope.description}</div>
-                  </label>
-                </div>
-              ))}
+          <fieldset disabled={creating} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">应用名称 *</label>
+              <input
+                type="text"
+                required
+                className="input"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              />
             </div>
-            <p className="text-xs text-gray-500 mt-2">
-              已选择 {formData.allowed_scopes.length} 项权限
-            </p>
-          </div>
 
-          <div className="flex items-center">
-            <input
-              type="checkbox"
-              id="trusted"
-              checked={formData.trusted}
-              onChange={(e) => setFormData({ ...formData, trusted: e.target.checked })}
-              className="h-4 w-4"
-            />
-            <label htmlFor="trusted" className="ml-2 text-sm">
-              信任的应用（跳过授权确认）
-            </label>
-          </div>
+            <div>
+              <label className="block text-sm font-medium mb-2">应用描述</label>
+              <textarea
+                className="input"
+                rows={3}
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              />
+            </div>
 
-          <button type="submit" className="btn btn-primary">
-            创建应用
-          </button>
+            <div>
+              <label className="block text-sm font-medium mb-2">应用 Logo URL</label>
+              <input
+                type="url"
+                className="input"
+                placeholder="https://example.com/logo.png"
+                value={formData.logo}
+                onChange={(e) => setFormData({ ...formData, logo: e.target.value })}
+              />
+              <p className="text-xs text-gray-500 mt-1">Logo 将显示在授权页面上</p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">回调地址 * (每行一个)</label>
+              <textarea
+                required
+                className="input font-mono text-sm"
+                rows={3}
+                placeholder="http://localhost:3000/callback&#10;https://myapp.com/callback"
+                value={formData.redirect_uris}
+                onChange={(e) => setFormData({ ...formData, redirect_uris: e.target.value })}
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-3">权限范围 *</label>
+              <div className="surface overflow-hidden">
+                <div className="list">
+                  {AVAILABLE_SCOPES.map((scope) => (
+                    <label key={scope.value} className="list-item list-item-pressable flex items-start gap-3">
+                      <input
+                        type="checkbox"
+                        id={`scope-${scope.value}`}
+                        checked={formData.allowed_scopes.includes(scope.value)}
+                        onChange={() => handleScopeToggle(scope.value)}
+                        className="h-4 w-4 mt-0.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <div className="min-w-0">
+                        <div className="font-medium text-sm text-gray-900 dark:text-gray-100">{scope.label}</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{scope.description}</div>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <p className="text-xs text-gray-500 mt-2">
+                已选择 {formData.allowed_scopes.length} 项权限
+              </p>
+            </div>
+
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                id="trusted"
+                checked={formData.trusted}
+                onChange={(e) => setFormData({ ...formData, trusted: e.target.checked })}
+                className="h-4 w-4"
+              />
+              <label htmlFor="trusted" className="ml-2 text-sm">
+                信任的应用（跳过授权确认）
+              </label>
+            </div>
+
+            <button
+              type="submit"
+              className="btn btn-primary disabled:opacity-60 disabled:cursor-not-allowed"
+              disabled={creating}
+            >
+              {creating ? (
+                <span className="inline-flex items-center justify-center gap-2">
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                  创建中...
+                </span>
+              ) : (
+                '创建应用'
+              )}
+            </button>
+          </fieldset>
         </form>
       )}
 
       {/* 编辑应用表单 */}
       {showEditForm && editingClient && (
-        <form onSubmit={handleUpdate} className="card mb-8 space-y-4">
-          <h2 className="text-xl font-semibold">编辑应用: {editingClient.name}</h2>
+        <form onSubmit={handleUpdate} className="surface mb-8 p-6 space-y-4 animate-slide-up">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">编辑应用: {editingClient.name}</h2>
 
-          <div>
-            <label className="block text-sm font-medium mb-2">应用名称 *</label>
-            <input
-              type="text"
-              required
-              className="input"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-2">应用描述</label>
-            <textarea
-              className="input"
-              rows={3}
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-2">应用 Logo URL</label>
-            <input
-              type="url"
-              className="input"
-              placeholder="https://example.com/logo.png"
-              value={formData.logo}
-              onChange={(e) => setFormData({ ...formData, logo: e.target.value })}
-            />
-            <p className="text-xs text-gray-500 mt-1">Logo 将显示在授权页面上</p>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-2">回调地址 * (每行一个)</label>
-            <textarea
-              required
-              className="input font-mono text-sm"
-              rows={3}
-              placeholder="http://localhost:3000/callback&#10;https://myapp.com/callback"
-              value={formData.redirect_uris}
-              onChange={(e) => setFormData({ ...formData, redirect_uris: e.target.value })}
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-3">权限范围 *</label>
-            <div className="space-y-3">
-              {AVAILABLE_SCOPES.map((scope) => (
-                <div key={scope.value} className="flex items-start">
-                  <input
-                    type="checkbox"
-                    id={`edit-scope-${scope.value}`}
-                    checked={formData.allowed_scopes.includes(scope.value)}
-                    onChange={() => handleScopeToggle(scope.value)}
-                    className="h-4 w-4 mt-1 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                  />
-                  <label htmlFor={`edit-scope-${scope.value}`} className="ml-3 flex-1 cursor-pointer">
-                    <div className="font-medium text-sm">{scope.label}</div>
-                    <div className="text-xs text-gray-500 mt-0.5">{scope.description}</div>
-                  </label>
-                </div>
-              ))}
+          <fieldset disabled={updating} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">应用名称 *</label>
+              <input
+                type="text"
+                required
+                className="input"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              />
             </div>
-            <p className="text-xs text-gray-500 mt-2">
-              已选择 {formData.allowed_scopes.length} 项权限
-            </p>
-          </div>
 
-          <div className="flex items-center">
-            <input
-              type="checkbox"
-              id="edit-trusted"
-              checked={formData.trusted}
-              onChange={(e) => setFormData({ ...formData, trusted: e.target.checked })}
-              className="h-4 w-4"
-            />
-            <label htmlFor="edit-trusted" className="ml-2 text-sm">
-              信任的应用（跳过授权确认）
-            </label>
-          </div>
+            <div>
+              <label className="block text-sm font-medium mb-2">应用描述</label>
+              <textarea
+                className="input"
+                rows={3}
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              />
+            </div>
 
-          <div className="flex space-x-3">
-            <button type="submit" className="btn btn-primary">
-              保存更改
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setShowEditForm(false);
-                setEditingClient(null);
-              }}
-              className="btn btn-secondary"
-            >
-              取消
-            </button>
-          </div>
+            <div>
+              <label className="block text-sm font-medium mb-2">应用 Logo URL</label>
+              <input
+                type="url"
+                className="input"
+                placeholder="https://example.com/logo.png"
+                value={formData.logo}
+                onChange={(e) => setFormData({ ...formData, logo: e.target.value })}
+              />
+              <p className="text-xs text-gray-500 mt-1">Logo 将显示在授权页面上</p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">回调地址 * (每行一个)</label>
+              <textarea
+                required
+                className="input font-mono text-sm"
+                rows={3}
+                placeholder="http://localhost:3000/callback&#10;https://myapp.com/callback"
+                value={formData.redirect_uris}
+                onChange={(e) => setFormData({ ...formData, redirect_uris: e.target.value })}
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-3">权限范围 *</label>
+              <div className="surface overflow-hidden">
+                <div className="list">
+                  {AVAILABLE_SCOPES.map((scope) => (
+                    <label key={scope.value} className="list-item list-item-pressable flex items-start gap-3">
+                      <input
+                        type="checkbox"
+                        id={`edit-scope-${scope.value}`}
+                        checked={formData.allowed_scopes.includes(scope.value)}
+                        onChange={() => handleScopeToggle(scope.value)}
+                        className="h-4 w-4 mt-0.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <div className="min-w-0">
+                        <div className="font-medium text-sm text-gray-900 dark:text-gray-100">{scope.label}</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{scope.description}</div>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <p className="text-xs text-gray-500 mt-2">
+                已选择 {formData.allowed_scopes.length} 项权限
+              </p>
+            </div>
+
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                id="edit-trusted"
+                checked={formData.trusted}
+                onChange={(e) => setFormData({ ...formData, trusted: e.target.checked })}
+                className="h-4 w-4"
+              />
+              <label htmlFor="edit-trusted" className="ml-2 text-sm">
+                信任的应用（跳过授权确认）
+              </label>
+            </div>
+
+            <div className="flex space-x-3">
+              <button
+                type="submit"
+                className="btn btn-primary disabled:opacity-60 disabled:cursor-not-allowed"
+                disabled={updating}
+              >
+                {updating ? (
+                  <span className="inline-flex items-center justify-center gap-2">
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                    保存中...
+                  </span>
+                ) : (
+                  '保存更改'
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowEditForm(false);
+                  setEditingClient(null);
+                }}
+                className="btn btn-secondary"
+                disabled={updating}
+              >
+                取消
+              </button>
+            </div>
+          </fieldset>
         </form>
       )}
 
       <div className="flex flex-col lg:flex-row gap-6">
         <section className="flex-1 space-y-4">
           {clients.length === 0 ? (
-            <div className="card text-center py-12">
+            <div className="surface text-center py-12">
               <p className="text-gray-500">还没有应用，创建一个开始使用吧！</p>
             </div>
           ) : (
-            clients.map((client) => (
-              <div key={client.id} className="card">
-                <div className="flex justify-between items-start">
-                  <div className="flex-1">
-                    <h3 className="text-lg font-semibold">{client.name}</h3>
-                    {client.description && (
-                      <p className="text-sm text-gray-600 mt-1">{client.description}</p>
-                    )}
-                    <div className="mt-3 space-y-1 text-sm">
-                      <p>
-                        <span className="font-medium">Client ID:</span>{' '}
-                        <code className="bg-gray-100 px-2 py-1 rounded">{client.client_id}</code>
-                      </p>
-                      <p>
-                        <span className="font-medium">权限范围:</span> {client.allowed_scopes.join(', ')}
-                      </p>
-                      {client.trusted && (
-                        <p className="text-green-600">已设为信任应用</p>
-                      )}
+            <div className="surface overflow-hidden">
+              <ul className="list">
+                {clients.map((client) => (
+                  <li key={client.id} className="list-item">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="min-w-0">
+                        <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 truncate">
+                          {client.name}
+                        </h3>
+                        {client.description && (
+                          <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
+                            {client.description}
+                          </p>
+                        )}
+                        <div className="mt-2 space-y-1 text-sm text-gray-600 dark:text-gray-300">
+                          <p className="truncate">
+                            <span className="font-medium">Client ID:</span>{' '}
+                            <code className="bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">
+                              {client.client_id}
+                            </code>
+                          </p>
+                          <p className="truncate">
+                            <span className="font-medium">权限范围:</span> {client.allowed_scopes.join(', ')}
+                          </p>
+                          {client.trusted && (
+                            <p className="text-green-600 dark:text-green-400">已设为信任应用</p>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap justify-end gap-2 shrink-0">
+                        <button
+                          onClick={() => openEditForm(client)}
+                          className="btn btn-secondary text-sm"
+                          disabled={creating || updating || accessControlSaving || deletingClientId === client.id || resettingClientId === client.id}
+                        >
+                          编辑
+                        </button>
+                        <button
+                          onClick={() => handleResetSecret(client)}
+                          className="btn btn-secondary text-sm"
+                          disabled={creating || updating || accessControlSaving || resettingClientId === client.id || deletingClientId === client.id}
+                        >
+                          {resettingClientId === client.id ? (
+                            <span className="inline-flex items-center justify-center gap-2">
+                              <span className="h-4 w-4 animate-spin rounded-full border-2 border-gray-400/40 border-t-gray-700 dark:border-gray-500/40 dark:border-t-gray-200" />
+                              重置中
+                            </span>
+                          ) : (
+                            '重置密钥'
+                          )}
+                        </button>
+                        <button
+                          onClick={() => openAccessControl(client)}
+                          className="btn btn-secondary text-sm"
+                          disabled={creating || updating || accessControlSaving || accessControlLoading}
+                        >
+                          {accessControlLoading && selectedClient?.id === client.id ? (
+                            <span className="inline-flex items-center justify-center gap-2">
+                              <span className="h-4 w-4 animate-spin rounded-full border-2 border-gray-400/40 border-t-gray-700 dark:border-gray-500/40 dark:border-t-gray-200" />
+                              加载中
+                            </span>
+                          ) : (
+                            '访问控制'
+                          )}
+                        </button>
+                        <button
+                          onClick={() => handleDelete(client.id, client.name)}
+                          className="btn btn-danger text-sm"
+                          disabled={creating || updating || accessControlSaving || deletingClientId === client.id || resettingClientId === client.id}
+                        >
+                          {deletingClientId === client.id ? (
+                            <span className="inline-flex items-center justify-center gap-2">
+                              <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                              删除中
+                            </span>
+                          ) : (
+                            '删除'
+                          )}
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => openEditForm(client)}
-                      className="btn btn-secondary text-sm"
-                    >
-                      编辑
-                    </button>
-                    <button
-                      onClick={() => handleResetSecret(client)}
-                      className="btn btn-secondary text-sm"
-                    >
-                      重置密钥
-                    </button>
-                    <button
-                      onClick={() => openAccessControl(client)}
-                      className="btn btn-secondary text-sm"
-                    >
-                      访问控制
-                    </button>
-                    <button
-                      onClick={() => handleDelete(client.id, client.name)}
-                      className="btn btn-danger text-sm"
-                    >
-                      删除
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))
+                  </li>
+                ))}
+              </ul>
+            </div>
           )}
         </section>
 
@@ -639,9 +740,11 @@ export default function AppsPage() {
         >
           {!selectedClient ? (
             <div className="text-sm text-gray-500">请选择左侧应用</div>
+          ) : accessControlLoading ? (
+            <div className="text-sm text-gray-600 dark:text-gray-300">加载中...</div>
           ) : (
             <div className="space-y-6">
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-gray-600 dark:text-gray-300">
                 设置哪些用户组可以访问此应用。不设置任何限制时，所有用户都可访问。
               </p>
 
@@ -650,24 +753,27 @@ export default function AppsPage() {
                 <p className="text-sm text-gray-500 mb-3">
                   只有这些用户组的成员可以访问此应用
                 </p>
-                <div className="space-y-2">
-                  {groups.map((group) => (
-                    <div key={group.id} className="flex items-center">
-                      <input
-                        type="checkbox"
-                        id={`allowed-${group.id}`}
-                        checked={accessControl.allowed_group_ids.includes(group.id)}
-                        onChange={() => toggleGroupInList(group.id, 'allowed')}
-                        className="h-4 w-4"
-                      />
-                      <label htmlFor={`allowed-${group.id}`} className="ml-3 cursor-pointer flex-1">
-                        <div className="font-medium text-sm">{group.name}</div>
-                        {group.description && (
-                          <div className="text-xs text-gray-500">{group.description}</div>
-                        )}
+                <div className="surface overflow-hidden">
+                  <div className="list">
+                    {groups.map((group) => (
+                      <label key={group.id} className="list-item list-item-pressable flex items-start gap-3">
+                        <input
+                          type="checkbox"
+                          id={`allowed-${group.id}`}
+                          checked={accessControl.allowed_group_ids.includes(group.id)}
+                          onChange={() => toggleGroupInList(group.id, 'allowed')}
+                          className="h-4 w-4 mt-0.5"
+                          disabled={accessControlSaving}
+                        />
+                        <div className="min-w-0 flex-1">
+                          <div className="font-medium text-sm text-gray-900 dark:text-gray-100 truncate">{group.name}</div>
+                          {group.description && (
+                            <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 truncate">{group.description}</div>
+                          )}
+                        </div>
                       </label>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
               </div>
 
@@ -676,33 +782,44 @@ export default function AppsPage() {
                 <p className="text-sm text-gray-500 mb-3">
                   这些用户组的成员无法访问此应用
                 </p>
-                <div className="space-y-2">
-                  {groups.map((group) => (
-                    <div key={group.id} className="flex items-center">
-                      <input
-                        type="checkbox"
-                        id={`denied-${group.id}`}
-                        checked={accessControl.denied_group_ids.includes(group.id)}
-                        onChange={() => toggleGroupInList(group.id, 'denied')}
-                        className="h-4 w-4"
-                      />
-                      <label htmlFor={`denied-${group.id}`} className="ml-3 cursor-pointer flex-1">
-                        <div className="font-medium text-sm">{group.name}</div>
-                        {group.description && (
-                          <div className="text-xs text-gray-500">{group.description}</div>
-                        )}
+                <div className="surface overflow-hidden">
+                  <div className="list">
+                    {groups.map((group) => (
+                      <label key={group.id} className="list-item list-item-pressable flex items-start gap-3">
+                        <input
+                          type="checkbox"
+                          id={`denied-${group.id}`}
+                          checked={accessControl.denied_group_ids.includes(group.id)}
+                          onChange={() => toggleGroupInList(group.id, 'denied')}
+                          className="h-4 w-4 mt-0.5"
+                          disabled={accessControlSaving}
+                        />
+                        <div className="min-w-0 flex-1">
+                          <div className="font-medium text-sm text-gray-900 dark:text-gray-100 truncate">{group.name}</div>
+                          {group.description && (
+                            <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 truncate">{group.description}</div>
+                          )}
+                        </div>
                       </label>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
               </div>
 
               <div className="flex gap-2 pt-2 border-t">
                 <button
                   onClick={handleAccessControlSave}
-                  className="btn btn-primary flex-1 text-sm"
+                  className="btn btn-primary flex-1 text-sm disabled:opacity-60 disabled:cursor-not-allowed"
+                  disabled={accessControlSaving}
                 >
-                  保存
+                  {accessControlSaving ? (
+                    <span className="inline-flex items-center justify-center gap-2">
+                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                      保存中...
+                    </span>
+                  ) : (
+                    '保存'
+                  )}
                 </button>
                 <button
                   onClick={() => {
@@ -710,6 +827,7 @@ export default function AppsPage() {
                     setSelectedClient(null);
                   }}
                   className="btn btn-secondary flex-1 text-sm"
+                  disabled={accessControlSaving}
                 >
                   取消
                 </button>

@@ -54,64 +54,60 @@ export default function SessionsPage() {
   }
 
   return (
-    <div className="px-4 sm:px-0">
+    <div className="px-4 sm:px-0 animate-fade-in">
       <h1 className="text-3xl font-bold mb-4">活跃会话</h1>
       <p className="text-gray-600 mb-8">
         这里列出开启“记住我”后仍保持登录的设备。
       </p>
 
-      <div className="space-y-4">
-        {sessions.length === 0 ? (
-          <div className="card text-center py-12">
-            <p className="text-gray-500">暂无活跃会话</p>
-          </div>
-        ) : (
-          sessions.map((session) => (
-            <div key={session.id} className="card">
-              <div className="flex justify-between items-start">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h3 className="text-lg font-semibold">
-                          {session.device_name || '未知设备'}
-                        </h3>
-                        {session.is_current && (
-                          <span className="text-xs px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">
-                            当前设备
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-sm text-gray-500">
-                        {session.device_type === 'mobile'
-                          ? '手机'
-                          : session.device_type === 'tablet'
-                          ? '平板'
-                          : '电脑'}
-                      </p>
-                      {session.ip_address && (
-                        <p className="text-sm text-gray-500">IP: {session.ip_address}</p>
+      {sessions.length === 0 ? (
+        <div className="surface text-center py-12">
+          <p className="text-gray-500">暂无活跃会话</p>
+        </div>
+      ) : (
+        <div className="surface overflow-hidden">
+          <ul className="list">
+            {sessions.map((session) => (
+              <li key={session.id} className="list-item">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 truncate">
+                        {session.device_name || '未知设备'}
+                      </h3>
+                      {session.is_current && (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950 dark:text-blue-200 dark:border-blue-900 shrink-0">
+                          当前
+                        </span>
                       )}
+                    </div>
+                    <div className="mt-1 text-sm text-gray-600 dark:text-gray-300">
+                      {session.device_type === 'mobile'
+                        ? '手机'
+                        : session.device_type === 'tablet'
+                        ? '平板'
+                        : '电脑'}
+                      {session.ip_address ? ` · IP: ${session.ip_address}` : ''}
+                    </div>
+
+                    <div className="mt-2 space-y-1 text-xs text-gray-500 dark:text-gray-400">
+                      <p>最后活跃：{formatDate(session.last_active)}</p>
+                      <p>过期时间：{formatDate(session.expires_at)}</p>
                     </div>
                   </div>
 
-                  <div className="mt-3 space-y-1 text-sm text-gray-600">
-                    <p>最后活跃时间：{formatDate(session.last_active)}</p>
-                    <p>过期时间：{formatDate(session.expires_at)}</p>
-                  </div>
+                  <button
+                    onClick={() => handleRevoke(session.id, session.device_name || '当前设备')}
+                    className="btn btn-danger text-sm shrink-0"
+                  >
+                    撤销
+                  </button>
                 </div>
-
-                <button
-                  onClick={() => handleRevoke(session.id, session.device_name || '当前设备')}
-                  className="btn btn-danger text-sm"
-                >
-                  撤销
-                </button>
-              </div>
-            </div>
-          ))
-        )}
-      </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }

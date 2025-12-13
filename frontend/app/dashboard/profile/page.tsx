@@ -32,10 +32,10 @@ export default function ProfilePage() {
   if (!user) return null;
 
   return (
-    <div className="px-4 sm:px-0 max-w-2xl">
-      <h1 className="text-3xl font-bold mb-8">Profile Settings</h1>
+    <div className="px-4 sm:px-0 max-w-2xl animate-fade-in">
+      <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-8">个人资料</h1>
 
-      <form onSubmit={handleSubmit} className="card space-y-6">
+      <form onSubmit={handleSubmit} className="surface p-6 space-y-6">
         {message && (
           <div className={`p-4 rounded-lg ${message.startsWith('Error') ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
             {message}
@@ -44,20 +44,20 @@ export default function ProfilePage() {
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Username
+            用户名
           </label>
           <input
             type="text"
             disabled
             value={user.username}
-            className="input bg-gray-100 cursor-not-allowed"
+            className="input bg-gray-100 dark:bg-gray-800 cursor-not-allowed"
           />
-          <p className="text-xs text-gray-500 mt-1">Username cannot be changed</p>
+          <p className="text-xs text-gray-500 mt-1">用户名不可修改</p>
         </div>
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Email
+            邮箱
           </label>
           <input
             type="email"
@@ -71,7 +71,7 @@ export default function ProfilePage() {
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Avatar URL
+            头像 URL
           </label>
           <input
             type="url"
@@ -89,26 +89,37 @@ export default function ProfilePage() {
             disabled={loading}
             className="btn btn-primary disabled:opacity-50"
           >
-            {loading ? 'Saving...' : 'Save Changes'}
+            {loading ? '保存中...' : '保存更改'}
           </button>
         </div>
       </form>
 
-      <div className="card mt-6">
-        <h2 className="text-xl font-semibold mb-4">Account Information</h2>
-        <div className="space-y-2 text-sm">
-          <p>
-            <span className="font-medium">User ID:</span> {user.id}
-          </p>
-          <p>
-            <span className="font-medium">Status:</span>{' '}
-            <span className="text-green-600">{user.status}</span>
-          </p>
-          <p>
-            <span className="font-medium">Member since:</span>{' '}
-            {new Date(user.created_at).toLocaleDateString()}
-          </p>
+      <div className="surface overflow-hidden mt-6">
+        <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-800">
+          <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">账号信息</h2>
         </div>
+        <ul className="list">
+          <li className="list-item">
+            <div className="flex items-center justify-between gap-4">
+              <span className="text-sm text-gray-600 dark:text-gray-300">用户 ID</span>
+              <span className="text-sm text-gray-900 dark:text-gray-100">{user.id}</span>
+            </div>
+          </li>
+          <li className="list-item">
+            <div className="flex items-center justify-between gap-4">
+              <span className="text-sm text-gray-600 dark:text-gray-300">状态</span>
+              <span className="text-sm text-gray-900 dark:text-gray-100">{user.status}</span>
+            </div>
+          </li>
+          <li className="list-item">
+            <div className="flex items-center justify-between gap-4">
+              <span className="text-sm text-gray-600 dark:text-gray-300">注册时间</span>
+              <span className="text-sm text-gray-900 dark:text-gray-100">
+                {new Date(user.created_at).toLocaleDateString('zh-CN')}
+              </span>
+            </div>
+          </li>
+        </ul>
       </div>
     </div>
   );

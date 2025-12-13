@@ -130,8 +130,8 @@ function LoginContent() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-      <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950 p-4">
+      <div className="max-w-md w-full surface p-8 animate-fade-in">
         {/* 应用信息展示 */}
         <div className="text-center mb-8">
           {clientInfo?.logo && (
@@ -141,22 +141,22 @@ function LoginContent() {
               className="w-16 h-16 mx-auto mb-4 rounded"
             />
           )}
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">
             登录
           </h1>
-          <p className="text-gray-600">
+          <p className="text-gray-600 dark:text-gray-300">
             {clientInfo ? (
               <>
-                您正在登录到 <strong className="text-gray-900">{clientInfo.name}</strong>
+                您正在登录到 <strong className="text-gray-900 dark:text-gray-100">{clientInfo.name}</strong>
               </>
             ) : (
               <>
-                您正在登录到 <strong className="text-gray-900">LAAA</strong>
+                您正在登录到 <strong className="text-gray-900 dark:text-gray-100">LAAA</strong>
               </>
             )}
           </p>
           {clientInfo?.description && (
-            <p className="text-sm text-gray-500 mt-2">{clientInfo.description}</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">{clientInfo.description}</p>
           )}
         </div>
 
@@ -176,7 +176,7 @@ function LoginContent() {
               id="username"
               type="text"
               required
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+              className="input"
               value={formData.username}
               onChange={(e) => setFormData({ ...formData, username: e.target.value })}
               disabled={loading}
@@ -192,7 +192,7 @@ function LoginContent() {
               id="password"
               type="password"
               required
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+              className="input"
               value={formData.password}
               onChange={(e) => setFormData({ ...formData, password: e.target.value })}
               disabled={loading}

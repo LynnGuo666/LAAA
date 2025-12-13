@@ -48,14 +48,14 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-      <div className="max-w-md w-full space-y-8">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950 px-4">
+      <div className="max-w-md w-full space-y-8 animate-fade-in">
         <div className="text-center">
-          <h2 className="text-3xl font-bold">创建账号</h2>
-          <p className="mt-2 text-gray-600">开始使用 OAuth 服务器</p>
+          <h2 className="text-3xl font-bold text-gray-900 dark:text-gray-100">创建账号</h2>
+          <p className="mt-2 text-gray-600 dark:text-gray-300">开始使用 OAuth 服务器</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="card space-y-6">
+        <form onSubmit={handleSubmit} className="surface p-6 space-y-6">
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
               {error}
@@ -130,7 +130,14 @@ export default function RegisterPage() {
             disabled={loading}
             className="w-full btn btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {loading ? '创建中...' : '创建账号'}
+            {loading ? (
+              <span className="inline-flex items-center justify-center gap-2">
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                创建中...
+              </span>
+            ) : (
+              '创建账号'
+            )}
           </button>
 
           <div className="text-center text-sm">

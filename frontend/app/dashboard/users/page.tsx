@@ -38,6 +38,7 @@ export default function UsersPage() {
   const [roles, setRoles] = useState<Role[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [query, setQuery] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showGroupsModal, setShowGroupsModal] = useState(false);
@@ -71,7 +72,7 @@ export default function UsersPage() {
 
   if (!canManageUsers) {
     return (
-      <div className="card">
+      <div className="surface p-6">
         <h1 className="text-xl font-semibold mb-2">无权限</h1>
         <p className="text-gray-600">该页面仅管理员可访问。</p>
       </div>
@@ -237,9 +238,9 @@ export default function UsersPage() {
 
   const getStatusBadge = (status: string) => {
     const styles = {
-      active: 'bg-green-100 text-green-800',
-      inactive: 'bg-gray-100 text-gray-800',
-      suspended: 'bg-red-100 text-red-800',
+      active: 'bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-200 dark:border-green-900',
+      inactive: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-100 dark:border-gray-700',
+      suspended: 'bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-200 dark:border-red-900',
     };
 
     const labels = {
@@ -249,7 +250,7 @@ export default function UsersPage() {
     };
 
     return (
-      <span className={`px-2 py-1 text-xs rounded-full ${styles[status as keyof typeof styles] || styles.inactive}`}>
+      <span className={`px-2 py-1 text-xs rounded-full border ${styles[status as keyof typeof styles] || styles.inactive}`}>
         {labels[status as keyof typeof labels] || status}
       </span>
     );
@@ -263,8 +264,18 @@ export default function UsersPage() {
     );
   }
 
+  const filteredUsers = users.filter((u) => {
+    const q = query.trim().toLowerCase();
+    if (!q) return true;
+    return (
+      u.username.toLowerCase().includes(q) ||
+      u.email.toLowerCase().includes(q) ||
+      String(u.id).includes(q)
+    );
+  });
+
   return (
-    <div className="px-4 sm:px-6 lg:px-8">
+    <div className="px-4 sm:px-6 lg:px-8 animate-fade-in">
       <div className="sm:flex sm:items-center">
         <div className="sm:flex-auto">
           <h1 className="text-2xl font-semibold text-gray-900">用户管理</h1>
@@ -289,119 +300,109 @@ export default function UsersPage() {
         </div>
       )}
 
-      <div className="mt-8 flow-root">
-        <div className="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
-          <div className="inline-block min-w-full py-2 align-middle sm:px-6 lg:px-8">
-            <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg">
-              <table className="min-w-full divide-y divide-gray-300">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">
-                      用户
-                    </th>
-                    <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                      邮箱
-                    </th>
-                    <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                      状态
-                    </th>
-                    <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                      用户组
-                    </th>
-                    <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                      创建时间
-                    </th>
-                    <th scope="col" className="relative py-3.5 pl-3 pr-4 sm:pr-6">
-                      <span className="sr-only">操作</span>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200 bg-white">
-                  {users.map((user) => (
-                    <tr key={user.id}>
-                      <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
-                        <div className="flex items-center">
-                          {user.avatar ? (
-                            <img
-                              src={user.avatar}
-                              alt={user.username}
-                              className="h-10 w-10 rounded-full mr-3"
-                            />
-                          ) : (
-                            <div className="h-10 w-10 rounded-full bg-blue-500 flex items-center justify-center text-white mr-3">
-                              {user.username.charAt(0).toUpperCase()}
-                            </div>
-                          )}
-                          <div>
-                            <div className="font-medium">{user.username}</div>
-                            <div className="text-gray-500 text-xs">ID: {user.id}</div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                        {user.email}
-                      </td>
-                      <td className="whitespace-nowrap px-3 py-4 text-sm">
-                        {getStatusBadge(user.status)}
-                      </td>
-                      <td className="px-3 py-4 text-sm text-gray-500">
-                        <div className="flex flex-wrap gap-1">
-                          {user.groups.length > 0 ? (
-                            user.groups.map((group, idx) => (
-                              <span
-                                key={idx}
-                                className="inline-flex items-center px-2 py-1 rounded-md bg-blue-50 text-blue-700 text-xs"
-                              >
-                                {group}
-                              </span>
-                            ))
-                          ) : (
-                            <span className="text-gray-400 text-xs">无</span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                        {new Date(user.created_at).toLocaleDateString('zh-CN')}
-                      </td>
-                      <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-                        <button
-                          onClick={() => openEditModal(user)}
-                          className="text-blue-600 hover:text-blue-900 mr-4"
-                        >
-                          编辑
-                        </button>
-                        <button
-                          onClick={() => openGroupsModal(user)}
-                          className="text-green-600 hover:text-green-900 mr-4"
-                        >
-                          组
-                        </button>
-                        <button
-                          onClick={() => openRolesModal(user)}
-                          className="text-purple-600 hover:text-purple-900 mr-4"
-                        >
-                          角色
-                        </button>
-                        <button
-                          onClick={() => handleDeleteUser(user.id)}
-                          className="text-red-600 hover:text-red-900"
-                        >
-                          删除
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+      <div className="mt-6">
+        <div className="surface overflow-hidden">
+          <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between gap-3">
+            <div className="text-sm text-gray-600 dark:text-gray-300">
+              共 {filteredUsers.length} 位用户
             </div>
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              className="input text-sm max-w-xs"
+              placeholder="搜索用户名 / 邮箱 / ID"
+            />
           </div>
+
+          {filteredUsers.length === 0 ? (
+            <div className="p-10 text-center text-sm text-gray-500">没有匹配的用户</div>
+          ) : (
+            <ul className="list">
+              {filteredUsers.map((u) => (
+                <li key={u.id} className="list-item">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-start gap-3 min-w-0">
+                      {u.avatar ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={u.avatar}
+                          alt={u.username}
+                          className="h-10 w-10 rounded-full border border-gray-200 dark:border-gray-800 shrink-0"
+                        />
+                      ) : (
+                        <div className="h-10 w-10 rounded-full bg-blue-500 flex items-center justify-center text-white shrink-0">
+                          {u.username.charAt(0).toUpperCase()}
+                        </div>
+                      )}
+
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div className="font-medium text-gray-900 dark:text-gray-100 truncate">
+                            {u.username}
+                          </div>
+                          {getStatusBadge(u.status)}
+                          <span className="text-xs text-gray-500 dark:text-gray-400 shrink-0">
+                            ID: {u.id}
+                          </span>
+                        </div>
+                        <div className="text-sm text-gray-600 dark:text-gray-300 truncate mt-1">
+                          {u.email}
+                        </div>
+                        <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                          <span>
+                            创建：{new Date(u.created_at).toLocaleDateString('zh-CN')}
+                          </span>
+                          <span className="opacity-60">·</span>
+                          <span>
+                            用户组：{u.groups?.length ? u.groups.join(', ') : '无'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap justify-end gap-2 shrink-0">
+                      <button
+                        onClick={() => openEditModal(u)}
+                        className="btn btn-secondary text-sm"
+                      >
+                        编辑
+                      </button>
+                      <button
+                        onClick={() => openGroupsModal(u)}
+                        className="btn btn-secondary text-sm"
+                      >
+                        用户组
+                      </button>
+                      <button
+                        onClick={() => openRolesModal(u)}
+                        className="btn btn-secondary text-sm"
+                      >
+                        角色
+                      </button>
+                      <button
+                        onClick={() => handleDeleteUser(u.id)}
+                        className="btn btn-danger text-sm"
+                      >
+                        删除
+                      </button>
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </div>
 
       {/* 创建用户模态框 */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+        <div
+          className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) setShowCreateModal(false);
+          }}
+        >
+          <div className="surface max-w-md w-full p-6 animate-slide-up">
             <h3 className="text-lg font-medium text-gray-900 mb-4">创建新用户</h3>
             <form onSubmit={handleCreateUser}>
               <div className="space-y-4">
@@ -477,8 +478,13 @@ export default function UsersPage() {
 
       {/* 编辑用户模态框 */}
       {showEditModal && selectedUser && (
-        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+        <div
+          className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) setShowEditModal(false);
+          }}
+        >
+          <div className="surface max-w-md w-full p-6 animate-slide-up">
             <h3 className="text-lg font-medium text-gray-900 mb-4">
               编辑用户: {selectedUser.username}
             </h3>
@@ -555,31 +561,37 @@ export default function UsersPage() {
 
       {/* 管理用户组模态框 */}
       {showGroupsModal && selectedUser && (
-        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+        <div
+          className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) setShowGroupsModal(false);
+          }}
+        >
+          <div className="surface max-w-md w-full p-6 animate-slide-up">
             <h3 className="text-lg font-medium text-gray-900 mb-4">
               管理用户组: {selectedUser.username}
             </h3>
-            <div className="space-y-2 max-h-96 overflow-y-auto">
-              {groups.map((group) => (
-                <label
-                  key={group.id}
-                  className="flex items-center p-3 border rounded-lg hover:bg-gray-50 cursor-pointer"
-                >
-                  <input
-                    type="checkbox"
-                    checked={selectedUserGroups.includes(group.id)}
-                    onChange={() => toggleGroup(group.id)}
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                  />
-                  <div className="ml-3">
-                    <div className="text-sm font-medium text-gray-900">{group.name}</div>
-                    {group.description && (
-                      <div className="text-xs text-gray-500">{group.description}</div>
-                    )}
-                  </div>
-                </label>
-              ))}
+            <div className="surface overflow-hidden max-h-96 overflow-y-auto">
+              <div className="list">
+                {groups.map((group) => (
+                  <label key={group.id} className="list-item list-item-pressable flex items-start gap-3">
+                    <input
+                      type="checkbox"
+                      checked={selectedUserGroups.includes(group.id)}
+                      onChange={() => toggleGroup(group.id)}
+                      className="h-4 w-4 mt-0.5 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    />
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{group.name}</div>
+                      {group.description && (
+                        <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 truncate">
+                          {group.description}
+                        </div>
+                      )}
+                    </div>
+                  </label>
+                ))}
+              </div>
             </div>
             <div className="mt-6 flex justify-end space-x-3">
               <button
@@ -603,32 +615,38 @@ export default function UsersPage() {
 
       {/* 管理用户角色模态框 */}
       {showRolesModal && selectedUser && (
-        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+        <div
+          className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) setShowRolesModal(false);
+          }}
+        >
+          <div className="surface max-w-md w-full p-6 animate-slide-up">
             <h3 className="text-lg font-medium text-gray-900 mb-4">
               管理用户角色: {selectedUser.username}
             </h3>
-            <div className="space-y-2 max-h-96 overflow-y-auto">
-              {roles.map((role) => (
-                <label
-                  key={role.id}
-                  className="flex items-center p-3 border rounded-lg hover:bg-gray-50 cursor-pointer"
-                >
-                  <input
-                    type="checkbox"
-                    checked={selectedUserRoles.includes(role.id)}
-                    onChange={() => toggleRole(role.id)}
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                  />
-                  <div className="ml-3">
-                    <div className="text-sm font-medium text-gray-900">{role.name}</div>
-                    {role.description && (
-                      <div className="text-xs text-gray-500">{role.description}</div>
-                    )}
-                    <div className="text-xs text-gray-400">等级: {role.level}</div>
-                  </div>
-                </label>
-              ))}
+            <div className="surface overflow-hidden max-h-96 overflow-y-auto">
+              <div className="list">
+                {roles.map((role) => (
+                  <label key={role.id} className="list-item list-item-pressable flex items-start gap-3">
+                    <input
+                      type="checkbox"
+                      checked={selectedUserRoles.includes(role.id)}
+                      onChange={() => toggleRole(role.id)}
+                      className="h-4 w-4 mt-0.5 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    />
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{role.name}</div>
+                      {role.description && (
+                        <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 truncate">
+                          {role.description}
+                        </div>
+                      )}
+                      <div className="text-xs text-gray-400 dark:text-gray-500 mt-1">等级: {role.level}</div>
+                    </div>
+                  </label>
+                ))}
+              </div>
             </div>
             <div className="mt-6 flex justify-end space-x-3">
               <button

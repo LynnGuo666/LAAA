@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { userApi } from '@/lib/api';
+import { AppWindow } from 'lucide-react';
 
 interface Authorization {
   id: number;
@@ -51,58 +52,62 @@ export default function AuthorizationsPage() {
   }
 
   return (
-    <div className="px-4 sm:px-0">
+    <div className="px-4 sm:px-0 animate-fade-in">
       <h1 className="text-3xl font-bold mb-4">授权管理</h1>
       <p className="text-gray-600 mb-8">
         这里列出你已授权过的应用，你可以随时撤回授权。
       </p>
 
-      <div className="space-y-4">
-        {authorizations.length === 0 ? (
-          <div className="card text-center py-12">
-            <p className="text-gray-500">暂无已授权应用</p>
-          </div>
-        ) : (
-          authorizations.map((auth) => (
-            <div key={auth.id} className="card">
-              <div className="flex justify-between items-start gap-4">
-                <div className="flex items-start gap-3 flex-1">
-                  {auth.client_logo ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={auth.client_logo}
-                      alt={auth.client_name}
-                      className="w-12 h-12 rounded-lg object-cover border"
-                    />
+      {authorizations.length === 0 ? (
+        <div className="surface text-center py-12">
+          <p className="text-gray-500">暂无已授权应用</p>
+        </div>
+      ) : (
+        <div className="surface overflow-hidden">
+          <ul className="list">
+            {authorizations.map((auth) => (
+              <li key={auth.id} className="list-item">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex items-start gap-3 min-w-0">
+                    {auth.client_logo ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={auth.client_logo}
+                        alt={auth.client_name}
+                        className="w-12 h-12 rounded-xl object-cover border border-gray-200 dark:border-gray-800 shrink-0"
+                      />
                   ) : (
-                    <div className="w-12 h-12 rounded-lg bg-gray-100 flex items-center justify-center text-xl border">
-                      📱
+                    <div className="w-12 h-12 rounded-xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center border border-gray-200 dark:border-gray-800 shrink-0">
+                      <AppWindow className="h-6 w-6 text-gray-500 dark:text-gray-300" aria-hidden />
                     </div>
                   )}
-                  <div className="flex-1">
-                    <h3 className="text-lg font-semibold">{auth.client_name}</h3>
-                    <p className="text-sm text-gray-600 mt-1">
-                      授权范围：{auth.scope || '-'}
-                    </p>
-                    <div className="mt-3 space-y-1 text-sm text-gray-600">
-                      <p>首次授权时间：{formatDate(auth.created_at)}</p>
-                      <p>最近使用时间：{formatDate(auth.last_used_at)}</p>
+
+                    <div className="min-w-0">
+                      <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 truncate">
+                        {auth.client_name}
+                      </h3>
+                      <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
+                        授权范围：{auth.scope || '-'}
+                      </p>
+                      <div className="mt-2 space-y-1 text-xs text-gray-500 dark:text-gray-400">
+                        <p>首次授权：{formatDate(auth.created_at)}</p>
+                        <p>最近使用：{formatDate(auth.last_used_at)}</p>
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                <button
-                  onClick={() => handleRevoke(auth)}
-                  className="btn btn-danger text-sm shrink-0"
-                >
-                  撤回授权
-                </button>
-              </div>
-            </div>
-          ))
-        )}
-      </div>
+                  <button
+                    onClick={() => handleRevoke(auth)}
+                    className="btn btn-danger text-sm shrink-0"
+                  >
+                    撤回
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }
-

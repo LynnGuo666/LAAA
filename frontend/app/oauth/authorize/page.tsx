@@ -4,6 +4,7 @@ import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { authApi, API_URL } from '@/lib/api';
 import axios from 'axios';
+import { AlertTriangle, Ban, Check } from 'lucide-react';
 
 interface ClientInfo {
   name: string;
@@ -197,7 +198,9 @@ function AuthorizeContent() {
       <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
         <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8">
           <div className="text-center">
-            <div className="text-6xl mb-4">⚠️</div>
+            <div className="mb-4 flex justify-center">
+              <AlertTriangle className="h-14 w-14 text-yellow-500" aria-hidden />
+            </div>
             <h1 className="text-2xl font-bold text-gray-900 mb-4">授权请求错误</h1>
             <p className="text-gray-600 mb-6">{error}</p>
             <button
@@ -217,7 +220,9 @@ function AuthorizeContent() {
       <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
         <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8">
           <div className="text-center">
-            <div className="text-6xl mb-4">🚫</div>
+            <div className="mb-4 flex justify-center">
+              <Ban className="h-14 w-14 text-red-500" aria-hidden />
+            </div>
             <h1 className="text-2xl font-bold text-gray-900 mb-4">访问被拒绝</h1>
             <p className="text-gray-600 mb-6">
               {error || '抱歉，您没有权限访问此应用。请联系管理员为您分配相应的用户组权限。'}
@@ -301,7 +306,7 @@ function AuthorizeContent() {
           <div className="space-y-2">
             {scope.split(' ').map((s) => (
               <div key={s} className="flex items-start text-sm text-gray-700">
-                <span className="text-green-600 mr-2">✓</span>
+                <Check className="h-4 w-4 text-green-600 mr-2 mt-0.5 shrink-0" aria-hidden />
                 <span>
                   {s === 'profile' && '查看您的基本信息（用户名、头像等）'}
                   {s === 'email' && '查看您的邮箱地址'}

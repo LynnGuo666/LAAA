@@ -37,6 +37,8 @@ export default function GroupsPage() {
   const [panelError, setPanelError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [pendingAddIds, setPendingAddIds] = useState<number[]>([]);
+  const [editingMeta, setEditingMeta] = useState(false);
+  const [metaForm, setMetaForm] = useState({ name: '', description: '' });
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -130,6 +132,27 @@ export default function GroupsPage() {
     setPanelError(null);
     setPendingAddIds([]);
     setSearch('');
+    setEditingMeta(false);
+    setMetaForm({ name: group.name, description: group.description || '' });
+  };
+
+  const handleUpdateMeta = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedGroup) return;
+    setPanelError(null);
+
+    try {
+      const response = await groupApi.update(selectedGroup.id, {
+        name: metaForm.name.trim(),
+        description: metaForm.description.trim() || undefined,
+      });
+      setSelectedGroup(response.data);
+      setEditingMeta(false);
+      await loadUsers();
+      await loadGroups();
+    } catch (err: any) {
+      setPanelError(err.response?.data?.detail || '更新用户组失败（可能需要管理员权限）');
+    }
   };
 
   const members = selectedGroup
@@ -251,41 +274,45 @@ export default function GroupsPage() {
             </form>
           )}
 
-          <div className="bg-white rounded-lg shadow-md divide-y">
+          <div className="surface overflow-hidden">
             {groups.length === 0 ? (
               <div className="p-8 text-center text-gray-500">暂无用户组</div>
             ) : (
-              groups.map(group => {
-                const active = selectedGroup?.id === group.id;
-                return (
-                  <button
-                    key={group.id}
-                    onClick={() => openPanel(group)}
-                    className={`w-full text-left px-5 py-4 hover:bg-gray-50 transition-colors ${active ? 'bg-gray-50' : ''}`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium text-gray-900">{group.name}</span>
-                          {group.is_default && (
-                            <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded">
-                              默认
-                            </span>
+              <div className="list">
+                {groups.map(group => {
+                  const active = selectedGroup?.id === group.id;
+                  return (
+                    <button
+                      key={group.id}
+                      onClick={() => openPanel(group)}
+                      className={`w-full text-left list-item list-item-pressable ${
+                        active ? 'bg-black/[0.03] dark:bg-white/[0.04]' : ''
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-4">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-gray-900 dark:text-gray-100 truncate">{group.name}</span>
+                            {group.is_default && (
+                              <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full border border-blue-200 dark:bg-blue-950 dark:text-blue-200 dark:border-blue-900 shrink-0">
+                                默认
+                              </span>
+                            )}
+                          </div>
+                          {group.description && (
+                            <div className="text-sm text-gray-600 dark:text-gray-300 mt-1 truncate">
+                              {group.description}
+                            </div>
                           )}
                         </div>
-                        {group.description && (
-                          <div className="text-sm text-gray-600 mt-1 line-clamp-1">
-                            {group.description}
-                          </div>
-                        )}
+                        <div className="text-sm text-gray-500 dark:text-gray-400 shrink-0">
+                          {group.member_count || 0} 人
+                        </div>
                       </div>
-                      <div className="text-sm text-gray-500">
-                        {group.member_count || 0} 人
-                      </div>
-                    </div>
-                  </button>
-                );
-              })
+                    </button>
+                  );
+                })}
+              </div>
             )}
           </div>
         </section>
@@ -306,10 +333,79 @@ export default function GroupsPage() {
               )}
 
               <div>
-                <div className="text-sm font-medium text-gray-700 mb-2">描述</div>
-                <div className="text-sm text-gray-900">
-                  {selectedGroup.description || '—'}
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-sm font-medium text-gray-700 dark:text-gray-200">信息</div>
+                  {!editingMeta ? (
+                    <button
+                      type="button"
+                      className="btn btn-secondary text-sm"
+                      onClick={() => setEditingMeta(true)}
+                    >
+                      编辑
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      className="btn btn-secondary text-sm"
+                      onClick={() => {
+                        setEditingMeta(false);
+                        setMetaForm({ name: selectedGroup.name, description: selectedGroup.description || '' });
+                      }}
+                    >
+                      取消
+                    </button>
+                  )}
                 </div>
+
+                {!editingMeta ? (
+                  <div className="space-y-2">
+                    <div className="text-sm text-gray-600 dark:text-gray-300">
+                      <span className="font-medium text-gray-900 dark:text-gray-100">名称：</span>
+                      {selectedGroup.name}
+                    </div>
+                    <div className="text-sm text-gray-600 dark:text-gray-300">
+                      <span className="font-medium text-gray-900 dark:text-gray-100">描述：</span>
+                      {selectedGroup.description || '—'}
+                    </div>
+                  </div>
+                ) : (
+                  <form onSubmit={handleUpdateMeta} className="space-y-3 animate-slide-up">
+                    <div>
+                      <label className="block text-sm font-medium mb-2">组名称 *</label>
+                      <input
+                        type="text"
+                        required
+                        className="input"
+                        value={metaForm.name}
+                        onChange={(e) => setMetaForm({ ...metaForm, name: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-2">描述</label>
+                      <textarea
+                        className="input"
+                        rows={3}
+                        value={metaForm.description}
+                        onChange={(e) => setMetaForm({ ...metaForm, description: e.target.value })}
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <button type="submit" className="btn btn-primary text-sm">
+                        保存
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-secondary text-sm"
+                        onClick={() => {
+                          setEditingMeta(false);
+                          setMetaForm({ name: selectedGroup.name, description: selectedGroup.description || '' });
+                        }}
+                      >
+                        取消
+                      </button>
+                    </div>
+                  </form>
+                )}
               </div>
 
               <div className="flex items-center justify-between">
