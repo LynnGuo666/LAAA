@@ -1,12 +1,13 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { authApi } from '@/lib/api';
 
 export default function RegisterPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [formData, setFormData] = useState({
     inviteCode: '',
@@ -17,6 +18,17 @@ export default function RegisterPage() {
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const inviteFromUrl =
+      searchParams.get('invite_code') ||
+      searchParams.get('inviteCode') ||
+      searchParams.get('code');
+    if (!inviteFromUrl) return;
+    if (formData.inviteCode.trim()) return;
+    setFormData((prev) => ({ ...prev, inviteCode: inviteFromUrl.trim() }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
