@@ -25,6 +25,10 @@ class Settings(BaseSettings):
     # Optional OpenID Connect issuer override.
     # Env var: OIDC_ISSUER
     oidc_issuer: Optional[str] = None
+    # Registration control
+    # Env vars: ALLOW_OPEN_REGISTRATION, BOOTSTRAP_ALLOW_FIRST_USER
+    allow_open_registration: bool = False
+    bootstrap_allow_first_user: bool = True
 
     class Config:
         env_file = ".env"

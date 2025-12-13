@@ -1,6 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
-from typing import List
+from sqlalchemy import or_, func
+from typing import List, Optional
 from app.database import get_db
 from app.models import User, Group, user_groups, Role, user_roles, Client, user_allowed_apps, user_denied_apps
 from app.schemas.admin import (
@@ -13,6 +14,9 @@ from app.schemas.admin import (
     AppPermissionItem,
     UserAppPermissionsResponse,
     UserAppPermissionsUpdate,
+    ComputedAppPermission,
+    ComputedAppPermissionsResponse,
+    PaginatedUsersResponse,
 )
 from app.middleware.auth import get_current_user
 from app.middleware.permission import require_permission
@@ -21,19 +25,37 @@ from app.utils.security import get_password_hash
 router = APIRouter()
 
 
-@router.get("/users", response_model=List[AdminUserResponse])
+@router.get("/users", response_model=PaginatedUsersResponse)
 async def list_users(
     skip: int = 0,
-    limit: int = 100,
+    limit: int = 20,
+    search: Optional[str] = Query(None, description="搜索用户名、邮箱或ID"),
     db: Session = Depends(get_db),
     _: User = Depends(require_permission('admin.users'))
 ):
-    """获取所有用户列表（管理员）"""
-    users = db.query(User).offset(skip).limit(limit).all()
+    """获取所有用户列表（管理员，支持分页和搜索）"""
+    query = db.query(User)
 
-    result = []
+    # 搜索过滤
+    if search:
+        search_term = f"%{search}%"
+        query = query.filter(
+            or_(
+                User.username.ilike(search_term),
+                User.email.ilike(search_term),
+                User.id == int(search) if search.isdigit() else False
+            )
+        )
+
+    # 获取总数
+    total = query.count()
+
+    # 分页
+    users = query.order_by(User.id).offset(skip).limit(limit).all()
+
+    items = []
     for user in users:
-        result.append(AdminUserResponse(
+        items.append(AdminUserResponse(
             id=user.id,
             username=user.username,
             email=user.email,
@@ -45,7 +67,7 @@ async def list_users(
             roles=[r.name for r in user.roles]
         ))
 
-    return result
+    return PaginatedUsersResponse(total=total, items=items)
 
 
 @router.get("/users/{user_id}", response_model=AdminUserResponse)
@@ -379,3 +401,162 @@ async def update_user_app_permissions(
         ]
     )
 
+
+# ==================== Computed App Permissions ====================
+
+def _compute_app_permission(user: User, client: Client) -> ComputedAppPermission:
+    """计算用户对某个应用的最终权限"""
+    # 确定用户级别权限
+    user_permission = None
+    if client in user.denied_apps:
+        user_permission = "denied"
+    elif client in user.allowed_apps:
+        user_permission = "allowed"
+
+    # 按优先级计算最终权限
+    # 1. User denied
+    if client in user.denied_apps:
+        return ComputedAppPermission(
+            app_id=client.id,
+            client_id=client.client_id,
+            app_name=client.name,
+            app_logo=client.logo,
+            can_access=False,
+            source="user_denied",
+            source_detail="用户级别拒绝",
+            user_permission=user_permission
+        )
+
+    # 2. User allowed
+    if client in user.allowed_apps:
+        return ComputedAppPermission(
+            app_id=client.id,
+            client_id=client.client_id,
+            app_name=client.name,
+            app_logo=client.logo,
+            can_access=True,
+            source="user_allowed",
+            source_detail="用户级别允许",
+            user_permission=user_permission
+        )
+
+    # 3. Group denied
+    for group in user.groups:
+        if client in group.denied_apps:
+            return ComputedAppPermission(
+                app_id=client.id,
+                client_id=client.client_id,
+                app_name=client.name,
+                app_logo=client.logo,
+                can_access=False,
+                source="group_denied",
+                source_detail=f"组「{group.name}」拒绝",
+                user_permission=user_permission
+            )
+
+    # 4. Group allowed
+    for group in user.groups:
+        if client in group.allowed_apps:
+            return ComputedAppPermission(
+                app_id=client.id,
+                client_id=client.client_id,
+                app_name=client.name,
+                app_logo=client.logo,
+                can_access=True,
+                source="group_allowed",
+                source_detail=f"组「{group.name}」允许",
+                user_permission=user_permission
+            )
+
+    # 5. Default (treat None as True for backwards compatibility)
+    default_access = client.default_access if client.default_access is not None else True
+    return ComputedAppPermission(
+        app_id=client.id,
+        client_id=client.client_id,
+        app_name=client.name,
+        app_logo=client.logo,
+        can_access=default_access,
+        source="default",
+        source_detail=f"应用默认（{'允许' if default_access else '拒绝'}）",
+        user_permission=user_permission
+    )
+
+
+@router.get("/users/{user_id}/app-permissions/computed", response_model=ComputedAppPermissionsResponse)
+async def get_user_computed_app_permissions(
+    user_id: int,
+    skip: int = 0,
+    limit: int = 20,
+    search: Optional[str] = Query(None, description="搜索应用名称"),
+    db: Session = Depends(get_db),
+    _: User = Depends(require_permission('admin.users'))
+):
+    """获取用户计算后的应用权限（分页）"""
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="用户不存在"
+        )
+
+    # 查询应用列表
+    query = db.query(Client)
+    if search:
+        search_term = f"%{search}%"
+        query = query.filter(Client.name.ilike(search_term))
+
+    total = query.count()
+    clients = query.order_by(Client.id).offset(skip).limit(limit).all()
+
+    # 计算每个应用的权限
+    items = [_compute_app_permission(user, client) for client in clients]
+
+    return ComputedAppPermissionsResponse(
+        user_id=user.id,
+        username=user.username,
+        groups=[g.name for g in user.groups],
+        total=total,
+        items=items
+    )
+
+
+@router.put("/users/{user_id}/app-permissions/single")
+async def update_user_single_app_permission(
+    user_id: int,
+    app_id: int,
+    permission: Optional[str] = Query(None, description="权限设置: allowed, denied, null(清除)"),
+    db: Session = Depends(get_db),
+    _: User = Depends(require_permission('admin.users'))
+):
+    """更新用户对单个应用的权限"""
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="用户不存在"
+        )
+
+    client = db.query(Client).filter(Client.id == app_id).first()
+    if not client:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="应用不存在"
+        )
+
+    # 先从两个列表中移除
+    if client in user.allowed_apps:
+        user.allowed_apps.remove(client)
+    if client in user.denied_apps:
+        user.denied_apps.remove(client)
+
+    # 根据权限设置添加
+    if permission == "allowed":
+        user.allowed_apps.append(client)
+    elif permission == "denied":
+        user.denied_apps.append(client)
+    # permission == None 或其他值时，只清除不添加
+
+    db.commit()
+    db.refresh(user)
+
+    return _compute_app_permission(user, client)

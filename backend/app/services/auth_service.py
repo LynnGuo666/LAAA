@@ -22,8 +22,27 @@ class AuthService:
     """Authentication service"""
 
     @staticmethod
-    def register_user(db: Session, username: str, email: str, password: str) -> User:
+    def register_user(
+        db: Session,
+        *,
+        username: str,
+        email: str,
+        password: str,
+        invite_code: Optional[str] = None
+    ) -> User:
         """Register a new user"""
+        from app.services.invite_service import InviteService
+
+        existing_user_count = db.query(User.id).count()
+        invite = None
+        if not settings.allow_open_registration:
+            if existing_user_count == 0 and settings.bootstrap_allow_first_user:
+                invite = InviteService.get_redeemable_invite(db, invite_code) if invite_code else None
+            else:
+                invite = InviteService.get_redeemable_invite(db, invite_code or "")
+                if not invite:
+                    raise ValueError("当前为邀请制注册，请提供有效邀请码")
+
         # Check if user exists
         existing = db.query(User).filter(
             (User.username == username) | (User.email == email)
@@ -39,8 +58,7 @@ class AuthService:
             password_hash=get_password_hash(password)
         )
         db.add(user)
-        db.commit()
-        db.refresh(user)
+        db.flush()
 
         # Assign default 'user' role
         from app.models import Role, Group
@@ -54,7 +72,15 @@ class AuthService:
             if group not in user.groups:
                 user.groups.append(group)
 
+        # Assign group from invite code (if any)
+        if invite:
+            invite_group = invite.group
+            if invite_group and invite_group not in user.groups:
+                user.groups.append(invite_group)
+            InviteService.redeem_invite(db, invite, user_id=user.id)
+
         db.commit()
+        db.refresh(user)
 
         return user
 

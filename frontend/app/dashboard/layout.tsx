@@ -39,7 +39,7 @@ export default function DashboardLayout({
   useEffect(() => {
     if (!user) return;
 
-    const adminOnlyPrefixes = ['/dashboard/apps', '/dashboard/groups', '/dashboard/users'];
+    const adminOnlyPrefixes = ['/dashboard/apps', '/dashboard/groups', '/dashboard/users', '/dashboard/invites'];
     const match = adminOnlyPrefixes.find((prefix) => pathname.startsWith(prefix));
     if (match && !isAdmin(user)) {
       router.replace('/dashboard');
@@ -76,6 +76,7 @@ export default function DashboardLayout({
     { href: '/dashboard/authorizations', label: '授权管理' },
     ...(isAdmin(user) ? [{ href: '/dashboard/groups', label: '用户组' }] : []),
     ...(isAdmin(user) ? [{ href: '/dashboard/users', label: '用户管理' }] : []),
+    ...(isAdmin(user) ? [{ href: '/dashboard/invites', label: '邀请码' }] : []),
     { href: '/dashboard/sessions', label: '会话管理' },
     { href: '/dashboard/profile', label: '个人资料' },
   ];

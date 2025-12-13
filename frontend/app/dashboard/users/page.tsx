@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { adminApi, groupApi, clientApi } from '@/lib/api';
+import { useEffect, useState, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
+import { adminApi, groupApi } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { isAdmin } from '@/lib/authz';
 
@@ -30,22 +31,25 @@ interface Role {
   level: number;
 }
 
-interface AppItem {
-  id: number;
-  client_id: string;
-  name: string;
-  logo?: string;
-}
-
 export default function UsersPage() {
+  const router = useRouter();
   const user = useAuthStore((s) => s.user);
   const canManageUsers = isAdmin(user);
+
   const [users, setUsers] = useState<User[]>([]);
+  const [total, setTotal] = useState(0);
   const [groups, setGroups] = useState<Group[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [query, setQuery] = useState('');
+
+  // Pagination & Search
+  const [page, setPage] = useState(0);
+  const [searchInput, setSearchInput] = useState('');
+  const [search, setSearch] = useState('');
+  const limit = 20;
+
+  // Modals
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showGroupsModal, setShowGroupsModal] = useState(false);
@@ -53,20 +57,14 @@ export default function UsersPage() {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [selectedUserGroups, setSelectedUserGroups] = useState<number[]>([]);
   const [selectedUserRoles, setSelectedUserRoles] = useState<number[]>([]);
-  const [apps, setApps] = useState<AppItem[]>([]);
-  const [showAppsModal, setShowAppsModal] = useState(false);
-  const [selectedUserAllowedApps, setSelectedUserAllowedApps] = useState<number[]>([]);
-  const [selectedUserDeniedApps, setSelectedUserDeniedApps] = useState<number[]>([]);
 
-  // 创建用户表单
+  // Forms
   const [createForm, setCreateForm] = useState({
     username: '',
     email: '',
     password: '',
     status: 'active',
   });
-
-  // 编辑用户表单
   const [editForm, setEditForm] = useState({
     email: '',
     avatar: '',
@@ -74,35 +72,23 @@ export default function UsersPage() {
     password: '',
   });
 
-  useEffect(() => {
-    if (!canManageUsers) return;
-    loadUsers();
-    loadGroups();
-    loadRoles();
-    loadApps();
-  }, [canManageUsers]);
-
-  if (!canManageUsers) {
-    return (
-      <div className="surface p-6">
-        <h1 className="text-xl font-semibold mb-2">无权限</h1>
-        <p className="text-gray-600">该页面仅管理员可访问。</p>
-      </div>
-    );
-  }
-
-  const loadUsers = async () => {
+  const loadUsers = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await adminApi.listUsers();
-      setUsers(response.data);
+      const response = await adminApi.listUsers({
+        skip: page * limit,
+        limit,
+        search: search || undefined,
+      });
+      setUsers(response.data.items);
+      setTotal(response.data.total);
       setError('');
     } catch (err: any) {
       setError(err.response?.data?.detail || '加载用户列表失败');
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, search]);
 
   const loadGroups = async () => {
     try {
@@ -122,13 +108,30 @@ export default function UsersPage() {
     }
   };
 
-  const loadApps = async () => {
-    try {
-      const response = await clientApi.list();
-      setApps(response.data);
-    } catch (err) {
-      console.error('加载应用列表失败:', err);
-    }
+  useEffect(() => {
+    if (!canManageUsers) return;
+    loadUsers();
+  }, [canManageUsers, loadUsers]);
+
+  useEffect(() => {
+    if (!canManageUsers) return;
+    loadGroups();
+    loadRoles();
+  }, [canManageUsers]);
+
+  if (!canManageUsers) {
+    return (
+      <div className="surface p-6">
+        <h1 className="text-xl font-semibold mb-2">无权限</h1>
+        <p className="text-gray-600">该页面仅管理员可访问。</p>
+      </div>
+    );
+  }
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    setPage(0);
+    setSearch(searchInput);
   };
 
   const handleCreateUser = async (e: React.FormEvent) => {
@@ -153,11 +156,9 @@ export default function UsersPage() {
         avatar: editForm.avatar || null,
         status: editForm.status,
       };
-
       if (editForm.password) {
         data.password = editForm.password;
       }
-
       await adminApi.updateUser(selectedUser.id, data);
       setShowEditModal(false);
       setSelectedUser(null);
@@ -168,10 +169,7 @@ export default function UsersPage() {
   };
 
   const handleDeleteUser = async (userId: number) => {
-    if (!confirm('确定要删除这个用户吗？此操作不可撤销。')) {
-      return;
-    }
-
+    if (!confirm('确定要删除这个用户吗？此操作不可撤销。')) return;
     try {
       await adminApi.deleteUser(userId);
       loadUsers();
@@ -180,32 +178,26 @@ export default function UsersPage() {
     }
   };
 
-  const openEditModal = (user: User) => {
-    setSelectedUser(user);
+  const openEditModal = (u: User) => {
+    setSelectedUser(u);
     setEditForm({
-      email: user.email,
-      avatar: user.avatar || '',
-      status: user.status,
+      email: u.email,
+      avatar: u.avatar || '',
+      status: u.status,
       password: '',
     });
     setShowEditModal(true);
   };
 
-  const openGroupsModal = async (user: User) => {
-    setSelectedUser(user);
-
-    // 根据用户的组名称找到对应的组ID
-    const userGroupIds = groups
-      .filter(g => user.groups.includes(g.name))
-      .map(g => g.id);
-
+  const openGroupsModal = (u: User) => {
+    setSelectedUser(u);
+    const userGroupIds = groups.filter(g => u.groups.includes(g.name)).map(g => g.id);
     setSelectedUserGroups(userGroupIds);
     setShowGroupsModal(true);
   };
 
   const handleUpdateGroups = async () => {
     if (!selectedUser) return;
-
     try {
       await adminApi.updateUserGroups(selectedUser.id, selectedUserGroups);
       setShowGroupsModal(false);
@@ -218,27 +210,19 @@ export default function UsersPage() {
 
   const toggleGroup = (groupId: number) => {
     setSelectedUserGroups(prev =>
-      prev.includes(groupId)
-        ? prev.filter(id => id !== groupId)
-        : [...prev, groupId]
+      prev.includes(groupId) ? prev.filter(id => id !== groupId) : [...prev, groupId]
     );
   };
 
-  const openRolesModal = async (user: User) => {
-    setSelectedUser(user);
-
-    // 根据用户的角色名称找到对应的角色ID
-    const userRoleIds = roles
-      .filter(r => user.roles.includes(r.name))
-      .map(r => r.id);
-
+  const openRolesModal = (u: User) => {
+    setSelectedUser(u);
+    const userRoleIds = roles.filter(r => u.roles.includes(r.name)).map(r => r.id);
     setSelectedUserRoles(userRoleIds);
     setShowRolesModal(true);
   };
 
   const handleUpdateRoles = async () => {
     if (!selectedUser) return;
-
     try {
       await adminApi.updateUserRoles(selectedUser.id, selectedUserRoles);
       setShowRolesModal(false);
@@ -251,107 +235,36 @@ export default function UsersPage() {
 
   const toggleRole = (roleId: number) => {
     setSelectedUserRoles(prev =>
-      prev.includes(roleId)
-        ? prev.filter(id => id !== roleId)
-        : [...prev, roleId]
-    );
-  };
-
-  const openAppsModal = async (user: User) => {
-    setSelectedUser(user);
-    try {
-      const response = await adminApi.getUserAppPermissions(user.id);
-      setSelectedUserAllowedApps(response.data.allowed_apps.map((app: AppItem) => app.id));
-      setSelectedUserDeniedApps(response.data.denied_apps.map((app: AppItem) => app.id));
-      setShowAppsModal(true);
-    } catch (err: any) {
-      setError(err.response?.data?.detail || '获取用户应用权限失败');
-    }
-  };
-
-  const handleUpdateAppPermissions = async () => {
-    if (!selectedUser) return;
-
-    try {
-      await adminApi.updateUserAppPermissions(selectedUser.id, {
-        allowed_app_ids: selectedUserAllowedApps,
-        denied_app_ids: selectedUserDeniedApps,
-      });
-      setShowAppsModal(false);
-      setSelectedUser(null);
-    } catch (err: any) {
-      setError(err.response?.data?.detail || '更新用户应用权限失败');
-    }
-  };
-
-  const toggleAllowedApp = (appId: number) => {
-    // 如果在拒绝列表中，先移除
-    if (selectedUserDeniedApps.includes(appId)) {
-      setSelectedUserDeniedApps(prev => prev.filter(id => id !== appId));
-    }
-    setSelectedUserAllowedApps(prev =>
-      prev.includes(appId)
-        ? prev.filter(id => id !== appId)
-        : [...prev, appId]
-    );
-  };
-
-  const toggleDeniedApp = (appId: number) => {
-    // 如果在允许列表中，先移除
-    if (selectedUserAllowedApps.includes(appId)) {
-      setSelectedUserAllowedApps(prev => prev.filter(id => id !== appId));
-    }
-    setSelectedUserDeniedApps(prev =>
-      prev.includes(appId)
-        ? prev.filter(id => id !== appId)
-        : [...prev, appId]
+      prev.includes(roleId) ? prev.filter(id => id !== roleId) : [...prev, roleId]
     );
   };
 
   const getStatusBadge = (status: string) => {
-    const styles = {
+    const styles: Record<string, string> = {
       active: 'bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-200 dark:border-green-900',
       inactive: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-100 dark:border-gray-700',
       suspended: 'bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-200 dark:border-red-900',
     };
-
-    const labels = {
+    const labels: Record<string, string> = {
       active: '激活',
       inactive: '未激活',
       suspended: '暂停',
     };
-
     return (
-      <span className={`px-2 py-1 text-xs rounded-full border ${styles[status as keyof typeof styles] || styles.inactive}`}>
-        {labels[status as keyof typeof labels] || status}
+      <span className={`px-2 py-1 text-xs rounded-full border ${styles[status] || styles.inactive}`}>
+        {labels[status] || status}
       </span>
     );
   };
 
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
-
-  const filteredUsers = users.filter((u) => {
-    const q = query.trim().toLowerCase();
-    if (!q) return true;
-    return (
-      u.username.toLowerCase().includes(q) ||
-      u.email.toLowerCase().includes(q) ||
-      String(u.id).includes(q)
-    );
-  });
+  const totalPages = Math.ceil(total / limit);
 
   return (
     <div className="px-4 sm:px-6 lg:px-8 animate-fade-in">
       <div className="sm:flex sm:items-center">
         <div className="sm:flex-auto">
-          <h1 className="text-2xl font-semibold text-gray-900">用户管理</h1>
-          <p className="mt-2 text-sm text-gray-700">
+          <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">用户管理</h1>
+          <p className="mt-2 text-sm text-gray-700 dark:text-gray-300">
             管理系统中的所有用户，包括创建、编辑和删除用户。
           </p>
         </div>
@@ -367,30 +280,49 @@ export default function UsersPage() {
       </div>
 
       {error && (
-        <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-md">
-          <p className="text-sm text-red-600">{error}</p>
+        <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-md dark:bg-red-950 dark:border-red-900">
+          <p className="text-sm text-red-600 dark:text-red-200">{error}</p>
         </div>
       )}
 
       <div className="mt-6">
         <div className="surface overflow-hidden">
-          <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between gap-3">
+          {/* Search & Stats */}
+          <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-800 flex flex-wrap items-center justify-between gap-3">
             <div className="text-sm text-gray-600 dark:text-gray-300">
-              共 {filteredUsers.length} 位用户
+              共 {total} 位用户
             </div>
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              className="input text-sm max-w-xs"
-              placeholder="搜索用户名 / 邮箱 / ID"
-            />
+            <form onSubmit={handleSearch} className="flex gap-2">
+              <input
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                className="input text-sm max-w-xs"
+                placeholder="搜索用户名 / 邮箱 / ID"
+              />
+              <button type="submit" className="btn btn-secondary text-sm">搜索</button>
+              {search && (
+                <button
+                  type="button"
+                  onClick={() => { setSearchInput(''); setSearch(''); setPage(0); }}
+                  className="btn btn-secondary text-sm"
+                >
+                  清除
+                </button>
+              )}
+            </form>
           </div>
 
-          {filteredUsers.length === 0 ? (
-            <div className="p-10 text-center text-sm text-gray-500">没有匹配的用户</div>
+          {loading ? (
+            <div className="flex justify-center items-center h-64">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            </div>
+          ) : users.length === 0 ? (
+            <div className="p-10 text-center text-sm text-gray-500">
+              {search ? '没有匹配的用户' : '暂无用户'}
+            </div>
           ) : (
             <ul className="list">
-              {filteredUsers.map((u) => (
+              {users.map((u) => (
                 <li key={u.id} className="list-item">
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex items-start gap-3 min-w-0">
@@ -406,88 +338,78 @@ export default function UsersPage() {
                           {u.username.charAt(0).toUpperCase()}
                         </div>
                       )}
-
                       <div className="min-w-0">
                         <div className="flex items-center gap-2 min-w-0">
-                          <div className="font-medium text-gray-900 dark:text-gray-100 truncate">
-                            {u.username}
-                          </div>
+                          <div className="font-medium text-gray-900 dark:text-gray-100 truncate">{u.username}</div>
                           {getStatusBadge(u.status)}
-                          <span className="text-xs text-gray-500 dark:text-gray-400 shrink-0">
-                            ID: {u.id}
-                          </span>
+                          <span className="text-xs text-gray-500 dark:text-gray-400 shrink-0">ID: {u.id}</span>
                         </div>
-                        <div className="text-sm text-gray-600 dark:text-gray-300 truncate mt-1">
-                          {u.email}
-                        </div>
+                        <div className="text-sm text-gray-600 dark:text-gray-300 truncate mt-1">{u.email}</div>
                         <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-                          <span>
-                            创建：{new Date(u.created_at).toLocaleDateString('zh-CN')}
-                          </span>
+                          <span>创建：{new Date(u.created_at).toLocaleDateString('zh-CN')}</span>
                           <span className="opacity-60">·</span>
-                          <span>
-                            用户组：{u.groups?.length ? u.groups.join(', ') : '无'}
-                          </span>
+                          <span>用户组：{u.groups?.length ? u.groups.join(', ') : '无'}</span>
                         </div>
                       </div>
                     </div>
 
                     <div className="flex flex-wrap justify-end gap-2 shrink-0">
+                      <button onClick={() => openEditModal(u)} className="btn btn-secondary text-sm">编辑</button>
+                      <button onClick={() => openGroupsModal(u)} className="btn btn-secondary text-sm">用户组</button>
+                      <button onClick={() => openRolesModal(u)} className="btn btn-secondary text-sm">角色</button>
                       <button
-                        onClick={() => openEditModal(u)}
-                        className="btn btn-secondary text-sm"
-                      >
-                        编辑
-                      </button>
-                      <button
-                        onClick={() => openGroupsModal(u)}
-                        className="btn btn-secondary text-sm"
-                      >
-                        用户组
-                      </button>
-                      <button
-                        onClick={() => openRolesModal(u)}
-                        className="btn btn-secondary text-sm"
-                      >
-                        角色
-                      </button>
-                      <button
-                        onClick={() => openAppsModal(u)}
+                        onClick={() => router.push(`/dashboard/users/permissions?id=${u.id}`)}
                         className="btn btn-secondary text-sm"
                       >
                         应用权限
                       </button>
-                      <button
-                        onClick={() => handleDeleteUser(u.id)}
-                        className="btn btn-danger text-sm"
-                      >
-                        删除
-                      </button>
+                      <button onClick={() => handleDeleteUser(u.id)} className="btn btn-danger text-sm">删除</button>
                     </div>
                   </div>
                 </li>
               ))}
             </ul>
           )}
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-800 flex items-center justify-between">
+              <div className="text-sm text-gray-500 dark:text-gray-400">
+                第 {page + 1} / {totalPages} 页
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setPage(p => Math.max(0, p - 1))}
+                  disabled={page === 0}
+                  className="btn btn-secondary text-sm disabled:opacity-50"
+                >
+                  上一页
+                </button>
+                <button
+                  onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
+                  disabled={page >= totalPages - 1}
+                  className="btn btn-secondary text-sm disabled:opacity-50"
+                >
+                  下一页
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* 创建用户模态框 */}
+      {/* Create User Modal */}
       {showCreateModal && (
         <div
           className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in"
-          onMouseDown={(e) => {
-            if (e.target === e.currentTarget) setShowCreateModal(false);
-          }}
+          onMouseDown={(e) => { if (e.target === e.currentTarget) setShowCreateModal(false); }}
         >
           <div className="surface max-w-md w-full p-6 animate-slide-up">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">创建新用户</h3>
+            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">创建新用户</h3>
             <form onSubmit={handleCreateUser}>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    用户名
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">用户名</label>
                   <input
                     type="text"
                     required
@@ -498,9 +420,7 @@ export default function UsersPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    邮箱
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">邮箱</label>
                   <input
                     type="email"
                     required
@@ -510,9 +430,7 @@ export default function UsersPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    密码
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">密码</label>
                   <input
                     type="password"
                     required
@@ -523,9 +441,7 @@ export default function UsersPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    状态
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">状态</label>
                   <select
                     value={createForm.status}
                     onChange={(e) => setCreateForm({ ...createForm, status: e.target.value })}
@@ -538,40 +454,28 @@ export default function UsersPage() {
                 </div>
               </div>
               <div className="mt-6 flex justify-end space-x-3">
-                <button
-                  type="button"
-                  onClick={() => setShowCreateModal(false)}
-                  className="btn btn-secondary"
-                >
-                  取消
-                </button>
-                <button type="submit" className="btn btn-primary">
-                  创建
-                </button>
+                <button type="button" onClick={() => setShowCreateModal(false)} className="btn btn-secondary">取消</button>
+                <button type="submit" className="btn btn-primary">创建</button>
               </div>
             </form>
           </div>
         </div>
       )}
 
-      {/* 编辑用户模态框 */}
+      {/* Edit User Modal */}
       {showEditModal && selectedUser && (
         <div
           className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in"
-          onMouseDown={(e) => {
-            if (e.target === e.currentTarget) setShowEditModal(false);
-          }}
+          onMouseDown={(e) => { if (e.target === e.currentTarget) setShowEditModal(false); }}
         >
           <div className="surface max-w-md w-full p-6 animate-slide-up">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">
+            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">
               编辑用户: {selectedUser.username}
             </h3>
             <form onSubmit={handleEditUser}>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    邮箱
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">邮箱</label>
                   <input
                     type="email"
                     required
@@ -581,9 +485,7 @@ export default function UsersPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    头像URL
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">头像URL</label>
                   <input
                     type="url"
                     value={editForm.avatar}
@@ -593,9 +495,7 @@ export default function UsersPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    状态
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">状态</label>
                   <select
                     value={editForm.status}
                     onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
@@ -607,9 +507,7 @@ export default function UsersPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    新密码（留空则不修改）
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">新密码（留空则不修改）</label>
                   <input
                     type="password"
                     minLength={6}
@@ -621,32 +519,22 @@ export default function UsersPage() {
                 </div>
               </div>
               <div className="mt-6 flex justify-end space-x-3">
-                <button
-                  type="button"
-                  onClick={() => setShowEditModal(false)}
-                  className="btn btn-secondary"
-                >
-                  取消
-                </button>
-                <button type="submit" className="btn btn-primary">
-                  保存
-                </button>
+                <button type="button" onClick={() => setShowEditModal(false)} className="btn btn-secondary">取消</button>
+                <button type="submit" className="btn btn-primary">保存</button>
               </div>
             </form>
           </div>
         </div>
       )}
 
-      {/* 管理用户组模态框 */}
+      {/* Groups Modal */}
       {showGroupsModal && selectedUser && (
         <div
           className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in"
-          onMouseDown={(e) => {
-            if (e.target === e.currentTarget) setShowGroupsModal(false);
-          }}
+          onMouseDown={(e) => { if (e.target === e.currentTarget) setShowGroupsModal(false); }}
         >
           <div className="surface max-w-md w-full p-6 animate-slide-up">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">
+            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">
               管理用户组: {selectedUser.username}
             </h3>
             <div className="surface overflow-hidden max-h-96 overflow-y-auto">
@@ -662,9 +550,7 @@ export default function UsersPage() {
                     <div className="min-w-0">
                       <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{group.name}</div>
                       {group.description && (
-                        <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 truncate">
-                          {group.description}
-                        </div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 truncate">{group.description}</div>
                       )}
                     </div>
                   </label>
@@ -672,35 +558,21 @@ export default function UsersPage() {
               </div>
             </div>
             <div className="mt-6 flex justify-end space-x-3">
-              <button
-                type="button"
-                onClick={() => setShowGroupsModal(false)}
-                className="btn btn-secondary"
-              >
-                取消
-              </button>
-              <button
-                type="button"
-                onClick={handleUpdateGroups}
-                className="btn btn-primary"
-              >
-                保存
-              </button>
+              <button type="button" onClick={() => setShowGroupsModal(false)} className="btn btn-secondary">取消</button>
+              <button type="button" onClick={handleUpdateGroups} className="btn btn-primary">保存</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* 管理用户角色模态框 */}
+      {/* Roles Modal */}
       {showRolesModal && selectedUser && (
         <div
           className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in"
-          onMouseDown={(e) => {
-            if (e.target === e.currentTarget) setShowRolesModal(false);
-          }}
+          onMouseDown={(e) => { if (e.target === e.currentTarget) setShowRolesModal(false); }}
         >
           <div className="surface max-w-md w-full p-6 animate-slide-up">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">
+            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">
               管理用户角色: {selectedUser.username}
             </h3>
             <div className="surface overflow-hidden max-h-96 overflow-y-auto">
@@ -716,9 +588,7 @@ export default function UsersPage() {
                     <div className="min-w-0">
                       <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{role.name}</div>
                       {role.description && (
-                        <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 truncate">
-                          {role.description}
-                        </div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 truncate">{role.description}</div>
                       )}
                       <div className="text-xs text-gray-400 dark:text-gray-500 mt-1">等级: {role.level}</div>
                     </div>
@@ -727,104 +597,8 @@ export default function UsersPage() {
               </div>
             </div>
             <div className="mt-6 flex justify-end space-x-3">
-              <button
-                type="button"
-                onClick={() => setShowRolesModal(false)}
-                className="btn btn-secondary"
-              >
-                取消
-              </button>
-              <button
-                type="button"
-                onClick={handleUpdateRoles}
-                className="btn btn-primary"
-              >
-                保存
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 管理用户应用权限模态框 */}
-      {showAppsModal && selectedUser && (
-        <div
-          className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in"
-          onMouseDown={(e) => {
-            if (e.target === e.currentTarget) setShowAppsModal(false);
-          }}
-        >
-          <div className="surface max-w-lg w-full p-6 animate-slide-up">
-            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">
-              管理应用权限: {selectedUser.username}
-            </h3>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-              优先级：用户拒绝 &gt; 用户允许 &gt; 用户组拒绝 &gt; 用户组允许 &gt; 应用默认
-            </p>
-            <div className="surface overflow-hidden max-h-96 overflow-y-auto">
-              <div className="list">
-                {apps.map((app) => (
-                  <div key={app.id} className="list-item flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-3 min-w-0">
-                      {app.logo ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={app.logo}
-                          alt={app.name}
-                          className="h-8 w-8 rounded border border-gray-200 dark:border-gray-700"
-                        />
-                      ) : (
-                        <div className="h-8 w-8 rounded bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-gray-500 dark:text-gray-400 text-xs">
-                          {app.name.charAt(0).toUpperCase()}
-                        </div>
-                      )}
-                      <div className="min-w-0">
-                        <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{app.name}</div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400 truncate">{app.client_id}</div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <label className="flex items-center gap-1 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={selectedUserAllowedApps.includes(app.id)}
-                          onChange={() => toggleAllowedApp(app.id)}
-                          className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
-                        />
-                        <span className="text-xs text-green-600 dark:text-green-400">允许</span>
-                      </label>
-                      <label className="flex items-center gap-1 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={selectedUserDeniedApps.includes(app.id)}
-                          onChange={() => toggleDeniedApp(app.id)}
-                          className="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 rounded"
-                        />
-                        <span className="text-xs text-red-600 dark:text-red-400">拒绝</span>
-                      </label>
-                    </div>
-                  </div>
-                ))}
-                {apps.length === 0 && (
-                  <div className="p-4 text-center text-sm text-gray-500">暂无应用</div>
-                )}
-              </div>
-            </div>
-            <div className="mt-6 flex justify-end space-x-3">
-              <button
-                type="button"
-                onClick={() => setShowAppsModal(false)}
-                className="btn btn-secondary"
-              >
-                取消
-              </button>
-              <button
-                type="button"
-                onClick={handleUpdateAppPermissions}
-                className="btn btn-primary"
-              >
-                保存
-              </button>
+              <button type="button" onClick={() => setShowRolesModal(false)} className="btn btn-secondary">取消</button>
+              <button type="button" onClick={handleUpdateRoles} className="btn btn-primary">保存</button>
             </div>
           </div>
         </div>

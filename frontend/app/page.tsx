@@ -14,7 +14,7 @@ export default function Home() {
             登录
           </Link>
           <Link href="/register" className="btn btn-secondary">
-            注册
+            邀请码注册
           </Link>
         </div>
 

@@ -11,6 +11,7 @@ class UserBase(BaseModel):
 
 class UserCreate(UserBase):
     password: str = Field(..., min_length=6)
+    invite_code: Optional[str] = Field(None, min_length=4, max_length=64)
 
 
 class UserUpdate(BaseModel):

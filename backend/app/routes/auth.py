@@ -26,7 +26,8 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)):
             db,
             username=user_data.username,
             email=user_data.email,
-            password=user_data.password
+            password=user_data.password,
+            invite_code=getattr(user_data, "invite_code", None),
         )
         return user
     except ValueError as e:

@@ -55,6 +55,7 @@ export default function GroupsPage() {
   const [selectedGroupAllowedApps, setSelectedGroupAllowedApps] = useState<number[]>([]);
   const [selectedGroupDeniedApps, setSelectedGroupDeniedApps] = useState<number[]>([]);
   const [appPermissionsLoading, setAppPermissionsLoading] = useState(false);
+  const [appSearch, setAppSearch] = useState('');
 
   useEffect(() => {
     if (!canManageGroups) return;
@@ -88,9 +89,9 @@ export default function GroupsPage() {
 
   const loadUsers = async () => {
     try {
-      const response = await adminApi.listUsers();
-      if (Array.isArray(response.data)) {
-        setUsers(response.data);
+      const response = await adminApi.listUsers({ limit: 1000 });
+      if (Array.isArray(response.data.items)) {
+        setUsers(response.data.items);
       } else {
         setUsers([]);
       }
@@ -588,13 +589,22 @@ export default function GroupsPage() {
                 <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
                   优先级：用户拒绝 &gt; 用户允许 &gt; 用户组拒绝 &gt; 用户组允许 &gt; 应用默认
                 </p>
+                <input
+                  type="text"
+                  value={appSearch}
+                  onChange={(e) => setAppSearch(e.target.value)}
+                  placeholder="搜索应用名称..."
+                  className="input text-sm mb-3"
+                />
                 {appPermissionsLoading ? (
                   <div className="text-sm text-gray-500">加载中...</div>
                 ) : apps.length === 0 ? (
                   <div className="text-sm text-gray-500">暂无应用</div>
                 ) : (
                   <div className="max-h-64 overflow-y-auto border rounded dark:border-gray-700">
-                    {apps.map(app => (
+                    {apps
+                      .filter(app => !appSearch || app.name.toLowerCase().includes(appSearch.toLowerCase()))
+                      .map(app => (
                       <div key={app.id} className="flex items-center justify-between px-3 py-2 border-b last:border-b-0 dark:border-gray-700">
                         <div className="flex items-center gap-2 min-w-0">
                           {app.logo ? (

@@ -8,7 +8,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from app.config import get_settings
 from app.database import init_db
 from app.routes import auth, oauth, user, client, oidc
-from app.api import groups, admin
+from app.api import groups, admin, invites
 import os
 import logging
 
@@ -53,6 +53,7 @@ app.include_router(client.router)
 app.include_router(oidc.router)
 app.include_router(groups.router, prefix="/api/groups", tags=["groups"])
 app.include_router(admin.router, prefix="/api/admin", tags=["admin"])
+app.include_router(invites.router, prefix="/api/admin/invites", tags=["admin"])
 
 
 # Health check

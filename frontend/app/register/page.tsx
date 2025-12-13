@@ -9,6 +9,7 @@ export default function RegisterPage() {
   const router = useRouter();
 
   const [formData, setFormData] = useState({
+    inviteCode: '',
     username: '',
     email: '',
     password: '',
@@ -36,7 +37,17 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      await authApi.register(formData.username, formData.email, formData.password);
+      if (!formData.inviteCode.trim()) {
+        setError('请填写邀请码');
+        return;
+      }
+
+      await authApi.register(
+        formData.username,
+        formData.email,
+        formData.password,
+        formData.inviteCode.trim()
+      );
 
       // Redirect to login
       router.push('/login?registered=true');
@@ -61,6 +72,23 @@ export default function RegisterPage() {
               {error}
             </div>
           )}
+
+          <div>
+            <label htmlFor="inviteCode" className="block text-sm font-medium text-gray-700 mb-2">
+              邀请码
+            </label>
+            <input
+              id="inviteCode"
+              type="text"
+              required
+              className="input uppercase"
+              value={formData.inviteCode}
+              onChange={(e) => setFormData({ ...formData, inviteCode: e.target.value })}
+              disabled={loading}
+              placeholder="请输入邀请码"
+            />
+            <p className="mt-1 text-xs text-gray-500">仅支持邀请制注册</p>
+          </div>
 
           <div>
             <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2">

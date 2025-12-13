@@ -69,8 +69,8 @@ api.interceptors.response.use(
 
 // Auth API
 export const authApi = {
-  register: (username: string, email: string, password: string) =>
-    api.post('/api/auth/register', { username, email, password }),
+  register: (username: string, email: string, password: string, inviteCode?: string) =>
+    api.post('/api/auth/register', { username, email, password, invite_code: inviteCode }),
 
   login: (username: string, password: string, rememberMe: boolean = false, deviceName?: string) =>
     api.post('/api/auth/login', { username, password, remember_me: rememberMe, device_name: deviceName }),
@@ -179,9 +179,9 @@ export const groupApi = {
 
 // Admin API
 export const adminApi = {
-  // 用户管理
-  listUsers: (skip: number = 0, limit: number = 100) =>
-    api.get('/api/admin/users', { params: { skip, limit } }),
+  // 用户管理（分页+搜索）
+  listUsers: (params: { skip?: number; limit?: number; search?: string } = {}) =>
+    api.get('/api/admin/users', { params }),
 
   getUser: (id: number) =>
     api.get(`/api/admin/users/${id}`),
@@ -221,9 +221,29 @@ export const adminApi = {
   }) =>
     api.put(`/api/admin/users/${id}/app-permissions`, data),
 
+  // 计算后应用权限（分页+搜索）
+  getUserComputedAppPermissions: (id: number, params: { skip?: number; limit?: number; search?: string } = {}) =>
+    api.get(`/api/admin/users/${id}/app-permissions/computed`, { params }),
+
+  // 更新单个应用权限
+  updateUserSingleAppPermission: (userId: number, appId: number, permission: string | null) =>
+    api.put(`/api/admin/users/${userId}/app-permissions/single`, null, {
+      params: { app_id: appId, permission }
+    }),
+
   // 角色管理
   listRoles: () =>
     api.get('/api/admin/roles'),
+
+  // 邀请码管理
+  listInvites: (params: { skip?: number; limit?: number; active?: boolean } = {}) =>
+    api.get('/api/admin/invites/', { params }),
+
+  createInvite: (data: { group_id: number; expires_at?: string; max_uses?: number; note?: string }) =>
+    api.post('/api/admin/invites/', data),
+
+  updateInvite: (id: number, data: { is_active?: boolean; expires_at?: string | null; max_uses?: number | null; note?: string | null }) =>
+    api.put(`/api/admin/invites/${id}`, data),
 };
 
 // Group API extensions for app permissions

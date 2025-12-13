@@ -293,6 +293,45 @@ class Group(Base):
     denied_apps = relationship('Client', secondary=group_denied_apps, backref='groups_denied')
 
 
+class InviteCode(Base):
+    __tablename__ = 'invite_codes'
+
+    id = Column(Integer, primary_key=True, index=True)
+    code = Column(String(64), unique=True, index=True, nullable=False)
+    note = Column(Text, nullable=True)
+
+    group_id = Column(Integer, ForeignKey('groups.id', ondelete='CASCADE'), nullable=False)
+
+    is_active = Column(Boolean, default=True)
+    expires_at = Column(DateTime, nullable=True)
+    max_uses = Column(Integer, nullable=True)  # NULL = unlimited
+    used_count = Column(Integer, default=0)  # Cached count for fast checks
+
+    created_by_user_id = Column(Integer, ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
+    used_by_user_id = Column(Integer, ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
+    used_at = Column(DateTime, nullable=True)
+
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    group = relationship('Group')
+    created_by_user = relationship('User', foreign_keys=[created_by_user_id])
+    used_by_user = relationship('User', foreign_keys=[used_by_user_id])
+    redemptions = relationship('InviteRedemption', back_populates='invite', cascade='all, delete-orphan')
+
+
+class InviteRedemption(Base):
+    __tablename__ = 'invite_redemptions'
+
+    id = Column(Integer, primary_key=True, index=True)
+    invite_id = Column(Integer, ForeignKey('invite_codes.id', ondelete='CASCADE'), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete='SET NULL'), nullable=True, index=True)
+    used_at = Column(DateTime, default=datetime.utcnow)
+
+    invite = relationship('InviteCode', back_populates='redemptions')
+    user = relationship('User')
+
+
 class AuditLog(Base):
     __tablename__ = 'audit_logs'
 
