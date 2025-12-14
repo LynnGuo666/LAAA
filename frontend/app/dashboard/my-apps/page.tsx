@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { userApi } from '@/lib/api';
+import { useAuthStore } from '@/lib/store';
+import { isAdmin } from '@/lib/authz';
 import { ExternalLink } from 'lucide-react';
 
 interface AppItem {
@@ -15,6 +17,8 @@ interface AppItem {
 }
 
 export default function MyAppsPage() {
+  const user = useAuthStore((s) => s.user);
+  const adminView = user ? isAdmin(user) : false;
   const [apps, setApps] = useState<AppItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -42,8 +46,12 @@ export default function MyAppsPage() {
       <div className="surface p-6">
         <div className="flex items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">我的应用</h1>
-            <p className="text-gray-600 dark:text-gray-300 mt-1">你当前有权限访问的应用列表。</p>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+              {adminView ? '应用列表' : '我的应用'}
+            </h1>
+            <p className="text-gray-600 dark:text-gray-300 mt-1">
+              {adminView ? '当前账号可访问的应用列表。' : '你当前有权限访问的应用列表。'}
+            </p>
           </div>
           <button onClick={loadApps} className="btn btn-secondary" disabled={loading}>
             刷新
