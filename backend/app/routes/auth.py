@@ -13,6 +13,7 @@ from app.services.auth_service import AuthService
 from app.middleware.auth import get_current_user
 from app.models import User
 from app.config import get_settings
+from app.utils.device import get_client_ip
 
 settings = get_settings()
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
@@ -53,7 +54,7 @@ async def login(
         )
 
     # Get client info
-    client_ip = request.client.host if request.client else None
+    client_ip = get_client_ip(request)
     user_agent = request.headers.get("user-agent", "")
 
     # Create tokens (use a default internal client_id for direct login)

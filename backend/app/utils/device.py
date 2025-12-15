@@ -1,6 +1,37 @@
 import hashlib
 from typing import Optional
 
+from fastapi import Request
+
+
+def get_client_ip(request: Request) -> Optional[str]:
+    """Get the real client IP address from request.
+
+    Checks various headers for proxied requests (Cloudflare, Nginx, etc.),
+    falls back to direct client IP.
+    """
+    # Check CF-Connecting-IP header (Cloudflare)
+    cf_ip = request.headers.get("cf-connecting-ip")
+    if cf_ip:
+        return cf_ip.strip()
+
+    # Check X-Forwarded-For header (may contain multiple IPs: client, proxy1, proxy2, ...)
+    forwarded_for = request.headers.get("x-forwarded-for")
+    if forwarded_for:
+        # Take the first IP (original client)
+        return forwarded_for.split(",")[0].strip()
+
+    # Check X-Real-IP header
+    real_ip = request.headers.get("x-real-ip")
+    if real_ip:
+        return real_ip.strip()
+
+    # Fall back to direct client IP
+    if request.client:
+        return request.client.host
+
+    return None
+
 
 def generate_device_id(user_id: int, user_agent: str, ip_address: Optional[str] = None) -> str:
     """Generate a stable device ID based on user, user-agent and IP.
