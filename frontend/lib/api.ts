@@ -269,4 +269,56 @@ export const groupAppApi = {
     api.put(`/api/groups/${id}/app-permissions`, data),
 };
 
+// Passkey API
+export const passkeyApi = {
+  // Get registration options (requires auth)
+  getRegistrationOptions: () =>
+    api.post('/api/passkeys/register/options'),
+
+  // Verify registration (requires auth)
+  verifyRegistration: (data: {
+    id: string;
+    rawId: string;
+    response: object;
+    type: string;
+    clientExtensionResults?: object;
+    authenticatorAttachment?: string;
+    name: string;
+  }) =>
+    api.post('/api/passkeys/register/verify', data),
+
+  // Get authentication options (no auth required)
+  getAuthenticationOptions: (username?: string) =>
+    axios.post(`${API_URL}/api/passkeys/authenticate/options`, { username }),
+
+  // Verify authentication (no auth required)
+  verifyAuthentication: (data: {
+    id: string;
+    rawId: string;
+    response: object;
+    type: string;
+    clientExtensionResults?: object;
+    authenticatorAttachment?: string;
+    remember_me?: boolean;
+    device_name?: string;
+  }) =>
+    axios.post(`${API_URL}/api/passkeys/authenticate/verify`, data),
+
+  // Check if user has passkeys (no auth required)
+  checkUserPasskeys: (username: string) =>
+    axios.get(`${API_URL}/api/passkeys/check/${username}`),
+
+  // List passkeys (requires auth)
+  list: () =>
+    api.get('/api/passkeys/'),
+
+  // Rename passkey (requires auth)
+  rename: (id: number, name: string) =>
+    api.put(`/api/passkeys/${id}`, { name }),
+
+  // Delete passkey (requires auth)
+  delete: (id: number) =>
+    api.delete(`/api/passkeys/${id}`),
+};
+
 export default api;

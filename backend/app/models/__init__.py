@@ -107,6 +107,7 @@ class User(Base):
     authorizations = relationship('UserAuthorization', back_populates='user', cascade='all, delete-orphan')
     tokens = relationship('Token', back_populates='user', cascade='all, delete-orphan')
     sessions = relationship('Session', back_populates='user', cascade='all, delete-orphan')
+    passkeys = relationship('Passkey', back_populates='user', cascade='all, delete-orphan')
     # App permissions (individual overrides)
     allowed_apps = relationship('Client', secondary=user_allowed_apps, backref='users_allowed')
     denied_apps = relationship('Client', secondary=user_denied_apps, backref='users_denied')
@@ -351,4 +352,49 @@ class AuditLog(Base):
     ip_address = Column(String(50), nullable=True)
     user_agent = Column(Text, nullable=True)
     details = Column(Text, nullable=True)  # JSON with additional info
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class Passkey(Base):
+    """WebAuthn/Passkey credential for passwordless authentication"""
+    __tablename__ = 'passkeys'
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
+
+    # WebAuthn credential identifiers
+    credential_id = Column(String(512), unique=True, nullable=False, index=True)  # Base64URL encoded
+    public_key = Column(Text, nullable=False)  # COSE public key, Base64URL encoded
+
+    # Credential metadata
+    name = Column(String(100), nullable=False)  # User-friendly name (e.g., "iPhone", "YubiKey")
+
+    # WebAuthn counters and flags
+    sign_count = Column(Integer, default=0, nullable=False)  # Signature counter for replay protection
+    transports = Column(Text, nullable=True)  # JSON array: ["usb", "nfc", "ble", "internal", "hybrid"]
+
+    # Backup eligibility and state (for passkey providers like iCloud Keychain)
+    backup_eligible = Column(Boolean, default=False)
+    backup_state = Column(Boolean, default=False)
+
+    # Attestation info
+    aaguid = Column(String(36), nullable=True)  # Authenticator AAGUID
+
+    # Usage tracking
+    last_used_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    # Relationships
+    user = relationship('User', back_populates='passkeys')
+
+
+class WebAuthnChallenge(Base):
+    """Temporary storage for WebAuthn challenges during registration/authentication"""
+    __tablename__ = 'webauthn_challenges'
+
+    id = Column(Integer, primary_key=True, index=True)
+    challenge = Column(String(128), unique=True, nullable=False, index=True)  # Base64URL encoded
+    type = Column(String(20), nullable=False)  # 'registration' or 'authentication'
+    user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=True)  # NULL for authentication
+    expires_at = Column(DateTime, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)

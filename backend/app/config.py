@@ -30,6 +30,13 @@ class Settings(BaseSettings):
     allow_open_registration: bool = False
     bootstrap_allow_first_user: bool = True
 
+    # WebAuthn / Passkey settings
+    # Env vars: WEBAUTHN_RP_ID, WEBAUTHN_RP_NAME, WEBAUTHN_RP_ORIGIN
+    webauthn_rp_id: str = "localhost"  # Production: "lynn6.top"
+    webauthn_rp_name: str = "LAAA OAuth Server"
+    webauthn_rp_origin: str = "http://localhost:8000"  # Production: "https://laaa.lynn6.top"
+    webauthn_challenge_timeout_seconds: int = 300
+
     class Config:
         env_file = ".env"
         case_sensitive = False

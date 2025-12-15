@@ -3,9 +3,15 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { authApi, API_URL } from '@/lib/api';
+import { authApi, passkeyApi, API_URL } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import axios from 'axios';
+import {
+  isWebAuthnSupported,
+  parseAuthenticationOptions,
+  getPasskeyCredential,
+  serializeAuthenticationCredential,
+} from '@/lib/webauthn';
 
 interface ClientInfo {
   name: string;
@@ -25,6 +31,8 @@ function LoginContent() {
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [passkeyLoading, setPasskeyLoading] = useState(false);
+  const [webAuthnSupported, setWebAuthnSupported] = useState(false);
   const [clientInfo, setClientInfo] = useState<ClientInfo | null>(null);
   const [loadingClient, setLoadingClient] = useState(true);
   const [mounted, setMounted] = useState(false);
@@ -34,6 +42,8 @@ function LoginContent() {
 
   useEffect(() => {
     setMounted(true);
+    // Check WebAuthn support
+    setWebAuthnSupported(isWebAuthnSupported());
     // 检查是否是从 OAuth 授权页面跳转过来的
     if (redirectUrl && redirectUrl.includes('/oauth/authorize')) {
       // 从 redirect URL 中提取 client_id
@@ -115,6 +125,65 @@ function LoginContent() {
       setError(errorMsg);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handlePasskeyLogin = async () => {
+    if (!webAuthnSupported) {
+      setError('您的浏览器不支持通行密钥');
+      return;
+    }
+
+    setError('');
+    setPasskeyLoading(true);
+
+    try {
+      // Step 1: Get authentication options
+      const optionsResponse = await passkeyApi.getAuthenticationOptions();
+      const options = parseAuthenticationOptions(optionsResponse.data);
+
+      // Step 2: Get credential from authenticator
+      const credential = await getPasskeyCredential(options);
+
+      // Step 3: Serialize and verify
+      const serialized = serializeAuthenticationCredential(credential);
+      const deviceName = `${navigator.userAgent.split(')')[0]})`;
+      const response = await passkeyApi.verifyAuthentication({
+        ...serialized as any,
+        remember_me: formData.rememberMe,
+        device_name: formData.rememberMe ? deviceName : undefined,
+      });
+
+      const { access_token, refresh_token } = response.data;
+
+      // Get user info
+      const userResponse = await authApi.getMe(access_token);
+      const user = userResponse.data;
+
+      // Save tokens
+      localStorage.setItem('access_token', access_token);
+      localStorage.setItem('refresh_token', refresh_token);
+
+      // Set auth state
+      setAuth(user, access_token, refresh_token);
+
+      // Redirect
+      if (redirectUrl && redirectUrl.startsWith('/')) {
+        router.push(redirectUrl);
+      } else {
+        router.push('/dashboard');
+      }
+    } catch (err: any) {
+      console.error('Passkey login failed', err);
+      if (err.name === 'NotAllowedError') {
+        setError('用户取消了操作');
+      } else if (err.response?.data?.detail) {
+        setError(err.response.data.detail);
+      } else {
+        setError('通行密钥登录失败，请重试');
+      }
+    } finally {
+      setPasskeyLoading(false);
     }
   };
 
@@ -216,7 +285,7 @@ function LoginContent() {
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || passkeyLoading}
             className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? (
@@ -228,6 +297,41 @@ function LoginContent() {
               '登录'
             )}
           </button>
+
+          {webAuthnSupported && (
+            <>
+              <div className="relative my-4">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-gray-200 dark:border-gray-700"></div>
+                </div>
+                <div className="relative flex justify-center text-sm">
+                  <span className="px-2 bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400">或</span>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={handlePasskeyLogin}
+                disabled={loading || passkeyLoading}
+                className="w-full bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-900 dark:text-gray-100 font-medium py-2.5 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {passkeyLoading ? (
+                  <span className="inline-flex items-center justify-center gap-2">
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-gray-400 border-t-gray-600" />
+                    验证中...
+                  </span>
+                ) : (
+                  <>
+                    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M12 2C9.24 2 7 4.24 7 7C7 9.76 9.24 12 12 12C14.76 12 17 9.76 17 7C17 4.24 14.76 2 12 2ZM12 10C10.34 10 9 8.66 9 7C9 5.34 10.34 4 12 4C13.66 4 15 5.34 15 7C15 8.66 13.66 10 12 10Z" fill="currentColor"/>
+                      <path d="M12 14C7.58 14 4 16.58 4 20V22H20V20C20 16.58 16.42 14 12 14ZM18 20H6V20C6 17.79 8.69 16 12 16C15.31 16 18 17.79 18 20Z" fill="currentColor"/>
+                    </svg>
+                    使用通行密钥登录
+                  </>
+                )}
+              </button>
+            </>
+          )}
 
           <div className="text-center text-sm pt-2">
             <span className="text-gray-600">还没有账号？ </span>
