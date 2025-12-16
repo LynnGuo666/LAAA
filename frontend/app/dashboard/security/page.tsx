@@ -1,13 +1,20 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { userApi } from '@/lib/api';
+import Link from 'next/link';
+import { userApi, totpApi } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { isAdmin } from '@/lib/authz';
 
 interface SecuritySettings {
   max_sessions: number;
   notify_new_login: boolean;
+}
+
+interface TOTPStatus {
+  enabled: boolean;
+  created_at?: string;
+  backup_codes_remaining?: number;
 }
 
 interface LoginLog {
@@ -27,6 +34,7 @@ interface LoginLog {
 export default function SecurityPage() {
   const { user } = useAuthStore();
   const [settings, setSettings] = useState<SecuritySettings | null>(null);
+  const [totpStatus, setTotpStatus] = useState<TOTPStatus | null>(null);
   const [loginHistory, setLoginHistory] = useState<LoginLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -47,12 +55,14 @@ export default function SecurityPage() {
 
   const loadData = async () => {
     try {
-      const [settingsRes, historyRes] = await Promise.all([
+      const [settingsRes, historyRes, totpRes] = await Promise.all([
         userApi.getSecuritySettings(),
-        userApi.getLoginHistory(0, 10)
+        userApi.getLoginHistory(0, 10),
+        totpApi.getStatus()
       ]);
       setSettings(settingsRes.data);
       setLoginHistory(historyRes.data);
+      setTotpStatus(totpRes.data);
     } catch (err) {
       console.error('Failed to load data', err);
     } finally {
@@ -199,6 +209,51 @@ export default function SecurityPage() {
                 当有新设备登录您的账户时发送通知
               </p>
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 两步验证 */}
+      <div className="surface p-6">
+        <h2 className="text-xl font-semibold mb-4">两步验证</h2>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+          启用两步验证后，当检测到可疑登录时，需要额外的验证步骤才能登录。
+        </p>
+
+        {/* 身份验证器 */}
+        <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                totpStatus?.enabled
+                  ? 'bg-green-100 dark:bg-green-900'
+                  : 'bg-gray-100 dark:bg-gray-800'
+              }`}>
+                <svg className={`w-5 h-5 ${
+                  totpStatus?.enabled
+                    ? 'text-green-600 dark:text-green-400'
+                    : 'text-gray-400 dark:text-gray-500'
+                }`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="font-medium text-gray-900 dark:text-gray-100">
+                  身份验证器 (TOTP)
+                </h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  {totpStatus?.enabled
+                    ? `已启用 · 剩余 ${totpStatus.backup_codes_remaining || 0} 个备用码`
+                    : '使用 Google Authenticator 等应用生成验证码'}
+                </p>
+              </div>
+            </div>
+            <Link
+              href="/dashboard/security/totp"
+              className="btn btn-secondary text-sm"
+            >
+              {totpStatus?.enabled ? '管理' : '设置'}
+            </Link>
           </div>
         </div>
       </div>

@@ -54,6 +54,43 @@ class Settings(BaseSettings):
     geoip_enabled: bool = True
     geoip_database_path: str = "data/GeoLite2-City.mmdb"
 
+    # SMTP Email settings
+    # Env vars: SMTP_ENABLED, SMTP_HOST, SMTP_PORT, SMTP_USERNAME, SMTP_PASSWORD,
+    #           SMTP_FROM_EMAIL, SMTP_FROM_NAME, SMTP_USE_TLS, SMTP_USE_SSL
+    smtp_enabled: bool = False
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_username: str = ""
+    smtp_password: str = ""
+    smtp_from_email: str = ""
+    smtp_from_name: str = "LAAA OAuth Server"
+    smtp_use_tls: bool = True  # STARTTLS (port 587)
+    smtp_use_ssl: bool = False  # SSL/TLS (port 465)
+
+    # Risk-based verification settings
+    # Env vars: RISK_SCORE_MEDIUM, RISK_SCORE_HIGH
+    risk_score_medium: int = 3  # Medium risk threshold
+    risk_score_high: int = 5  # High risk threshold
+
+    # Verification settings
+    # Env vars: VERIFICATION_CODE_EXPIRE_MINUTES, VERIFICATION_CODE_MAX_ATTEMPTS,
+    #           VERIFICATION_CODE_COOLDOWN_SECONDS, MAGIC_LINK_EXPIRE_MINUTES,
+    #           VERIFICATION_SESSION_EXPIRE_MINUTES, BLOCK_SUSPICIOUS_LOGIN
+    verification_code_expire_minutes: int = 5
+    verification_code_max_attempts: int = 5
+    verification_code_cooldown_seconds: int = 60
+    magic_link_expire_minutes: int = 15
+    verification_session_expire_minutes: int = 30
+    block_suspicious_login: bool = True
+
+    # TOTP settings
+    # Env vars: TOTP_ISSUER
+    totp_issuer: str = "LAAA OAuth Server"
+
+    # Frontend URL (for magic links, etc.)
+    # Env var: FRONTEND_URL
+    frontend_url: str = "http://localhost:8000"  # Production: "https://laaa.lynn6.top"
+
     class Config:
         env_file = ".env"
         case_sensitive = False

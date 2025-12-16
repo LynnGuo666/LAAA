@@ -6,11 +6,13 @@ export interface User {
   email: string;
   avatar?: string;
   status: string;
+  email_verified?: boolean;
   created_at: string;
   groups?: string[];
   roles?: string[];
   permissions?: string[];
   is_admin?: boolean;
+  is_restricted?: boolean;
 }
 
 interface AuthState {
@@ -34,6 +36,11 @@ export const useAuthStore = create<AuthState>((set) => ({
     if (typeof window !== 'undefined') {
       localStorage.setItem('access_token', accessToken);
       localStorage.setItem('refresh_token', refreshToken);
+
+      // Also set session cookie for OAuth authorize endpoint (cross-origin)
+      // Cookie is HttpOnly: false so JS can set it, but SameSite: Lax for CSRF protection
+      const maxAge = 60 * 60 * 24 * 7; // 7 days
+      document.cookie = `session_token=${accessToken}; path=/; max-age=${maxAge}; SameSite=Lax`;
     }
 
     set({
@@ -51,6 +58,9 @@ export const useAuthStore = create<AuthState>((set) => ({
     if (typeof window !== 'undefined') {
       localStorage.removeItem('access_token');
       localStorage.removeItem('refresh_token');
+
+      // Also clear session cookie
+      document.cookie = 'session_token=; path=/; max-age=0';
     }
 
     set({

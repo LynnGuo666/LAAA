@@ -35,6 +35,7 @@ class PasskeyAuthenticationVerify(BaseModel):
     authenticatorAttachment: Optional[str] = None
     remember_me: bool = False
     device_name: Optional[str] = None
+    device_token: Optional[str] = None  # Device token from localStorage for device identification
 
 
 class PasskeyUpdate(BaseModel):

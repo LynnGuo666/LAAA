@@ -8,7 +8,7 @@ from fastapi.openapi.docs import get_swagger_ui_html, get_redoc_html
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from app.config import get_settings
 from app.database import init_db
-from app.routes import auth, oauth, user, client, oidc, site, passkey
+from app.routes import auth, oauth, user, client, oidc, site, passkey, totp
 from app.api import groups, admin, invites
 from app.middleware.auth import get_current_user
 from app.models import User
@@ -57,6 +57,7 @@ app.include_router(client.router)
 app.include_router(oidc.router)
 app.include_router(site.router)
 app.include_router(passkey.router)
+app.include_router(totp.router)
 app.include_router(groups.router, prefix="/api/groups", tags=["groups"])
 app.include_router(admin.router, prefix="/api/admin", tags=["admin"])
 app.include_router(invites.router, prefix="/api/admin/invites", tags=["admin"])

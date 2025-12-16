@@ -71,12 +71,23 @@ def get_optional_user(
     request: Request,
     db: Session = Depends(get_db)
 ) -> Optional[User]:
-    """Get current user if authenticated, otherwise return None"""
+    """Get current user if authenticated, otherwise return None.
+
+    Checks both Authorization header and session cookie for token.
+    """
+    # First try Authorization header
     auth_header = request.headers.get("Authorization")
-    if not auth_header or not auth_header.startswith("Bearer "):
+    token = None
+
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header.replace("Bearer ", "")
+    else:
+        # Fall back to session cookie (for OAuth authorize endpoint)
+        token = request.cookies.get("session_token")
+
+    if not token:
         return None
 
-    token = auth_header.replace("Bearer ", "")
     payload = decode_token(token)
 
     if payload is None or payload.get("type") != "access":

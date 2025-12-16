@@ -104,6 +104,10 @@ class User(Base):
     max_sessions = Column(Integer, default=3)  # Maximum concurrent sessions
     notify_new_login = Column(Boolean, default=True)  # Notify on new device login
 
+    # Email verification
+    email_verified = Column(Boolean, default=False)  # Whether email is verified
+    email_verified_at = Column(DateTime, nullable=True)  # When email was verified
+
     # Relationships
     roles = relationship('Role', secondary=user_roles, back_populates='users')
     groups = relationship('Group', secondary=user_groups, back_populates='users')
@@ -113,6 +117,7 @@ class User(Base):
     sessions = relationship('Session', back_populates='user', cascade='all, delete-orphan')
     passkeys = relationship('Passkey', back_populates='user', cascade='all, delete-orphan')
     login_logs = relationship('LoginLog', back_populates='user', cascade='all, delete-orphan')
+    totp = relationship('UserTOTP', back_populates='user', uselist=False, cascade='all, delete-orphan')
     # App permissions (individual overrides)
     allowed_apps = relationship('Client', secondary=user_allowed_apps, backref='users_allowed')
     denied_apps = relationship('Client', secondary=user_denied_apps, backref='users_denied')
@@ -243,6 +248,7 @@ class Session(Base):
     device_id = Column(String(100), unique=True, index=True, nullable=False)
     device_name = Column(String(100), nullable=True)
     device_type = Column(String(50), nullable=True)  # web, mobile, desktop
+    device_token = Column(String(64), nullable=True, index=True)  # Device token from localStorage for strict device identification
     refresh_token_hash = Column(String(255), nullable=True)
     ip_address = Column(String(50), nullable=True)
     user_agent = Column(Text, nullable=True)
@@ -454,3 +460,95 @@ class LoginLog(Base):
     # Relationships
     user = relationship('User', back_populates='login_logs')
     session = relationship('Session', foreign_keys=[session_id])
+
+
+class VerificationSession(Base):
+    """Tracks multi-step verification progress for suspicious logins"""
+    __tablename__ = 'verification_sessions'
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
+    session_token = Column(String(64), unique=True, nullable=False, index=True)  # Unique session identifier
+
+    # Risk assessment
+    risk_level = Column(String(20), nullable=False)  # low, medium, high
+    risk_score = Column(Integer, nullable=False)  # Total risk score
+    anomalies = Column(Text, nullable=True)  # JSON: detected anomalies with scores
+
+    # Verification requirements
+    required_verifications = Column(Integer, default=1)  # 1 or 2 based on risk level
+    completed_verifications = Column(Integer, default=0)
+    completed_methods = Column(Text, nullable=True)  # JSON: ["email_code", "totp"]
+
+    # Login context (preserved from original login attempt)
+    ip_address = Column(String(50), nullable=True)
+    user_agent = Column(Text, nullable=True)
+    device_name = Column(String(100), nullable=True)
+    device_token = Column(String(64), nullable=True)  # Device token from client
+    remember_me = Column(Boolean, default=False)
+
+    # Status
+    is_completed = Column(Boolean, default=False)
+    expires_at = Column(DateTime, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    completed_at = Column(DateTime, nullable=True)
+
+    # Relationships
+    user = relationship('User')
+    verification_codes = relationship('VerificationCode', back_populates='verification_session', cascade='all, delete-orphan')
+
+
+class VerificationCode(Base):
+    """Email verification codes and Magic Links"""
+    __tablename__ = 'verification_codes'
+
+    id = Column(Integer, primary_key=True, index=True)
+    session_id = Column(Integer, ForeignKey('verification_sessions.id', ondelete='CASCADE'), nullable=True, index=True)  # NULL for magic_link_login
+    user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
+
+    # Code/Token
+    code_hash = Column(String(255), nullable=True)  # Hashed 6-digit code for email verification
+    token = Column(String(64), unique=True, nullable=True, index=True)  # Magic Link token
+
+    # Purpose
+    purpose = Column(String(30), nullable=False)  # email_code, magic_link, magic_link_login
+
+    # Magic Link device binding
+    device_token = Column(String(64), nullable=True)  # For device verification
+
+    # Attempt tracking
+    attempts = Column(Integer, default=0)
+    max_attempts = Column(Integer, default=5)
+
+    # Status
+    is_used = Column(Boolean, default=False)
+    expires_at = Column(DateTime, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    used_at = Column(DateTime, nullable=True)
+
+    # Relationships
+    user = relationship('User')
+    verification_session = relationship('VerificationSession', back_populates='verification_codes')
+
+
+class UserTOTP(Base):
+    """TOTP (Time-based One-Time Password) settings for a user"""
+    __tablename__ = 'user_totp'
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False, unique=True, index=True)
+
+    # TOTP configuration
+    secret_encrypted = Column(String(255), nullable=False)  # Fernet encrypted TOTP secret
+    name = Column(String(100), default='Authenticator')  # Device/app name
+
+    # Backup codes (hashed)
+    backup_codes_hash = Column(Text, nullable=True)  # JSON: list of hashed backup codes
+
+    # Status
+    is_enabled = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    last_used_at = Column(DateTime, nullable=True)
+
+    # Relationships
+    user = relationship('User', back_populates='totp')

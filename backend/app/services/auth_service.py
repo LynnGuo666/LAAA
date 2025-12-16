@@ -116,6 +116,7 @@ class AuthService:
         scope: str,
         remember_me: bool = False,
         device_name: Optional[str] = None,
+        device_token: Optional[str] = None,
         ip_address: Optional[str] = None,
         user_agent: Optional[str] = None,
         login_method: str = "password"
@@ -211,6 +212,9 @@ class AuthService:
             if device_name:
                 session_record.device_name = device_display_name
             session_record.device_type = device_type
+            # Update device_token if provided
+            if device_token:
+                session_record.device_token = device_token
             # Update geo info
             if geo_info:
                 session_record.country = geo_info.get('country')
@@ -224,6 +228,7 @@ class AuthService:
                 device_id=device_id,
                 device_name=device_display_name,
                 device_type=device_type,
+                device_token=device_token,
                 refresh_token_hash=hash_token(refresh_token),
                 ip_address=safe_ip_address,
                 user_agent=safe_user_agent,
@@ -271,10 +276,15 @@ class AuthService:
         anomalies: Optional[List[Dict[str, Any]]] = None,
         kicked_session_id: Optional[int] = None,
         session_id: Optional[int] = None,
-        login_method: str = "password"
+        login_method: str = "password",
+        is_suspicious: Optional[bool] = None
     ) -> LoginLog:
         """Record a login attempt in the log"""
         from app.utils.device import get_device_name, parse_device_type
+
+        # Calculate is_suspicious if not explicitly provided
+        if is_suspicious is None:
+            is_suspicious = any(a.get('severity') in ('medium', 'high') for a in (anomalies or []))
 
         log = LoginLog(
             user_id=user.id if user else None,
@@ -289,7 +299,7 @@ class AuthService:
             city=geo_info.get('city') if geo_info else None,
             latitude=geo_info.get('latitude') if geo_info else None,
             longitude=geo_info.get('longitude') if geo_info else None,
-            is_suspicious=any(a.get('severity') in ('medium', 'high') for a in (anomalies or [])),
+            is_suspicious=is_suspicious,
             suspicious_reasons=json.dumps(anomalies) if anomalies else None,
             kicked_session_id=kicked_session_id,
             session_id=session_id,

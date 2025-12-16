@@ -6,7 +6,7 @@ from app.database import get_db
 from app.schemas import TokenRequest, UserInfoResponse
 from app.services.oauth_service import OAuthService
 from app.middleware.auth import get_optional_user
-from app.models import User
+from app.models import User, Passkey
 from app.utils.security import create_id_token, decode_token, verify_client_secret
 from app.config import get_settings
 from urllib.parse import quote
@@ -86,6 +86,19 @@ async def authorize_get(
             detail="您没有权限访问此应用"
         )
 
+    # Check if user is in restricted mode
+    has_totp = getattr(current_user, 'totp_enabled', False) or False
+    passkey_count = db.query(Passkey).filter(Passkey.user_id == current_user.id).count()
+    is_restricted = not (
+        current_user.email_verified
+        and (has_totp or passkey_count > 0)
+    )
+    if is_restricted:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="您的账户处于受限模式，请先完成邮箱验证和二次验证设置"
+        )
+
     # Check if client is trusted or user has already authorized
     if client.trusted or OAuthService.has_user_authorized_client(db, current_user.id, client.id):
         # Auto-approve
@@ -158,6 +171,19 @@ async def authorize_post(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="您没有权限访问此应用"
+        )
+
+    # Check if user is in restricted mode
+    has_totp = getattr(current_user, 'totp_enabled', False) or False
+    passkey_count = db.query(Passkey).filter(Passkey.user_id == current_user.id).count()
+    is_restricted = not (
+        current_user.email_verified
+        and (has_totp or passkey_count > 0)
+    )
+    if is_restricted:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="您的账户处于受限模式，请先完成邮箱验证和二次验证设置"
         )
 
     # Handle denial

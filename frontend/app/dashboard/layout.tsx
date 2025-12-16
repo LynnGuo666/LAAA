@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useAuthStore } from '@/lib/store';
 import { authApi, siteApi } from '@/lib/api';
 import { isAdmin } from '@/lib/authz';
+import RestrictedModeOverlay from '@/components/RestrictedModeOverlay';
 
 type NavItem = { href: string; label: string };
 
@@ -60,6 +61,17 @@ export default function DashboardLayout({
     router.push('/login');
   };
 
+  const handleRestrictedModeComplete = () => {
+    // Refresh user data to check if restriction is lifted
+    authApi.getMe()
+      .then((response) => {
+        setUser(response.data);
+      })
+      .catch(() => {
+        // ignore
+      });
+  };
+
   if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -81,6 +93,16 @@ export default function DashboardLayout({
   ];
 
   const userIsAdmin = isAdmin(user);
+
+  // Show restricted mode overlay if user is restricted
+  if (user.is_restricted) {
+    return (
+      <RestrictedModeOverlay
+        user={user}
+        onComplete={handleRestrictedModeComplete}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">

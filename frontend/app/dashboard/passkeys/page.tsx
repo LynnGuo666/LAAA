@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { passkeyApi } from '@/lib/api';
+import { useAuthStore } from '@/lib/store';
+import { Check, AlertTriangle } from 'lucide-react';
 import {
   isWebAuthnSupported,
   isPlatformAuthenticatorAvailable,
@@ -13,6 +15,7 @@ import {
 } from '@/lib/webauthn';
 
 export default function PasskeysPage() {
+  const user = useAuthStore((s) => s.user);
   const [passkeys, setPasskeys] = useState<PasskeyCredential[]>([]);
   const [loading, setLoading] = useState(true);
   const [webAuthnSupported, setWebAuthnSupported] = useState(false);
@@ -161,17 +164,28 @@ export default function PasskeysPage() {
         </div>
       )}
 
+      {user && !user.email_verified && (
+        <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 mb-6">
+          <div className="flex items-center gap-3">
+            <AlertTriangle className="w-5 h-5 text-yellow-600 dark:text-yellow-500 flex-shrink-0" />
+            <p className="text-yellow-800 dark:text-yellow-200">
+              绑定通行密钥需要先验证邮箱。请前往控制台首页重新发送验证邮件。
+            </p>
+          </div>
+        </div>
+      )}
+
       <div className="mb-6">
         <button
           onClick={handleRegister}
-          disabled={!webAuthnSupported || registering}
+          disabled={!webAuthnSupported || registering || !user?.email_verified}
           className="btn btn-primary"
         >
           {registering ? '正在注册...' : '添加通行密钥'}
         </button>
         {platformAvailable && (
-          <span className="ml-3 text-sm text-green-600 dark:text-green-400">
-            ✓ 检测到平台认证器（指纹/面容）
+          <span className="ml-3 text-sm text-green-600 dark:text-green-400 inline-flex items-center gap-1">
+            <Check className="w-4 h-4" /> 检测到平台认证器(指纹/面容)
           </span>
         )}
       </div>

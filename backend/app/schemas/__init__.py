@@ -23,6 +23,7 @@ class UserResponse(UserBase):
     id: int
     avatar: Optional[str] = None
     status: str
+    email_verified: bool = False
     created_at: datetime
 
     class Config:
@@ -34,6 +35,7 @@ class UserMeResponse(UserResponse):
     roles: List[str] = []
     permissions: List[str] = []
     is_admin: bool = False
+    is_restricted: bool = False  # 受限模式：需要完成邮箱验证 + 二次验证
 
 
 # Auth Schemas
@@ -42,6 +44,7 @@ class LoginRequest(BaseModel):
     password: str
     remember_me: bool = False
     device_name: Optional[str] = None
+    device_token: Optional[str] = None  # Device token from localStorage for device identification
 
 
 class TokenResponse(BaseModel):
@@ -249,3 +252,148 @@ class ChangePasswordRequest(BaseModel):
     """Request to change user password"""
     current_password: str = Field(..., min_length=1)
     new_password: str = Field(..., min_length=6)
+
+
+# Verification Schemas (Risk-based Multi-step Verification)
+class VerificationMethodInfo(BaseModel):
+    """Information about an available verification method"""
+    method: str  # email_code, magic_link, totp, passkey
+    strength: str  # standard, strong
+    available: bool = True  # Whether user can use this method
+
+
+class AnomalyInfo(BaseModel):
+    """Information about a detected anomaly"""
+    type: str
+    score: int
+    message: str
+
+
+class VerificationRequiredResponse(BaseModel):
+    """Response when verification is required (202)"""
+    requires_verification: bool = True
+    session_token: str
+    risk_level: str  # low, medium, high
+    risk_score: int
+    required_verifications: int
+    completed_verifications: int
+    email_masked: str
+    available_methods: List[VerificationMethodInfo]
+    anomalies: List[AnomalyInfo]
+
+
+class VerificationStatusResponse(BaseModel):
+    """Current verification session status"""
+    session_token: str
+    risk_level: str
+    required_verifications: int
+    completed_verifications: int
+    completed_methods: List[str]
+    remaining_methods: List[VerificationMethodInfo]
+    is_complete: bool
+    expires_at: str
+
+
+class VerificationCompleteResponse(BaseModel):
+    """Response when verification is complete"""
+    verification_complete: bool = True
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+    expires_in: int
+
+
+class SendEmailCodeRequest(BaseModel):
+    """Request to send email verification code"""
+    session_token: str
+
+
+class VerifyEmailCodeRequest(BaseModel):
+    """Request to verify email code"""
+    session_token: str
+    code: str = Field(..., min_length=6, max_length=6)
+
+
+class VerifyTOTPRequest(BaseModel):
+    """Request to verify TOTP code"""
+    session_token: str
+    code: str = Field(..., min_length=6, max_length=6)
+
+
+class VerifyBackupCodeRequest(BaseModel):
+    """Request to verify backup code"""
+    session_token: str
+    code: str = Field(..., min_length=8, max_length=8)
+
+
+class SendMagicLinkRequest(BaseModel):
+    """Request to send magic link"""
+    session_token: str
+
+
+class MagicLinkLoginRequest(BaseModel):
+    """Request for magic link independent login"""
+    email: EmailStr
+
+
+class PasskeyVerifyRequest(BaseModel):
+    """Request to start passkey verification"""
+    session_token: str
+
+
+class PasskeyVerifyCompleteRequest(BaseModel):
+    """Request to complete passkey verification"""
+    session_token: str
+    credential: Dict[str, Any]
+
+
+# TOTP Schemas
+class TOTPSetupResponse(BaseModel):
+    """Response for TOTP setup initiation"""
+    secret: str
+    provisioning_uri: str
+    qr_code: str  # Base64 encoded QR code image
+
+
+class TOTPVerifySetupRequest(BaseModel):
+    """Request to verify and enable TOTP"""
+    code: str = Field(..., min_length=6, max_length=6)
+
+
+class TOTPEnableResponse(BaseModel):
+    """Response after TOTP is enabled"""
+    enabled: bool = True
+    backup_codes: List[str]
+
+
+class TOTPStatusResponse(BaseModel):
+    """TOTP status for a user"""
+    enabled: bool
+    name: Optional[str] = None
+    backup_codes_remaining: int
+    last_used_at: Optional[str] = None
+
+
+class TOTPDisableRequest(BaseModel):
+    """Request to disable TOTP"""
+    password: str
+
+
+class TOTPBackupCodesRequest(BaseModel):
+    """Request to view/regenerate backup codes"""
+    password: str
+
+
+class TOTPBackupCodesResponse(BaseModel):
+    """Response with backup codes"""
+    backup_codes: List[str]
+
+
+class SkipVerificationRequest(BaseModel):
+    """Request to skip verification and enter restricted mode"""
+    session_token: str
+
+
+class ChangeEmailRequest(BaseModel):
+    """Request to change user email"""
+    new_email: EmailStr

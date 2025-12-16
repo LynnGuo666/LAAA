@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { useAuthStore } from './store';
+import { getDeviceToken } from './device';
 
 const rawApiUrl = process.env.NEXT_PUBLIC_API_URL?.trim() || '';
 export const API_URL = rawApiUrl.replace(/\/+$/, '');
@@ -73,7 +74,13 @@ export const authApi = {
     api.post('/api/auth/register', { username, email, password, invite_code: inviteCode }),
 
   login: (username: string, password: string, rememberMe: boolean = false, deviceName?: string) =>
-    api.post('/api/auth/login', { username, password, remember_me: rememberMe, device_name: deviceName }),
+    api.post('/api/auth/login', {
+      username,
+      password,
+      remember_me: rememberMe,
+      device_name: deviceName,
+      device_token: getDeviceToken()
+    }),
 
   logout: (refreshToken: string) =>
     api.post('/api/auth/logout', { refresh_token: refreshToken }),
@@ -82,6 +89,17 @@ export const authApi = {
     const headers = token ? { Authorization: `Bearer ${token}` } : {};
     return api.get('/api/auth/me', { headers });
   },
+
+  // Email verification
+  sendVerificationEmail: () =>
+    api.post('/api/auth/send-verification-email'),
+
+  verifyEmail: (token: string) =>
+    api.get(`/api/auth/verify-email/${token}`),
+
+  // Change email (available in restricted mode)
+  changeEmail: (newEmail: string) =>
+    api.post('/api/auth/change-email', { new_email: newEmail }),
 };
 
 // Site API (public + admin)
@@ -323,8 +341,12 @@ export const passkeyApi = {
     authenticatorAttachment?: string;
     remember_me?: boolean;
     device_name?: string;
+    device_token?: string;
   }) =>
-    axios.post(`${API_URL}/api/passkeys/authenticate/verify`, data),
+    axios.post(`${API_URL}/api/passkeys/authenticate/verify`, {
+      ...data,
+      device_token: data.device_token || getDeviceToken()
+    }),
 
   // Check if user has passkeys (no auth required)
   checkUserPasskeys: (username: string) =>
@@ -341,6 +363,86 @@ export const passkeyApi = {
   // Delete passkey (requires auth)
   delete: (id: number) =>
     api.delete(`/api/passkeys/${id}`),
+};
+
+// Verification API (for multi-step verification during login)
+export const verificationApi = {
+  // Get verification session status
+  getStatus: (sessionToken: string) =>
+    axios.get(`${API_URL}/api/auth/verify/status/${sessionToken}`),
+
+  // Send email verification code
+  sendEmailCode: (sessionToken: string) =>
+    axios.post(`${API_URL}/api/auth/verify/email-code/send`, { session_token: sessionToken }),
+
+  // Verify email code
+  verifyEmailCode: (sessionToken: string, code: string) =>
+    axios.post(`${API_URL}/api/auth/verify/email-code`, { session_token: sessionToken, code }),
+
+  // Verify TOTP code
+  verifyTOTP: (sessionToken: string, code: string) =>
+    axios.post(`${API_URL}/api/auth/verify/totp`, { session_token: sessionToken, code }),
+
+  // Verify backup code
+  verifyBackupCode: (sessionToken: string, code: string) =>
+    axios.post(`${API_URL}/api/auth/verify/backup-code`, { session_token: sessionToken, code }),
+
+  // Send magic link
+  sendMagicLink: (sessionToken: string) =>
+    axios.post(`${API_URL}/api/auth/verify/magic-link/send`, { session_token: sessionToken }, { withCredentials: true }),
+
+  // Verify magic link (called from magic link page)
+  verifyMagicLink: (token: string, sessionToken: string) =>
+    axios.get(`${API_URL}/api/auth/verify/magic-link/${token}`, {
+      params: { session: sessionToken },
+      withCredentials: true
+    }),
+
+  // Start passkey verification
+  startPasskeyVerification: (sessionToken: string) =>
+    axios.post(`${API_URL}/api/auth/verify/passkey/start`, { session_token: sessionToken }),
+
+  // Complete passkey verification
+  completePasskeyVerification: (sessionToken: string, credential: object) =>
+    axios.post(`${API_URL}/api/auth/verify/passkey/complete`, {
+      session_token: sessionToken,
+      credential
+    }),
+
+  // Magic Link independent login - send
+  sendMagicLinkLogin: (email: string) =>
+    axios.post(`${API_URL}/api/auth/magic-link/login`, { email }, { withCredentials: true }),
+
+  // Magic Link independent login - verify
+  verifyMagicLinkLogin: (token: string) =>
+    axios.get(`${API_URL}/api/auth/magic-link/login/${token}`, { withCredentials: true }),
+
+  // Skip verification (enter restricted mode)
+  skipVerification: (sessionToken: string) =>
+    axios.post(`${API_URL}/api/auth/verify/skip`, { session_token: sessionToken }),
+};
+
+// TOTP API (Two-Factor Authentication)
+export const totpApi = {
+  // Get TOTP status
+  getStatus: () =>
+    api.get('/api/totp/status'),
+
+  // Start TOTP setup
+  setup: () =>
+    api.post('/api/totp/setup'),
+
+  // Verify and enable TOTP
+  verifySetup: (code: string) =>
+    api.post('/api/totp/verify-setup', { code }),
+
+  // Disable TOTP
+  disable: (password: string) =>
+    api.delete('/api/totp', { data: { password } }),
+
+  // Regenerate backup codes
+  regenerateBackupCodes: (password: string) =>
+    api.post('/api/totp/backup-codes', { password }),
 };
 
 export default api;

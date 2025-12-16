@@ -26,6 +26,13 @@ async def create_client(
     db: Session = Depends(get_db)
 ):
     """Create a new OAuth client application"""
+    # Check email verification
+    if not current_user.email_verified:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="创建应用需要先验证邮箱"
+        )
+
     # Generate client_id and client_secret
     client_id = f"client_{generate_random_string(16)}"
     client_secret = generate_random_string(32)

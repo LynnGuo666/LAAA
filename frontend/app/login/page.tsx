@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { authApi, passkeyApi, API_URL } from '@/lib/api';
+import { authApi, passkeyApi, API_URL, verificationApi } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import axios from 'axios';
 import {
@@ -29,6 +29,26 @@ interface SecurityInfo {
     type: string;
     message: string;
     severity: string;
+  }>;
+}
+
+interface VerificationRequired {
+  requires_verification: boolean;
+  session_token: string;
+  risk_level: string;
+  risk_score: number;
+  required_verifications: number;
+  completed_verifications: number;
+  email_masked: string;
+  available_methods: Array<{
+    method: string;
+    strength: string;
+    available: boolean;
+  }>;
+  anomalies: Array<{
+    type: string;
+    score: number;
+    message: string;
   }>;
 }
 
@@ -110,6 +130,19 @@ function LoginContent() {
         formData.rememberMe ? deviceName : undefined
       );
 
+      // Check if verification is required (202 response)
+      if (response.status === 202) {
+        const verificationData: VerificationRequired = response.data;
+        // Store verification session in sessionStorage
+        sessionStorage.setItem('verification_session', JSON.stringify({
+          ...verificationData,
+          redirect: redirectUrl || '/dashboard'
+        }));
+        // Redirect to verification page
+        router.push('/login/verify');
+        return;
+      }
+
       const { access_token, refresh_token, kicked_session, is_suspicious, anomalies } = response.data;
 
       // 保存安全信息用于显示
@@ -128,6 +161,10 @@ function LoginContent() {
       // 然后保存 token 和用户信息
       localStorage.setItem('access_token', access_token);
       localStorage.setItem('refresh_token', refresh_token);
+
+      // Also set session cookie for OAuth authorize endpoint
+      const maxAge = 60 * 60 * 24 * 7; // 7 days
+      document.cookie = `session_token=${access_token}; path=/; max-age=${maxAge}; SameSite=Lax`;
 
       // 设置认证状态
       setAuth(user, access_token, refresh_token);
@@ -150,6 +187,16 @@ function LoginContent() {
       }, redirectDelay);
     } catch (err: any) {
       console.error('登录错误:', err);
+      // Check if this is a 202 response (axios doesn't treat 202 as error by default, but just in case)
+      if (err.response?.status === 202) {
+        const verificationData: VerificationRequired = err.response.data;
+        sessionStorage.setItem('verification_session', JSON.stringify({
+          ...verificationData,
+          redirect: redirectUrl || '/dashboard'
+        }));
+        router.push('/login/verify');
+        return;
+      }
       const errorMsg = err.response?.data?.detail || err.message || '登录失败，请重试';
       setError(errorMsg);
     } finally {
@@ -183,6 +230,17 @@ function LoginContent() {
         device_name: formData.rememberMe ? deviceName : undefined,
       });
 
+      // Check if verification is required (202 response)
+      if (response.status === 202) {
+        const verificationData: VerificationRequired = response.data;
+        sessionStorage.setItem('verification_session', JSON.stringify({
+          ...verificationData,
+          redirect: redirectUrl || '/dashboard'
+        }));
+        router.push('/login/verify');
+        return;
+      }
+
       const { access_token, refresh_token } = response.data;
 
       // Get user info
@@ -192,6 +250,10 @@ function LoginContent() {
       // Save tokens
       localStorage.setItem('access_token', access_token);
       localStorage.setItem('refresh_token', refresh_token);
+
+      // Also set session cookie for OAuth authorize endpoint
+      const maxAge = 60 * 60 * 24 * 7; // 7 days
+      document.cookie = `session_token=${access_token}; path=/; max-age=${maxAge}; SameSite=Lax`;
 
       // Set auth state
       setAuth(user, access_token, refresh_token);
@@ -204,6 +266,16 @@ function LoginContent() {
       }
     } catch (err: any) {
       console.error('Passkey login failed', err);
+      // Check if this is a 202 response
+      if (err.response?.status === 202) {
+        const verificationData: VerificationRequired = err.response.data;
+        sessionStorage.setItem('verification_session', JSON.stringify({
+          ...verificationData,
+          redirect: redirectUrl || '/dashboard'
+        }));
+        router.push('/login/verify');
+        return;
+      }
       if (err.name === 'NotAllowedError') {
         setError('用户取消了操作');
       } else if (err.response?.data?.detail) {

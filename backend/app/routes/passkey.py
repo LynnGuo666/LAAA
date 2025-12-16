@@ -4,8 +4,9 @@ Passkey/WebAuthn API routes
 
 import json
 from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Union
 
 from app.database import get_db
 from app.schemas.passkey import (
@@ -16,9 +17,12 @@ from app.schemas.passkey import (
     PasskeyResponse,
     PasskeyCheckResponse,
 )
-from app.schemas import TokenResponse
+from app.schemas import TokenResponse, VerificationRequiredResponse
 from app.services.passkey_service import PasskeyService
 from app.services.auth_service import AuthService
+from app.services.risk_service import RiskService, RiskLevel
+from app.services.verification_service import VerificationService
+from app.services.geoip_service import GeoIPService
 from app.middleware.auth import get_current_user
 from app.models import User, Passkey
 from app.config import get_settings
@@ -60,6 +64,13 @@ async def get_registration_options(
     Generate WebAuthn registration options for authenticated user.
     Returns challenge, RP info, user info, excludeCredentials.
     """
+    # Check email verification
+    if not current_user.email_verified:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="绑定通行密钥需要先验证邮箱"
+        )
+
     try:
         options = PasskeyService.generate_registration_options(db, current_user)
         return options
@@ -84,6 +95,13 @@ async def verify_registration(
     """
     Verify registration response and store credential.
     """
+    # Check email verification
+    if not current_user.email_verified:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="绑定通行密钥需要先验证邮箱"
+        )
+
     try:
         # Convert schema to dict format expected by webauthn library
         credential_data = {
@@ -135,7 +153,7 @@ async def get_authentication_options(
         )
 
 
-@router.post("/authenticate/verify", response_model=TokenResponse)
+@router.post("/authenticate/verify", response_model=Union[TokenResponse, VerificationRequiredResponse])
 async def verify_authentication(
     data: PasskeyAuthenticationVerify,
     request: Request,
@@ -143,6 +161,9 @@ async def verify_authentication(
 ):
     """
     Verify authentication response and issue tokens.
+
+    If suspicious activity is detected (unknown IP city or device), returns 202
+    with verification requirements. Otherwise returns tokens directly.
     """
     try:
         # Convert schema to dict format expected by webauthn library
@@ -161,7 +182,70 @@ async def verify_authentication(
         client_ip = get_client_ip(request)
         user_agent = request.headers.get("user-agent", "")
 
-        # Create tokens (same as password login)
+        # Get geo info
+        geo_info = GeoIPService.get_location(client_ip)
+        city = geo_info.get("city") if geo_info else None
+
+        # Assess risk for passkey login (lower risk than password)
+        if settings.block_suspicious_login:
+            risk_assessment = RiskService.assess_passkey_login_risk(
+                db=db,
+                user=user,
+                city=city,
+                device_token=data.device_token
+            )
+
+            # If risk detected, create verification session
+            if risk_assessment.risk_level != RiskLevel.NONE:
+                verification_session = VerificationService.create_verification_session(
+                    db=db,
+                    user=user,
+                    risk_assessment=risk_assessment,
+                    ip_address=client_ip,
+                    user_agent=user_agent,
+                    device_name=data.device_name or f"Passkey: {passkey.name}",
+                    device_token=data.device_token,
+                    remember_me=data.remember_me
+                )
+
+                # Get available verification methods
+                available_methods = RiskService.get_available_methods(
+                    user=user,
+                    risk_level=risk_assessment.risk_level
+                )
+
+                # Record login log as pending verification
+                AuthService.record_login_log(
+                    db,
+                    user=user,
+                    username=user.username,
+                    success=False,
+                    failure_reason="pending_verification",
+                    ip_address=client_ip,
+                    user_agent=user_agent,
+                    geo_info=geo_info,
+                    login_method="passkey",
+                    is_suspicious=True,
+                    anomalies=[a.to_dict() for a in risk_assessment.anomalies]
+                )
+
+                # Return 202 with verification requirements
+                return JSONResponse(
+                    status_code=status.HTTP_202_ACCEPTED,
+                    content={
+                        "requires_verification": True,
+                        "session_token": verification_session.session_token,
+                        "risk_level": risk_assessment.risk_level.value,
+                        "risk_score": risk_assessment.risk_score,
+                        "required_verifications": risk_assessment.required_verifications,
+                        "completed_verifications": 0,
+                        "email_masked": RiskService.mask_email(user.email),
+                        "available_methods": available_methods,
+                        "anomalies": [a.to_dict() for a in risk_assessment.anomalies]
+                    }
+                )
+
+        # No risk or risk detection disabled - create tokens directly
         token_result = AuthService.create_tokens(
             db,
             user=user,
@@ -169,6 +253,7 @@ async def verify_authentication(
             scope="profile email",
             remember_me=data.remember_me,
             device_name=data.device_name or f"Passkey: {passkey.name}",
+            device_token=data.device_token,
             ip_address=client_ip,
             user_agent=user_agent,
             login_method="passkey"
