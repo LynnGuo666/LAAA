@@ -64,6 +64,9 @@ htmlcov/
 *.db
 backend/oauth.db
 
+# GeoIP database
+backend/data/GeoLite2-*.mmdb
+
 # Static and temporary
 *.tmp
 *.temp

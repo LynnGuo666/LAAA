@@ -138,9 +138,8 @@ class AuthService:
         safe_user_agent = user_agent or "unknown"
         safe_ip_address = ip_address or "unknown"
 
-        device_id: Optional[str] = None
-        if remember_me:
-            device_id = generate_device_id(user.id, safe_user_agent, safe_ip_address)
+        # Always generate device_id for session tracking
+        device_id = generate_device_id(user.id, safe_user_agent, safe_ip_address)
 
         # Get GeoIP information
         geo_info = GeoIPService.get_location(safe_ip_address)
@@ -153,11 +152,10 @@ class AuthService:
 
         # Check and enforce session limits
         kicked_session = None
-        if remember_me and device_id:
-            allowed, kicked_info = SessionLimitService.check_and_enforce_limit(
-                db, user, device_id
-            )
-            kicked_session = kicked_info
+        allowed, kicked_info = SessionLimitService.check_and_enforce_limit(
+            db, user, device_id
+        )
+        kicked_session = kicked_info
 
         # Resolve client early so tokens are bound to a real client_id
         from app.models import Client
@@ -171,9 +169,8 @@ class AuthService:
             "sub": str(user.id),
             "scope": scope,
             "client_id": client.client_id if client else client_id,
+            "device_id": device_id,  # Always include device_id
         }
-        if device_id:
-            token_data["device_id"] = device_id
         access_token = create_access_token(token_data)
         refresh_token = create_refresh_token(token_data, remember_me)
 
@@ -195,48 +192,46 @@ class AuthService:
         )
         db.add(refresh_token_record)
 
-        # Create or update session if remember_me
-        session_record = None
-        if remember_me:
-            device_type = parse_device_type(safe_user_agent)
-            device_display_name = device_name or get_device_name(safe_user_agent)
+        # Create or update session (always, not just when remember_me)
+        device_type = parse_device_type(safe_user_agent)
+        device_display_name = device_name or get_device_name(safe_user_agent)
 
-            # Check if session exists for this user+device
-            session_record = db.query(SessionModel).filter(
-                SessionModel.user_id == user.id,
-                SessionModel.device_id == device_id
-            ).first()
+        # Check if session exists for this user+device
+        session_record = db.query(SessionModel).filter(
+            SessionModel.user_id == user.id,
+            SessionModel.device_id == device_id
+        ).first()
 
-            if session_record:
-                session_record.refresh_token_hash = hash_token(refresh_token)
-                session_record.last_active = datetime.utcnow()
-                session_record.expires_at = refresh_expires
-                session_record.ip_address = safe_ip_address
-                session_record.user_agent = safe_user_agent
-                if device_name:
-                    session_record.device_name = device_display_name
-                session_record.device_type = device_type
-                # Update geo info
-                if geo_info:
-                    session_record.country = geo_info.get('country')
-                    session_record.city = geo_info.get('city')
-                # Clear kicked status if re-logging in
-                session_record.kicked_at = None
-                session_record.kicked_reason = None
-            else:
-                session_record = SessionModel(
-                    user_id=user.id,
-                    device_id=device_id,
-                    device_name=device_display_name,
-                    device_type=device_type,
-                    refresh_token_hash=hash_token(refresh_token),
-                    ip_address=safe_ip_address,
-                    user_agent=safe_user_agent,
-                    expires_at=refresh_expires,
-                    country=geo_info.get('country') if geo_info else None,
-                    city=geo_info.get('city') if geo_info else None
-                )
-                db.add(session_record)
+        if session_record:
+            session_record.refresh_token_hash = hash_token(refresh_token)
+            session_record.last_active = datetime.utcnow()
+            session_record.expires_at = refresh_expires
+            session_record.ip_address = safe_ip_address
+            session_record.user_agent = safe_user_agent
+            if device_name:
+                session_record.device_name = device_display_name
+            session_record.device_type = device_type
+            # Update geo info
+            if geo_info:
+                session_record.country = geo_info.get('country')
+                session_record.city = geo_info.get('city')
+            # Clear kicked status if re-logging in
+            session_record.kicked_at = None
+            session_record.kicked_reason = None
+        else:
+            session_record = SessionModel(
+                user_id=user.id,
+                device_id=device_id,
+                device_name=device_display_name,
+                device_type=device_type,
+                refresh_token_hash=hash_token(refresh_token),
+                ip_address=safe_ip_address,
+                user_agent=safe_user_agent,
+                expires_at=refresh_expires,
+                country=geo_info.get('country') if geo_info else None,
+                city=geo_info.get('city') if geo_info else None
+            )
+            db.add(session_record)
 
         db.commit()
 

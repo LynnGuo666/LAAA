@@ -275,7 +275,15 @@ async def update_security_settings(
     db: Session = Depends(get_db)
 ):
     """Update user security settings"""
+    is_admin = current_user.has_permission("admin.*") or current_user.has_role("admin")
+
     if settings_data.max_sessions is not None:
+        # Only admins can change max_sessions
+        if not is_admin:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="只有管理员可以修改最大设备数量"
+            )
         # Limit between 1 and 10
         current_user.max_sessions = max(1, min(10, settings_data.max_sessions))
 

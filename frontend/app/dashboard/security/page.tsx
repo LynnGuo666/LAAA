@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { userApi } from '@/lib/api';
+import { useAuthStore } from '@/lib/store';
+import { isAdmin } from '@/lib/authz';
 import Link from 'next/link';
 
 interface SecuritySettings {
@@ -24,10 +26,13 @@ interface LoginLog {
 }
 
 export default function SecurityPage() {
+  const { user } = useAuthStore();
   const [settings, setSettings] = useState<SecuritySettings | null>(null);
   const [loginHistory, setLoginHistory] = useState<LoginLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+
+  const adminUser = user && isAdmin(user);
 
   useEffect(() => {
     loadData();
@@ -122,16 +127,23 @@ export default function SecurityPage() {
             <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
               同时保持登录状态的设备数量。超出限制时，最早的会话将被自动登出。
             </p>
-            <select
-              value={settings?.max_sessions || 3}
-              onChange={(e) => handleUpdateSettings({ max_sessions: Number(e.target.value) })}
-              disabled={saving}
-              className="input w-32"
-            >
-              {[1, 2, 3, 4, 5].map(n => (
-                <option key={n} value={n}>{n} 个设备</option>
-              ))}
-            </select>
+            {adminUser ? (
+              <select
+                value={settings?.max_sessions || 3}
+                onChange={(e) => handleUpdateSettings({ max_sessions: Number(e.target.value) })}
+                disabled={saving}
+                className="input w-32"
+              >
+                {[1, 2, 3, 4, 5].map(n => (
+                  <option key={n} value={n}>{n} 个设备</option>
+                ))}
+              </select>
+            ) : (
+              <div className="text-sm text-gray-700 dark:text-gray-300">
+                {settings?.max_sessions || 3} 个设备
+                <span className="ml-2 text-xs text-gray-500">（由管理员设置）</span>
+              </div>
+            )}
           </div>
 
           <div className="flex items-center gap-3">
