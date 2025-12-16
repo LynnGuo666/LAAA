@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session as DBSession
 from sqlalchemy import or_, func
 from typing import List, Optional
+from datetime import datetime
 from app.database import get_db
-from app.models import User, Group, user_groups, Role, user_roles, Client, user_allowed_apps, user_denied_apps
+from app.models import User, Group, user_groups, Role, user_roles, Client, user_allowed_apps, user_denied_apps, LoginLog, Session, Passkey, UserAuthorization
 from app.schemas.admin import (
     AdminUserResponse,
     AdminUserCreate,
@@ -17,6 +18,11 @@ from app.schemas.admin import (
     ComputedAppPermission,
     ComputedAppPermissionsResponse,
     PaginatedUsersResponse,
+    AdminLoginLogResponse,
+    PaginatedLoginLogsResponse,
+    AdminSessionResponse,
+    AdminPasskeyResponse,
+    AdminAuthorizationResponse,
 )
 from app.middleware.auth import get_current_user
 from app.middleware.permission import require_permission
@@ -30,7 +36,7 @@ async def list_users(
     skip: int = 0,
     limit: int = 20,
     search: Optional[str] = Query(None, description="搜索用户名、邮箱或ID"),
-    db: Session = Depends(get_db),
+    db: DBSession = Depends(get_db),
     _: User = Depends(require_permission('admin.users'))
 ):
     """获取所有用户列表（管理员，支持分页和搜索）"""
@@ -73,7 +79,7 @@ async def list_users(
 @router.get("/users/{user_id}", response_model=AdminUserResponse)
 async def get_user(
     user_id: int,
-    db: Session = Depends(get_db),
+    db: DBSession = Depends(get_db),
     _: User = Depends(require_permission('admin.users'))
 ):
     """获取单个用户详情（管理员）"""
@@ -100,7 +106,7 @@ async def get_user(
 @router.post("/users", response_model=AdminUserResponse, status_code=status.HTTP_201_CREATED)
 async def create_user(
     user_data: AdminUserCreate,
-    db: Session = Depends(get_db),
+    db: DBSession = Depends(get_db),
     _: User = Depends(require_permission('admin.users'))
 ):
     """创建新用户（管理员）"""
@@ -147,7 +153,7 @@ async def create_user(
 async def update_user(
     user_id: int,
     user_data: AdminUserUpdate,
-    db: Session = Depends(get_db),
+    db: DBSession = Depends(get_db),
     _: User = Depends(require_permission('admin.users'))
 ):
     """更新用户信息（管理员）"""
@@ -200,7 +206,7 @@ async def update_user(
 @router.delete("/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_user(
     user_id: int,
-    db: Session = Depends(get_db),
+    db: DBSession = Depends(get_db),
     current_user: User = Depends(require_permission('admin.users'))
 ):
     """删除用户（管理员）"""
@@ -228,7 +234,7 @@ async def delete_user(
 async def update_user_groups(
     user_id: int,
     groups_data: AdminUserGroupsUpdate,
-    db: Session = Depends(get_db),
+    db: DBSession = Depends(get_db),
     _: User = Depends(require_permission('admin.users'))
 ):
     """更新用户所属的组（管理员）"""
@@ -273,7 +279,7 @@ async def update_user_groups(
 async def update_user_roles(
     user_id: int,
     roles_data: AdminUserRolesUpdate,
-    db: Session = Depends(get_db),
+    db: DBSession = Depends(get_db),
     _: User = Depends(require_permission('admin.roles'))
 ):
     """更新用户的角色（管理员）"""
@@ -315,7 +321,7 @@ async def update_user_roles(
 
 @router.get("/roles", response_model=List[RoleResponse])
 async def list_roles(
-    db: Session = Depends(get_db),
+    db: DBSession = Depends(get_db),
     _: User = Depends(require_permission('admin.roles'))
 ):
     """获取所有角色列表（管理员）"""
@@ -328,7 +334,7 @@ async def list_roles(
 @router.get("/users/{user_id}/app-permissions", response_model=UserAppPermissionsResponse)
 async def get_user_app_permissions(
     user_id: int,
-    db: Session = Depends(get_db),
+    db: DBSession = Depends(get_db),
     _: User = Depends(require_permission('admin.users'))
 ):
     """获取用户的应用权限"""
@@ -357,7 +363,7 @@ async def get_user_app_permissions(
 async def update_user_app_permissions(
     user_id: int,
     permissions: UserAppPermissionsUpdate,
-    db: Session = Depends(get_db),
+    db: DBSession = Depends(get_db),
     _: User = Depends(require_permission('admin.users'))
 ):
     """更新用户的应用权限"""
@@ -488,7 +494,7 @@ async def get_user_computed_app_permissions(
     skip: int = 0,
     limit: int = 20,
     search: Optional[str] = Query(None, description="搜索应用名称"),
-    db: Session = Depends(get_db),
+    db: DBSession = Depends(get_db),
     _: User = Depends(require_permission('admin.users'))
 ):
     """获取用户计算后的应用权限（分页）"""
@@ -525,7 +531,7 @@ async def update_user_single_app_permission(
     user_id: int,
     app_id: int,
     permission: Optional[str] = Query(None, description="权限设置: allowed, denied, null(清除)"),
-    db: Session = Depends(get_db),
+    db: DBSession = Depends(get_db),
     _: User = Depends(require_permission('admin.users'))
 ):
     """更新用户对单个应用的权限"""
@@ -560,3 +566,157 @@ async def update_user_single_app_permission(
     db.refresh(user)
 
     return _compute_app_permission(user, client)
+
+
+# ==================== User Login Logs ====================
+
+@router.get("/users/{user_id}/login-logs", response_model=PaginatedLoginLogsResponse)
+async def get_user_login_logs(
+    user_id: int,
+    skip: int = 0,
+    limit: int = 20,
+    db: DBSession = Depends(get_db),
+    _: User = Depends(require_permission('admin.users'))
+):
+    """获取用户的登录日志（管理员）"""
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="用户不存在"
+        )
+
+    query = db.query(LoginLog).filter(LoginLog.user_id == user_id)
+    total = query.count()
+    logs = query.order_by(LoginLog.created_at.desc()).offset(skip).limit(limit).all()
+
+    return PaginatedLoginLogsResponse(
+        total=total,
+        items=[AdminLoginLogResponse.model_validate(log) for log in logs]
+    )
+
+
+# ==================== User Sessions ====================
+
+@router.get("/users/{user_id}/sessions", response_model=List[AdminSessionResponse])
+async def get_user_sessions(
+    user_id: int,
+    db: DBSession = Depends(get_db),
+    _: User = Depends(require_permission('admin.users'))
+):
+    """获取用户的活跃会话（管理员）"""
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="用户不存在"
+        )
+
+    sessions = db.query(Session).filter(
+        Session.user_id == user_id,
+        Session.expires_at > datetime.utcnow()
+    ).order_by(Session.last_active.desc()).all()
+
+    return [AdminSessionResponse.model_validate(s) for s in sessions]
+
+
+@router.delete("/users/{user_id}/sessions/{session_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def revoke_user_session(
+    user_id: int,
+    session_id: int,
+    db: DBSession = Depends(get_db),
+    _: User = Depends(require_permission('admin.users'))
+):
+    """强制登出用户的单个会话（管理员）"""
+    session = db.query(Session).filter(
+        Session.id == session_id,
+        Session.user_id == user_id
+    ).first()
+
+    if not session:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="会话不存在"
+        )
+
+    db.delete(session)
+    db.commit()
+    return None
+
+
+@router.delete("/users/{user_id}/sessions", status_code=status.HTTP_200_OK)
+async def revoke_all_user_sessions(
+    user_id: int,
+    db: DBSession = Depends(get_db),
+    _: User = Depends(require_permission('admin.users'))
+):
+    """强制登出用户的所有会话（管理员）"""
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="用户不存在"
+        )
+
+    count = db.query(Session).filter(Session.user_id == user_id).delete()
+    db.commit()
+
+    return {"message": f"已登出 {count} 个会话"}
+
+
+# ==================== User Passkeys ====================
+
+@router.get("/users/{user_id}/passkeys", response_model=List[AdminPasskeyResponse])
+async def get_user_passkeys(
+    user_id: int,
+    db: DBSession = Depends(get_db),
+    _: User = Depends(require_permission('admin.users'))
+):
+    """获取用户的通行密钥（管理员）"""
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="用户不存在"
+        )
+
+    passkeys = db.query(Passkey).filter(Passkey.user_id == user_id).order_by(Passkey.created_at.desc()).all()
+
+    return [AdminPasskeyResponse.model_validate(p) for p in passkeys]
+
+
+# ==================== User Authorizations ====================
+
+@router.get("/users/{user_id}/authorizations", response_model=List[AdminAuthorizationResponse])
+async def get_user_authorizations(
+    user_id: int,
+    db: DBSession = Depends(get_db),
+    _: User = Depends(require_permission('admin.users'))
+):
+    """获取用户的应用授权记录（管理员）"""
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="用户不存在"
+        )
+
+    authorizations = db.query(UserAuthorization).filter(
+        UserAuthorization.user_id == user_id
+    ).order_by(UserAuthorization.updated_at.desc()).all()
+
+    result = []
+    for auth in authorizations:
+        client = db.query(Client).filter(Client.id == auth.client_id).first()
+        if client:
+            result.append(AdminAuthorizationResponse(
+                id=auth.id,
+                client_id=client.client_id,
+                client_name=client.name,
+                client_logo=client.logo,
+                scope=auth.scope,
+                created_at=auth.created_at,
+                updated_at=auth.updated_at
+            ))
+
+    return result

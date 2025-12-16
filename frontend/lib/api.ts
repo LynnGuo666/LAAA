@@ -295,6 +295,28 @@ export const adminApi = {
 
   updateInvite: (id: number, data: { is_active?: boolean; expires_at?: string | null; max_uses?: number | null; note?: string | null }) =>
     api.put(`/api/admin/invites/${id}`, data),
+
+  // 用户登录日志
+  getUserLoginLogs: (userId: number, params: { skip?: number; limit?: number } = {}) =>
+    api.get(`/api/admin/users/${userId}/login-logs`, { params }),
+
+  // 用户会话管理
+  getUserSessions: (userId: number) =>
+    api.get(`/api/admin/users/${userId}/sessions`),
+
+  revokeUserSession: (userId: number, sessionId: number) =>
+    api.delete(`/api/admin/users/${userId}/sessions/${sessionId}`),
+
+  revokeAllUserSessions: (userId: number) =>
+    api.delete(`/api/admin/users/${userId}/sessions`),
+
+  // 用户通行密钥
+  getUserPasskeys: (userId: number) =>
+    api.get(`/api/admin/users/${userId}/passkeys`),
+
+  // 用户授权记录
+  getUserAuthorizations: (userId: number) =>
+    api.get(`/api/admin/users/${userId}/authorizations`),
 };
 
 // Group API extensions for app permissions

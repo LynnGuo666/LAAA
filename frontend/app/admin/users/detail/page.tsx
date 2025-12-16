@@ -1,0 +1,634 @@
+'use client';
+
+import { useEffect, useState, useCallback } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { adminApi, groupApi } from '@/lib/api';
+import { useAuthStore } from '@/lib/store';
+import { isAdmin } from '@/lib/authz';
+
+interface User {
+  id: number;
+  username: string;
+  email: string;
+  avatar?: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+  groups: string[];
+  roles: string[];
+}
+
+interface Group {
+  id: number;
+  name: string;
+  description?: string;
+}
+
+interface Role {
+  id: number;
+  name: string;
+  description?: string;
+  level: number;
+}
+
+interface LoginLog {
+  id: number;
+  username: string;
+  success: boolean;
+  failure_reason?: string;
+  ip_address?: string;
+  device_type?: string;
+  country?: string;
+  city?: string;
+  login_method?: string;
+  is_suspicious: boolean;
+  created_at: string;
+}
+
+interface Session {
+  id: number;
+  device_id: string;
+  device_name?: string;
+  device_type?: string;
+  ip_address?: string;
+  country?: string;
+  city?: string;
+  last_active: string;
+  expires_at: string;
+  created_at: string;
+  is_trusted: boolean;
+}
+
+interface Passkey {
+  id: number;
+  name: string;
+  credential_id: string;
+  created_at: string;
+  last_used_at?: string;
+  backup_eligible: boolean;
+  aaguid?: string;
+}
+
+interface Authorization {
+  id: number;
+  client_id: string;
+  client_name: string;
+  client_logo?: string;
+  scope: string;
+  created_at: string;
+  updated_at: string;
+}
+
+type Tab = 'info' | 'logs' | 'sessions' | 'passkeys' | 'authorizations';
+
+export default function UserDetailPage() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const userId = Number(searchParams.get('id'));
+  const currentUser = useAuthStore((s) => s.user);
+  const canManageUsers = isAdmin(currentUser);
+
+  const [user, setUser] = useState<User | null>(null);
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [roles, setRoles] = useState<Role[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [activeTab, setActiveTab] = useState<Tab>('info');
+
+  // Tab data
+  const [loginLogs, setLoginLogs] = useState<LoginLog[]>([]);
+  const [logsTotal, setLogsTotal] = useState(0);
+  const [logsPage, setLogsPage] = useState(0);
+  const [sessions, setSessions] = useState<Session[]>([]);
+  const [passkeys, setPasskeys] = useState<Passkey[]>([]);
+  const [authorizations, setAuthorizations] = useState<Authorization[]>([]);
+
+  // Edit states
+  const [editForm, setEditForm] = useState({ email: '', avatar: '', status: 'active', password: '' });
+  const [selectedGroups, setSelectedGroups] = useState<number[]>([]);
+  const [selectedRoles, setSelectedRoles] = useState<number[]>([]);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showGroupsModal, setShowGroupsModal] = useState(false);
+  const [showRolesModal, setShowRolesModal] = useState(false);
+
+  const loadUser = useCallback(async () => {
+    if (!userId) return;
+    try {
+      setLoading(true);
+      const response = await adminApi.getUser(userId);
+      setUser(response.data);
+      setEditForm({
+        email: response.data.email,
+        avatar: response.data.avatar || '',
+        status: response.data.status,
+        password: '',
+      });
+    } catch (err: any) {
+      setError(err.response?.data?.detail || '加载用户失败');
+    } finally {
+      setLoading(false);
+    }
+  }, [userId]);
+
+  const loadGroups = async () => {
+    try {
+      const response = await groupApi.list();
+      setGroups(response.data);
+    } catch (err) {
+      console.error('加载用户组失败:', err);
+    }
+  };
+
+  const loadRoles = async () => {
+    try {
+      const response = await adminApi.listRoles();
+      setRoles(response.data);
+    } catch (err) {
+      console.error('加载角色失败:', err);
+    }
+  };
+
+  const loadLoginLogs = useCallback(async () => {
+    if (!userId) return;
+    try {
+      const response = await adminApi.getUserLoginLogs(userId, { skip: logsPage * 20, limit: 20 });
+      setLoginLogs(response.data.items);
+      setLogsTotal(response.data.total);
+    } catch (err) {
+      console.error('加载登录日志失败:', err);
+    }
+  }, [userId, logsPage]);
+
+  const loadSessions = useCallback(async () => {
+    if (!userId) return;
+    try {
+      const response = await adminApi.getUserSessions(userId);
+      setSessions(response.data);
+    } catch (err) {
+      console.error('加载会话失败:', err);
+    }
+  }, [userId]);
+
+  const loadPasskeys = useCallback(async () => {
+    if (!userId) return;
+    try {
+      const response = await adminApi.getUserPasskeys(userId);
+      setPasskeys(response.data);
+    } catch (err) {
+      console.error('加载通行密钥失败:', err);
+    }
+  }, [userId]);
+
+  const loadAuthorizations = useCallback(async () => {
+    if (!userId) return;
+    try {
+      const response = await adminApi.getUserAuthorizations(userId);
+      setAuthorizations(response.data);
+    } catch (err) {
+      console.error('加载授权记录失败:', err);
+    }
+  }, [userId]);
+
+  useEffect(() => {
+    if (!canManageUsers || !userId) return;
+    loadUser();
+    loadGroups();
+    loadRoles();
+  }, [canManageUsers, userId, loadUser]);
+
+  useEffect(() => {
+    if (!canManageUsers || !user) return;
+    if (activeTab === 'logs') loadLoginLogs();
+    else if (activeTab === 'sessions') loadSessions();
+    else if (activeTab === 'passkeys') loadPasskeys();
+    else if (activeTab === 'authorizations') loadAuthorizations();
+  }, [canManageUsers, user, activeTab, loadLoginLogs, loadSessions, loadPasskeys, loadAuthorizations]);
+
+  if (!canManageUsers) {
+    return (
+      <div className="surface p-6">
+        <h1 className="text-xl font-semibold mb-2">无权限</h1>
+        <p className="text-gray-600">该页面仅管理员可访问。</p>
+      </div>
+    );
+  }
+
+  if (!userId) {
+    return (
+      <div className="surface p-6">
+        <h1 className="text-xl font-semibold mb-2">参数错误</h1>
+        <p className="text-gray-600">缺少用户 ID 参数。</p>
+        <button onClick={() => router.push('/admin/users')} className="btn btn-primary mt-4">
+          返回用户列表
+        </button>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  if (error || !user) {
+    return (
+      <div className="surface p-6">
+        <h1 className="text-xl font-semibold mb-2">错误</h1>
+        <p className="text-red-600">{error || '用户不存在'}</p>
+        <Link href="/admin/users" className="btn btn-secondary mt-4 inline-block">返回用户列表</Link>
+      </div>
+    );
+  }
+
+  const handleEditUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const data: any = { email: editForm.email, avatar: editForm.avatar || null, status: editForm.status };
+      if (editForm.password) data.password = editForm.password;
+      await adminApi.updateUser(userId, data);
+      setShowEditModal(false);
+      loadUser();
+    } catch (err: any) {
+      alert(err.response?.data?.detail || '更新失败');
+    }
+  };
+
+  const openGroupsModal = () => {
+    const userGroupIds = groups.filter(g => user.groups.includes(g.name)).map(g => g.id);
+    setSelectedGroups(userGroupIds);
+    setShowGroupsModal(true);
+  };
+
+  const handleUpdateGroups = async () => {
+    try {
+      await adminApi.updateUserGroups(userId, selectedGroups);
+      setShowGroupsModal(false);
+      loadUser();
+    } catch (err: any) {
+      alert(err.response?.data?.detail || '更新用户组失败');
+    }
+  };
+
+  const openRolesModal = () => {
+    const userRoleIds = roles.filter(r => user.roles.includes(r.name)).map(r => r.id);
+    setSelectedRoles(userRoleIds);
+    setShowRolesModal(true);
+  };
+
+  const handleUpdateRoles = async () => {
+    try {
+      await adminApi.updateUserRoles(userId, selectedRoles);
+      setShowRolesModal(false);
+      loadUser();
+    } catch (err: any) {
+      alert(err.response?.data?.detail || '更新角色失败');
+    }
+  };
+
+  const handleRevokeSession = async (sessionId: number) => {
+    if (!confirm('确定要强制登出此会话吗？')) return;
+    try {
+      await adminApi.revokeUserSession(userId, sessionId);
+      loadSessions();
+    } catch (err: any) {
+      alert(err.response?.data?.detail || '操作失败');
+    }
+  };
+
+  const handleRevokeAllSessions = async () => {
+    if (!confirm('确定要登出该用户的所有会话吗？')) return;
+    try {
+      const response = await adminApi.revokeAllUserSessions(userId);
+      alert(response.data.message);
+      loadSessions();
+    } catch (err: any) {
+      alert(err.response?.data?.detail || '操作失败');
+    }
+  };
+
+  const formatDate = (dateString: string) => new Date(dateString).toLocaleString('zh-CN');
+
+  const getStatusBadge = (status: string) => {
+    const styles: Record<string, string> = {
+      active: 'bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-200',
+      inactive: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-100',
+      suspended: 'bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-200',
+    };
+    const labels: Record<string, string> = { active: '激活', inactive: '未激活', suspended: '暂停' };
+    return <span className={`px-2 py-1 text-xs rounded-full ${styles[status]}`}>{labels[status]}</span>;
+  };
+
+  const tabs: { key: Tab; label: string }[] = [
+    { key: 'info', label: '基本信息' },
+    { key: 'logs', label: '登录日志' },
+    { key: 'sessions', label: '活跃会话' },
+    { key: 'passkeys', label: '通行密钥' },
+    { key: 'authorizations', label: '应用授权' },
+  ];
+
+  return (
+    <div className="px-4 sm:px-6 lg:px-8 animate-fade-in">
+      {/* Header */}
+      <div className="mb-6">
+        <Link href="/admin/users" className="text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 mb-2 inline-block">
+          ← 返回用户列表
+        </Link>
+        <div className="flex items-center gap-4">
+          {user.avatar ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={user.avatar} alt={user.username} className="h-16 w-16 rounded-full border" />
+          ) : (
+            <div className="h-16 w-16 rounded-full bg-blue-500 flex items-center justify-center text-white text-2xl">
+              {user.username.charAt(0).toUpperCase()}
+            </div>
+          )}
+          <div>
+            <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+              {user.username}
+              {getStatusBadge(user.status)}
+            </h1>
+            <p className="text-gray-600 dark:text-gray-400">{user.email}</p>
+            <p className="text-sm text-gray-500">ID: {user.id} · 创建于 {formatDate(user.created_at)}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="border-b border-gray-200 dark:border-gray-700 mb-6">
+        <nav className="-mb-px flex space-x-4 overflow-x-auto">
+          {tabs.map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className={`whitespace-nowrap py-3 px-1 border-b-2 text-sm font-medium ${
+                activeTab === tab.key
+                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </nav>
+      </div>
+
+      {/* Tab Content */}
+      <div className="surface p-6">
+        {activeTab === 'info' && (
+          <div className="space-y-6">
+            <div className="flex flex-wrap gap-3">
+              <button onClick={() => setShowEditModal(true)} className="btn btn-primary">编辑信息</button>
+              <button onClick={openGroupsModal} className="btn btn-secondary">管理用户组</button>
+              <button onClick={openRolesModal} className="btn btn-secondary">管理角色</button>
+              <button onClick={() => router.push(`/admin/users/permissions?id=${userId}`)} className="btn btn-secondary">应用权限</button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+              <div><span className="text-gray-500">用户组：</span>{user.groups.length ? user.groups.join(', ') : '无'}</div>
+              <div><span className="text-gray-500">角色：</span>{user.roles.length ? user.roles.join(', ') : '无'}</div>
+              <div><span className="text-gray-500">更新时间：</span>{formatDate(user.updated_at)}</div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'logs' && (
+          <div>
+            <h3 className="text-lg font-medium mb-4">登录日志 ({logsTotal})</h3>
+            {loginLogs.length === 0 ? (
+              <p className="text-gray-500">暂无登录记录</p>
+            ) : (
+              <>
+                <ul className="divide-y divide-gray-200 dark:divide-gray-700">
+                  {loginLogs.map((log) => (
+                    <li key={log.id} className="py-3">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className={`px-2 py-0.5 text-xs rounded ${log.success ? 'bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-200' : 'bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-200'}`}>
+                              {log.success ? '成功' : '失败'}
+                            </span>
+                            {log.is_suspicious && <span className="px-2 py-0.5 text-xs rounded bg-yellow-100 text-yellow-800 dark:bg-yellow-950 dark:text-yellow-200">可疑</span>}
+                            {log.login_method && <span className="text-xs text-gray-500">{log.login_method}</span>}
+                          </div>
+                          <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                            {log.ip_address && <span>{log.ip_address}</span>}
+                            {(log.city || log.country) && <span> · {[log.city, log.country].filter(Boolean).join(', ')}</span>}
+                            {log.device_type && <span> · {log.device_type}</span>}
+                          </div>
+                          {!log.success && log.failure_reason && (
+                            <div className="text-xs text-red-600 dark:text-red-400 mt-1">原因：{log.failure_reason}</div>
+                          )}
+                        </div>
+                        <div className="text-xs text-gray-500 shrink-0">{formatDate(log.created_at)}</div>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+                {logsTotal > 20 && (
+                  <div className="mt-4 flex justify-between items-center">
+                    <span className="text-sm text-gray-500">第 {logsPage + 1} / {Math.ceil(logsTotal / 20)} 页</span>
+                    <div className="flex gap-2">
+                      <button onClick={() => setLogsPage(p => Math.max(0, p - 1))} disabled={logsPage === 0} className="btn btn-secondary text-sm disabled:opacity-50">上一页</button>
+                      <button onClick={() => setLogsPage(p => p + 1)} disabled={(logsPage + 1) * 20 >= logsTotal} className="btn btn-secondary text-sm disabled:opacity-50">下一页</button>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'sessions' && (
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-medium">活跃会话 ({sessions.length})</h3>
+              {sessions.length > 0 && (
+                <button onClick={handleRevokeAllSessions} className="btn btn-danger text-sm">登出全部</button>
+              )}
+            </div>
+            {sessions.length === 0 ? (
+              <p className="text-gray-500">暂无活跃会话</p>
+            ) : (
+              <ul className="divide-y divide-gray-200 dark:divide-gray-700">
+                {sessions.map((session) => (
+                  <li key={session.id} className="py-3">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">{session.device_name || '未知设备'}</span>
+                          {session.is_trusted && <span className="px-2 py-0.5 text-xs rounded bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-200">可信</span>}
+                        </div>
+                        <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                          {session.device_type && <span>{session.device_type === 'mobile' ? '手机' : session.device_type === 'tablet' ? '平板' : '电脑'}</span>}
+                          {session.ip_address && <span> · {session.ip_address}</span>}
+                          {(session.city || session.country) && <span> · {[session.city, session.country].filter(Boolean).join(', ')}</span>}
+                        </div>
+                        <div className="text-xs text-gray-500 mt-1">
+                          最后活跃：{formatDate(session.last_active)} · 过期：{formatDate(session.expires_at)}
+                        </div>
+                      </div>
+                      <button onClick={() => handleRevokeSession(session.id)} className="btn btn-danger text-xs shrink-0">登出</button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'passkeys' && (
+          <div>
+            <h3 className="text-lg font-medium mb-4">通行密钥 ({passkeys.length})</h3>
+            {passkeys.length === 0 ? (
+              <p className="text-gray-500">暂无通行密钥</p>
+            ) : (
+              <ul className="divide-y divide-gray-200 dark:divide-gray-700">
+                {passkeys.map((passkey) => (
+                  <li key={passkey.id} className="py-3">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">{passkey.name}</span>
+                      {passkey.backup_eligible && <span className="px-2 py-0.5 text-xs rounded bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-200">可同步</span>}
+                    </div>
+                    <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                      创建：{formatDate(passkey.created_at)}
+                      {passkey.last_used_at && <span> · 最后使用：{formatDate(passkey.last_used_at)}</span>}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'authorizations' && (
+          <div>
+            <h3 className="text-lg font-medium mb-4">应用授权 ({authorizations.length})</h3>
+            {authorizations.length === 0 ? (
+              <p className="text-gray-500">暂无授权记录</p>
+            ) : (
+              <ul className="divide-y divide-gray-200 dark:divide-gray-700">
+                {authorizations.map((auth) => (
+                  <li key={auth.id} className="py-3">
+                    <div className="flex items-center gap-3">
+                      {auth.client_logo ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={auth.client_logo} alt={auth.client_name} className="h-10 w-10 rounded" />
+                      ) : (
+                        <div className="h-10 w-10 rounded bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-gray-500">
+                          {auth.client_name.charAt(0).toUpperCase()}
+                        </div>
+                      )}
+                      <div>
+                        <div className="font-medium">{auth.client_name}</div>
+                        <div className="text-sm text-gray-600 dark:text-gray-400">
+                          权限：{auth.scope} · 授权于 {formatDate(auth.created_at)}
+                        </div>
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Edit Modal */}
+      {showEditModal && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50" onClick={(e) => e.target === e.currentTarget && setShowEditModal(false)}>
+          <div className="surface max-w-md w-full p-6">
+            <h3 className="text-lg font-medium mb-4">编辑用户</h3>
+            <form onSubmit={handleEditUser} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">邮箱</label>
+                <input type="email" required value={editForm.email} onChange={(e) => setEditForm({ ...editForm, email: e.target.value })} className="input" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">头像URL</label>
+                <input type="url" value={editForm.avatar} onChange={(e) => setEditForm({ ...editForm, avatar: e.target.value })} className="input" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">状态</label>
+                <select value={editForm.status} onChange={(e) => setEditForm({ ...editForm, status: e.target.value })} className="input">
+                  <option value="active">激活</option>
+                  <option value="inactive">未激活</option>
+                  <option value="suspended">暂停</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">新密码（留空不修改）</label>
+                <input type="password" minLength={6} value={editForm.password} onChange={(e) => setEditForm({ ...editForm, password: e.target.value })} className="input" />
+              </div>
+              <div className="flex justify-end gap-3 pt-4">
+                <button type="button" onClick={() => setShowEditModal(false)} className="btn btn-secondary">取消</button>
+                <button type="submit" className="btn btn-primary">保存</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Groups Modal */}
+      {showGroupsModal && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50" onClick={(e) => e.target === e.currentTarget && setShowGroupsModal(false)}>
+          <div className="surface max-w-md w-full p-6">
+            <h3 className="text-lg font-medium mb-4">管理用户组</h3>
+            <div className="max-h-96 overflow-y-auto space-y-2">
+              {groups.map((group) => (
+                <label key={group.id} className="flex items-center gap-3 p-2 rounded hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={selectedGroups.includes(group.id)}
+                    onChange={() => setSelectedGroups(prev => prev.includes(group.id) ? prev.filter(id => id !== group.id) : [...prev, group.id])}
+                    className="h-4 w-4"
+                  />
+                  <div>
+                    <div className="font-medium">{group.name}</div>
+                    {group.description && <div className="text-xs text-gray-500">{group.description}</div>}
+                  </div>
+                </label>
+              ))}
+            </div>
+            <div className="flex justify-end gap-3 pt-4">
+              <button onClick={() => setShowGroupsModal(false)} className="btn btn-secondary">取消</button>
+              <button onClick={handleUpdateGroups} className="btn btn-primary">保存</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Roles Modal */}
+      {showRolesModal && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50" onClick={(e) => e.target === e.currentTarget && setShowRolesModal(false)}>
+          <div className="surface max-w-md w-full p-6">
+            <h3 className="text-lg font-medium mb-4">管理角色</h3>
+            <div className="max-h-96 overflow-y-auto space-y-2">
+              {roles.map((role) => (
+                <label key={role.id} className="flex items-center gap-3 p-2 rounded hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={selectedRoles.includes(role.id)}
+                    onChange={() => setSelectedRoles(prev => prev.includes(role.id) ? prev.filter(id => id !== role.id) : [...prev, role.id])}
+                    className="h-4 w-4"
+                  />
+                  <div>
+                    <div className="font-medium">{role.name}</div>
+                    {role.description && <div className="text-xs text-gray-500">{role.description}</div>}
+                    <div className="text-xs text-gray-400">等级: {role.level}</div>
+                  </div>
+                </label>
+              ))}
+            </div>
+            <div className="flex justify-end gap-3 pt-4">
+              <button onClick={() => setShowRolesModal(false)} className="btn btn-secondary">取消</button>
+              <button onClick={handleUpdateRoles} className="btn btn-primary">保存</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

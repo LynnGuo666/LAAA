@@ -120,3 +120,75 @@ class PaginatedUsersResponse(BaseModel):
     total: int
     items: List[AdminUserResponse] = []
 
+
+# ==================== Admin User Detail Schemas ====================
+
+class AdminLoginLogResponse(BaseModel):
+    """管理员查看的登录日志"""
+    id: int
+    username: str
+    success: bool
+    failure_reason: Optional[str] = None
+    ip_address: Optional[str] = None
+    device_type: Optional[str] = None
+    country: Optional[str] = None
+    city: Optional[str] = None
+    login_method: Optional[str] = None
+    is_suspicious: bool = False
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class PaginatedLoginLogsResponse(BaseModel):
+    """分页登录日志响应"""
+    total: int
+    items: List[AdminLoginLogResponse] = []
+
+
+class AdminSessionResponse(BaseModel):
+    """管理员查看的会话"""
+    id: int
+    device_id: str
+    device_name: Optional[str] = None
+    device_type: Optional[str] = None
+    ip_address: Optional[str] = None
+    country: Optional[str] = None
+    city: Optional[str] = None
+    last_active: datetime
+    expires_at: datetime
+    created_at: datetime
+    is_trusted: bool = False
+
+    class Config:
+        from_attributes = True
+
+
+class AdminPasskeyResponse(BaseModel):
+    """管理员查看的通行密钥"""
+    id: int
+    name: str
+    credential_id: str
+    created_at: datetime
+    last_used_at: Optional[datetime] = None
+    backup_eligible: bool = False
+    aaguid: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+class AdminAuthorizationResponse(BaseModel):
+    """管理员查看的用户授权"""
+    id: int
+    client_id: str
+    client_name: str
+    client_logo: Optional[str] = None
+    scope: str
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+

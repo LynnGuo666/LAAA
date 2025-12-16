@@ -356,6 +356,12 @@ export default function UsersPage() {
                     </div>
 
                     <div className="flex flex-wrap gap-2 shrink-0 ml-13 sm:ml-0">
+                      <button
+                        onClick={() => router.push(`/admin/users/detail?id=${u.id}`)}
+                        className="btn btn-primary text-xs"
+                      >
+                        详情
+                      </button>
                       <button onClick={() => openEditModal(u)} className="btn btn-secondary text-xs">编辑</button>
                       <button onClick={() => openGroupsModal(u)} className="btn btn-secondary text-xs">用户组</button>
                       <button onClick={() => openRolesModal(u)} className="btn btn-secondary text-xs">角色</button>
