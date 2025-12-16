@@ -48,7 +48,16 @@ class PasskeyService:
 
         Returns:
             Registration options as a JSON-serializable dict
+
+        Raises:
+            ValueError: If non-admin user already has a passkey
         """
+        # Check passkey limit for non-admin users
+        existing_count = db.query(Passkey).filter(Passkey.user_id == user.id).count()
+        is_admin = user.has_permission("admin.*") or user.has_role("admin")
+        if not is_admin and existing_count >= 1:
+            raise ValueError("非管理员用户最多只能绑定 1 个通行密钥")
+
         # Get existing credentials to exclude
         existing_passkeys = db.query(Passkey).filter(Passkey.user_id == user.id).all()
         exclude_credentials = []
