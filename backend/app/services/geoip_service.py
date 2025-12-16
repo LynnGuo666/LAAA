@@ -4,9 +4,13 @@ GeoIP Service - IP geolocation using MaxMind GeoLite2 database
 This service provides IP-to-location lookup functionality using a local
 MaxMind GeoLite2-City database for fast, unlimited queries.
 
+For Chinese IPs, it can optionally use GeoIP2-CN database for better
+province-level accuracy.
+
 Requirements:
 - pip install geoip2
 - Download GeoLite2-City.mmdb from https://www.maxmind.com (free registration required)
+- (Optional) Download GeoIP2-CN Country.mmdb from https://github.com/Hackl0us/GeoIP2-CN
 """
 
 from typing import Optional, Dict, Any
@@ -15,8 +19,9 @@ import os
 
 settings = get_settings()
 
-# Lazy-loaded geoip2 reader
+# Lazy-loaded geoip2 readers
 _geoip_reader = None
+_geoip_cn_reader = None
 
 
 def _get_reader():
@@ -46,6 +51,36 @@ def _get_reader():
         return None
 
 
+def _get_cn_reader():
+    """Get or create the GeoIP2-CN database reader for Chinese IPs"""
+    global _geoip_cn_reader
+
+    if _geoip_cn_reader is not None:
+        return _geoip_cn_reader
+
+    if not settings.geoip_enabled:
+        return None
+
+    # Try to find GeoIP2-CN database
+    cn_db_path = getattr(settings, 'geoip_cn_database_path', None)
+    if not cn_db_path:
+        # Default path
+        base_dir = os.path.dirname(settings.geoip_database_path)
+        cn_db_path = os.path.join(base_dir, 'GeoIP2-CN.mmdb')
+
+    if not os.path.exists(cn_db_path):
+        return None
+
+    try:
+        import geoip2.database
+        _geoip_cn_reader = geoip2.database.Reader(cn_db_path)
+        print(f"GeoIP2-CN database loaded from {cn_db_path}")
+        return _geoip_cn_reader
+    except Exception as e:
+        print(f"Failed to load GeoIP2-CN database: {e}")
+        return None
+
+
 class GeoIPService:
     """Service for IP geolocation lookups"""
 
@@ -61,7 +96,7 @@ class GeoIPService:
             Dictionary with location info, or None if lookup fails:
             {
                 "country": "中国",
-                "city": "杭州",
+                "city": "北京",  # For CN IPs, this may be province from GeoIP2-CN
                 "latitude": "30.2936",
                 "longitude": "120.1614"
             }
@@ -82,16 +117,38 @@ class GeoIPService:
 
             # Try to get Chinese names first, fall back to English
             country = None
+            country_code = None
             city = None
 
             if response.country.names:
                 country = response.country.names.get('zh-CN') or response.country.names.get('en') or response.country.name
+            country_code = response.country.iso_code
 
             if response.city.names:
                 city = response.city.names.get('zh-CN') or response.city.names.get('en') or response.city.name
 
+            # For Chinese IPs without city info, try GeoIP2-CN database
+            if country_code == 'CN' and not city:
+                cn_reader = _get_cn_reader()
+                if cn_reader:
+                    try:
+                        cn_response = cn_reader.country(ip_address)
+                        # GeoIP2-CN stores province in city.names
+                        if hasattr(cn_response, 'city') and cn_response.city.names:
+                            city = cn_response.city.names.get('zh-CN') or cn_response.city.names.get('en')
+                        # Some versions store it differently, try subdivisions
+                        if not city and hasattr(cn_response, 'subdivisions') and cn_response.subdivisions:
+                            city = cn_response.subdivisions.most_specific.names.get('zh-CN')
+                    except Exception:
+                        pass
+
+            # Still no city? Try subdivisions from main database
+            if not city and response.subdivisions:
+                city = response.subdivisions.most_specific.names.get('zh-CN') if response.subdivisions.most_specific.names else None
+
             return {
                 "country": country,
+                "country_code": country_code,
                 "city": city,
                 "latitude": str(response.location.latitude) if response.location.latitude else None,
                 "longitude": str(response.location.longitude) if response.location.longitude else None,
@@ -106,9 +163,17 @@ class GeoIPService:
         return _get_reader() is not None
 
     @staticmethod
+    def is_cn_available() -> bool:
+        """Check if GeoIP2-CN database is available"""
+        return _get_cn_reader() is not None
+
+    @staticmethod
     def close():
-        """Close the GeoIP database reader"""
-        global _geoip_reader
+        """Close the GeoIP database readers"""
+        global _geoip_reader, _geoip_cn_reader
         if _geoip_reader is not None:
             _geoip_reader.close()
             _geoip_reader = None
+        if _geoip_cn_reader is not None:
+            _geoip_cn_reader.close()
+            _geoip_cn_reader = None
