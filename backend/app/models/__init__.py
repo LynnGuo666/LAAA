@@ -100,6 +100,10 @@ class User(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+    # Session security settings
+    max_sessions = Column(Integer, default=3)  # Maximum concurrent sessions
+    notify_new_login = Column(Boolean, default=True)  # Notify on new device login
+
     # Relationships
     roles = relationship('Role', secondary=user_roles, back_populates='users')
     groups = relationship('Group', secondary=user_groups, back_populates='users')
@@ -108,6 +112,7 @@ class User(Base):
     tokens = relationship('Token', back_populates='user', cascade='all, delete-orphan')
     sessions = relationship('Session', back_populates='user', cascade='all, delete-orphan')
     passkeys = relationship('Passkey', back_populates='user', cascade='all, delete-orphan')
+    login_logs = relationship('LoginLog', back_populates='user', cascade='all, delete-orphan')
     # App permissions (individual overrides)
     allowed_apps = relationship('Client', secondary=user_allowed_apps, backref='users_allowed')
     denied_apps = relationship('Client', secondary=user_denied_apps, backref='users_denied')
@@ -244,6 +249,15 @@ class Session(Base):
     last_active = Column(DateTime, default=datetime.utcnow)
     expires_at = Column(DateTime, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+    # GeoIP location fields
+    country = Column(String(100), nullable=True)
+    city = Column(String(100), nullable=True)
+
+    # Security fields
+    is_trusted = Column(Boolean, default=False)  # User marked as trusted device
+    kicked_at = Column(DateTime, nullable=True)  # When session was kicked
+    kicked_reason = Column(String(100), nullable=True)  # Why session was kicked
 
     # Relationships
     user = relationship('User', back_populates='sessions')
@@ -398,3 +412,45 @@ class WebAuthnChallenge(Base):
     user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=True)  # NULL for authentication
     expires_at = Column(DateTime, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class LoginLog(Base):
+    """Login attempt log for security monitoring and anomaly detection"""
+    __tablename__ = 'login_logs'
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=True, index=True)
+    username = Column(String(50), nullable=False)  # Record attempted username even if user doesn't exist
+
+    # Login result
+    success = Column(Boolean, default=False, nullable=False)
+    failure_reason = Column(String(100), nullable=True)  # invalid_password, user_not_found, account_suspended, session_kicked
+
+    # Device information
+    ip_address = Column(String(50), nullable=True, index=True)
+    user_agent = Column(Text, nullable=True)
+    device_type = Column(String(50), nullable=True)
+    device_name = Column(String(100), nullable=True)
+
+    # GeoIP location
+    country = Column(String(100), nullable=True)
+    city = Column(String(100), nullable=True)
+    latitude = Column(String(20), nullable=True)
+    longitude = Column(String(20), nullable=True)
+
+    # Anomaly detection
+    is_suspicious = Column(Boolean, default=False)
+    suspicious_reasons = Column(Text, nullable=True)  # JSON array of reasons
+
+    # Session management
+    kicked_session_id = Column(Integer, nullable=True)  # ID of session that was kicked
+    session_id = Column(Integer, ForeignKey('sessions.id', ondelete='SET NULL'), nullable=True)
+
+    # Login method
+    login_method = Column(String(20), default='password')  # password, passkey, oauth
+
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+
+    # Relationships
+    user = relationship('User', back_populates='login_logs')
+    session = relationship('Session', foreign_keys=[session_id])

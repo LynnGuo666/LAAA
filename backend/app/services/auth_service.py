@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
-from typing import Optional, Tuple
-from app.models import User, Token, Session as SessionModel
+from typing import Optional, Tuple, Dict, Any, List
+from app.models import User, Token, Session as SessionModel, LoginLog
 from app.utils.security import (
     verify_password,
     get_password_hash,
@@ -14,6 +14,7 @@ from app.utils.security import (
 from sqlalchemy.exc import IntegrityError
 from app.utils.device import generate_device_id, get_device_name, parse_device_type
 from app.config import get_settings
+import json
 
 settings = get_settings()
 
@@ -85,16 +86,27 @@ class AuthService:
         return user
 
     @staticmethod
-    def authenticate_user(db: Session, username: str, password: str) -> Optional[User]:
-        """Authenticate a user"""
+    def authenticate_user(
+        db: Session,
+        username: str,
+        password: str,
+        ip_address: Optional[str] = None,
+        user_agent: Optional[str] = None
+    ) -> Tuple[Optional[User], Optional[str]]:
+        """
+        Authenticate a user.
+
+        Returns:
+            Tuple of (User or None, failure_reason or None)
+        """
         user = db.query(User).filter(User.username == username).first()
         if not user:
-            return None
+            return None, "user_not_found"
         if not verify_password(password, user.password_hash):
-            return None
+            return None, "invalid_password"
         if user.status != 'active':
-            return None
-        return user
+            return None, "account_suspended"
+        return user, None
 
     @staticmethod
     def create_tokens(
@@ -105,9 +117,23 @@ class AuthService:
         remember_me: bool = False,
         device_name: Optional[str] = None,
         ip_address: Optional[str] = None,
-        user_agent: Optional[str] = None
-    ) -> Tuple[str, str]:
-        """Create access and refresh tokens for a user"""
+        user_agent: Optional[str] = None,
+        login_method: str = "password"
+    ) -> Dict[str, Any]:
+        """
+        Create access and refresh tokens for a user.
+
+        Returns:
+            Dictionary containing:
+            - access_token: str
+            - refresh_token: str
+            - kicked_session: Optional[dict] - Info about kicked session if any
+            - is_suspicious: bool - Whether login is suspicious
+            - anomalies: List[dict] - List of detected anomalies
+        """
+        from app.services.geoip_service import GeoIPService
+        from app.services.session_limit_service import SessionLimitService
+        from app.services.login_anomaly_service import LoginAnomalyService
 
         safe_user_agent = user_agent or "unknown"
         safe_ip_address = ip_address or "unknown"
@@ -115,6 +141,23 @@ class AuthService:
         device_id: Optional[str] = None
         if remember_me:
             device_id = generate_device_id(user.id, safe_user_agent, safe_ip_address)
+
+        # Get GeoIP information
+        geo_info = GeoIPService.get_location(safe_ip_address)
+
+        # Check for anomalies
+        anomalies = LoginAnomalyService.check_anomalies(
+            db, user, safe_ip_address, safe_user_agent, geo_info
+        )
+        is_suspicious = LoginAnomalyService.is_suspicious(anomalies)
+
+        # Check and enforce session limits
+        kicked_session = None
+        if remember_me and device_id:
+            allowed, kicked_info = SessionLimitService.check_and_enforce_limit(
+                db, user, device_id
+            )
+            kicked_session = kicked_info
 
         # Resolve client early so tokens are bound to a real client_id
         from app.models import Client
@@ -153,27 +196,35 @@ class AuthService:
         db.add(refresh_token_record)
 
         # Create or update session if remember_me
+        session_record = None
         if remember_me:
             device_type = parse_device_type(safe_user_agent)
             device_display_name = device_name or get_device_name(safe_user_agent)
 
             # Check if session exists for this user+device
-            session = db.query(SessionModel).filter(
+            session_record = db.query(SessionModel).filter(
                 SessionModel.user_id == user.id,
                 SessionModel.device_id == device_id
             ).first()
 
-            if session:
-                session.refresh_token_hash = hash_token(refresh_token)
-                session.last_active = datetime.utcnow()
-                session.expires_at = refresh_expires
-                session.ip_address = safe_ip_address
-                session.user_agent = safe_user_agent
+            if session_record:
+                session_record.refresh_token_hash = hash_token(refresh_token)
+                session_record.last_active = datetime.utcnow()
+                session_record.expires_at = refresh_expires
+                session_record.ip_address = safe_ip_address
+                session_record.user_agent = safe_user_agent
                 if device_name:
-                    session.device_name = device_display_name
-                session.device_type = device_type
+                    session_record.device_name = device_display_name
+                session_record.device_type = device_type
+                # Update geo info
+                if geo_info:
+                    session_record.country = geo_info.get('country')
+                    session_record.city = geo_info.get('city')
+                # Clear kicked status if re-logging in
+                session_record.kicked_at = None
+                session_record.kicked_reason = None
             else:
-                session = SessionModel(
+                session_record = SessionModel(
                     user_id=user.id,
                     device_id=device_id,
                     device_name=device_display_name,
@@ -181,13 +232,77 @@ class AuthService:
                     refresh_token_hash=hash_token(refresh_token),
                     ip_address=safe_ip_address,
                     user_agent=safe_user_agent,
-                    expires_at=refresh_expires
+                    expires_at=refresh_expires,
+                    country=geo_info.get('country') if geo_info else None,
+                    city=geo_info.get('city') if geo_info else None
                 )
-                db.add(session)
+                db.add(session_record)
 
         db.commit()
 
-        return access_token, refresh_token
+        # Record login log
+        AuthService.record_login_log(
+            db,
+            user=user,
+            username=user.username,
+            success=True,
+            ip_address=safe_ip_address,
+            user_agent=safe_user_agent,
+            geo_info=geo_info,
+            anomalies=anomalies,
+            kicked_session_id=kicked_session.get('id') if kicked_session else None,
+            session_id=session_record.id if session_record else None,
+            login_method=login_method
+        )
+
+        return {
+            "access_token": access_token,
+            "refresh_token": refresh_token,
+            "kicked_session": kicked_session,
+            "is_suspicious": is_suspicious,
+            "anomalies": anomalies
+        }
+
+    @staticmethod
+    def record_login_log(
+        db: Session,
+        user: Optional[User],
+        username: str,
+        success: bool,
+        ip_address: Optional[str] = None,
+        user_agent: Optional[str] = None,
+        failure_reason: Optional[str] = None,
+        geo_info: Optional[Dict[str, Any]] = None,
+        anomalies: Optional[List[Dict[str, Any]]] = None,
+        kicked_session_id: Optional[int] = None,
+        session_id: Optional[int] = None,
+        login_method: str = "password"
+    ) -> LoginLog:
+        """Record a login attempt in the log"""
+        from app.utils.device import get_device_name, parse_device_type
+
+        log = LoginLog(
+            user_id=user.id if user else None,
+            username=username,
+            success=success,
+            failure_reason=failure_reason,
+            ip_address=ip_address,
+            user_agent=user_agent,
+            device_type=parse_device_type(user_agent or "unknown"),
+            device_name=get_device_name(user_agent or "unknown"),
+            country=geo_info.get('country') if geo_info else None,
+            city=geo_info.get('city') if geo_info else None,
+            latitude=geo_info.get('latitude') if geo_info else None,
+            longitude=geo_info.get('longitude') if geo_info else None,
+            is_suspicious=any(a.get('severity') in ('medium', 'high') for a in (anomalies or [])),
+            suspicious_reasons=json.dumps(anomalies) if anomalies else None,
+            kicked_session_id=kicked_session_id,
+            session_id=session_id,
+            login_method=login_method
+        )
+        db.add(log)
+        db.commit()
+        return log
 
     @staticmethod
     def refresh_access_token(

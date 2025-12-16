@@ -8,10 +8,14 @@ from app.schemas import (
     AuthorizationListItem,
     SessionResponse,
     ClientPublicResponse,
+    LoginLogResponse,
+    SecuritySettingsResponse,
+    SecuritySettingsUpdate,
+    KickedSessionsResponse,
 )
 from app.middleware.auth import get_current_user
-from app.models import User, UserAuthorization, Session as SessionModel, Client
-from app.utils.device import generate_device_id
+from app.models import User, UserAuthorization, Session as SessionModel, Client, LoginLog
+from app.utils.device import generate_device_id, get_client_ip
 from datetime import datetime
 
 router = APIRouter(prefix="/api/user", tags=["User Management"])
@@ -140,12 +144,13 @@ async def get_sessions(
 ):
     """Get list of active sessions (remembered devices)"""
     user_agent = request.headers.get("user-agent", "") or "unknown"
-    client_ip = request.client.host if request.client else "unknown"
+    client_ip = get_client_ip(request)
     current_device_id = generate_device_id(current_user.id, user_agent, client_ip)
 
     sessions = db.query(SessionModel).filter(
         SessionModel.user_id == current_user.id,
-        SessionModel.expires_at > datetime.utcnow()
+        SessionModel.expires_at > datetime.utcnow(),
+        SessionModel.kicked_at.is_(None)  # Exclude kicked sessions
     ).order_by(SessionModel.last_active.desc()).all()
 
     result = []
@@ -158,7 +163,10 @@ async def get_sessions(
             ip_address=session.ip_address,
             last_active=session.last_active,
             expires_at=session.expires_at,
-            is_current=session.device_id == current_device_id
+            is_current=session.device_id == current_device_id,
+            country=session.country,
+            city=session.city,
+            is_trusted=session.is_trusted or False
         ))
 
     return result
@@ -218,3 +226,130 @@ async def list_accessible_apps(
             )
         )
     return result
+
+
+# Login History and Security Settings API
+
+@router.get("/login-history", response_model=List[LoginLogResponse])
+async def get_login_history(
+    skip: int = 0,
+    limit: int = 20,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get login history for the current user"""
+    logs = db.query(LoginLog).filter(
+        LoginLog.user_id == current_user.id
+    ).order_by(LoginLog.created_at.desc()).offset(skip).limit(limit).all()
+
+    return [LoginLogResponse(
+        id=log.id,
+        success=log.success,
+        failure_reason=log.failure_reason,
+        ip_address=log.ip_address,
+        device_type=log.device_type,
+        device_name=log.device_name,
+        country=log.country,
+        city=log.city,
+        is_suspicious=log.is_suspicious or False,
+        login_method=log.login_method or "password",
+        created_at=log.created_at
+    ) for log in logs]
+
+
+@router.get("/security-settings", response_model=SecuritySettingsResponse)
+async def get_security_settings(
+    current_user: User = Depends(get_current_user)
+):
+    """Get user security settings"""
+    return SecuritySettingsResponse(
+        max_sessions=current_user.max_sessions or 3,
+        notify_new_login=current_user.notify_new_login if current_user.notify_new_login is not None else True
+    )
+
+
+@router.put("/security-settings", response_model=SecuritySettingsResponse)
+async def update_security_settings(
+    settings_data: SecuritySettingsUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Update user security settings"""
+    if settings_data.max_sessions is not None:
+        # Limit between 1 and 10
+        current_user.max_sessions = max(1, min(10, settings_data.max_sessions))
+
+    if settings_data.notify_new_login is not None:
+        current_user.notify_new_login = settings_data.notify_new_login
+
+    db.commit()
+
+    return SecuritySettingsResponse(
+        max_sessions=current_user.max_sessions or 3,
+        notify_new_login=current_user.notify_new_login if current_user.notify_new_login is not None else True
+    )
+
+
+@router.post("/sessions/{session_id}/trust")
+async def mark_session_trusted(
+    session_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Mark a session as trusted device"""
+    session = db.query(SessionModel).filter(
+        SessionModel.id == session_id,
+        SessionModel.user_id == current_user.id
+    ).first()
+
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    session.is_trusted = True
+    db.commit()
+
+    return {"message": "Session marked as trusted"}
+
+
+@router.delete("/sessions/{session_id}/trust")
+async def unmark_session_trusted(
+    session_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Remove trusted status from a session"""
+    session = db.query(SessionModel).filter(
+        SessionModel.id == session_id,
+        SessionModel.user_id == current_user.id
+    ).first()
+
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    session.is_trusted = False
+    db.commit()
+
+    return {"message": "Session trust removed"}
+
+
+@router.post("/sessions/revoke-others", response_model=KickedSessionsResponse)
+async def revoke_other_sessions(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Revoke all sessions except the current one"""
+    from app.services.session_limit_service import SessionLimitService
+
+    user_agent = request.headers.get("user-agent", "") or "unknown"
+    client_ip = get_client_ip(request)
+    current_device_id = generate_device_id(current_user.id, user_agent, client_ip)
+
+    kicked_sessions = SessionLimitService.kick_all_other_sessions(
+        db, current_user.id, current_device_id
+    )
+
+    return KickedSessionsResponse(
+        kicked_count=len(kicked_sessions),
+        kicked_sessions=kicked_sessions
+    )

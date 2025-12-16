@@ -112,6 +112,25 @@ export const userApi = {
 
   listApps: () =>
     api.get('/api/user/apps'),
+
+  // Security settings
+  getLoginHistory: (skip: number = 0, limit: number = 20) =>
+    api.get('/api/user/login-history', { params: { skip, limit } }),
+
+  getSecuritySettings: () =>
+    api.get('/api/user/security-settings'),
+
+  updateSecuritySettings: (data: { max_sessions?: number; notify_new_login?: boolean }) =>
+    api.put('/api/user/security-settings', data),
+
+  markSessionTrusted: (sessionId: number) =>
+    api.post(`/api/user/sessions/${sessionId}/trust`),
+
+  unmarkSessionTrusted: (sessionId: number) =>
+    api.delete(`/api/user/sessions/${sessionId}/trust`),
+
+  revokeOtherSessions: () =>
+    api.post('/api/user/sessions/revoke-others'),
 };
 
 // Client API

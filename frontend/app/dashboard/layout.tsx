@@ -90,7 +90,7 @@ export default function DashboardLayout({
         { href: '/dashboard/my-apps', label: '我的应用' },
         { href: '/dashboard/authorizations', label: '授权管理' },
         { href: '/dashboard/sessions', label: '会话管理' },
-        { href: '/dashboard/passkeys', label: '通行密钥' },
+        { href: '/dashboard/security', label: '安全设置' },
         { href: '/dashboard/profile', label: '个人资料' },
       ];
 
@@ -116,6 +116,7 @@ export default function DashboardLayout({
       items: [
         { href: '/dashboard/authorizations', label: '授权管理' },
         { href: '/dashboard/sessions', label: '会话管理' },
+        { href: '/dashboard/security', label: '安全设置' },
         { href: '/dashboard/passkeys', label: '通行密钥' },
       ],
     },

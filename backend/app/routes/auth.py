@@ -7,6 +7,7 @@ from app.schemas import (
     UserMeResponse,
     LoginRequest,
     TokenResponse,
+    TokenResponseExtended,
     RefreshTokenRequest
 )
 from app.services.auth_service import AuthService
@@ -38,27 +39,46 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)):
         )
 
 
-@router.post("/login", response_model=TokenResponse)
+@router.post("/login", response_model=TokenResponseExtended)
 async def login(
     login_data: LoginRequest,
     request: Request,
     db: Session = Depends(get_db)
 ):
     """Login and get access token"""
+    # Get client info
+    client_ip = get_client_ip(request)
+    user_agent = request.headers.get("user-agent", "")
+
     # Authenticate user
-    user = AuthService.authenticate_user(db, login_data.username, login_data.password)
+    user, failure_reason = AuthService.authenticate_user(
+        db, login_data.username, login_data.password,
+        ip_address=client_ip, user_agent=user_agent
+    )
+
     if not user:
+        # Record failed login attempt
+        from app.services.geoip_service import GeoIPService
+        geo_info = GeoIPService.get_location(client_ip)
+
+        AuthService.record_login_log(
+            db,
+            user=None,
+            username=login_data.username,
+            success=False,
+            failure_reason=failure_reason,
+            ip_address=client_ip,
+            user_agent=user_agent,
+            geo_info=geo_info
+        )
+
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password"
         )
 
-    # Get client info
-    client_ip = get_client_ip(request)
-    user_agent = request.headers.get("user-agent", "")
-
     # Create tokens (use a default internal client_id for direct login)
-    access_token, refresh_token = AuthService.create_tokens(
+    result = AuthService.create_tokens(
         db,
         user=user,
         client_id="internal",
@@ -66,14 +86,18 @@ async def login(
         remember_me=login_data.remember_me,
         device_name=login_data.device_name,
         ip_address=client_ip,
-        user_agent=user_agent
+        user_agent=user_agent,
+        login_method="password"
     )
 
-    return TokenResponse(
-        access_token=access_token,
-        refresh_token=refresh_token,
+    return TokenResponseExtended(
+        access_token=result["access_token"],
+        refresh_token=result["refresh_token"],
         token_type="bearer",
-        expires_in=settings.access_token_expire_minutes * 60
+        expires_in=settings.access_token_expire_minutes * 60,
+        kicked_session=result.get("kicked_session"),
+        is_suspicious=result.get("is_suspicious", False),
+        anomalies=result.get("anomalies", [])
     )
 
 

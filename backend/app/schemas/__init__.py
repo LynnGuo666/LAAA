@@ -1,5 +1,5 @@
 from pydantic import BaseModel, EmailStr, Field
-from typing import Optional, List
+from typing import Optional, List, Any, Dict
 from datetime import datetime
 
 
@@ -49,6 +49,13 @@ class TokenResponse(BaseModel):
     refresh_token: str
     token_type: str = "bearer"
     expires_in: int
+
+
+class TokenResponseExtended(TokenResponse):
+    """Extended token response with security information"""
+    kicked_session: Optional[Dict[str, Any]] = None  # Info about kicked session if any
+    is_suspicious: bool = False  # Whether login is suspicious
+    anomalies: List[Dict[str, Any]] = []  # List of detected anomalies
 
 
 class RefreshTokenRequest(BaseModel):
@@ -172,6 +179,10 @@ class SessionResponse(BaseModel):
     last_active: datetime
     expires_at: datetime
     is_current: bool = False
+    # New fields for security
+    country: Optional[str] = None
+    city: Optional[str] = None
+    is_trusted: bool = False
 
     class Config:
         from_attributes = True
@@ -195,3 +206,40 @@ class PermissionResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+# Login History and Security Settings
+class LoginLogResponse(BaseModel):
+    """Login log entry for security audit"""
+    id: int
+    success: bool
+    failure_reason: Optional[str] = None
+    ip_address: Optional[str] = None
+    device_type: Optional[str] = None
+    device_name: Optional[str] = None
+    country: Optional[str] = None
+    city: Optional[str] = None
+    is_suspicious: bool = False
+    login_method: str = "password"
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class SecuritySettingsResponse(BaseModel):
+    """User security settings"""
+    max_sessions: int
+    notify_new_login: bool
+
+
+class SecuritySettingsUpdate(BaseModel):
+    """Update user security settings"""
+    max_sessions: Optional[int] = Field(None, ge=1, le=10)
+    notify_new_login: Optional[bool] = None
+
+
+class KickedSessionsResponse(BaseModel):
+    """Response for kick all other sessions"""
+    kicked_count: int
+    kicked_sessions: List[Dict[str, Any]]

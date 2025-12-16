@@ -19,6 +19,19 @@ interface ClientInfo {
   logo?: string;
 }
 
+interface SecurityInfo {
+  kicked_session?: {
+    device_name?: string;
+    ip_address?: string;
+  };
+  is_suspicious: boolean;
+  anomalies: Array<{
+    type: string;
+    message: string;
+    severity: string;
+  }>;
+}
+
 function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -30,6 +43,7 @@ function LoginContent() {
     rememberMe: false,
   });
   const [error, setError] = useState('');
+  const [securityInfo, setSecurityInfo] = useState<SecurityInfo | null>(null);
   const [loading, setLoading] = useState(false);
   const [passkeyLoading, setPasskeyLoading] = useState(false);
   const [webAuthnSupported, setWebAuthnSupported] = useState(false);
@@ -84,6 +98,7 @@ function LoginContent() {
     e.preventDefault();
     if (loading) return;
     setError('');
+    setSecurityInfo(null);
     setLoading(true);
 
     try {
@@ -95,7 +110,16 @@ function LoginContent() {
         formData.rememberMe ? deviceName : undefined
       );
 
-      const { access_token, refresh_token } = response.data;
+      const { access_token, refresh_token, kicked_session, is_suspicious, anomalies } = response.data;
+
+      // 保存安全信息用于显示
+      if (kicked_session || (anomalies && anomalies.length > 0)) {
+        setSecurityInfo({
+          kicked_session,
+          is_suspicious: is_suspicious || false,
+          anomalies: anomalies || []
+        });
+      }
 
       // 先获取用户信息（直接传入 token）
       const userResponse = await authApi.getMe(access_token);
@@ -108,17 +132,22 @@ function LoginContent() {
       // 设置认证状态
       setAuth(user, access_token, refresh_token);
 
-      // 如果有 redirect 参数，跳转到指定页面；否则跳转到控制台
-      if (redirectUrl) {
-        // 安全检查：确保 redirect URL 是内部路径
-        if (redirectUrl.startsWith('/')) {
-          router.push(redirectUrl);
+      // 如果有安全提示，延迟跳转让用户看到提示
+      const redirectDelay = (kicked_session || is_suspicious) ? 2000 : 0;
+
+      setTimeout(() => {
+        // 如果有 redirect 参数，跳转到指定页面；否则跳转到控制台
+        if (redirectUrl) {
+          // 安全检查：确保 redirect URL 是内部路径
+          if (redirectUrl.startsWith('/')) {
+            router.push(redirectUrl);
+          } else {
+            router.push('/dashboard');
+          }
         } else {
           router.push('/dashboard');
         }
-      } else {
-        router.push('/dashboard');
-      }
+      }, redirectDelay);
     } catch (err: any) {
       console.error('登录错误:', err);
       const errorMsg = err.response?.data?.detail || err.message || '登录失败，请重试';
@@ -234,6 +263,28 @@ function LoginContent() {
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-lg text-sm">
               {error}
+            </div>
+          )}
+
+          {/* 安全信息提示 */}
+          {securityInfo && (
+            <div className="space-y-2">
+              {securityInfo.kicked_session && (
+                <div className="bg-blue-50 border border-blue-200 text-blue-700 px-3 py-2 rounded-lg text-sm">
+                  <span className="font-medium">会话提醒：</span>
+                  您的设备 "{securityInfo.kicked_session.device_name || '未知设备'}" 已被登出，因为达到了最大会话数限制。
+                </div>
+              )}
+              {securityInfo.is_suspicious && securityInfo.anomalies.filter(a => a.severity !== 'low').length > 0 && (
+                <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-3 py-2 rounded-lg text-sm">
+                  <span className="font-medium">安全提醒：</span>
+                  <ul className="mt-1 list-disc list-inside">
+                    {securityInfo.anomalies.filter(a => a.severity !== 'low').map((a, i) => (
+                      <li key={i}>{a.message}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
           )}
 

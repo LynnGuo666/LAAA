@@ -37,6 +37,23 @@ class Settings(BaseSettings):
     webauthn_rp_origin: str = "http://localhost:8000"  # Production: "https://laaa.lynn6.top"
     webauthn_challenge_timeout_seconds: int = 300
 
+    # Session security settings
+    # Env vars: DEFAULT_MAX_SESSIONS, ENABLE_LOGIN_ANOMALY_DETECTION
+    default_max_sessions: int = 3  # Default max concurrent sessions per user
+    enable_login_anomaly_detection: bool = True  # Enable anomaly detection
+
+    # Anomaly detection thresholds
+    # Env vars: SUSPICIOUS_IP_CHANGE_HOURS, SUSPICIOUS_LOCATION_DISTANCE_KM, SUSPICIOUS_LOGIN_VELOCITY_MINUTES, SUSPICIOUS_LOGIN_VELOCITY_COUNT
+    suspicious_ip_change_hours: int = 1  # Time window for IP change detection
+    suspicious_location_distance_km: int = 500  # Distance threshold for geo jump
+    suspicious_login_velocity_minutes: int = 5  # Time window for login frequency
+    suspicious_login_velocity_count: int = 5  # Max logins in time window
+
+    # GeoIP settings (using local MaxMind database)
+    # Env vars: GEOIP_ENABLED, GEOIP_DATABASE_PATH
+    geoip_enabled: bool = True
+    geoip_database_path: str = "data/GeoLite2-City.mmdb"
+
     class Config:
         env_file = ".env"
         case_sensitive = False

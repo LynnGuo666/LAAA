@@ -162,7 +162,7 @@ async def verify_authentication(
         user_agent = request.headers.get("user-agent", "")
 
         # Create tokens (same as password login)
-        access_token, refresh_token = AuthService.create_tokens(
+        token_result = AuthService.create_tokens(
             db,
             user=user,
             client_id="internal",
@@ -170,12 +170,13 @@ async def verify_authentication(
             remember_me=data.remember_me,
             device_name=data.device_name or f"Passkey: {passkey.name}",
             ip_address=client_ip,
-            user_agent=user_agent
+            user_agent=user_agent,
+            login_method="passkey"
         )
 
         return TokenResponse(
-            access_token=access_token,
-            refresh_token=refresh_token,
+            access_token=token_result["access_token"],
+            refresh_token=token_result["refresh_token"],
             token_type="bearer",
             expires_in=settings.access_token_expire_minutes * 60
         )

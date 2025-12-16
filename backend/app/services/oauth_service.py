@@ -222,9 +222,9 @@ class OAuthService:
 
         # Authenticate user
         from app.services.auth_service import AuthService
-        user = AuthService.authenticate_user(db, username, password)
+        user, failure_reason = AuthService.authenticate_user(db, username, password)
         if not user:
-            logger.info("oauth password_grant: invalid user credentials client_id=%s username=%s", client_id, username)
+            logger.info("oauth password_grant: invalid user credentials client_id=%s username=%s reason=%s", client_id, username, failure_reason)
             return None
 
         # Verify scope
