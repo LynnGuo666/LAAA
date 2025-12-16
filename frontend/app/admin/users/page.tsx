@@ -288,27 +288,29 @@ export default function UsersPage() {
       <div className="mt-6">
         <div className="surface overflow-hidden">
           {/* Search & Stats */}
-          <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-800 flex flex-wrap items-center justify-between gap-3">
+          <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-800 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div className="text-sm text-gray-600 dark:text-gray-300">
               共 {total} 位用户
             </div>
-            <form onSubmit={handleSearch} className="flex gap-2">
+            <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-2">
               <input
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
-                className="input text-sm max-w-xs"
+                className="input text-sm w-full sm:max-w-xs"
                 placeholder="搜索用户名 / 邮箱 / ID"
               />
-              <button type="submit" className="btn btn-secondary text-sm">搜索</button>
-              {search && (
-                <button
-                  type="button"
-                  onClick={() => { setSearchInput(''); setSearch(''); setPage(0); }}
-                  className="btn btn-secondary text-sm"
-                >
-                  清除
-                </button>
-              )}
+              <div className="flex gap-2">
+                <button type="submit" className="btn btn-secondary text-sm flex-1 sm:flex-none">搜索</button>
+                {search && (
+                  <button
+                    type="button"
+                    onClick={() => { setSearchInput(''); setSearch(''); setPage(0); }}
+                    className="btn btn-secondary text-sm flex-1 sm:flex-none"
+                  >
+                    清除
+                  </button>
+                )}
+              </div>
             </form>
           </div>
 
@@ -324,7 +326,7 @@ export default function UsersPage() {
             <ul className="list">
               {users.map((u) => (
                 <li key={u.id} className="list-item">
-                  <div className="flex items-start justify-between gap-4">
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                     <div className="flex items-start gap-3 min-w-0">
                       {u.avatar ? (
                         // eslint-disable-next-line @next/next/no-img-element
@@ -338,8 +340,8 @@ export default function UsersPage() {
                           {u.username.charAt(0).toUpperCase()}
                         </div>
                       )}
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2 min-w-0">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap min-w-0">
                           <div className="font-medium text-gray-900 dark:text-gray-100 truncate">{u.username}</div>
                           {getStatusBadge(u.status)}
                           <span className="text-xs text-gray-500 dark:text-gray-400 shrink-0">ID: {u.id}</span>
@@ -348,22 +350,22 @@ export default function UsersPage() {
                         <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
                           <span>创建：{new Date(u.created_at).toLocaleDateString('zh-CN')}</span>
                           <span className="opacity-60">·</span>
-                          <span>用户组：{u.groups?.length ? u.groups.join(', ') : '无'}</span>
+                          <span className="truncate">用户组：{u.groups?.length ? u.groups.join(', ') : '无'}</span>
                         </div>
                       </div>
                     </div>
 
-                    <div className="flex flex-wrap justify-end gap-2 shrink-0">
-                      <button onClick={() => openEditModal(u)} className="btn btn-secondary text-sm">编辑</button>
-                      <button onClick={() => openGroupsModal(u)} className="btn btn-secondary text-sm">用户组</button>
-                      <button onClick={() => openRolesModal(u)} className="btn btn-secondary text-sm">角色</button>
+                    <div className="flex flex-wrap gap-2 shrink-0 ml-13 sm:ml-0">
+                      <button onClick={() => openEditModal(u)} className="btn btn-secondary text-xs">编辑</button>
+                      <button onClick={() => openGroupsModal(u)} className="btn btn-secondary text-xs">用户组</button>
+                      <button onClick={() => openRolesModal(u)} className="btn btn-secondary text-xs">角色</button>
                       <button
                         onClick={() => router.push(`/admin/users/permissions?id=${u.id}`)}
-                        className="btn btn-secondary text-sm"
+                        className="btn btn-secondary text-xs"
                       >
                         应用权限
                       </button>
-                      <button onClick={() => handleDeleteUser(u.id)} className="btn btn-danger text-sm">删除</button>
+                      <button onClick={() => handleDeleteUser(u.id)} className="btn btn-danger text-xs">删除</button>
                     </div>
                   </div>
                 </li>

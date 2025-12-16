@@ -342,11 +342,11 @@ export default function AppsPage() {
 
   return (
     <div className="px-4 sm:px-0 animate-fade-in">
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">我的应用</h1>
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-6 sm:mb-8">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">我的应用</h1>
         <button
           onClick={() => setShowCreateForm(!showCreateForm)}
-          className="btn btn-primary"
+          className="btn btn-primary w-full sm:w-auto"
           disabled={creating || updating || accessControlSaving}
         >
           {showCreateForm ? '取消' : '+ 创建应用'}
@@ -354,17 +354,17 @@ export default function AppsPage() {
       </div>
 
       {newClientCredentials && (
-        <div className="surface p-6 mb-8 border-l-4 border-yellow-400">
-          <div className="flex items-start justify-between gap-4">
+        <div className="surface p-4 sm:p-6 mb-6 sm:mb-8 border-l-4 border-yellow-400">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
             <div className="flex-1">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">应用密钥（仅本次显示）</h2>
-              <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
+              <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100">应用密钥（仅本次显示）</h2>
+              <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 mt-1">
                 请立即保存 `Client Secret`，关闭页面后将无法再次查看（可在此页面重置）。
               </p>
             </div>
             <button
               type="button"
-              className="btn btn-secondary text-sm"
+              className="btn btn-secondary text-xs sm:text-sm"
               onClick={() => setNewClientCredentials(null)}
             >
               关闭
@@ -372,15 +372,15 @@ export default function AppsPage() {
           </div>
 
           <div className="mt-4 space-y-3">
-            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-              <div className="sm:w-28 text-sm font-medium">Client ID</div>
-              <div className="flex-1 flex items-center gap-2">
-                <code className="bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded font-mono text-sm break-all select-all flex-1">
+            <div className="flex flex-col gap-2">
+              <div className="text-xs sm:text-sm font-medium">Client ID</div>
+              <div className="flex items-center gap-2">
+                <code className="bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded font-mono text-xs break-all select-all flex-1">
                   {newClientCredentials.client_id}
                 </code>
                 <button
                   type="button"
-                  className="btn btn-secondary text-sm"
+                  className="btn btn-secondary text-xs shrink-0"
                   onClick={() => copyToClipboard(newClientCredentials.client_id, 'Client ID')}
                 >
                   复制
@@ -388,22 +388,22 @@ export default function AppsPage() {
               </div>
             </div>
 
-            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-              <div className="sm:w-28 text-sm font-medium">Client Secret</div>
-              <div className="flex-1 flex items-center gap-2">
-                <code className="bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded font-mono text-sm break-all select-all flex-1">
+            <div className="flex flex-col gap-2">
+              <div className="text-xs sm:text-sm font-medium">Client Secret</div>
+              <div className="flex items-center gap-2">
+                <code className="bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded font-mono text-xs break-all select-all flex-1">
                   {showNewSecret ? newClientCredentials.client_secret : '••••••••••••••••'}
                 </code>
                 <button
                   type="button"
-                  className="btn btn-secondary text-sm"
+                  className="btn btn-secondary text-xs shrink-0"
                   onClick={() => setShowNewSecret((v) => !v)}
                 >
                   {showNewSecret ? '隐藏' : '显示'}
                 </button>
                 <button
                   type="button"
-                  className="btn btn-secondary text-sm"
+                  className="btn btn-secondary text-xs shrink-0"
                   onClick={() => copyToClipboard(newClientCredentials.client_secret, 'Client Secret')}
                 >
                   复制
@@ -412,7 +412,7 @@ export default function AppsPage() {
             </div>
 
             {copyStatus && (
-              <div className="text-sm text-gray-600 dark:text-gray-300">
+              <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-300">
                 {copyStatus}
               </div>
             )}
@@ -735,20 +735,20 @@ export default function AppsPage() {
               <ul className="list">
                 {clients.map((client) => (
                   <li key={client.id} className="list-item">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="min-w-0">
-                        <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 truncate">
+                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <h3 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-gray-100 truncate">
                           {client.name}
                         </h3>
                         {client.description && (
-                          <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
+                          <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 mt-1 line-clamp-2">
                             {client.description}
                           </p>
                         )}
-                        <div className="mt-2 space-y-1 text-sm text-gray-600 dark:text-gray-300">
+                        <div className="mt-2 space-y-1 text-xs sm:text-sm text-gray-600 dark:text-gray-300">
                           <p className="truncate">
                             <span className="font-medium">Client ID:</span>{' '}
-                            <code className="bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">
+                            <code className="bg-gray-100 dark:bg-gray-800 px-1 sm:px-2 py-0.5 sm:py-1 rounded text-xs">
                               {client.client_id}
                             </code>
                           </p>
@@ -764,55 +764,34 @@ export default function AppsPage() {
                         </div>
                       </div>
 
-                      <div className="flex flex-wrap justify-end gap-2 shrink-0">
+                      <div className="flex flex-wrap gap-2 shrink-0">
                         <button
                           onClick={() => openEditForm(client)}
-                          className="btn btn-secondary text-sm"
+                          className="btn btn-secondary text-xs"
                           disabled={creating || updating || accessControlSaving || deletingClientId === client.id || resettingClientId === client.id}
                         >
                           编辑
                         </button>
                         <button
                           onClick={() => handleResetSecret(client)}
-                          className="btn btn-secondary text-sm"
+                          className="btn btn-secondary text-xs"
                           disabled={creating || updating || accessControlSaving || resettingClientId === client.id || deletingClientId === client.id}
                         >
-                          {resettingClientId === client.id ? (
-                            <span className="inline-flex items-center justify-center gap-2">
-                              <span className="h-4 w-4 animate-spin rounded-full border-2 border-gray-400/40 border-t-gray-700 dark:border-gray-500/40 dark:border-t-gray-200" />
-                              重置中
-                            </span>
-                          ) : (
-                            '重置密钥'
-                          )}
+                          {resettingClientId === client.id ? '重置中' : '重置密钥'}
                         </button>
                         <button
                           onClick={() => openAccessControl(client)}
-                          className="btn btn-secondary text-sm"
+                          className="btn btn-secondary text-xs"
                           disabled={creating || updating || accessControlSaving || accessControlLoading}
                         >
-                          {accessControlLoading && selectedClient?.id === client.id ? (
-                            <span className="inline-flex items-center justify-center gap-2">
-                              <span className="h-4 w-4 animate-spin rounded-full border-2 border-gray-400/40 border-t-gray-700 dark:border-gray-500/40 dark:border-t-gray-200" />
-                              加载中
-                            </span>
-                          ) : (
-                            '访问控制'
-                          )}
+                          {accessControlLoading && selectedClient?.id === client.id ? '加载中' : '访问控制'}
                         </button>
                         <button
                           onClick={() => handleDelete(client.id, client.name)}
-                          className="btn btn-danger text-sm"
+                          className="btn btn-danger text-xs"
                           disabled={creating || updating || accessControlSaving || deletingClientId === client.id || resettingClientId === client.id}
                         >
-                          {deletingClientId === client.id ? (
-                            <span className="inline-flex items-center justify-center gap-2">
-                              <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-                              删除中
-                            </span>
-                          ) : (
-                            '删除'
-                          )}
+                          {deletingClientId === client.id ? '删除中' : '删除'}
                         </button>
                       </div>
                     </div>

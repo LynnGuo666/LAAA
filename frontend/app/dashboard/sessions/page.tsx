@@ -116,10 +116,10 @@ export default function SessionsPage() {
 
   return (
     <div className="px-4 sm:px-0 animate-fade-in">
-      <div className="flex justify-between items-start mb-4">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 mb-4">
         <div>
-          <h1 className="text-3xl font-bold">活跃会话</h1>
-          <p className="text-gray-600 mt-1">
+          <h1 className="text-2xl sm:text-3xl font-bold">活跃会话</h1>
+          <p className="text-gray-600 mt-1 text-sm sm:text-base">
             管理您的登录设备，最多可同时保持 3 个会话。
           </p>
         </div>
@@ -127,7 +127,7 @@ export default function SessionsPage() {
           <button
             onClick={handleRevokeOthers}
             disabled={revoking}
-            className="btn btn-danger text-sm shrink-0"
+            className="btn btn-danger text-sm shrink-0 w-full sm:w-auto"
           >
             {revoking ? '处理中...' : `登出其他设备 (${otherSessionsCount})`}
           </button>
@@ -143,28 +143,28 @@ export default function SessionsPage() {
           <ul className="list">
             {sessions.map((session) => (
               <li key={session.id} className="list-item">
-                <div className="flex items-start justify-between gap-4">
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                   <div className="flex items-start gap-3 min-w-0">
-                    <div className="p-2 bg-gray-100 dark:bg-gray-700 rounded-lg text-gray-600 dark:text-gray-300">
+                    <div className="p-2 bg-gray-100 dark:bg-gray-700 rounded-lg text-gray-600 dark:text-gray-300 shrink-0">
                       {getDeviceIcon(session.device_type)}
                     </div>
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 truncate">
+                        <h3 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-gray-100 break-all">
                           {session.device_name || '未知设备'}
                         </h3>
                         {session.is_current && (
                           <span className="text-xs px-2 py-0.5 rounded-full bg-green-50 text-green-700 border border-green-200 dark:bg-green-950 dark:text-green-200 dark:border-green-900 shrink-0">
-                            当前设备
+                            当前
                           </span>
                         )}
                         {session.is_trusted && (
                           <span className="text-xs px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950 dark:text-blue-200 dark:border-blue-900 shrink-0">
-                            可信设备
+                            可信
                           </span>
                         )}
                       </div>
-                      <div className="mt-1 text-sm text-gray-600 dark:text-gray-300 flex items-center gap-2 flex-wrap">
+                      <div className="mt-1 text-xs sm:text-sm text-gray-600 dark:text-gray-300 flex items-center gap-1 sm:gap-2 flex-wrap">
                         <span>
                           {session.device_type === 'mobile'
                             ? '手机'
@@ -175,7 +175,7 @@ export default function SessionsPage() {
                         {session.ip_address && (
                           <>
                             <span className="text-gray-400">·</span>
-                            <span>IP: {session.ip_address}</span>
+                            <span className="break-all">{session.ip_address}</span>
                           </>
                         )}
                         {(session.city || session.country) && (
@@ -186,18 +186,23 @@ export default function SessionsPage() {
                         )}
                       </div>
 
-                      <div className="mt-2 space-y-1 text-xs text-gray-500 dark:text-gray-400">
+                      <div className="mt-2 space-y-0.5 text-xs text-gray-500 dark:text-gray-400">
+                        {session.device_id && (
+                          <p className="font-mono break-all">
+                            设备ID: {session.device_id.slice(0, 8)}...{session.device_id.slice(-6)}
+                          </p>
+                        )}
                         <p>最后活跃：{formatDate(session.last_active)}</p>
                         <p>过期时间：{formatDate(session.expires_at)}</p>
                       </div>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex items-center gap-2 shrink-0 ml-10 sm:ml-0">
                     {!session.is_current && (
                       <button
                         onClick={() => handleToggleTrust(session)}
-                        className="btn btn-secondary text-sm"
+                        className="btn btn-secondary text-xs sm:text-sm"
                         title={session.is_trusted ? '取消信任' : '标记为可信'}
                       >
                         {session.is_trusted ? '取消信任' : '信任'}
@@ -205,7 +210,7 @@ export default function SessionsPage() {
                     )}
                     <button
                       onClick={() => handleRevoke(session.id, session.device_name || '当前设备')}
-                      className="btn btn-danger text-sm"
+                      className="btn btn-danger text-xs sm:text-sm"
                     >
                       撤销
                     </button>

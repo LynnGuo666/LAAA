@@ -153,17 +153,17 @@ export default function SecurityPage() {
   }
 
   return (
-    <div className="px-4 sm:px-0 animate-fade-in space-y-8">
+    <div className="px-4 sm:px-0 animate-fade-in space-y-6 sm:space-y-8">
       <div>
-        <h1 className="text-3xl font-bold">安全设置</h1>
-        <p className="text-gray-600 mt-1">
+        <h1 className="text-2xl sm:text-3xl font-bold">安全设置</h1>
+        <p className="text-gray-600 mt-1 text-sm sm:text-base">
           管理您的账户安全设置和查看登录历史。
         </p>
       </div>
 
       {/* 会话限制设置 */}
-      <div className="surface p-6">
-        <h2 className="text-xl font-semibold mb-4">会话设置</h2>
+      <div className="surface p-4 sm:p-6">
+        <h2 className="text-lg sm:text-xl font-semibold mb-4">会话设置</h2>
 
         <div className="space-y-4">
           <div>
@@ -214,8 +214,8 @@ export default function SecurityPage() {
       </div>
 
       {/* 两步验证 */}
-      <div className="surface p-6">
-        <h2 className="text-xl font-semibold mb-4">两步验证</h2>
+      <div className="surface p-4 sm:p-6">
+        <h2 className="text-lg sm:text-xl font-semibold mb-4">两步验证</h2>
         <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
           启用两步验证后，当检测到可疑登录时，需要额外的验证步骤才能登录。
         </p>
@@ -259,8 +259,8 @@ export default function SecurityPage() {
       </div>
 
       {/* 修改密码 */}
-      <div className="surface p-6">
-        <h2 className="text-xl font-semibold mb-4">修改密码</h2>
+      <div className="surface p-4 sm:p-6">
+        <h2 className="text-lg sm:text-xl font-semibold mb-4">修改密码</h2>
         <form onSubmit={handleChangePassword} className="space-y-4 max-w-md">
           {passwordError && (
             <div className="p-3 bg-red-50 border border-red-200 rounded-lg dark:bg-red-950 dark:border-red-900">
@@ -334,8 +334,8 @@ export default function SecurityPage() {
 
       {/* 登录历史 */}
       <div className="surface overflow-hidden">
-        <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-          <h2 className="text-xl font-semibold">近期登录</h2>
+        <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700">
+          <h2 className="text-lg sm:text-xl font-semibold">近期登录</h2>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
             您账户的最近登录记录
           </p>
@@ -349,19 +349,19 @@ export default function SecurityPage() {
           <ul className="list">
             {loginHistory.map((log) => (
               <li key={log.id} className="list-item">
-                <div className="flex items-start justify-between gap-4">
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 sm:gap-4">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       {getStatusBadge(log)}
-                      <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                      <span className="text-xs sm:text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
                         {log.device_name || '未知设备'}
                       </span>
                       <span className="text-xs text-gray-500 dark:text-gray-400">
                         {getLoginMethodText(log.login_method)}
                       </span>
                     </div>
-                    <div className="mt-1 text-sm text-gray-600 dark:text-gray-300 flex items-center gap-2 flex-wrap">
-                      {log.ip_address && <span>IP: {log.ip_address}</span>}
+                    <div className="mt-1 text-xs sm:text-sm text-gray-600 dark:text-gray-300 flex items-center gap-1 sm:gap-2 flex-wrap">
+                      {log.ip_address && <span className="break-all">{log.ip_address}</span>}
                       {(log.city || log.country) && (
                         <>
                           <span className="text-gray-400">·</span>
@@ -370,7 +370,7 @@ export default function SecurityPage() {
                       )}
                     </div>
                     {!log.success && log.failure_reason && (
-                      <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+                      <p className="mt-1 text-xs sm:text-sm text-red-600 dark:text-red-400">
                         失败原因：{log.failure_reason === 'invalid_password' ? '密码错误' :
                           log.failure_reason === 'user_not_found' ? '用户不存在' :
                           log.failure_reason === 'account_suspended' ? '账户已停用' :
@@ -378,8 +378,8 @@ export default function SecurityPage() {
                       </p>
                     )}
                   </div>
-                  <div className="text-right shrink-0">
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                  <div className="text-left sm:text-right shrink-0">
+                    <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
                       {formatDate(log.created_at)}
                     </p>
                   </div>

@@ -124,11 +124,8 @@ class GeoIPService:
                 country = response.country.names.get('zh-CN') or response.country.names.get('en') or response.country.name
             country_code = response.country.iso_code
 
-            if response.city.names:
-                city = response.city.names.get('zh-CN') or response.city.names.get('en') or response.city.name
-
-            # For Chinese IPs without city info, try GeoIP2-CN database
-            if country_code == 'CN' and not city:
+            # For Chinese IPs, prefer GeoIP2-CN database for better province accuracy
+            if country_code == 'CN':
                 cn_reader = _get_cn_reader()
                 if cn_reader:
                     try:
@@ -141,6 +138,10 @@ class GeoIPService:
                             city = cn_response.subdivisions.most_specific.names.get('zh-CN')
                     except Exception:
                         pass
+
+            # Fall back to main database for city info
+            if not city and response.city.names:
+                city = response.city.names.get('zh-CN') or response.city.names.get('en') or response.city.name
 
             # Still no city? Try subdivisions from main database
             if not city and response.subdivisions:

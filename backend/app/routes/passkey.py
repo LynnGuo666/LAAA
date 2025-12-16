@@ -44,6 +44,7 @@ def passkey_to_response(passkey: Passkey) -> PasskeyResponse:
     return PasskeyResponse(
         id=passkey.id,
         name=passkey.name,
+        credential_id=passkey.credential_id,
         created_at=passkey.created_at,
         last_used_at=passkey.last_used_at,
         transports=transports,

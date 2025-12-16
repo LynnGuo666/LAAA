@@ -145,8 +145,8 @@ export default function PasskeysPage() {
 
   return (
     <div className="px-4 sm:px-0 animate-fade-in">
-      <h1 className="text-3xl font-bold mb-4">通行密钥</h1>
-      <p className="text-gray-600 dark:text-gray-400 mb-8">
+      <h1 className="text-2xl sm:text-3xl font-bold mb-2 sm:mb-4">通行密钥</h1>
+      <p className="text-gray-600 dark:text-gray-400 mb-6 sm:mb-8 text-sm sm:text-base">
         通行密钥是一种更安全、更便捷的登录方式，使用您设备上的指纹、面容或屏幕锁定来验证身份。
       </p>
 
@@ -202,15 +202,15 @@ export default function PasskeysPage() {
           <ul className="list">
             {passkeys.map((passkey) => (
               <li key={passkey.id} className="list-item">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="min-w-0">
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                  <div className="min-w-0 flex-1">
                     {editingId === passkey.id ? (
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                         <input
                           type="text"
                           value={editingName}
                           onChange={(e) => setEditingName(e.target.value)}
-                          className="input text-sm py-1"
+                          className="input text-sm py-1 flex-1"
                           autoFocus
                           onKeyDown={(e) => {
                             if (e.key === 'Enter') handleRename(passkey.id);
@@ -220,26 +220,28 @@ export default function PasskeysPage() {
                             }
                           }}
                         />
-                        <button
-                          onClick={() => handleRename(passkey.id)}
-                          className="btn btn-primary text-sm py-1"
-                        >
-                          保存
-                        </button>
-                        <button
-                          onClick={() => {
-                            setEditingId(null);
-                            setEditingName('');
-                          }}
-                          className="btn text-sm py-1"
-                        >
-                          取消
-                        </button>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleRename(passkey.id)}
+                            className="btn btn-primary text-xs sm:text-sm py-1 flex-1 sm:flex-none"
+                          >
+                            保存
+                          </button>
+                          <button
+                            onClick={() => {
+                              setEditingId(null);
+                              setEditingName('');
+                            }}
+                            className="btn text-xs sm:text-sm py-1 flex-1 sm:flex-none"
+                          >
+                            取消
+                          </button>
+                        </div>
                       </div>
                     ) : (
                       <>
-                        <div className="flex items-center gap-2 min-w-0">
-                          <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 truncate">
+                        <div className="flex items-center gap-2 flex-wrap min-w-0">
+                          <h3 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-gray-100 truncate">
                             {passkey.name}
                           </h3>
                           {passkey.backup_eligible && (
@@ -248,7 +250,7 @@ export default function PasskeysPage() {
                             </span>
                           )}
                         </div>
-                        <div className="mt-2 space-y-1 text-xs text-gray-500 dark:text-gray-400">
+                        <div className="mt-2 space-y-0.5 text-xs text-gray-500 dark:text-gray-400">
                           <p>创建时间：{formatDate(passkey.created_at)}</p>
                           {passkey.last_used_at && (
                             <p>最后使用：{formatDate(passkey.last_used_at)}</p>
@@ -268,13 +270,13 @@ export default function PasskeysPage() {
                           setEditingId(passkey.id);
                           setEditingName(passkey.name);
                         }}
-                        className="btn text-sm"
+                        className="btn text-xs sm:text-sm"
                       >
                         重命名
                       </button>
                       <button
                         onClick={() => handleDelete(passkey.id, passkey.name)}
-                        className="btn btn-danger text-sm"
+                        className="btn btn-danger text-xs sm:text-sm"
                       >
                         删除
                       </button>

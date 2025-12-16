@@ -5,6 +5,7 @@
 export interface PasskeyCredential {
   id: number;
   name: string;
+  credential_id: string;  // Base64URL encoded credential ID
   created_at: string;
   last_used_at?: string;
   transports?: string[];
@@ -187,15 +188,51 @@ export function serializeAuthenticationCredential(credential: PublicKeyCredentia
 export function suggestPasskeyName(): string {
   const ua = navigator.userAgent;
 
-  if (/iPhone/.test(ua)) return 'iPhone';
-  if (/iPad/.test(ua)) return 'iPad';
-  if (/Mac/.test(ua)) {
-    if (/Safari/.test(ua) && !/Chrome/.test(ua)) return 'Safari on Mac';
-    return 'Mac';
+  // Try to detect browser first
+  let browser = '';
+  if (/Edg\//.test(ua)) {
+    browser = 'Edge';
+  } else if (/OPR\/|Opera/.test(ua)) {
+    browser = 'Opera';
+  } else if (/Chrome\//.test(ua) && !/Edg\//.test(ua)) {
+    browser = 'Chrome';
+  } else if (/Safari\//.test(ua) && !/Chrome\//.test(ua)) {
+    browser = 'Safari';
+  } else if (/Firefox\//.test(ua)) {
+    browser = 'Firefox';
   }
-  if (/Windows/.test(ua)) return 'Windows';
-  if (/Android/.test(ua)) return 'Android';
-  if (/Linux/.test(ua)) return 'Linux';
+
+  // Detect OS/Device
+  let device = '';
+  if (/iPhone/.test(ua)) {
+    device = 'iPhone';
+  } else if (/iPad/.test(ua)) {
+    device = 'iPad';
+  } else if (/Macintosh|Mac OS X/.test(ua)) {
+    device = 'macOS';
+  } else if (/Windows NT 10/.test(ua)) {
+    device = 'Windows';
+  } else if (/Windows/.test(ua)) {
+    device = 'Windows';
+  } else if (/Android/.test(ua)) {
+    device = 'Android';
+  } else if (/Linux/.test(ua)) {
+    device = 'Linux';
+  } else if (/CrOS/.test(ua)) {
+    device = 'ChromeOS';
+  }
+
+  // Combine browser and device
+  if (browser && device) {
+    // For mobile devices, just use device name
+    if (device === 'iPhone' || device === 'iPad' || device === 'Android') {
+      return device;
+    }
+    return `${browser} on ${device}`;
+  }
+
+  if (device) return device;
+  if (browser) return browser;
 
   return 'My Device';
 }

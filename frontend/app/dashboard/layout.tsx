@@ -138,23 +138,25 @@ export default function DashboardLayout({
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 sm:gap-3">
               {userIsAdmin && (
                 <Link
                   href="/admin"
-                  className="btn btn-primary text-sm"
+                  className="btn btn-primary text-xs sm:text-sm px-2 sm:px-3"
                 >
-                  管理面板
+                  <span className="hidden sm:inline">管理面板</span>
+                  <span className="sm:hidden">管理</span>
                 </Link>
               )}
-              <span className="text-sm text-gray-700 dark:text-gray-200">
+              <span className="hidden sm:inline text-sm text-gray-700 dark:text-gray-200">
                 {user.username}
               </span>
               <button
                 onClick={handleLogout}
-                className="btn btn-secondary text-sm"
+                className="btn btn-secondary text-xs sm:text-sm px-2 sm:px-3"
               >
-                退出登录
+                <span className="hidden sm:inline">退出登录</span>
+                <span className="sm:hidden">退出</span>
               </button>
             </div>
           </div>

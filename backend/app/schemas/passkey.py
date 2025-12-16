@@ -49,6 +49,7 @@ class PasskeyResponse(BaseModel):
     """Passkey info response"""
     id: int
     name: str
+    credential_id: str  # Base64URL encoded credential ID
     created_at: datetime
     last_used_at: Optional[datetime] = None
     transports: Optional[List[str]] = None

@@ -53,8 +53,8 @@ export default function AuthorizationsPage() {
 
   return (
     <div className="px-4 sm:px-0 animate-fade-in">
-      <h1 className="text-3xl font-bold mb-4">授权管理</h1>
-      <p className="text-gray-600 mb-8">
+      <h1 className="text-2xl sm:text-3xl font-bold mb-2 sm:mb-4">授权管理</h1>
+      <p className="text-gray-600 mb-6 sm:mb-8 text-sm sm:text-base">
         这里列出你已授权过的应用，你可以随时撤回授权。
       </p>
 
@@ -67,29 +67,29 @@ export default function AuthorizationsPage() {
           <ul className="list">
             {authorizations.map((auth) => (
               <li key={auth.id} className="list-item">
-                <div className="flex items-start justify-between gap-4">
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                   <div className="flex items-start gap-3 min-w-0">
                     {auth.client_logo ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
                         src={auth.client_logo}
                         alt={auth.client_name}
-                        className="w-12 h-12 rounded-xl object-cover border border-gray-200 dark:border-gray-800 shrink-0"
+                        className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl object-cover border border-gray-200 dark:border-gray-800 shrink-0"
                       />
                   ) : (
-                    <div className="w-12 h-12 rounded-xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center border border-gray-200 dark:border-gray-800 shrink-0">
-                      <AppWindow className="h-6 w-6 text-gray-500 dark:text-gray-300" aria-hidden />
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center border border-gray-200 dark:border-gray-800 shrink-0">
+                      <AppWindow className="h-5 w-5 sm:h-6 sm:w-6 text-gray-500 dark:text-gray-300" aria-hidden />
                     </div>
                   )}
 
-                    <div className="min-w-0">
-                      <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 truncate">
+                    <div className="min-w-0 flex-1">
+                      <h3 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-gray-100 truncate">
                         {auth.client_name}
                       </h3>
-                      <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
+                      <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 mt-1 truncate">
                         授权范围：{auth.scope || '-'}
                       </p>
-                      <div className="mt-2 space-y-1 text-xs text-gray-500 dark:text-gray-400">
+                      <div className="mt-2 space-y-0.5 text-xs text-gray-500 dark:text-gray-400">
                         <p>首次授权：{formatDate(auth.created_at)}</p>
                         <p>最近使用：{formatDate(auth.last_used_at)}</p>
                       </div>
@@ -98,7 +98,7 @@ export default function AuthorizationsPage() {
 
                   <button
                     onClick={() => handleRevoke(auth)}
-                    className="btn btn-danger text-sm shrink-0"
+                    className="btn btn-danger text-xs sm:text-sm shrink-0 ml-13 sm:ml-0"
                   >
                     撤回
                   </button>
