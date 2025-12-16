@@ -131,6 +131,9 @@ export const userApi = {
 
   revokeOtherSessions: () =>
     api.post('/api/user/sessions/revoke-others'),
+
+  changePassword: (currentPassword: string, newPassword: string) =>
+    api.put('/api/user/password', { current_password: currentPassword, new_password: newPassword }),
 };
 
 // Client API

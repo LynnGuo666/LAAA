@@ -98,7 +98,7 @@ export default function UserPermissionsPage() {
         <h1 className="text-xl font-semibold mb-2">参数错误</h1>
         <p className="text-gray-600">缺少用户 ID 参数。</p>
         <button
-          onClick={() => router.push('/dashboard/users')}
+          onClick={() => router.push('/admin/users')}
           className="btn btn-primary mt-4"
         >
           返回用户列表
@@ -130,7 +130,7 @@ export default function UserPermissionsPage() {
       {/* Header */}
       <div className="mb-6">
         <button
-          onClick={() => router.push('/dashboard/users')}
+          onClick={() => router.push('/admin/users')}
           className="text-sm text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100 mb-2 flex items-center gap-1"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

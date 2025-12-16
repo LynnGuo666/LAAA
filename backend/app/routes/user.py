@@ -12,6 +12,7 @@ from app.schemas import (
     SecuritySettingsResponse,
     SecuritySettingsUpdate,
     KickedSessionsResponse,
+    ChangePasswordRequest,
 )
 from app.middleware.auth import get_current_user
 from app.models import User, UserAuthorization, Session as SessionModel, Client, LoginLog
@@ -361,3 +362,34 @@ async def revoke_other_sessions(
         kicked_count=len(kicked_sessions),
         kicked_sessions=kicked_sessions
     )
+
+
+@router.put("/password")
+async def change_password(
+    password_data: ChangePasswordRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Change current user password"""
+    from app.utils.security import verify_password, hash_password
+
+    # Verify current password
+    if not verify_password(password_data.current_password, current_user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="当前密码错误"
+        )
+
+    # Check if new password is same as current
+    if verify_password(password_data.new_password, current_user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="新密码不能与当前密码相同"
+        )
+
+    # Update password
+    current_user.password_hash = hash_password(password_data.new_password)
+    current_user.updated_at = datetime.utcnow()
+    db.commit()
+
+    return {"message": "密码修改成功"}

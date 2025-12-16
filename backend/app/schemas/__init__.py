@@ -243,3 +243,9 @@ class KickedSessionsResponse(BaseModel):
     """Response for kick all other sessions"""
     kicked_count: int
     kicked_sessions: List[Dict[str, Any]]
+
+
+class ChangePasswordRequest(BaseModel):
+    """Request to change user password"""
+    current_password: str = Field(..., min_length=1)
+    new_password: str = Field(..., min_length=6)

@@ -358,7 +358,7 @@ export default function UsersPage() {
                       <button onClick={() => openGroupsModal(u)} className="btn btn-secondary text-sm">用户组</button>
                       <button onClick={() => openRolesModal(u)} className="btn btn-secondary text-sm">角色</button>
                       <button
-                        onClick={() => router.push(`/dashboard/users/permissions?id=${u.id}`)}
+                        onClick={() => router.push(`/admin/users/permissions?id=${u.id}`)}
                         className="btn btn-secondary text-sm"
                       >
                         应用权限

@@ -32,6 +32,14 @@ export default function SecurityPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
+  // Password change form
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [passwordSuccess, setPasswordSuccess] = useState('');
+  const [changingPassword, setChangingPassword] = useState(false);
+
   const adminUser = user && isAdmin(user);
 
   useEffect(() => {
@@ -64,6 +72,35 @@ export default function SecurityPage() {
       alert('更新设置失败');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPasswordError('');
+    setPasswordSuccess('');
+
+    if (newPassword.length < 6) {
+      setPasswordError('新密码至少需要 6 个字符');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setPasswordError('两次输入的密码不一致');
+      return;
+    }
+
+    setChangingPassword(true);
+    try {
+      await userApi.changePassword(currentPassword, newPassword);
+      setPasswordSuccess('密码修改成功');
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (err: any) {
+      setPasswordError(err.response?.data?.detail || '修改密码失败');
+    } finally {
+      setChangingPassword(false);
     }
   };
 
@@ -165,6 +202,80 @@ export default function SecurityPage() {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* 修改密码 */}
+      <div className="surface p-6">
+        <h2 className="text-xl font-semibold mb-4">修改密码</h2>
+        <form onSubmit={handleChangePassword} className="space-y-4 max-w-md">
+          {passwordError && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-lg dark:bg-red-950 dark:border-red-900">
+              <p className="text-sm text-red-600 dark:text-red-200">{passwordError}</p>
+            </div>
+          )}
+          {passwordSuccess && (
+            <div className="p-3 bg-green-50 border border-green-200 rounded-lg dark:bg-green-950 dark:border-green-900">
+              <p className="text-sm text-green-600 dark:text-green-200">{passwordSuccess}</p>
+            </div>
+          )}
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              当前密码
+            </label>
+            <input
+              type="password"
+              required
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              disabled={changingPassword}
+              className="input w-full"
+              placeholder="请输入当前密码"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              新密码
+            </label>
+            <input
+              type="password"
+              required
+              minLength={6}
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              disabled={changingPassword}
+              className="input w-full"
+              placeholder="至少 6 个字符"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              确认新密码
+            </label>
+            <input
+              type="password"
+              required
+              minLength={6}
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              disabled={changingPassword}
+              className="input w-full"
+              placeholder="再次输入新密码"
+            />
+          </div>
+
+          <div className="pt-2">
+            <button
+              type="submit"
+              disabled={changingPassword}
+              className="btn btn-primary disabled:opacity-50"
+            >
+              {changingPassword ? '修改中...' : '修改密码'}
+            </button>
+          </div>
+        </form>
       </div>
 
       {/* 快捷链接 */}
