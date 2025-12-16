@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import { userApi } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { isAdmin } from '@/lib/authz';
-import Link from 'next/link';
 
 interface SecuritySettings {
   max_sessions: number;
@@ -276,42 +275,6 @@ export default function SecurityPage() {
             </button>
           </div>
         </form>
-      </div>
-
-      {/* 快捷链接 */}
-      <div className="surface p-6">
-        <h2 className="text-xl font-semibold mb-4">安全管理</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Link
-            href="/dashboard/sessions"
-            className="flex items-center gap-3 p-4 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-          >
-            <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
-              <svg className="w-5 h-5 text-blue-600 dark:text-blue-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-              </svg>
-            </div>
-            <div>
-              <h3 className="font-medium text-gray-900 dark:text-gray-100">活跃会话</h3>
-              <p className="text-sm text-gray-500 dark:text-gray-400">管理您的登录设备</p>
-            </div>
-          </Link>
-
-          <Link
-            href="/dashboard/passkeys"
-            className="flex items-center gap-3 p-4 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-          >
-            <div className="p-2 bg-green-100 dark:bg-green-900 rounded-lg">
-              <svg className="w-5 h-5 text-green-600 dark:text-green-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
-              </svg>
-            </div>
-            <div>
-              <h3 className="font-medium text-gray-900 dark:text-gray-100">通行密钥</h3>
-              <p className="text-sm text-gray-500 dark:text-gray-400">管理无密码登录方式</p>
-            </div>
-          </Link>
-        </div>
       </div>
 
       {/* 登录历史 */}
