@@ -1,16 +1,14 @@
 """
-GeoIP Service - IP geolocation using MaxMind GeoLite2 database
+GeoIP Service - IP geolocation using MaxMind GeoLite2 database and ip2region
 
-This service provides IP-to-location lookup functionality using a local
-MaxMind GeoLite2-City database for fast, unlimited queries.
-
-For Chinese IPs, it can optionally use GeoIP2-CN database for better
-province-level accuracy.
+This service provides IP-to-location lookup functionality using:
+1. MaxMind GeoLite2-City database for international IPs
+2. ip2region database for accurate Chinese IP province/city lookup
 
 Requirements:
-- pip install geoip2
+- pip install geoip2 xdbSearcher
 - Download GeoLite2-City.mmdb from https://www.maxmind.com (free registration required)
-- (Optional) Download GeoIP2-CN Country.mmdb from https://github.com/Hackl0us/GeoIP2-CN
+- Download ip2region.xdb from https://github.com/lionsoul2014/ip2region
 """
 
 from typing import Optional, Dict, Any
@@ -19,9 +17,10 @@ import os
 
 settings = get_settings()
 
-# Lazy-loaded geoip2 readers
+# Lazy-loaded readers
 _geoip_reader = None
 _geoip_cn_reader = None
+_ip2region_searcher = None
 
 
 def _get_reader():
@@ -81,8 +80,57 @@ def _get_cn_reader():
         return None
 
 
+def _get_ip2region_searcher():
+    """Get or create the ip2region searcher for Chinese IPs"""
+    global _ip2region_searcher
+
+    if _ip2region_searcher is not None:
+        return _ip2region_searcher
+
+    if not settings.ip2region_enabled:
+        return None
+
+    db_path = settings.ip2region_database_path
+    if not os.path.exists(db_path):
+        print(f"ip2region database not found at {db_path}")
+        return None
+
+    try:
+        import ip2region.util as util
+        import ip2region.searcher as xdb
+
+        # Load entire xdb to memory for best performance and thread safety
+        c_buffer = util.load_content_from_file(db_path)
+        _ip2region_searcher = xdb.new_with_buffer(util.IPv4, c_buffer)
+        print(f"ip2region database loaded from {db_path}")
+        return _ip2region_searcher
+    except ImportError:
+        print("py-ip2region library not installed. Run: pip install py-ip2region")
+        return None
+    except Exception as e:
+        print(f"Failed to load ip2region database: {e}")
+        return None
+
+
 class GeoIPService:
     """Service for IP geolocation lookups"""
+
+    @staticmethod
+    def _parse_ip2region_result(result: str) -> tuple:
+        """
+        Parse ip2region result string.
+        Format: 国家|省份|城市|ISP
+        Example: 中国|吉林省|长春市|电信
+        Returns: (province, city)
+        """
+        if not result:
+            return None, None
+        parts = result.split("|")
+        if len(parts) < 3:
+            return None, None
+        province = parts[1] if parts[1] and parts[1] != "0" else None
+        city = parts[2] if parts[2] and parts[2] != "0" else None
+        return province, city
 
     @staticmethod
     def get_location(ip_address: str) -> Optional[Dict[str, Any]]:
@@ -96,7 +144,7 @@ class GeoIPService:
             Dictionary with location info, or None if lookup fails:
             {
                 "country": "中国",
-                "city": "北京",  # For CN IPs, this may be province from GeoIP2-CN
+                "city": "河南省",  # For CN IPs, province from ip2region
                 "latitude": "30.2936",
                 "longitude": "120.1614"
             }
@@ -124,22 +172,28 @@ class GeoIPService:
                 country = response.country.names.get('zh-CN') or response.country.names.get('en') or response.country.name
             country_code = response.country.iso_code
 
-            # For Chinese IPs, prefer GeoIP2-CN database for better province accuracy
+            # For Chinese IPs, use ip2region for accurate province/city
             if country_code == 'CN':
-                cn_reader = _get_cn_reader()
-                if cn_reader:
+                searcher = _get_ip2region_searcher()
+                if searcher:
                     try:
-                        cn_response = cn_reader.country(ip_address)
-                        # GeoIP2-CN stores province in city.names
-                        if hasattr(cn_response, 'city') and cn_response.city.names:
-                            city = cn_response.city.names.get('zh-CN') or cn_response.city.names.get('en')
-                        # Some versions store it differently, try subdivisions
-                        if not city and hasattr(cn_response, 'subdivisions') and cn_response.subdivisions:
-                            city = cn_response.subdivisions.most_specific.names.get('zh-CN')
+                        result = searcher.search(ip_address)
+                        province, ip2region_city = GeoIPService._parse_ip2region_result(result)
+                        # Combine province and city, avoid redundancy for municipalities
+                        if province and ip2region_city:
+                            # For municipalities (北京/上海/天津/重庆), province has no 省 suffix
+                            # e.g. "北京" + "北京市" -> "北京市"
+                            # But "吉林省" + "吉林市" -> "吉林省吉林市" (keep both)
+                            if not province.endswith('省') and ip2region_city.startswith(province):
+                                city = ip2region_city
+                            else:
+                                city = f"{province}{ip2region_city}"
+                        else:
+                            city = province or ip2region_city
                     except Exception:
                         pass
 
-            # Fall back to main database for city info
+            # Fall back to GeoLite2 city info if ip2region didn't provide data
             if not city and response.city.names:
                 city = response.city.names.get('zh-CN') or response.city.names.get('en') or response.city.name
 
@@ -169,12 +223,20 @@ class GeoIPService:
         return _get_cn_reader() is not None
 
     @staticmethod
+    def is_ip2region_available() -> bool:
+        """Check if ip2region database is available"""
+        return _get_ip2region_searcher() is not None
+
+    @staticmethod
     def close():
         """Close the GeoIP database readers"""
-        global _geoip_reader, _geoip_cn_reader
+        global _geoip_reader, _geoip_cn_reader, _ip2region_searcher
         if _geoip_reader is not None:
             _geoip_reader.close()
             _geoip_reader = None
         if _geoip_cn_reader is not None:
             _geoip_cn_reader.close()
             _geoip_cn_reader = None
+        if _ip2region_searcher is not None:
+            _ip2region_searcher.close()
+            _ip2region_searcher = None

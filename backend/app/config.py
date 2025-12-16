@@ -54,6 +54,11 @@ class Settings(BaseSettings):
     geoip_enabled: bool = True
     geoip_database_path: str = "data/GeoLite2-City.mmdb"
 
+    # ip2region settings (for accurate Chinese IP province lookup)
+    # Env vars: IP2REGION_ENABLED, IP2REGION_DATABASE_PATH
+    ip2region_enabled: bool = True
+    ip2region_database_path: str = "data/ip2region.xdb"
+
     # SMTP Email settings
     # Env vars: SMTP_ENABLED, SMTP_HOST, SMTP_PORT, SMTP_USERNAME, SMTP_PASSWORD,
     #           SMTP_FROM_EMAIL, SMTP_FROM_NAME, SMTP_USE_TLS, SMTP_USE_SSL
