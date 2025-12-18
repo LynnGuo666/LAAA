@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { adminApi, groupApi } from '@/lib/api';
+import { formatDate } from '@/lib/date';
 import { useAuthStore } from '@/lib/store';
 import { isAdmin } from '@/lib/authz';
 
@@ -348,7 +349,7 @@ export default function UsersPage() {
                         </div>
                         <div className="text-sm text-gray-600 dark:text-gray-300 truncate mt-1">{u.email}</div>
                         <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-                          <span>创建：{new Date(u.created_at).toLocaleDateString('zh-CN')}</span>
+                          <span>创建：{formatDate(u.created_at)}</span>
                           <span className="opacity-60">·</span>
                           <span className="truncate">用户组：{u.groups?.length ? u.groups.join(', ') : '无'}</span>
                         </div>
