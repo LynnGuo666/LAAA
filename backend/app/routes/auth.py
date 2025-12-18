@@ -300,7 +300,7 @@ async def get_current_user_info(
     groups = sorted({g.name for g in current_user.groups})
 
     # Calculate is_restricted: need email_verified AND (totp OR passkey)
-    has_totp = getattr(current_user, 'totp_enabled', False) or False
+    has_totp = current_user.totp is not None and current_user.totp.is_enabled
     passkey_count = db.query(Passkey).filter(Passkey.user_id == current_user.id).count()
     is_restricted = not (
         current_user.email_verified

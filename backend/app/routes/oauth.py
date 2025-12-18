@@ -87,7 +87,7 @@ async def authorize_get(
         )
 
     # Check if user is in restricted mode
-    has_totp = getattr(current_user, 'totp_enabled', False) or False
+    has_totp = current_user.totp is not None and current_user.totp.is_enabled
     passkey_count = db.query(Passkey).filter(Passkey.user_id == current_user.id).count()
     is_restricted = not (
         current_user.email_verified
@@ -174,7 +174,7 @@ async def authorize_post(
         )
 
     # Check if user is in restricted mode
-    has_totp = getattr(current_user, 'totp_enabled', False) or False
+    has_totp = current_user.totp is not None and current_user.totp.is_enabled
     passkey_count = db.query(Passkey).filter(Passkey.user_id == current_user.id).count()
     is_restricted = not (
         current_user.email_verified

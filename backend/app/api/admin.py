@@ -703,7 +703,7 @@ async def get_user_authorizations(
 
     authorizations = db.query(UserAuthorization).filter(
         UserAuthorization.user_id == user_id
-    ).order_by(UserAuthorization.updated_at.desc()).all()
+    ).order_by(UserAuthorization.last_used_at.desc()).all()
 
     result = []
     for auth in authorizations:
@@ -716,7 +716,7 @@ async def get_user_authorizations(
                 client_logo=client.logo,
                 scope=auth.scope,
                 created_at=auth.created_at,
-                updated_at=auth.updated_at
+                updated_at=auth.last_used_at
             ))
 
     return result
