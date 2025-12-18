@@ -360,12 +360,6 @@ class RiskService:
                     "strength": MethodStrength.STANDARD.value,
                     "available": True,
                 })
-            if VerificationMethod.MAGIC_LINK.value not in completed:
-                methods.append({
-                    "method": VerificationMethod.MAGIC_LINK.value,
-                    "strength": MethodStrength.STANDARD.value,
-                    "available": True,
-                })
 
         # Add TOTP if enabled
         if VerificationMethod.TOTP.value not in completed:

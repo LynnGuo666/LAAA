@@ -192,3 +192,12 @@ class AdminAuthorizationResponse(BaseModel):
     class Config:
         from_attributes = True
 
+
+class AdminUserSecurityMethodsResponse(BaseModel):
+    """管理员查看的用户安全验证方式"""
+    totp_enabled: bool = False
+    totp_created_at: Optional[datetime] = None
+    passkey_count: int = 0
+    email_verified: bool = False
+    email_verified_at: Optional[datetime] = None
+

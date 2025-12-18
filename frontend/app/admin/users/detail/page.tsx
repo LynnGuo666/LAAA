@@ -80,6 +80,14 @@ interface Authorization {
   updated_at: string;
 }
 
+interface SecurityMethods {
+  totp_enabled: boolean;
+  totp_created_at?: string;
+  passkey_count: number;
+  email_verified: boolean;
+  email_verified_at?: string;
+}
+
 type Tab = 'info' | 'logs' | 'sessions' | 'passkeys' | 'authorizations';
 
 export default function UserDetailPage() {
@@ -103,6 +111,7 @@ export default function UserDetailPage() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [passkeys, setPasskeys] = useState<Passkey[]>([]);
   const [authorizations, setAuthorizations] = useState<Authorization[]>([]);
+  const [securityMethods, setSecurityMethods] = useState<SecurityMethods | null>(null);
 
   // Edit states
   const [editForm, setEditForm] = useState({ email: '', avatar: '', status: 'active', password: '' });
@@ -190,12 +199,23 @@ export default function UserDetailPage() {
     }
   }, [userId]);
 
+  const loadSecurityMethods = useCallback(async () => {
+    if (!userId) return;
+    try {
+      const response = await adminApi.getUserSecurityMethods(userId);
+      setSecurityMethods(response.data);
+    } catch (err) {
+      console.error('加载安全验证方式失败:', err);
+    }
+  }, [userId]);
+
   useEffect(() => {
     if (!canManageUsers || !userId) return;
     loadUser();
     loadGroups();
     loadRoles();
-  }, [canManageUsers, userId, loadUser]);
+    loadSecurityMethods();
+  }, [canManageUsers, userId, loadUser, loadSecurityMethods]);
 
   useEffect(() => {
     if (!canManageUsers || !user) return;
@@ -390,6 +410,77 @@ export default function UserDetailPage() {
               <div><span className="text-gray-500">用户组：</span>{user.groups.length ? user.groups.join(', ') : '无'}</div>
               <div><span className="text-gray-500">角色：</span>{user.roles.length ? user.roles.join(', ') : '无'}</div>
               <div><span className="text-gray-500">更新时间：</span>{formatDate(user.updated_at)}</div>
+            </div>
+
+            {/* 已绑定验证方式 */}
+            <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
+              <h3 className="text-lg font-medium mb-4">已绑定验证方式</h3>
+              {securityMethods ? (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* 邮箱验证 */}
+                  <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center ${securityMethods.email_verified ? 'bg-green-100 dark:bg-green-900' : 'bg-gray-100 dark:bg-gray-800'}`}>
+                        <svg className={`w-4 h-4 ${securityMethods.email_verified ? 'text-green-600 dark:text-green-400' : 'text-gray-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                        </svg>
+                      </div>
+                      <div>
+                        <div className="font-medium text-gray-900 dark:text-gray-100">邮箱验证</div>
+                        <div className={`text-xs ${securityMethods.email_verified ? 'text-green-600 dark:text-green-400' : 'text-gray-500'}`}>
+                          {securityMethods.email_verified ? '已验证' : '未验证'}
+                        </div>
+                      </div>
+                    </div>
+                    {securityMethods.email_verified && securityMethods.email_verified_at && (
+                      <div className="text-xs text-gray-500 mt-1">
+                        验证于 {formatDate(securityMethods.email_verified_at)}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 身份验证器 (TOTP) */}
+                  <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center ${securityMethods.totp_enabled ? 'bg-green-100 dark:bg-green-900' : 'bg-gray-100 dark:bg-gray-800'}`}>
+                        <svg className={`w-4 h-4 ${securityMethods.totp_enabled ? 'text-green-600 dark:text-green-400' : 'text-gray-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                        </svg>
+                      </div>
+                      <div>
+                        <div className="font-medium text-gray-900 dark:text-gray-100">身份验证器</div>
+                        <div className={`text-xs ${securityMethods.totp_enabled ? 'text-green-600 dark:text-green-400' : 'text-gray-500'}`}>
+                          {securityMethods.totp_enabled ? '已启用' : '未启用'}
+                        </div>
+                      </div>
+                    </div>
+                    {securityMethods.totp_enabled && securityMethods.totp_created_at && (
+                      <div className="text-xs text-gray-500 mt-1">
+                        启用于 {formatDate(securityMethods.totp_created_at)}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 通行密钥 */}
+                  <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center ${securityMethods.passkey_count > 0 ? 'bg-green-100 dark:bg-green-900' : 'bg-gray-100 dark:bg-gray-800'}`}>
+                        <svg className={`w-4 h-4 ${securityMethods.passkey_count > 0 ? 'text-green-600 dark:text-green-400' : 'text-gray-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                        </svg>
+                      </div>
+                      <div>
+                        <div className="font-medium text-gray-900 dark:text-gray-100">通行密钥</div>
+                        <div className={`text-xs ${securityMethods.passkey_count > 0 ? 'text-green-600 dark:text-green-400' : 'text-gray-500'}`}>
+                          {securityMethods.passkey_count > 0 ? `已绑定 ${securityMethods.passkey_count} 个` : '未绑定'}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-gray-500">加载中...</div>
+              )}
             </div>
           </div>
         )}

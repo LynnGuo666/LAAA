@@ -317,6 +317,10 @@ export const adminApi = {
   // 用户授权记录
   getUserAuthorizations: (userId: number) =>
     api.get(`/api/admin/users/${userId}/authorizations`),
+
+  // 用户安全验证方式
+  getUserSecurityMethods: (userId: number) =>
+    api.get(`/api/admin/users/${userId}/security-methods`),
 };
 
 // Group API extensions for app permissions

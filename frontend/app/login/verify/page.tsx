@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { verificationApi, authApi } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
-import { Mail, Link2, ShieldCheck, KeyRound } from 'lucide-react';
+import { Mail, ShieldCheck, KeyRound } from 'lucide-react';
 import {
   isWebAuthnSupported,
   parseAuthenticationOptions,
@@ -38,11 +38,10 @@ interface VerificationSession {
   redirect: string;
 }
 
-type VerificationStep = 'select' | 'email_code' | 'totp' | 'passkey' | 'magic_link' | 'backup_code';
+type VerificationStep = 'select' | 'email_code' | 'totp' | 'passkey' | 'backup_code';
 
 const METHOD_NAMES: Record<string, string> = {
   email_code: '邮件验证码',
-  magic_link: '邮件链接验证',
   totp: '身份验证器',
   passkey: '通行密钥',
 };
@@ -78,11 +77,6 @@ export default function VerifyPage() {
   const [totpCode, setTotpCode] = useState('');
   const [showBackupCode, setShowBackupCode] = useState(false);
   const [backupCode, setBackupCode] = useState('');
-
-  // Magic link state
-  const [magicLinkSent, setMagicLinkSent] = useState(false);
-  const [magicLinkPolling, setMagicLinkPolling] = useState(false);
-  const [magicLinkDeviceMismatch, setMagicLinkDeviceMismatch] = useState(false);
 
   // WebAuthn support
   const [webAuthnSupported, setWebAuthnSupported] = useState(false);
@@ -124,66 +118,6 @@ export default function VerifyPage() {
     }
   }, [emailCooldown]);
 
-  // Magic link polling
-  useEffect(() => {
-    if (!magicLinkPolling || !session) return;
-
-    const pollInterval = setInterval(async () => {
-      try {
-        const response = await verificationApi.getStatus(session.session_token);
-        const data = response.data;
-
-        // Check if magic_link is now in completed_methods
-        if (data.completed_methods?.includes('magic_link')) {
-          setMagicLinkPolling(false);
-
-          // Check if verification is complete
-          if (data.is_complete) {
-            // Verification complete, but we need to wait for the magic link page to handle login
-            // The magic link page will redirect here with tokens
-            return;
-          }
-
-          // Update session with new status
-          setCompletedMethods([...completedMethods, 'magic_link']);
-          const updatedSession = {
-            ...session,
-            completed_verifications: data.completed_verifications,
-            completed_methods: data.completed_methods,
-            available_methods: data.remaining_methods || session.available_methods.filter(m => m.method !== 'magic_link'),
-          };
-          setSession(updatedSession);
-          sessionStorage.setItem('verification_session', JSON.stringify(updatedSession));
-
-          // Go back to method selection if more verifications needed
-          setCurrentStep('select');
-          setSuccess('邮件链接验证成功，请继续完成下一步验证');
-          setMagicLinkSent(false);
-        }
-      } catch (err) {
-        // If session expired or invalid, stop polling
-        console.error('Poll error:', err);
-      }
-    }, 3000); // Poll every 3 seconds
-
-    return () => clearInterval(pollInterval);
-  }, [magicLinkPolling, session, completedMethods]);
-
-  // Listen for magic link device mismatch events from other tabs/windows
-  useEffect(() => {
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'magic_link_device_mismatch' && e.newValue === session?.session_token) {
-        setMagicLinkDeviceMismatch(true);
-        setMagicLinkPolling(false);
-        setMagicLinkSent(true); // Keep in magic link view to show error
-        localStorage.removeItem('magic_link_device_mismatch');
-      }
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
-  }, [session]);
-
   const handleSelectMethod = (method: string) => {
     setError('');
     setSuccess('');
@@ -193,8 +127,6 @@ export default function VerifyPage() {
       setCurrentStep('totp');
     } else if (method === 'passkey') {
       setCurrentStep('passkey');
-    } else if (method === 'magic_link') {
-      setCurrentStep('magic_link');
     }
   };
 
@@ -255,24 +187,6 @@ export default function VerifyPage() {
       await handleVerificationResponse(response.data, 'totp');
     } catch (err: any) {
       setError(err.response?.data?.detail || '验证失败');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSendMagicLink = async () => {
-    if (!session) return;
-    setLoading(true);
-    setError('');
-    setMagicLinkDeviceMismatch(false);
-
-    try {
-      await verificationApi.sendMagicLink(session.session_token);
-      setMagicLinkSent(true);
-      setMagicLinkPolling(true);
-      setSuccess('验证链接已发送到您的邮箱，请在同一设备上点击链接');
-    } catch (err: any) {
-      setError(err.response?.data?.detail || '发送验证链接失败');
     } finally {
       setLoading(false);
     }
@@ -355,7 +269,6 @@ export default function VerifyPage() {
       setTotpCode('');
       setBackupCode('');
       setEmailCodeSent(false);
-      setMagicLinkSent(false);
     }
   };
 
@@ -482,9 +395,6 @@ export default function VerifyPage() {
                 <div className="flex items-center gap-3">
                   {method.method === 'email_code' && (
                     <Mail className="w-6 h-6 text-blue-500" />
-                  )}
-                  {method.method === 'magic_link' && (
-                    <Link2 className="w-6 h-6 text-purple-500" />
                   )}
                   {method.method === 'totp' && (
                     <ShieldCheck className="w-6 h-6 text-green-500" />
@@ -673,104 +583,6 @@ export default function VerifyPage() {
 
             <button
               onClick={() => setCurrentStep('select')}
-              className="w-full text-sm text-gray-500 hover:text-gray-700"
-            >
-              选择其他验证方式
-            </button>
-          </div>
-        )}
-
-        {/* Magic Link Verification */}
-        {currentStep === 'magic_link' && (
-          <div className="space-y-4">
-            {magicLinkDeviceMismatch ? (
-              /* Device mismatch warning */
-              <div className="space-y-4">
-                <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg p-6 text-center">
-                  <div className="w-12 h-12 mx-auto mb-4 bg-red-100 dark:bg-red-900 rounded-full flex items-center justify-center">
-                    <svg className="w-6 h-6 text-red-600 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                    </svg>
-                  </div>
-                  <h3 className="text-lg font-semibold text-red-800 dark:text-red-200 mb-2">
-                    检测到安全风险
-                  </h3>
-                  <p className="text-sm text-red-600 dark:text-red-300 mb-4">
-                    验证链接在其他设备上被打开。为了保护您的账户安全，此次验证已被拒绝。
-                  </p>
-                  <div className="text-left bg-red-100 dark:bg-red-900/50 rounded p-3 text-sm text-red-700 dark:text-red-300">
-                    <p className="font-medium mb-1">可能的原因：</p>
-                    <ul className="list-disc list-inside space-y-1">
-                      <li>您在其他设备上点击了链接</li>
-                      <li>链接被转发给了其他人</li>
-                      <li>有人试图冒充您登录</li>
-                    </ul>
-                  </div>
-                </div>
-                <button
-                  onClick={() => {
-                    setMagicLinkDeviceMismatch(false);
-                    setMagicLinkSent(false);
-                    setMagicLinkPolling(false);
-                  }}
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-4 rounded-lg transition-colors"
-                >
-                  重新发送验证链接
-                </button>
-              </div>
-            ) : !magicLinkSent ? (
-              /* Send magic link button */
-              <>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  验证链接将发送到 <strong>{session.email_masked}</strong>
-                </p>
-                <button
-                  onClick={handleSendMagicLink}
-                  disabled={loading}
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-4 rounded-lg transition-colors disabled:opacity-50"
-                >
-                  {loading ? '发送中...' : '发送验证链接'}
-                </button>
-              </>
-            ) : (
-              /* Waiting for verification */
-              <div className="space-y-4">
-                <div className="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg p-6 text-center">
-                  <div className="w-12 h-12 mx-auto mb-4 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
-                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 dark:border-blue-400"></div>
-                  </div>
-                  <h3 className="text-lg font-semibold text-blue-800 dark:text-blue-200 mb-2">
-                    等待验证
-                  </h3>
-                  <p className="text-sm text-blue-600 dark:text-blue-300 mb-2">
-                    验证链接已发送到您的邮箱
-                  </p>
-                  <p className="text-sm text-blue-500 dark:text-blue-400">
-                    请在<strong>同一设备</strong>上点击链接完成验证
-                  </p>
-                </div>
-                <div className="bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3 text-sm text-yellow-700 dark:text-yellow-300">
-                  <strong>安全提示：</strong>如果链接在其他设备上被打开，验证将被拒绝并触发安全警告。
-                </div>
-                <button
-                  onClick={() => {
-                    setMagicLinkSent(false);
-                    setMagicLinkPolling(false);
-                  }}
-                  className="w-full text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400"
-                >
-                  重新发送验证链接
-                </button>
-              </div>
-            )}
-
-            <button
-              onClick={() => {
-                setCurrentStep('select');
-                setMagicLinkSent(false);
-                setMagicLinkPolling(false);
-                setMagicLinkDeviceMismatch(false);
-              }}
               className="w-full text-sm text-gray-500 hover:text-gray-700"
             >
               选择其他验证方式

@@ -23,6 +23,7 @@ from app.schemas.admin import (
     AdminSessionResponse,
     AdminPasskeyResponse,
     AdminAuthorizationResponse,
+    AdminUserSecurityMethodsResponse,
 )
 from app.middleware.auth import get_current_user
 from app.middleware.permission import require_permission
@@ -720,3 +721,39 @@ async def get_user_authorizations(
             ))
 
     return result
+
+
+# ==================== User Security Methods ====================
+
+@router.get("/users/{user_id}/security-methods", response_model=AdminUserSecurityMethodsResponse)
+async def get_user_security_methods(
+    user_id: int,
+    db: DBSession = Depends(get_db),
+    _: User = Depends(require_permission('admin.users'))
+):
+    """获取用户的安全验证方式（管理员）"""
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="用户不存在"
+        )
+
+    # TOTP 状态
+    totp_enabled = user.totp is not None and user.totp.is_enabled
+    totp_created_at = user.totp.created_at if user.totp and user.totp.is_enabled else None
+
+    # Passkey 数量
+    passkey_count = len(user.passkeys)
+
+    # 邮箱验证状态
+    email_verified = user.email_verified
+    email_verified_at = user.email_verified_at
+
+    return AdminUserSecurityMethodsResponse(
+        totp_enabled=totp_enabled,
+        totp_created_at=totp_created_at,
+        passkey_count=passkey_count,
+        email_verified=email_verified,
+        email_verified_at=email_verified_at
+    )
