@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { userApi } from '@/lib/api';
+import { formatDateTime } from '@/lib/date';
 import { AppWindow } from 'lucide-react';
 
 interface Authorization {
@@ -40,11 +41,6 @@ export default function AuthorizationsPage() {
     } catch (err) {
       alert('撤销授权失败');
     }
-  };
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return isNaN(date.getTime()) ? '-' : date.toLocaleString();
   };
 
   if (loading) {
@@ -90,8 +86,8 @@ export default function AuthorizationsPage() {
                         授权范围：{auth.scope || '-'}
                       </p>
                       <div className="mt-2 space-y-0.5 text-xs text-gray-500 dark:text-gray-400">
-                        <p>首次授权：{formatDate(auth.created_at)}</p>
-                        <p>最近使用：{formatDate(auth.last_used_at)}</p>
+                        <p>首次授权：{formatDateTime(auth.created_at)}</p>
+                        <p>最近使用：{formatDateTime(auth.last_used_at)}</p>
                       </div>
                     </div>
                   </div>

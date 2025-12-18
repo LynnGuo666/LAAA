@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { totpApi } from '@/lib/api';
+import { formatDate } from '@/lib/date';
 
 interface TOTPStatus {
   enabled: boolean;
@@ -282,7 +283,7 @@ export default function TOTPSetupPage() {
               </h3>
               {status?.enabled && status.created_at && (
                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                  启用于 {new Date(status.created_at).toLocaleDateString()}
+                  启用于 {formatDate(status.created_at)}
                 </p>
               )}
             </div>

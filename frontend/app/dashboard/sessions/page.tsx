@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { userApi } from '@/lib/api';
+import { formatDateTime } from '@/lib/date';
 
 interface Session {
   id: number;
@@ -79,11 +80,6 @@ export default function SessionsPage() {
     } catch (err) {
       alert('操作失败');
     }
-  };
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleString();
   };
 
   const getDeviceIcon = (deviceType?: string) => {
@@ -192,8 +188,8 @@ export default function SessionsPage() {
                             设备ID: {session.device_id.slice(0, 8)}...{session.device_id.slice(-6)}
                           </p>
                         )}
-                        <p>最后活跃：{formatDate(session.last_active)}</p>
-                        <p>过期时间：{formatDate(session.expires_at)}</p>
+                        <p>最后活跃：{formatDateTime(session.last_active)}</p>
+                        <p>过期时间：{formatDateTime(session.expires_at)}</p>
                       </div>
                     </div>
                   </div>

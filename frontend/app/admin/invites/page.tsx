@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { adminApi, groupApi } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { isAdmin } from '@/lib/authz';
+import { formatDateTime } from '@/lib/date';
 
 interface Group {
   id: number;
@@ -281,13 +282,13 @@ export default function InvitesPage() {
                         <span className="text-gray-500">无效</span>
                       )}
                       {i.expires_at ? (
-                        <span className="text-gray-500 ml-2">({new Date(i.expires_at).toLocaleString()})</span>
+                        <span className="text-gray-500 ml-2">({formatDateTime(i.expires_at)})</span>
                       ) : null}
                     </td>
                     <td className="py-2 pr-4">
                       <span className="text-gray-700">{limitText}</span>
                       {i.used_at ? (
-                        <span className="text-gray-500 ml-2">最后一次：{new Date(i.used_at).toLocaleString()}</span>
+                        <span className="text-gray-500 ml-2">最后一次：{formatDateTime(i.used_at)}</span>
                       ) : null}
                     </td>
                     <td className="py-2 pr-4 text-gray-700">{i.note || ''}</td>

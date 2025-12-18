@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { userApi, totpApi } from '@/lib/api';
+import { formatDateTime } from '@/lib/date';
 import { useAuthStore } from '@/lib/store';
 import { isAdmin } from '@/lib/authz';
 
@@ -111,11 +112,6 @@ export default function SecurityPage() {
     } finally {
       setChangingPassword(false);
     }
-  };
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleString();
   };
 
   const getStatusBadge = (log: LoginLog) => {
@@ -380,7 +376,7 @@ export default function SecurityPage() {
                   </div>
                   <div className="text-left sm:text-right shrink-0">
                     <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
-                      {formatDate(log.created_at)}
+                      {formatDateTime(log.created_at)}
                     </p>
                   </div>
                 </div>

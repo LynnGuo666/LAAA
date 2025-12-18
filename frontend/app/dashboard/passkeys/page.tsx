@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { passkeyApi } from '@/lib/api';
+import { formatDateTime } from '@/lib/date';
 import { useAuthStore } from '@/lib/store';
 import { Check, AlertTriangle } from 'lucide-react';
 import {
@@ -134,11 +135,6 @@ export default function PasskeysPage() {
     }
   };
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleString();
-  };
-
   if (loading) {
     return <div className="text-center py-12">加载中...</div>;
   }
@@ -251,9 +247,9 @@ export default function PasskeysPage() {
                           )}
                         </div>
                         <div className="mt-2 space-y-0.5 text-xs text-gray-500 dark:text-gray-400">
-                          <p>创建时间：{formatDate(passkey.created_at)}</p>
+                          <p>创建时间：{formatDateTime(passkey.created_at)}</p>
                           {passkey.last_used_at && (
-                            <p>最后使用：{formatDate(passkey.last_used_at)}</p>
+                            <p>最后使用：{formatDateTime(passkey.last_used_at)}</p>
                           )}
                           {passkey.transports && passkey.transports.length > 0 && (
                             <p>传输方式：{passkey.transports.join(', ')}</p>

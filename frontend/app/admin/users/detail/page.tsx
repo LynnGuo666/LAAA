@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { adminApi, groupApi } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { isAdmin } from '@/lib/authz';
+import { formatDateTime } from '@/lib/date';
 
 interface User {
   id: number;
@@ -330,8 +331,6 @@ export default function UserDetailPage() {
     }
   };
 
-  const formatDate = (dateString: string) => new Date(dateString).toLocaleString('zh-CN');
-
   const getStatusBadge = (status: string) => {
     const styles: Record<string, string> = {
       active: 'bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-200',
@@ -372,7 +371,7 @@ export default function UserDetailPage() {
               {getStatusBadge(user.status)}
             </h1>
             <p className="text-gray-600 dark:text-gray-400">{user.email}</p>
-            <p className="text-sm text-gray-500">ID: {user.id} · 创建于 {formatDate(user.created_at)}</p>
+            <p className="text-sm text-gray-500">ID: {user.id} · 创建于 {formatDateTime(user.created_at)}</p>
           </div>
         </div>
       </div>
@@ -409,7 +408,7 @@ export default function UserDetailPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
               <div><span className="text-gray-500">用户组：</span>{user.groups.length ? user.groups.join(', ') : '无'}</div>
               <div><span className="text-gray-500">角色：</span>{user.roles.length ? user.roles.join(', ') : '无'}</div>
-              <div><span className="text-gray-500">更新时间：</span>{formatDate(user.updated_at)}</div>
+              <div><span className="text-gray-500">更新时间：</span>{formatDateTime(user.updated_at)}</div>
             </div>
 
             {/* 已绑定验证方式 */}
@@ -434,7 +433,7 @@ export default function UserDetailPage() {
                     </div>
                     {securityMethods.email_verified && securityMethods.email_verified_at && (
                       <div className="text-xs text-gray-500 mt-1">
-                        验证于 {formatDate(securityMethods.email_verified_at)}
+                        验证于 {formatDateTime(securityMethods.email_verified_at)}
                       </div>
                     )}
                   </div>
@@ -456,7 +455,7 @@ export default function UserDetailPage() {
                     </div>
                     {securityMethods.totp_enabled && securityMethods.totp_created_at && (
                       <div className="text-xs text-gray-500 mt-1">
-                        启用于 {formatDate(securityMethods.totp_created_at)}
+                        启用于 {formatDateTime(securityMethods.totp_created_at)}
                       </div>
                     )}
                   </div>
@@ -513,7 +512,7 @@ export default function UserDetailPage() {
                             <div className="text-xs text-red-600 dark:text-red-400 mt-1">原因：{log.failure_reason}</div>
                           )}
                         </div>
-                        <div className="text-xs text-gray-500 shrink-0">{formatDate(log.created_at)}</div>
+                        <div className="text-xs text-gray-500 shrink-0">{formatDateTime(log.created_at)}</div>
                       </div>
                     </li>
                   ))}
@@ -558,7 +557,7 @@ export default function UserDetailPage() {
                           {(session.city || session.country) && <span> · {[session.city, session.country].filter(Boolean).join(', ')}</span>}
                         </div>
                         <div className="text-xs text-gray-500 mt-1">
-                          最后活跃：{formatDate(session.last_active)} · 过期：{formatDate(session.expires_at)}
+                          最后活跃：{formatDateTime(session.last_active)} · 过期：{formatDateTime(session.expires_at)}
                         </div>
                       </div>
                       <button onClick={() => handleRevokeSession(session.id)} className="btn btn-danger text-xs shrink-0">登出</button>
@@ -584,8 +583,8 @@ export default function UserDetailPage() {
                       {passkey.backup_eligible && <span className="px-2 py-0.5 text-xs rounded bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-200">可同步</span>}
                     </div>
                     <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                      创建：{formatDate(passkey.created_at)}
-                      {passkey.last_used_at && <span> · 最后使用：{formatDate(passkey.last_used_at)}</span>}
+                      创建：{formatDateTime(passkey.created_at)}
+                      {passkey.last_used_at && <span> · 最后使用：{formatDateTime(passkey.last_used_at)}</span>}
                     </div>
                   </li>
                 ))}
@@ -615,7 +614,7 @@ export default function UserDetailPage() {
                       <div>
                         <div className="font-medium">{auth.client_name}</div>
                         <div className="text-sm text-gray-600 dark:text-gray-400">
-                          权限：{auth.scope} · 授权于 {formatDate(auth.created_at)}
+                          权限：{auth.scope} · 授权于 {formatDateTime(auth.created_at)}
                         </div>
                       </div>
                     </div>

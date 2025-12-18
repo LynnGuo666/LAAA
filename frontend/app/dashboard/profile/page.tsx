@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useAuthStore } from '@/lib/store';
 import { userApi } from '@/lib/api';
+import { formatDate } from '@/lib/date';
 
 export default function ProfilePage() {
   const { user, setUser } = useAuthStore();
@@ -115,7 +116,7 @@ export default function ProfilePage() {
             <div className="flex items-center justify-between gap-4">
               <span className="text-sm text-gray-600 dark:text-gray-300">注册时间</span>
               <span className="text-sm text-gray-900 dark:text-gray-100">
-                {new Date(user.created_at).toLocaleDateString('zh-CN')}
+                {formatDate(user.created_at)}
               </span>
             </div>
           </li>
