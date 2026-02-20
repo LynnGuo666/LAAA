@@ -89,14 +89,16 @@ export default function DashboardLayout({
   const navLinks: NavItem[] = [
     { href: '/dashboard/my-apps', label: '我的应用' },
     { href: '/dashboard/authorizations', label: '授权管理' },
-    { href: '/dashboard/sessions', label: '会话管理' },
-    { href: '/dashboard/security', label: '安全设置' },
-    { href: '/dashboard/passkeys', label: '通行密钥' },
+    { href: '/dashboard/security', label: '账户安全' },
     { href: '/dashboard/profile', label: '个人资料' },
   ];
 
   const userIsAdmin = isAdmin(user);
-  const activeDesktopNav = navLinks.find((link) => pathname === link.href || pathname.startsWith(`${link.href}/`))?.href || navLinks[0].href;
+  const legacySecurityRoutes = ['/dashboard/sessions', '/dashboard/passkeys', '/dashboard/security/totp'];
+  const normalizedPathname = legacySecurityRoutes.some((route) => pathname === route || pathname.startsWith(`${route}/`))
+    ? '/dashboard/security'
+    : pathname;
+  const activeDesktopNav = navLinks.find((link) => normalizedPathname === link.href || normalizedPathname.startsWith(`${link.href}/`))?.href || navLinks[0].href;
 
   // Show restricted mode overlay if user is restricted
   if (user.is_restricted) {
@@ -190,8 +192,8 @@ export default function DashboardLayout({
         {/* Mobile navigation */}
         <div className="sm:hidden border-t border-gray-200 dark:border-gray-800">
           <div className="flex overflow-x-auto px-4 py-2 gap-4">
-            {navLinks.map((link) => {
-              const isActive = pathname === link.href || pathname.startsWith(`${link.href}/`);
+               {navLinks.map((link) => {
+               const isActive = normalizedPathname === link.href || normalizedPathname.startsWith(`${link.href}/`);
               return (
                 <Link
                   key={link.href}
