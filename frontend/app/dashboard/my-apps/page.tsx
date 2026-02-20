@@ -49,16 +49,13 @@ export default function MyAppsPage() {
   };
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      <div className="p-1">
+    <div className="px-4 sm:px-0 space-y-6 animate-fade-in">
+      <div>
         <div className="flex items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">
               {adminView ? '应用列表' : '我的应用'}
             </h1>
-            <p className="text-gray-600 dark:text-gray-300 mt-1">
-              {adminView ? '以导航列表形式展示当前账号可访问应用。' : '按导航方式展示你当前有权限访问的应用。'}
-            </p>
           </div>
           <UIButton onPress={loadApps} variant="tertiary" isDisabled={loading} >
             刷新
@@ -105,14 +102,16 @@ export default function MyAppsPage() {
                     </div>
                   </div>
 
-                  <UIButton
-                    onPress={() => openApp(app)}
-                    variant={app.website_url ? 'primary' : 'tertiary'}
-                    isDisabled={!app.website_url}
-                    className="w-full"
-                  >
-                    {app.website_url ? '进入应用' : '暂无入口'}
-                  </UIButton>
+                  <div className="flex justify-end">
+                    <UIButton
+                      onPress={() => openApp(app)}
+                      variant={app.website_url ? 'primary' : 'tertiary'}
+                      isDisabled={!app.website_url}
+                      className="w-auto px-3 text-sm"
+                    >
+                      {app.website_url ? '进入应用' : '暂无入口'}
+                    </UIButton>
+                  </div>
                 </div>
               </Card>
             ))}

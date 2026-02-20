@@ -35,7 +35,12 @@ export default function ProfilePage() {
 
   return (
     <div className="px-4 sm:px-0 max-w-2xl animate-fade-in">
-      <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100 mb-6 sm:mb-8">个人资料</h1>
+      <div className="mb-6 sm:mb-8">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">个人资料</h1>
+        <p className="text-gray-600 dark:text-gray-300 mt-1 text-sm sm:text-base">
+          管理您的账号资料和基本信息。
+        </p>
+      </div>
 
       <form onSubmit={handleSubmit} className="surface p-6 space-y-6">
         {message && (

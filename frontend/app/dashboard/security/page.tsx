@@ -409,8 +409,8 @@ export default function SecurityPage() {
   return (
     <div className="px-4 sm:px-0 animate-fade-in space-y-6 sm:space-y-8">
       <div>
-        <h1 className="text-2xl sm:text-3xl font-bold">安全设置</h1>
-        <p className="text-gray-600 mt-1 text-sm sm:text-base">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">安全设置</h1>
+        <p className="text-gray-600 dark:text-gray-300 mt-1 text-sm sm:text-base">
           管理您的账户安全设置和查看登录历史。
         </p>
       </div>
