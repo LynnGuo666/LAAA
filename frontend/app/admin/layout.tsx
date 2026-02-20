@@ -3,9 +3,11 @@
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
+import { buttonVariants, cn } from '@heroui/react';
 import { useAuthStore } from '@/lib/store';
 import { authApi, siteApi } from '@/lib/api';
 import { isAdmin } from '@/lib/authz';
+import { UIButton } from '@/components/ui/primitives';
 
 type NavItem = { href: string; label: string };
 type NavGroup = { label: string; items: NavItem[] };
@@ -172,7 +174,7 @@ export default function AdminLayout({
             <div className="flex items-center gap-2 sm:gap-3">
               <Link
                 href="/dashboard/my-apps"
-                className="btn btn-secondary text-xs sm:text-sm px-2 sm:px-3"
+                className={cn(buttonVariants({ variant: 'secondary', size: 'sm' }), 'text-xs sm:text-sm px-2 sm:px-3')}
               >
                 <span className="hidden sm:inline">返回用户面板</span>
                 <span className="sm:hidden">用户面板</span>
@@ -180,13 +182,8 @@ export default function AdminLayout({
               <span className="hidden sm:inline text-sm text-gray-700 dark:text-gray-200">
                 {user.username}
               </span>
-              <button
-                onClick={handleLogout}
-                className="btn btn-secondary text-xs sm:text-sm px-2 sm:px-3"
-              >
-                <span className="hidden sm:inline">退出登录</span>
-                <span className="sm:hidden">退出</span>
-              </button>
+              <UIButton  onPress={handleLogout} variant="secondary" className="text-xs sm:text-sm px-2 sm:px-3"><span className="hidden sm:inline">退出登录</span>
+              <span className="sm:hidden">退出</span></UIButton>
             </div>
           </div>
         </div>

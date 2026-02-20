@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { buttonVariants, toast } from '@heroui/react';
 import { userApi, totpApi } from '@/lib/api';
 import { formatDateTime } from '@/lib/date';
 import { useAuthStore } from '@/lib/store';
 import { isAdmin } from '@/lib/authz';
+import { UIButton, UICheckbox, UIInput, UILabel, UIListBox, UISelect, UISelectItem, UITextField } from '@/components/ui/primitives';
 
 interface SecuritySettings {
   max_sessions: number;
@@ -79,7 +81,7 @@ export default function SecurityPage() {
       const response = await userApi.updateSecuritySettings(updates);
       setSettings(response.data);
     } catch (err) {
-      alert('更新设置失败');
+      toast('更新设置失败');
     } finally {
       setSaving(false);
     }
@@ -170,16 +172,25 @@ export default function SecurityPage() {
               同时保持登录状态的设备数量。超出限制时，最早的会话将被自动登出。
             </p>
             {adminUser ? (
-              <select
-                value={settings?.max_sessions || 3}
-                onChange={(e) => handleUpdateSettings({ max_sessions: Number(e.target.value) })}
-                disabled={saving}
-                className="input w-32"
+              <UISelect
+                aria-label="最大并发会话数"
+                value={String(settings?.max_sessions || 3)}
+                onChange={(value) => handleUpdateSettings({ max_sessions: Number(value ?? '3') })}
+                isDisabled={saving}
+                className="w-32"
               >
-                {[1, 2, 3, 4, 5].map(n => (
-                  <option key={n} value={n}>{n} 个设备</option>
-                ))}
-              </select>
+                <UISelect.Trigger>
+                  <UISelect.Value />
+                  <UISelect.Indicator />
+                </UISelect.Trigger>
+                <UISelect.Popover>
+                  <UIListBox>
+                    {[1, 2, 3, 4, 5].map(n => (
+                      <UISelectItem key={n} id={String(n)}>{n} 个设备</UISelectItem>
+                    ))}
+                  </UIListBox>
+                </UISelect.Popover>
+              </UISelect>
             ) : (
               <div className="text-sm text-gray-700 dark:text-gray-300">
                 {settings?.max_sessions || 3} 个设备
@@ -189,22 +200,20 @@ export default function SecurityPage() {
           </div>
 
           <div className="flex items-center gap-3">
-            <input
-              type="checkbox"
+            <UICheckbox
               id="notify_new_login"
-              checked={settings?.notify_new_login || false}
-              onChange={(e) => handleUpdateSettings({ notify_new_login: e.target.checked })}
-              disabled={saving}
-              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded cursor-pointer"
-            />
-            <div>
-              <label htmlFor="notify_new_login" className="block text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer">
+              isSelected={settings?.notify_new_login || false}
+              onChange={(isSelected) => handleUpdateSettings({ notify_new_login: isSelected })}
+              isDisabled={saving}
+              className="w-full max-w-full items-start m-0"
+            ><div className="w-full">
+              <div className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                 新设备登录通知
-              </label>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
+              </div>
+              <div className="text-sm text-gray-500 dark:text-gray-400">
                 当有新设备登录您的账户时发送通知
-              </p>
-            </div>
+              </div>
+            </div></UICheckbox>
           </div>
         </div>
       </div>
@@ -244,10 +253,7 @@ export default function SecurityPage() {
                 </p>
               </div>
             </div>
-            <Link
-              href="/dashboard/security/totp"
-              className="btn btn-secondary text-sm"
-            >
+            <Link href="/dashboard/security/totp" className={buttonVariants({ variant: 'secondary' })}>
               {totpStatus?.enabled ? '管理' : '设置'}
             </Link>
           </div>
@@ -270,60 +276,28 @@ export default function SecurityPage() {
           )}
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              当前密码
-            </label>
-            <input
-              type="password"
-              required
-              value={currentPassword}
-              onChange={(e) => setCurrentPassword(e.target.value)}
-              disabled={changingPassword}
-              className="input w-full"
-              placeholder="请输入当前密码"
-            />
+            <UITextField isRequired isDisabled={changingPassword}>
+              <UILabel>当前密码</UILabel>
+              <UIInput type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} placeholder="请输入当前密码" />
+            </UITextField>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              新密码
-            </label>
-            <input
-              type="password"
-              required
-              minLength={6}
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              disabled={changingPassword}
-              className="input w-full"
-              placeholder="至少 6 个字符"
-            />
+            <UITextField isRequired isDisabled={changingPassword}>
+              <UILabel>新密码</UILabel>
+              <UIInput type="password" minLength={6} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="至少 6 个字符" />
+            </UITextField>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              确认新密码
-            </label>
-            <input
-              type="password"
-              required
-              minLength={6}
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              disabled={changingPassword}
-              className="input w-full"
-              placeholder="再次输入新密码"
-            />
+            <UITextField isRequired isDisabled={changingPassword}>
+              <UILabel>确认新密码</UILabel>
+              <UIInput type="password" minLength={6} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="再次输入新密码" />
+            </UITextField>
           </div>
 
           <div className="pt-2">
-            <button
-              type="submit"
-              disabled={changingPassword}
-              className="btn btn-primary disabled:opacity-50"
-            >
-              {changingPassword ? '修改中...' : '修改密码'}
-            </button>
+            <UIButton type="submit" isDisabled={changingPassword} variant="primary" isPending={changingPassword}>{changingPassword ? '修改中...' : '修改密码'}</UIButton>
           </div>
         </form>
       </div>

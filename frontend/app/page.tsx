@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { buttonVariants, cn } from '@heroui/react';
 import { siteApi } from '@/lib/api';
 
 export default function Home() {
@@ -24,12 +25,8 @@ export default function Home() {
         </p>
 
         <div className="flex gap-4 justify-center pt-8">
-          <Link href="/login" className="btn btn-primary">
-            登录
-          </Link>
-          <Link href="/register" className="btn btn-secondary">
-            邀请码注册
-          </Link>
+          <Link href="/login" className={buttonVariants({ variant: 'primary' })}>登录</Link>
+          <Link href="/register" className={cn(buttonVariants({ variant: 'secondary' }))}>邀请码注册</Link>
         </div>
 
         <div className="pt-12 text-sm text-gray-500">

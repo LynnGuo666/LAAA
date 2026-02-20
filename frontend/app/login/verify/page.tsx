@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { UIButton, UIInput } from '@/components/ui/primitives';
 import { verificationApi, authApi } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { Mail, ShieldCheck, KeyRound } from 'lucide-react';
@@ -387,34 +388,29 @@ export default function VerifyPage() {
               请选择验证方式 (需完成 {session.required_verifications - session.completed_verifications} 次验证)
             </p>
             {availableMethods.map((method) => (
-              <button
-                key={method.method}
-                onClick={() => handleSelectMethod(method.method)}
-                className="w-full flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-              >
-                <div className="flex items-center gap-3">
-                  {method.method === 'email_code' && (
-                    <Mail className="w-6 h-6 text-blue-500" />
-                  )}
-                  {method.method === 'totp' && (
-                    <ShieldCheck className="w-6 h-6 text-green-500" />
-                  )}
-                  {method.method === 'passkey' && (
-                    <KeyRound className="w-6 h-6 text-orange-500" />
-                  )}
-                  <div className="text-left">
-                    <div className="font-medium text-gray-900 dark:text-gray-100">
-                      {METHOD_NAMES[method.method]}
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      {method.strength === 'strong' ? '强验证' : '标准验证'}
-                    </div>
+              <UIButton key={method.method} onPress={() => handleSelectMethod(method.method)} variant="ghost"
+              className="w-full flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors h-auto"><div className="flex items-center gap-3">
+                {method.method === 'email_code' && (
+                  <Mail className="w-6 h-6 text-blue-500" />
+                )}
+                {method.method === 'totp' && (
+                  <ShieldCheck className="w-6 h-6 text-green-500" />
+                )}
+                {method.method === 'passkey' && (
+                  <KeyRound className="w-6 h-6 text-orange-500" />
+                )}
+                <div className="text-left">
+                  <div className="font-medium text-gray-900 dark:text-gray-100">
+                    {METHOD_NAMES[method.method]}
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    {method.strength === 'strong' ? '强验证' : '标准验证'}
                   </div>
                 </div>
-                <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </button>
+              </div>
+              <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg></UIButton>
             ))}
 
             {availableMethods.length === 0 && (
@@ -428,13 +424,8 @@ export default function VerifyPage() {
               <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
                 无法完成验证？
               </p>
-              <button
-                onClick={handleSkipVerification}
-                disabled={skipping}
-                className="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 disabled:opacity-50"
-              >
-                {skipping ? '处理中...' : '跳过验证，进入受限模式'}
-              </button>
+              <UIButton onPress={handleSkipVerification} isDisabled={skipping} variant="ghost"
+              className="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 disabled:opacity-50">{skipping ? '处理中...' : '跳过验证，进入受限模式'}</UIButton>
             </div>
 
             <div className="pt-4">
@@ -453,46 +444,27 @@ export default function VerifyPage() {
             </p>
 
             {!emailCodeSent ? (
-              <button
-                onClick={handleSendEmailCode}
-                disabled={loading}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-4 rounded-lg transition-colors disabled:opacity-50"
-              >
-                {loading ? '发送中...' : '发送验证码'}
-              </button>
+              <UIButton onPress={handleSendEmailCode} isDisabled={loading} variant="primary" className="w-full">{loading ? '发送中...' : '发送验证码'}</UIButton>
             ) : (
               <>
-                <input
+                <UIInput
                   type="text"
                   value={emailCode}
                   onChange={(e) => setEmailCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                   placeholder="请输入6位验证码"
-                  className="input text-center text-2xl tracking-widest"
+                  className="text-center text-2xl tracking-widest"
                   maxLength={6}
                 />
-                <button
-                  onClick={handleVerifyEmailCode}
-                  disabled={loading || emailCode.length !== 6}
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-4 rounded-lg transition-colors disabled:opacity-50"
-                >
-                  {loading ? '验证中...' : '验证'}
-                </button>
-                <button
-                  onClick={handleSendEmailCode}
-                  disabled={loading || emailCooldown > 0}
-                  className="w-full text-sm text-blue-600 hover:text-blue-700 disabled:text-gray-400"
-                >
-                  {emailCooldown > 0 ? `重新发送 (${emailCooldown}s)` : '重新发送验证码'}
-                </button>
+                <UIButton onPress={handleVerifyEmailCode} isDisabled={loading || emailCode.length !== 6} variant="primary" className="w-full">{loading ? '验证中...' : '验证'}</UIButton>
+                <UIButton onPress={handleSendEmailCode} isDisabled={loading || emailCooldown > 0} variant="ghost"
+                className="w-full text-sm text-blue-600 hover:text-blue-700 disabled:text-gray-400">{emailCooldown > 0 ? `重新发送 (${emailCooldown}s)` : '重新发送验证码'}</UIButton>
               </>
             )}
 
-            <button
-              onClick={() => setCurrentStep('select')}
-              className="w-full text-sm text-gray-500 hover:text-gray-700"
-            >
+            <UIButton  onPress={() => setCurrentStep('select')} variant="ghost"
+            className="w-full text-sm text-gray-500 hover:text-gray-700">
               选择其他验证方式
-            </button>
+            </UIButton>
           </div>
         )}
 
@@ -504,63 +476,45 @@ export default function VerifyPage() {
                 <p className="text-sm text-gray-600 dark:text-gray-400">
                   请输入身份验证器应用中的6位验证码
                 </p>
-                <input
+                <UIInput
                   type="text"
                   value={totpCode}
                   onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                   placeholder="000000"
-                  className="input text-center text-2xl tracking-widest"
+                  className="text-center text-2xl tracking-widest"
                   maxLength={6}
                 />
-                <button
-                  onClick={handleVerifyTOTP}
-                  disabled={loading || totpCode.length !== 6}
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-4 rounded-lg transition-colors disabled:opacity-50"
-                >
-                  {loading ? '验证中...' : '验证'}
-                </button>
-                <button
-                  onClick={() => setShowBackupCode(true)}
-                  className="w-full text-sm text-blue-600 hover:text-blue-700"
-                >
+                <UIButton onPress={handleVerifyTOTP} isDisabled={loading || totpCode.length !== 6} variant="primary" className="w-full">{loading ? '验证中...' : '验证'}</UIButton>
+                <UIButton  onPress={() => setShowBackupCode(true)} variant="ghost"
+                className="w-full text-sm text-blue-600 hover:text-blue-700">
                   使用备用码
-                </button>
+                </UIButton>
               </>
             ) : (
               <>
                 <p className="text-sm text-gray-600 dark:text-gray-400">
                   请输入您的8位备用码
                 </p>
-                <input
+                <UIInput
                   type="text"
                   value={backupCode}
                   onChange={(e) => setBackupCode(e.target.value.toUpperCase().slice(0, 8))}
                   placeholder="XXXXXXXX"
-                  className="input text-center text-2xl tracking-widest"
+                  className="text-center text-2xl tracking-widest"
                   maxLength={8}
                 />
-                <button
-                  onClick={handleVerifyBackupCode}
-                  disabled={loading || backupCode.length !== 8}
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-4 rounded-lg transition-colors disabled:opacity-50"
-                >
-                  {loading ? '验证中...' : '验证'}
-                </button>
-                <button
-                  onClick={() => setShowBackupCode(false)}
-                  className="w-full text-sm text-blue-600 hover:text-blue-700"
-                >
+                <UIButton onPress={handleVerifyBackupCode} isDisabled={loading || backupCode.length !== 8} variant="primary" className="w-full">{loading ? '验证中...' : '验证'}</UIButton>
+                <UIButton  onPress={() => setShowBackupCode(false)} variant="ghost"
+                className="w-full text-sm text-blue-600 hover:text-blue-700">
                   使用身份验证器
-                </button>
+                </UIButton>
               </>
             )}
 
-            <button
-              onClick={() => setCurrentStep('select')}
-              className="w-full text-sm text-gray-500 hover:text-gray-700"
-            >
+            <UIButton  onPress={() => setCurrentStep('select')} variant="ghost"
+            className="w-full text-sm text-gray-500 hover:text-gray-700">
               选择其他验证方式
-            </button>
+            </UIButton>
           </div>
         )}
 
@@ -573,20 +527,12 @@ export default function VerifyPage() {
             <div className="text-center py-8">
               <KeyRound className="w-16 h-16 text-orange-500 mx-auto" />
             </div>
-            <button
-              onClick={handlePasskeyVerify}
-              disabled={loading || !webAuthnSupported}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-4 rounded-lg transition-colors disabled:opacity-50"
-            >
-              {loading ? '验证中...' : '使用通行密钥验证'}
-            </button>
+            <UIButton onPress={handlePasskeyVerify} isDisabled={loading || !webAuthnSupported} variant="primary" className="w-full">{loading ? '验证中...' : '使用通行密钥验证'}</UIButton>
 
-            <button
-              onClick={() => setCurrentStep('select')}
-              className="w-full text-sm text-gray-500 hover:text-gray-700"
-            >
+            <UIButton  onPress={() => setCurrentStep('select')} variant="ghost"
+            className="w-full text-sm text-gray-500 hover:text-gray-700">
               选择其他验证方式
-            </button>
+            </UIButton>
           </div>
         )}
       </div>

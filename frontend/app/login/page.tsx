@@ -12,6 +12,7 @@ import {
   getPasskeyCredential,
   serializeAuthenticationCredential,
 } from '@/lib/webauthn';
+import { UIButton, UICheckbox, UIInput, UILabel, UITextField } from '@/components/ui/primitives';
 
 interface ClientInfo {
   name: string;
@@ -361,65 +362,27 @@ function LoginContent() {
           )}
 
           <div>
-            <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1.5">
-              用户名
-            </label>
-            <input
-              id="username"
-              type="text"
-              required
-              className="input"
-              value={formData.username}
-              onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-              disabled={loading}
-              placeholder="请输入用户名"
-            />
+            <UITextField isRequired isDisabled={loading}>
+              <UILabel>用户名</UILabel>
+              <UIInput id="username" type="text" value={formData.username} onChange={(e) => setFormData({ ...formData, username: e.target.value })} placeholder="请输入用户名" />
+            </UITextField>
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1.5">
-              密码
-            </label>
-            <input
-              id="password"
-              type="password"
-              required
-              className="input"
-              value={formData.password}
-              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-              disabled={loading}
-              placeholder="请输入密码"
-            />
+            <UITextField isRequired isDisabled={loading}>
+              <UILabel>密码</UILabel>
+              <UIInput id="password" type="password" value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} placeholder="请输入密码" />
+            </UITextField>
           </div>
 
           <div className="flex items-center">
-            <input
-              id="remember-me"
-              type="checkbox"
-              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded cursor-pointer"
-              checked={formData.rememberMe}
-              onChange={(e) => setFormData({ ...formData, rememberMe: e.target.checked })}
-              disabled={loading}
-            />
-            <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-700 cursor-pointer">
+            <UICheckbox id="remember-me" isSelected={formData.rememberMe} onChange={(isSelected) => setFormData({ ...formData, rememberMe: isSelected })}
+            isDisabled={loading}>
               记住我 30 天
-            </label>
+            </UICheckbox>
           </div>
 
-          <button
-            type="submit"
-            disabled={loading || passkeyLoading}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-          >
-            {loading ? (
-              <span className="inline-flex items-center justify-center gap-2">
-                <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-                登录中...
-              </span>
-            ) : (
-              '登录'
-            )}
-          </button>
+          <UIButton type="submit" isDisabled={loading || passkeyLoading} variant="primary" className="w-full" isPending={loading}>{loading ? '登录中...' : '登录'}</UIButton>
 
           {webAuthnSupported && (
             <>
@@ -432,27 +395,13 @@ function LoginContent() {
                 </div>
               </div>
 
-              <button
-                type="button"
-                onClick={handlePasskeyLogin}
-                disabled={loading || passkeyLoading}
-                className="w-full bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-900 dark:text-gray-100 font-medium py-2 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm"
-              >
-                {passkeyLoading ? (
-                  <span className="inline-flex items-center justify-center gap-2">
-                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-gray-400 border-t-gray-600" />
-                    验证中...
-                  </span>
-                ) : (
-                  <>
-                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M12 2C9.24 2 7 4.24 7 7C7 9.76 9.24 12 12 12C14.76 12 17 9.76 17 7C17 4.24 14.76 2 12 2ZM12 10C10.34 10 9 8.66 9 7C9 5.34 10.34 4 12 4C13.66 4 15 5.34 15 7C15 8.66 13.66 10 12 10Z" fill="currentColor"/>
-                      <path d="M12 14C7.58 14 4 16.58 4 20V22H20V20C20 16.58 16.42 14 12 14ZM18 20H6V20C6 17.79 8.69 16 12 16C15.31 16 18 17.79 18 20Z" fill="currentColor"/>
-                    </svg>
-                    使用通行密钥登录
-                  </>
-                )}
-              </button>
+              <UIButton type="button" onPress={handlePasskeyLogin} isDisabled={loading || passkeyLoading} variant="secondary" className="w-full" isPending={passkeyLoading}>{!passkeyLoading && (
+                <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M12 2C9.24 2 7 4.24 7 7C7 9.76 9.24 12 12 12C14.76 12 17 9.76 17 7C17 4.24 14.76 2 12 2ZM12 10C10.34 10 9 8.66 9 7C9 5.34 10.34 4 12 4C13.66 4 15 5.34 15 7C15 8.66 13.66 10 12 10Z" fill="currentColor"/>
+                  <path d="M12 14C7.58 14 4 16.58 4 20V22H20V20C20 16.58 16.42 14 12 14ZM18 20H6V20C6 17.79 8.69 16 12 16C15.31 16 18 17.79 18 20Z" fill="currentColor"/>
+                </svg>
+              )}
+              {passkeyLoading ? '验证中...' : '使用通行密钥登录'}</UIButton>
             </>
           )}
 

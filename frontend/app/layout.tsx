@@ -1,5 +1,6 @@
 import './globals.css'
 import type { Metadata } from 'next'
+import ToastProvider from './toast-provider'
 
 export const metadata: Metadata = {
   title: 'OAuth Server',
@@ -12,8 +13,8 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
-      <body>{children}</body>
+    <html lang="en" suppressHydrationWarning>
+      <body><ToastProvider>{children}</ToastProvider></body>
     </html>
   )
 }

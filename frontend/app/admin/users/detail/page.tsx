@@ -3,10 +3,12 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { buttonVariants, toast } from '@heroui/react';
 import { adminApi, groupApi } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { isAdmin } from '@/lib/authz';
 import { formatDateTime } from '@/lib/date';
+import { UIButton, UICheckbox, UIInput, UIListBox, UISelect, UISelectItem } from '@/components/ui/primitives';
 
 interface User {
   id: number;
@@ -240,9 +242,9 @@ export default function UserDetailPage() {
       <div className="surface p-6">
         <h1 className="text-xl font-semibold mb-2">参数错误</h1>
         <p className="text-gray-600">缺少用户 ID 参数。</p>
-        <button onClick={() => router.push('/admin/users')} className="btn btn-primary mt-4">
+        <UIButton  onPress={() => router.push('/admin/users')} variant="primary" className="mt-4">
           返回用户列表
-        </button>
+        </UIButton>
       </div>
     );
   }
@@ -260,7 +262,7 @@ export default function UserDetailPage() {
       <div className="surface p-6">
         <h1 className="text-xl font-semibold mb-2">错误</h1>
         <p className="text-red-600">{error || '用户不存在'}</p>
-        <Link href="/admin/users" className="btn btn-secondary mt-4 inline-block">返回用户列表</Link>
+        <Link href="/admin/users" className={`${buttonVariants({ variant: 'secondary' })} mt-4`}>返回用户列表</Link>
       </div>
     );
   }
@@ -274,7 +276,7 @@ export default function UserDetailPage() {
       setShowEditModal(false);
       loadUser();
     } catch (err: any) {
-      alert(err.response?.data?.detail || '更新失败');
+      toast(err.response?.data?.detail || '更新失败');
     }
   };
 
@@ -290,7 +292,7 @@ export default function UserDetailPage() {
       setShowGroupsModal(false);
       loadUser();
     } catch (err: any) {
-      alert(err.response?.data?.detail || '更新用户组失败');
+      toast(err.response?.data?.detail || '更新用户组失败');
     }
   };
 
@@ -306,7 +308,7 @@ export default function UserDetailPage() {
       setShowRolesModal(false);
       loadUser();
     } catch (err: any) {
-      alert(err.response?.data?.detail || '更新角色失败');
+      toast(err.response?.data?.detail || '更新角色失败');
     }
   };
 
@@ -316,7 +318,7 @@ export default function UserDetailPage() {
       await adminApi.revokeUserSession(userId, sessionId);
       loadSessions();
     } catch (err: any) {
-      alert(err.response?.data?.detail || '操作失败');
+      toast(err.response?.data?.detail || '操作失败');
     }
   };
 
@@ -324,10 +326,10 @@ export default function UserDetailPage() {
     if (!confirm('确定要登出该用户的所有会话吗？')) return;
     try {
       const response = await adminApi.revokeAllUserSessions(userId);
-      alert(response.data.message);
+      toast(response.data.message);
       loadSessions();
     } catch (err: any) {
-      alert(err.response?.data?.detail || '操作失败');
+      toast(err.response?.data?.detail || '操作失败');
     }
   };
 
@@ -380,17 +382,11 @@ export default function UserDetailPage() {
       <div className="border-b border-gray-200 dark:border-gray-700 mb-6">
         <nav className="-mb-px flex space-x-4 overflow-x-auto">
           {tabs.map((tab) => (
-            <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
-              className={`whitespace-nowrap py-3 px-1 border-b-2 text-sm font-medium ${
-                activeTab === tab.key
-                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400'
-              }`}
-            >
-              {tab.label}
-            </button>
+            <UIButton key={tab.key} onPress={() => setActiveTab(tab.key)} className={`whitespace-nowrap py-3 px-1 border-b-2 text-sm font-medium rounded-none h-auto ${
+              activeTab === tab.key
+                ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400'
+            }`} variant="tertiary">{tab.label}</UIButton>
           ))}
         </nav>
       </div>
@@ -400,10 +396,10 @@ export default function UserDetailPage() {
         {activeTab === 'info' && (
           <div className="space-y-6">
             <div className="flex flex-wrap gap-3">
-              <button onClick={() => setShowEditModal(true)} className="btn btn-primary">编辑信息</button>
-              <button onClick={openGroupsModal} className="btn btn-secondary">管理用户组</button>
-              <button onClick={openRolesModal} className="btn btn-secondary">管理角色</button>
-              <button onClick={() => router.push(`/admin/users/permissions?id=${userId}`)} className="btn btn-secondary">应用权限</button>
+              <UIButton onPress={() => setShowEditModal(true)} variant="primary" >编辑信息</UIButton>
+              <UIButton onPress={openGroupsModal} variant="secondary" >管理用户组</UIButton>
+              <UIButton onPress={openRolesModal} variant="secondary" >管理角色</UIButton>
+              <UIButton onPress={() => router.push(`/admin/users/permissions?id=${userId}`)} variant="secondary" >应用权限</UIButton>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
               <div><span className="text-gray-500">用户组：</span>{user.groups.length ? user.groups.join(', ') : '无'}</div>
@@ -521,8 +517,8 @@ export default function UserDetailPage() {
                   <div className="mt-4 flex justify-between items-center">
                     <span className="text-sm text-gray-500">第 {logsPage + 1} / {Math.ceil(logsTotal / 20)} 页</span>
                     <div className="flex gap-2">
-                      <button onClick={() => setLogsPage(p => Math.max(0, p - 1))} disabled={logsPage === 0} className="btn btn-secondary text-sm disabled:opacity-50">上一页</button>
-                      <button onClick={() => setLogsPage(p => p + 1)} disabled={(logsPage + 1) * 20 >= logsTotal} className="btn btn-secondary text-sm disabled:opacity-50">下一页</button>
+                      <UIButton onPress={() => setLogsPage(p => Math.max(0, p - 1))} isDisabled={logsPage === 0} variant="secondary" className="disabled:opacity-50">上一页</UIButton>
+                      <UIButton onPress={() => setLogsPage(p => p + 1)} isDisabled={(logsPage + 1) * 20 >= logsTotal} variant="secondary" className="disabled:opacity-50">下一页</UIButton>
                     </div>
                   </div>
                 )}
@@ -536,7 +532,7 @@ export default function UserDetailPage() {
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-medium">活跃会话 ({sessions.length})</h3>
               {sessions.length > 0 && (
-                <button onClick={handleRevokeAllSessions} className="btn btn-danger text-sm">登出全部</button>
+                <UIButton onPress={handleRevokeAllSessions} variant="danger" >登出全部</UIButton>
               )}
             </div>
             {sessions.length === 0 ? (
@@ -560,7 +556,7 @@ export default function UserDetailPage() {
                           最后活跃：{formatDateTime(session.last_active)} · 过期：{formatDateTime(session.expires_at)}
                         </div>
                       </div>
-                      <button onClick={() => handleRevokeSession(session.id)} className="btn btn-danger text-xs shrink-0">登出</button>
+                      <UIButton onPress={() => handleRevokeSession(session.id)} variant="danger" size="sm">登出</UIButton>
                     </div>
                   </li>
                 ))}
@@ -634,27 +630,35 @@ export default function UserDetailPage() {
             <form onSubmit={handleEditUser} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium mb-1">邮箱</label>
-                <input type="email" required value={editForm.email} onChange={(e) => setEditForm({ ...editForm, email: e.target.value })} className="input" />
+                <UIInput type="email" required value={editForm.email} onChange={(e) => setEditForm({ ...editForm, email: e.target.value })} />
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">头像URL</label>
-                <input type="url" value={editForm.avatar} onChange={(e) => setEditForm({ ...editForm, avatar: e.target.value })} className="input" />
+                <UIInput type="url" value={editForm.avatar} onChange={(e) => setEditForm({ ...editForm, avatar: e.target.value })} />
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">状态</label>
-                <select value={editForm.status} onChange={(e) => setEditForm({ ...editForm, status: e.target.value })} className="input">
-                  <option value="active">激活</option>
-                  <option value="inactive">未激活</option>
-                  <option value="suspended">暂停</option>
-                </select>
+                <UISelect value={editForm.status} onChange={(value) => setEditForm({ ...editForm, status: String(value ?? 'active') })}>
+                  <UISelect.Trigger>
+                    <UISelect.Value />
+                    <UISelect.Indicator />
+                  </UISelect.Trigger>
+                  <UISelect.Popover>
+                    <UIListBox>
+                      <UISelectItem id="active">激活</UISelectItem>
+                      <UISelectItem id="inactive">未激活</UISelectItem>
+                      <UISelectItem id="suspended">暂停</UISelectItem>
+                    </UIListBox>
+                  </UISelect.Popover>
+                </UISelect>
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">新密码（留空不修改）</label>
-                <input type="password" minLength={6} value={editForm.password} onChange={(e) => setEditForm({ ...editForm, password: e.target.value })} className="input" />
+                <UIInput type="password" minLength={6} value={editForm.password} onChange={(e) => setEditForm({ ...editForm, password: e.target.value })} />
               </div>
               <div className="flex justify-end gap-3 pt-4">
-                <button type="button" onClick={() => setShowEditModal(false)} className="btn btn-secondary">取消</button>
-                <button type="submit" className="btn btn-primary">保存</button>
+                <UIButton type="button" onPress={() => setShowEditModal(false)} variant="secondary" >取消</UIButton>
+                <UIButton type="submit" variant="primary" >保存</UIButton>
               </div>
             </form>
           </div>
@@ -668,23 +672,16 @@ export default function UserDetailPage() {
             <h3 className="text-lg font-medium mb-4">管理用户组</h3>
             <div className="max-h-96 overflow-y-auto space-y-2">
               {groups.map((group) => (
-                <label key={group.id} className="flex items-center gap-3 p-2 rounded hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={selectedGroups.includes(group.id)}
-                    onChange={() => setSelectedGroups(prev => prev.includes(group.id) ? prev.filter(id => id !== group.id) : [...prev, group.id])}
-                    className="h-4 w-4"
-                  />
-                  <div>
-                    <div className="font-medium">{group.name}</div>
-                    {group.description && <div className="text-xs text-gray-500">{group.description}</div>}
-                  </div>
-                </label>
+                <UICheckbox key={group.id}
+                className="flex items-center gap-3 p-2 rounded hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer max-w-full m-0" isSelected={selectedGroups.includes(group.id)} onChange={() => setSelectedGroups(prev => prev.includes(group.id) ? prev.filter(id => id !== group.id) : [...prev, group.id])}><div>
+                  <div className="font-medium">{group.name}</div>
+                  {group.description && <div className="text-xs text-gray-500">{group.description}</div>}
+                </div></UICheckbox>
               ))}
             </div>
             <div className="flex justify-end gap-3 pt-4">
-              <button onClick={() => setShowGroupsModal(false)} className="btn btn-secondary">取消</button>
-              <button onClick={handleUpdateGroups} className="btn btn-primary">保存</button>
+              <UIButton onPress={() => setShowGroupsModal(false)} variant="secondary" >取消</UIButton>
+              <UIButton onPress={handleUpdateGroups} variant="primary" >保存</UIButton>
             </div>
           </div>
         </div>
@@ -697,24 +694,17 @@ export default function UserDetailPage() {
             <h3 className="text-lg font-medium mb-4">管理角色</h3>
             <div className="max-h-96 overflow-y-auto space-y-2">
               {roles.map((role) => (
-                <label key={role.id} className="flex items-center gap-3 p-2 rounded hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={selectedRoles.includes(role.id)}
-                    onChange={() => setSelectedRoles(prev => prev.includes(role.id) ? prev.filter(id => id !== role.id) : [...prev, role.id])}
-                    className="h-4 w-4"
-                  />
-                  <div>
-                    <div className="font-medium">{role.name}</div>
-                    {role.description && <div className="text-xs text-gray-500">{role.description}</div>}
-                    <div className="text-xs text-gray-400">等级: {role.level}</div>
-                  </div>
-                </label>
+                <UICheckbox key={role.id}
+                className="flex items-center gap-3 p-2 rounded hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer max-w-full m-0" isSelected={selectedRoles.includes(role.id)} onChange={() => setSelectedRoles(prev => prev.includes(role.id) ? prev.filter(id => id !== role.id) : [...prev, role.id])}><div>
+                  <div className="font-medium">{role.name}</div>
+                  {role.description && <div className="text-xs text-gray-500">{role.description}</div>}
+                  <div className="text-xs text-gray-400">等级: {role.level}</div>
+                </div></UICheckbox>
               ))}
             </div>
             <div className="flex justify-end gap-3 pt-4">
-              <button onClick={() => setShowRolesModal(false)} className="btn btn-secondary">取消</button>
-              <button onClick={handleUpdateRoles} className="btn btn-primary">保存</button>
+              <UIButton onPress={() => setShowRolesModal(false)} variant="secondary" >取消</UIButton>
+              <UIButton onPress={handleUpdateRoles} variant="primary" >保存</UIButton>
             </div>
           </div>
         </div>

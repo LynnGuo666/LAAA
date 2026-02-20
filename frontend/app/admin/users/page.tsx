@@ -6,6 +6,7 @@ import { adminApi, groupApi } from '@/lib/api';
 import { formatDate } from '@/lib/date';
 import { useAuthStore } from '@/lib/store';
 import { isAdmin } from '@/lib/authz';
+import { UIButton, UICheckbox, UIInput, UIListBox, UISelect, UISelectItem } from '@/components/ui/primitives';
 
 interface User {
   id: number;
@@ -269,51 +270,43 @@ export default function UsersPage() {
             管理系统中的所有用户，包括创建、编辑和删除用户。
           </p>
         </div>
-        <div className="mt-4 sm:mt-0 sm:ml-16 sm:flex-none">
-          <button
-            type="button"
-            onClick={() => setShowCreateModal(true)}
-            className="btn btn-primary"
-          >
-            创建用户
-          </button>
-        </div>
-      </div>
-
-      {error && (
-        <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-md dark:bg-red-950 dark:border-red-900">
-          <p className="text-sm text-red-600 dark:text-red-200">{error}</p>
-        </div>
-      )}
-
-      <div className="mt-6">
-        <div className="surface overflow-hidden">
-          {/* Search & Stats */}
-          <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-800 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div className="text-sm text-gray-600 dark:text-gray-300">
-              共 {total} 位用户
-            </div>
-            <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-2">
-              <input
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-                className="input text-sm w-full sm:max-w-xs"
-                placeholder="搜索用户名 / 邮箱 / ID"
-              />
-              <div className="flex gap-2">
-                <button type="submit" className="btn btn-secondary text-sm flex-1 sm:flex-none">搜索</button>
-                {search && (
-                  <button
-                    type="button"
-                    onClick={() => { setSearchInput(''); setSearch(''); setPage(0); }}
-                    className="btn btn-secondary text-sm flex-1 sm:flex-none"
-                  >
-                    清除
-                  </button>
-                )}
-              </div>
-            </form>
+          <div className="mt-4 sm:mt-0 sm:ml-16 sm:flex-none">
+            <UIButton type="button" onPress={() => setShowCreateModal(true)} variant="primary">
+              创建用户
+            </UIButton>
           </div>
+        </div>
+
+        {error && (
+          <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-md dark:bg-red-950 dark:border-red-900">
+            <p className="text-sm text-red-600 dark:text-red-200">{error}</p>
+          </div>
+        )}
+
+        <div className="mt-6">
+          <div className="surface overflow-hidden">
+            {/* Search & Stats */}
+            <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-800 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div className="text-sm text-gray-600 dark:text-gray-300">
+                共 {total} 位用户
+              </div>
+              <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-2">
+                <UIInput
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
+                  className="w-full sm:max-w-xs"
+                  placeholder="搜索用户名 / 邮箱 / ID"
+                />
+                <div className="flex gap-2">
+                  <UIButton type="submit" variant="secondary" className="flex-1 sm:flex-none">搜索</UIButton>
+                  {search && (
+                    <UIButton type="button" onPress={() => { setSearchInput(''); setSearch(''); setPage(0); }} variant="secondary" className="flex-1 sm:flex-none">
+                      清除
+                    </UIButton>
+                  )}
+                </div>
+              </form>
+            </div>
 
           {loading ? (
             <div className="flex justify-center items-center h-64">
@@ -357,22 +350,18 @@ export default function UsersPage() {
                     </div>
 
                     <div className="flex flex-wrap gap-2 shrink-0 ml-13 sm:ml-0">
-                      <button
-                        onClick={() => router.push(`/admin/users/detail?id=${u.id}`)}
-                        className="btn btn-primary text-xs"
-                      >
+                      <UIButton  onPress={() => router.push(`/admin/users/detail?id=${u.id}`)} variant="primary"
+                      size="sm">
                         详情
-                      </button>
-                      <button onClick={() => openEditModal(u)} className="btn btn-secondary text-xs">编辑</button>
-                      <button onClick={() => openGroupsModal(u)} className="btn btn-secondary text-xs">用户组</button>
-                      <button onClick={() => openRolesModal(u)} className="btn btn-secondary text-xs">角色</button>
-                      <button
-                        onClick={() => router.push(`/admin/users/permissions?id=${u.id}`)}
-                        className="btn btn-secondary text-xs"
-                      >
+                      </UIButton>
+                      <UIButton  onPress={() => openEditModal(u)} variant="secondary" size="sm">编辑</UIButton>
+                      <UIButton  onPress={() => openGroupsModal(u)} variant="secondary" size="sm">用户组</UIButton>
+                      <UIButton  onPress={() => openRolesModal(u)} variant="secondary" size="sm">角色</UIButton>
+                      <UIButton  onPress={() => router.push(`/admin/users/permissions?id=${u.id}`)} variant="secondary"
+                      size="sm">
                         应用权限
-                      </button>
-                      <button onClick={() => handleDeleteUser(u.id)} className="btn btn-danger text-xs">删除</button>
+                      </UIButton>
+                      <UIButton  onPress={() => handleDeleteUser(u.id)} variant="danger" size="sm">删除</UIButton>
                     </div>
                   </div>
                 </li>
@@ -387,20 +376,12 @@ export default function UsersPage() {
                 第 {page + 1} / {totalPages} 页
               </div>
               <div className="flex gap-2">
-                <button
-                  onClick={() => setPage(p => Math.max(0, p - 1))}
-                  disabled={page === 0}
-                  className="btn btn-secondary text-sm disabled:opacity-50"
-                >
+                <UIButton onPress={() => setPage(p => Math.max(0, p - 1))} isDisabled={page === 0} variant="secondary">
                   上一页
-                </button>
-                <button
-                  onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
-                  disabled={page >= totalPages - 1}
-                  className="btn btn-secondary text-sm disabled:opacity-50"
-                >
+                </UIButton>
+                <UIButton onPress={() => setPage(p => Math.min(totalPages - 1, p + 1))} isDisabled={page >= totalPages - 1} variant="secondary">
                   下一页
-                </button>
+                </UIButton>
               </div>
             </div>
           )}
@@ -419,52 +400,56 @@ export default function UsersPage() {
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">用户名</label>
-                  <input
+                  <UIInput
                     type="text"
                     required
                     minLength={3}
                     value={createForm.username}
                     onChange={(e) => setCreateForm({ ...createForm, username: e.target.value })}
-                    className="input"
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">邮箱</label>
-                  <input
+                  <UIInput
                     type="email"
                     required
                     value={createForm.email}
                     onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })}
-                    className="input"
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">密码</label>
-                  <input
+                  <UIInput
                     type="password"
                     required
                     minLength={6}
                     value={createForm.password}
                     onChange={(e) => setCreateForm({ ...createForm, password: e.target.value })}
-                    className="input"
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">状态</label>
-                  <select
+                  <UISelect
                     value={createForm.status}
-                    onChange={(e) => setCreateForm({ ...createForm, status: e.target.value })}
-                    className="input"
+                    onChange={(value) => setCreateForm({ ...createForm, status: String(value ?? 'active') })}
                   >
-                    <option value="active">激活</option>
-                    <option value="inactive">未激活</option>
-                    <option value="suspended">暂停</option>
-                  </select>
+                    <UISelect.Trigger>
+                      <UISelect.Value />
+                      <UISelect.Indicator />
+                    </UISelect.Trigger>
+                    <UISelect.Popover>
+                      <UIListBox>
+                        <UISelectItem id="active">激活</UISelectItem>
+                        <UISelectItem id="inactive">未激活</UISelectItem>
+                        <UISelectItem id="suspended">暂停</UISelectItem>
+                      </UIListBox>
+                    </UISelect.Popover>
+                  </UISelect>
                 </div>
               </div>
               <div className="mt-6 flex justify-end space-x-3">
-                <button type="button" onClick={() => setShowCreateModal(false)} className="btn btn-secondary">取消</button>
-                <button type="submit" className="btn btn-primary">创建</button>
+                <UIButton type="button" onPress={() => setShowCreateModal(false)} variant="secondary">取消</UIButton>
+                <UIButton type="submit" variant="primary">创建</UIButton>
               </div>
             </form>
           </div>
@@ -485,51 +470,55 @@ export default function UsersPage() {
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">邮箱</label>
-                  <input
+                  <UIInput
                     type="email"
                     required
                     value={editForm.email}
                     onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
-                    className="input"
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">头像URL</label>
-                  <input
+                  <UIInput
                     type="url"
                     value={editForm.avatar}
                     onChange={(e) => setEditForm({ ...editForm, avatar: e.target.value })}
-                    className="input"
                     placeholder="https://example.com/avatar.jpg"
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">状态</label>
-                  <select
+                  <UISelect
                     value={editForm.status}
-                    onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
-                    className="input"
+                    onChange={(value) => setEditForm({ ...editForm, status: String(value ?? 'active') })}
                   >
-                    <option value="active">激活</option>
-                    <option value="inactive">未激活</option>
-                    <option value="suspended">暂停</option>
-                  </select>
+                    <UISelect.Trigger>
+                      <UISelect.Value />
+                      <UISelect.Indicator />
+                    </UISelect.Trigger>
+                    <UISelect.Popover>
+                      <UIListBox>
+                        <UISelectItem id="active">激活</UISelectItem>
+                        <UISelectItem id="inactive">未激活</UISelectItem>
+                        <UISelectItem id="suspended">暂停</UISelectItem>
+                      </UIListBox>
+                    </UISelect.Popover>
+                  </UISelect>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">新密码（留空则不修改）</label>
-                  <input
+                  <UIInput
                     type="password"
                     minLength={6}
                     value={editForm.password}
                     onChange={(e) => setEditForm({ ...editForm, password: e.target.value })}
-                    className="input"
                     placeholder="留空则不修改密码"
                   />
                 </div>
               </div>
               <div className="mt-6 flex justify-end space-x-3">
-                <button type="button" onClick={() => setShowEditModal(false)} className="btn btn-secondary">取消</button>
-                <button type="submit" className="btn btn-primary">保存</button>
+                <UIButton type="button" onPress={() => setShowEditModal(false)} variant="secondary">取消</UIButton>
+                <UIButton type="submit" variant="primary">保存</UIButton>
               </div>
             </form>
           </div>
@@ -549,26 +538,19 @@ export default function UsersPage() {
             <div className="surface overflow-hidden max-h-96 overflow-y-auto">
               <div className="list">
                 {groups.map((group) => (
-                  <label key={group.id} className="list-item list-item-pressable flex items-start gap-3">
-                    <input
-                      type="checkbox"
-                      checked={selectedUserGroups.includes(group.id)}
-                      onChange={() => toggleGroup(group.id)}
-                      className="h-4 w-4 mt-0.5 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                    />
-                    <div className="min-w-0">
-                      <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{group.name}</div>
-                      {group.description && (
-                        <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 truncate">{group.description}</div>
-                      )}
-                    </div>
-                  </label>
+                  <UICheckbox key={group.id} isSelected={selectedUserGroups.includes(group.id)} onChange={() => toggleGroup(group.id)}
+                  className="list-item list-item-pressable flex items-start gap-3 w-full"><div className="min-w-0">
+                    <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{group.name}</div>
+                    {group.description && (
+                      <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 truncate">{group.description}</div>
+                    )}
+                  </div></UICheckbox>
                 ))}
               </div>
             </div>
             <div className="mt-6 flex justify-end space-x-3">
-              <button type="button" onClick={() => setShowGroupsModal(false)} className="btn btn-secondary">取消</button>
-              <button type="button" onClick={handleUpdateGroups} className="btn btn-primary">保存</button>
+              <UIButton type="button" onPress={() => setShowGroupsModal(false)} variant="secondary">取消</UIButton>
+              <UIButton type="button" onPress={handleUpdateGroups} variant="primary">保存</UIButton>
             </div>
           </div>
         </div>
@@ -587,27 +569,20 @@ export default function UsersPage() {
             <div className="surface overflow-hidden max-h-96 overflow-y-auto">
               <div className="list">
                 {roles.map((role) => (
-                  <label key={role.id} className="list-item list-item-pressable flex items-start gap-3">
-                    <input
-                      type="checkbox"
-                      checked={selectedUserRoles.includes(role.id)}
-                      onChange={() => toggleRole(role.id)}
-                      className="h-4 w-4 mt-0.5 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                    />
-                    <div className="min-w-0">
-                      <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{role.name}</div>
-                      {role.description && (
-                        <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 truncate">{role.description}</div>
-                      )}
-                      <div className="text-xs text-gray-400 dark:text-gray-500 mt-1">等级: {role.level}</div>
-                    </div>
-                  </label>
+                  <UICheckbox key={role.id} isSelected={selectedUserRoles.includes(role.id)} onChange={() => toggleRole(role.id)}
+                  className="list-item list-item-pressable flex items-start gap-3 w-full"><div className="min-w-0">
+                    <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{role.name}</div>
+                    {role.description && (
+                      <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 truncate">{role.description}</div>
+                    )}
+                    <div className="text-xs text-gray-400 dark:text-gray-500 mt-1">等级: {role.level}</div>
+                  </div></UICheckbox>
                 ))}
               </div>
             </div>
             <div className="mt-6 flex justify-end space-x-3">
-              <button type="button" onClick={() => setShowRolesModal(false)} className="btn btn-secondary">取消</button>
-              <button type="button" onClick={handleUpdateRoles} className="btn btn-primary">保存</button>
+              <UIButton type="button" onPress={() => setShowRolesModal(false)} variant="secondary">取消</UIButton>
+              <UIButton type="button" onPress={handleUpdateRoles} variant="primary">保存</UIButton>
             </div>
           </div>
         </div>

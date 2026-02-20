@@ -1,19 +1,8 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-html {
-  color-scheme: light dark;
-}
+@import "tailwindcss";
+@import "@heroui/styles";
 
 body {
-  @apply bg-gray-50 text-gray-900;
-}
-
-@media (prefers-color-scheme: dark) {
-  body {
-    @apply bg-gray-950 text-gray-100;
-  }
+  @apply bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-100;
 }
 
 @layer components {
@@ -31,26 +20,6 @@ body {
 
   .list-item-pressable {
     @apply list-item cursor-pointer active:bg-black/[0.06] dark:active:bg-white/[0.08];
-  }
-
-  .btn {
-    @apply px-4 py-2 rounded-lg font-medium transition-colors;
-  }
-
-  .btn-primary {
-    @apply bg-blue-600 text-white hover:bg-blue-700;
-  }
-
-  .btn-secondary {
-    @apply bg-gray-200 text-gray-800 hover:bg-gray-300 dark:bg-gray-800 dark:text-gray-100 dark:hover:bg-gray-700;
-  }
-
-  .btn-danger {
-    @apply bg-red-600 text-white hover:bg-red-700;
-  }
-
-  .input {
-    @apply w-full px-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 dark:placeholder:text-gray-500;
   }
 
   .card {
@@ -78,41 +47,4 @@ body {
     to { opacity: 1; transform: translateY(0); }
   }
 
-  @media (prefers-color-scheme: dark) {
-    .bg-white {
-      @apply bg-gray-900;
-    }
-
-    .bg-gray-50 {
-      @apply bg-gray-950;
-    }
-
-    .text-gray-900 {
-      @apply text-gray-100;
-    }
-
-    .text-gray-800 {
-      @apply text-gray-100;
-    }
-
-    .text-gray-700 {
-      @apply text-gray-200;
-    }
-
-    .text-gray-600 {
-      @apply text-gray-300;
-    }
-
-    .text-gray-500 {
-      @apply text-gray-400;
-    }
-
-    .border-gray-200 {
-      @apply border-gray-800;
-    }
-
-    .border-gray-300 {
-      @apply border-gray-700;
-    }
-  }
 }

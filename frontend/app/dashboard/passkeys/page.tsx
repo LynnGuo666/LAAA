@@ -1,10 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { toast } from '@heroui/react';
 import { passkeyApi } from '@/lib/api';
 import { formatDateTime } from '@/lib/date';
 import { useAuthStore } from '@/lib/store';
 import { Check, AlertTriangle } from 'lucide-react';
+import { UIButton, UIInput } from '@/components/ui/primitives';
 import {
   isWebAuthnSupported,
   isPlatformAuthenticatorAvailable,
@@ -120,7 +122,7 @@ export default function PasskeysPage() {
       setEditingName('');
       loadPasskeys();
     } catch (err) {
-      alert('重命名失败');
+      toast('重命名失败');
     }
   };
 
@@ -131,7 +133,7 @@ export default function PasskeysPage() {
       await passkeyApi.delete(id);
       loadPasskeys();
     } catch (err) {
-      alert('删除失败');
+      toast('删除失败');
     }
   };
 
@@ -172,13 +174,7 @@ export default function PasskeysPage() {
       )}
 
       <div className="mb-6">
-        <button
-          onClick={handleRegister}
-          disabled={!webAuthnSupported || registering || !user?.email_verified}
-          className="btn btn-primary"
-        >
-          {registering ? '正在注册...' : '添加通行密钥'}
-        </button>
+        <UIButton onPress={handleRegister} isDisabled={!webAuthnSupported || registering || !user?.email_verified} variant="primary">{registering ? '正在注册...' : '添加通行密钥'}</UIButton>
         {platformAvailable && (
           <span className="ml-3 text-sm text-green-600 dark:text-green-400 inline-flex items-center gap-1">
             <Check className="w-4 h-4" /> 检测到平台认证器(指纹/面容)
@@ -202,11 +198,11 @@ export default function PasskeysPage() {
                   <div className="min-w-0 flex-1">
                     {editingId === passkey.id ? (
                       <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                        <input
+                        <UIInput
                           type="text"
                           value={editingName}
                           onChange={(e) => setEditingName(e.target.value)}
-                          className="input text-sm py-1 flex-1"
+                          className="text-sm py-1 flex-1"
                           autoFocus
                           onKeyDown={(e) => {
                             if (e.key === 'Enter') handleRename(passkey.id);
@@ -217,21 +213,16 @@ export default function PasskeysPage() {
                           }}
                         />
                         <div className="flex gap-2">
-                          <button
-                            onClick={() => handleRename(passkey.id)}
-                            className="btn btn-primary text-xs sm:text-sm py-1 flex-1 sm:flex-none"
-                          >
+                          <UIButton onPress={() => handleRename(passkey.id)} variant="primary" className="text-xs sm:text-sm py-1 flex-1 sm:flex-none">
                             保存
-                          </button>
-                          <button
-                            onClick={() => {
-                              setEditingId(null);
-                              setEditingName('');
-                            }}
-                            className="btn text-xs sm:text-sm py-1 flex-1 sm:flex-none"
-                          >
+                          </UIButton>
+                          <UIButton  onPress={() => {
+                            setEditingId(null);
+                            setEditingName('');
+                          }} variant="ghost"
+                          className="text-xs sm:text-sm py-1 flex-1 sm:flex-none">
                             取消
-                          </button>
+                          </UIButton>
                         </div>
                       </div>
                     ) : (
@@ -261,21 +252,16 @@ export default function PasskeysPage() {
 
                   {editingId !== passkey.id && (
                     <div className="flex gap-2 shrink-0">
-                      <button
-                        onClick={() => {
-                          setEditingId(passkey.id);
-                          setEditingName(passkey.name);
-                        }}
-                        className="btn text-xs sm:text-sm"
-                      >
+                      <UIButton  onPress={() => {
+                        setEditingId(passkey.id);
+                        setEditingName(passkey.name);
+                      }} variant="ghost"
+                      className="text-xs sm:text-sm">
                         重命名
-                      </button>
-                      <button
-                        onClick={() => handleDelete(passkey.id, passkey.name)}
-                        className="btn btn-danger text-xs sm:text-sm"
-                      >
+                      </UIButton>
+                      <UIButton onPress={() => handleDelete(passkey.id, passkey.name)} variant="danger" className="text-xs sm:text-sm">
                         删除
-                      </button>
+                      </UIButton>
                     </div>
                   )}
                 </div>
@@ -293,11 +279,11 @@ export default function PasskeysPage() {
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
               给这个通行密钥起一个便于识别的名称，例如设备名称
             </p>
-            <input
+            <UIInput
               type="text"
               value={newPasskeyName}
               onChange={(e) => setNewPasskeyName(e.target.value)}
-              className="input w-full mb-4"
+              className="w-full mb-4"
               placeholder="例如：MacBook Pro"
               autoFocus
               onKeyDown={(e) => {
@@ -305,23 +291,14 @@ export default function PasskeysPage() {
               }}
             />
             <div className="flex justify-end gap-3">
-              <button
-                onClick={() => {
-                  setShowNameModal(false);
-                  setPendingCredential(null);
-                  setNewPasskeyName('');
-                }}
-                className="btn"
-              >
+              <UIButton  onPress={() => {
+                setShowNameModal(false);
+                setPendingCredential(null);
+                setNewPasskeyName('');
+              }} variant="ghost">
                 取消
-              </button>
-              <button
-                onClick={handleConfirmRegistration}
-                disabled={!newPasskeyName.trim() || registering}
-                className="btn btn-primary"
-              >
-                {registering ? '保存中...' : '保存'}
-              </button>
+              </UIButton>
+              <UIButton onPress={handleConfirmRegistration} isDisabled={!newPasskeyName.trim() || registering} variant="primary">{registering ? '保存中...' : '保存'}</UIButton>
             </div>
           </div>
         </div>

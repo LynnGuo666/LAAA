@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useAuthStore } from '@/lib/store';
 import { userApi } from '@/lib/api';
 import { formatDate } from '@/lib/date';
+import { UIButton, UIDescription, UIInput, UILabel, UITextField } from '@/components/ui/primitives';
 
 export default function ProfilePage() {
   const { user, setUser } = useAuthStore();
@@ -44,54 +45,29 @@ export default function ProfilePage() {
         )}
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            用户名
-          </label>
-          <input
-            type="text"
-            disabled
-            value={user.username}
-            className="input bg-gray-100 dark:bg-gray-800 cursor-not-allowed"
-          />
-          <p className="text-xs text-gray-500 mt-1">用户名不可修改</p>
+          <UITextField isDisabled>
+            <UILabel>用户名</UILabel>
+            <UIInput type="text" value={user.username} />
+            <UIDescription>用户名不可修改</UIDescription>
+          </UITextField>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            邮箱
-          </label>
-          <input
-            type="email"
-            required
-            className="input"
-            value={formData.email}
-            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-            disabled={loading}
-          />
+          <UITextField isRequired isDisabled={loading}>
+            <UILabel>邮箱</UILabel>
+            <UIInput type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} />
+          </UITextField>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            头像 URL
-          </label>
-          <input
-            type="url"
-            className="input"
-            placeholder="https://example.com/avatar.jpg"
-            value={formData.avatar}
-            onChange={(e) => setFormData({ ...formData, avatar: e.target.value })}
-            disabled={loading}
-          />
+          <UITextField isDisabled={loading}>
+            <UILabel>头像 URL</UILabel>
+            <UIInput type="url" placeholder="https://example.com/avatar.jpg" value={formData.avatar} onChange={(e) => setFormData({ ...formData, avatar: e.target.value })} />
+          </UITextField>
         </div>
 
         <div className="pt-4">
-          <button
-            type="submit"
-            disabled={loading}
-            className="btn btn-primary disabled:opacity-50"
-          >
-            {loading ? '保存中...' : '保存更改'}
-          </button>
+          <UIButton type="submit" isDisabled={loading} variant="primary" isPending={loading}>{loading ? '保存中...' : '保存更改'}</UIButton>
         </div>
       </form>
 

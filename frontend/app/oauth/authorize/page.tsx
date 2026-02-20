@@ -2,9 +2,11 @@
 
 import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { toast } from '@heroui/react';
 import { authApi, API_URL } from '@/lib/api';
 import axios from 'axios';
 import { AlertTriangle, Ban, Check } from 'lucide-react';
+import { UIButton } from '@/components/ui/primitives';
 
 interface ClientInfo {
   name: string;
@@ -150,7 +152,7 @@ function AuthorizeContent() {
       if (response.data?.redirect_url) {
         window.location.href = response.data.redirect_url;
       } else {
-        alert('授权失败: 未收到跳转地址');
+        toast('授权失败: 未收到跳转地址');
         setSubmitting(null);
       }
     } catch (err: any) {
@@ -158,7 +160,7 @@ function AuthorizeContent() {
         setAccessDenied(true);
         setError(err.response?.data?.detail || '您没有权限访问此应用');
       } else {
-        alert('授权失败: ' + (err.response?.data?.detail || '未知错误'));
+        toast('授权失败: ' + (err.response?.data?.detail || '未知错误'));
       }
       setSubmitting(null);
     }
@@ -205,12 +207,9 @@ function AuthorizeContent() {
             </div>
             <h1 className="text-2xl font-bold text-gray-900 mb-4">授权请求错误</h1>
             <p className="text-gray-600 mb-6">{error}</p>
-            <button
-              onClick={() => router.push('/dashboard')}
-              className="btn btn-primary w-full"
-            >
+            <UIButton  onPress={() => router.push('/dashboard')} variant="primary" className="w-full">
               返回控制台
-            </button>
+            </UIButton>
           </div>
         </div>
       </div>
@@ -230,19 +229,13 @@ function AuthorizeContent() {
               {error || '抱歉，您没有权限访问此应用。请联系管理员为您分配相应的用户组权限。'}
             </p>
             <div className="space-y-3">
-              <button
-                onClick={() => router.push('/dashboard')}
-                className="btn btn-primary w-full"
-              >
+              <UIButton  onPress={() => router.push('/dashboard')} variant="primary" className="w-full">
                 返回控制台
-              </button>
+              </UIButton>
               {redirectUri && (
-                <button
-                  onClick={handleDeny}
-                  className="btn btn-secondary w-full"
-                >
+                <UIButton  onPress={handleDeny} variant="secondary" className="w-full">
                   返回应用
-                </button>
+                </UIButton>
               )}
             </div>
           </div>
@@ -275,13 +268,9 @@ function AuthorizeContent() {
                   <p className="text-xs text-gray-500">{currentUser.email}</p>
                 </div>
               </div>
-              <button
-                onClick={handleSwitchAccount}
-                className="text-sm text-blue-600 hover:text-blue-800 disabled:opacity-50 disabled:cursor-not-allowed"
-                disabled={!!submitting}
-              >
+              <UIButton onPress={handleSwitchAccount} className="text-sm text-blue-600" variant="tertiary" isDisabled={!!submitting} >
                 切换账号
-              </button>
+              </UIButton>
             </div>
           </div>
         )}
@@ -333,34 +322,8 @@ function AuthorizeContent() {
         </div>
 
         <div className="space-y-3">
-          <button
-            onClick={handleApprove}
-            className="btn btn-primary w-full disabled:opacity-60 disabled:cursor-not-allowed"
-            disabled={!!submitting}
-          >
-            {submitting === 'approve' ? (
-              <span className="inline-flex items-center justify-center gap-2">
-                <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-                授权中...
-              </span>
-            ) : (
-              '授权'
-            )}
-          </button>
-          <button
-            onClick={handleDeny}
-            className="btn btn-secondary w-full disabled:opacity-60 disabled:cursor-not-allowed"
-            disabled={!!submitting}
-          >
-            {submitting === 'deny' ? (
-              <span className="inline-flex items-center justify-center gap-2">
-                <span className="h-4 w-4 animate-spin rounded-full border-2 border-gray-400/40 border-t-gray-600 dark:border-gray-500/40 dark:border-t-gray-200" />
-                正在返回...
-              </span>
-            ) : (
-              '拒绝'
-            )}
-          </button>
+          <UIButton onPress={handleApprove} variant="primary" className="w-full" isDisabled={!!submitting} isPending={submitting === 'approve'}>{submitting === 'approve' ? '授权中...' : '授权'}</UIButton>
+          <UIButton onPress={handleDeny} variant="secondary" className="w-full" isDisabled={!!submitting} isPending={submitting === 'deny'}>{submitting === 'deny' ? '正在返回...' : '拒绝'}</UIButton>
         </div>
 
         <p className="text-xs text-gray-500 text-center mt-4">

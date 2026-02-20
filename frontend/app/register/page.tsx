@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { authApi } from '@/lib/api';
+import { UIButton, UIDescription, UIInput, UILabel, UITextField } from '@/components/ui/primitives';
 
 function RegisterContent() {
   const router = useRouter();
@@ -86,99 +87,45 @@ function RegisterContent() {
           )}
 
           <div>
-            <label htmlFor="inviteCode" className="block text-sm font-medium text-gray-700 mb-2">
-              邀请码
-            </label>
-            <input
-              id="inviteCode"
-              type="text"
-              required
-              className="input uppercase"
-              value={formData.inviteCode}
-              onChange={(e) => setFormData({ ...formData, inviteCode: e.target.value })}
-              disabled={loading}
-              placeholder="请输入邀请码"
-            />
-            <p className="mt-1 text-xs text-gray-500">仅支持邀请制注册</p>
+            <UITextField isRequired isDisabled={loading}>
+              <UILabel>邀请码</UILabel>
+              <UIInput id="inviteCode" type="text" className="uppercase" value={formData.inviteCode} onChange={(e) => setFormData({ ...formData, inviteCode: e.target.value })} placeholder="请输入邀请码" />
+              <UIDescription>仅支持邀请制注册</UIDescription>
+            </UITextField>
           </div>
 
           <div>
-            <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2">
-              用户名
-            </label>
-            <input
-              id="username"
-              type="text"
-              required
-              minLength={3}
-              className="input"
-              value={formData.username}
-              onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-              disabled={loading}
-            />
+            <UITextField isRequired isDisabled={loading}>
+              <UILabel>用户名</UILabel>
+              <UIInput id="username" type="text" minLength={3} value={formData.username} onChange={(e) => setFormData({ ...formData, username: e.target.value })} />
+            </UITextField>
           </div>
 
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-              邮箱
-            </label>
-            <input
-              id="email"
-              type="email"
-              required
-              className="input"
-              value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              disabled={loading}
-            />
+            <UITextField isRequired isDisabled={loading}>
+              <UILabel>邮箱</UILabel>
+              <UIInput id="email" type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} />
+            </UITextField>
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-              密码
-            </label>
-            <input
-              id="password"
-              type="password"
-              required
-              minLength={6}
-              className="input"
-              value={formData.password}
-              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-              disabled={loading}
-            />
-            <p className="mt-1 text-xs text-gray-500">至少 6 个字符</p>
+            <UITextField isRequired isDisabled={loading}>
+              <UILabel>密码</UILabel>
+              <UIInput id="password" type="password" minLength={6} value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} />
+              <UIDescription>至少 6 个字符</UIDescription>
+            </UITextField>
           </div>
 
           <div>
-            <label htmlFor="confirm-password" className="block text-sm font-medium text-gray-700 mb-2">
-              确认密码
-            </label>
-            <input
-              id="confirm-password"
-              type="password"
-              required
-              className="input"
-              value={formData.confirmPassword}
-              onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-              disabled={loading}
-            />
+            <UITextField isRequired isDisabled={loading}>
+              <UILabel>确认密码</UILabel>
+              <UIInput id="confirm-password" type="password" value={formData.confirmPassword} onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })} />
+            </UITextField>
           </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full btn btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {loading ? (
-              <span className="inline-flex items-center justify-center gap-2">
-                <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-                创建中...
-              </span>
-            ) : (
-              '创建账号'
-            )}
-          </button>
+          <UIButton type="submit"
+          isDisabled={loading}
+          variant="primary" className="w-full" isPending={loading} >{loading ? '创建中...' : '创建账号'}</UIButton>
 
           <div className="text-center text-sm">
             <span className="text-gray-600">已有账号？ </span>

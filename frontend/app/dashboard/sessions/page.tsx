@@ -1,7 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { toast } from '@heroui/react';
 import { userApi } from '@/lib/api';
+import { UIButton } from '@/components/ui/primitives';
 import { formatDateTime } from '@/lib/date';
 
 interface Session {
@@ -45,7 +47,7 @@ export default function SessionsPage() {
       await userApi.revokeSession(id);
       loadSessions();
     } catch (err) {
-      alert('撤销会话失败');
+      toast('撤销会话失败');
     }
   };
 
@@ -57,13 +59,13 @@ export default function SessionsPage() {
       const response = await userApi.revokeOtherSessions();
       const { kicked_count } = response.data;
       if (kicked_count > 0) {
-        alert(`已登出 ${kicked_count} 个设备`);
+        toast(`已登出 ${kicked_count} 个设备`);
       } else {
-        alert('没有其他设备需要登出');
+        toast('没有其他设备需要登出');
       }
       loadSessions();
     } catch (err) {
-      alert('操作失败');
+      toast('操作失败');
     } finally {
       setRevoking(false);
     }
@@ -78,7 +80,7 @@ export default function SessionsPage() {
       }
       loadSessions();
     } catch (err) {
-      alert('操作失败');
+      toast('操作失败');
     }
   };
 
@@ -120,13 +122,7 @@ export default function SessionsPage() {
           </p>
         </div>
         {otherSessionsCount > 0 && (
-          <button
-            onClick={handleRevokeOthers}
-            disabled={revoking}
-            className="btn btn-danger text-sm shrink-0 w-full sm:w-auto"
-          >
-            {revoking ? '处理中...' : `登出其他设备 (${otherSessionsCount})`}
-          </button>
+          <UIButton onPress={handleRevokeOthers} isDisabled={revoking} variant="danger" className="text-sm shrink-0 w-full sm:w-auto">{revoking ? '处理中...' : `登出其他设备 (${otherSessionsCount})`}</UIButton>
         )}
       </div>
 
@@ -194,22 +190,20 @@ export default function SessionsPage() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 shrink-0 ml-10 sm:ml-0">
+                    <div className="flex items-center gap-2 shrink-0 ml-10 sm:ml-0">
                     {!session.is_current && (
-                      <button
-                        onClick={() => handleToggleTrust(session)}
-                        className="btn btn-secondary text-xs sm:text-sm"
-                        title={session.is_trusted ? '取消信任' : '标记为可信'}
+                      <UIButton
+                        onPress={() => handleToggleTrust(session)}
+                        variant="tertiary"
+                        className="text-xs sm:text-sm"
+                        aria-label={session.is_trusted ? '取消信任' : '标记为可信'}
                       >
                         {session.is_trusted ? '取消信任' : '信任'}
-                      </button>
+                      </UIButton>
                     )}
-                    <button
-                      onClick={() => handleRevoke(session.id, session.device_name || '当前设备')}
-                      className="btn btn-danger text-xs sm:text-sm"
-                    >
+                    <UIButton onPress={() => handleRevoke(session.id, session.device_name || '当前设备')} variant="danger" className="text-xs sm:text-sm">
                       撤销
-                    </button>
+                    </UIButton>
                   </div>
                 </div>
               </li>

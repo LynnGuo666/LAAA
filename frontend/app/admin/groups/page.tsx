@@ -5,6 +5,7 @@ import { adminApi, groupApi, clientApi, groupAppApi } from '@/lib/api';
 import SidePanel from '@/components/SidePanel';
 import { useAuthStore } from '@/lib/store';
 import { isAdmin } from '@/lib/authz';
+import { UIButton, UIInput, UITextarea, UICheckbox } from '@/components/ui/primitives';
 
 interface Group {
   id: number;
@@ -282,12 +283,7 @@ export default function GroupsPage() {
     <div className="px-4 sm:px-0">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-semibold text-gray-900">用户组</h1>
-        <button
-          onClick={() => setShowCreateForm(!showCreateForm)}
-          className="btn btn-primary text-sm"
-        >
-          {showCreateForm ? '取消创建' : '创建用户组'}
-        </button>
+        <UIButton  onPress={() => setShowCreateForm(!showCreateForm)} variant="primary">{showCreateForm ? '取消创建' : '创建用户组'}</UIButton>
       </div>
 
       <div className="flex flex-col lg:flex-row gap-6">
@@ -298,10 +294,8 @@ export default function GroupsPage() {
 
               <div>
                 <label className="block text-sm font-medium mb-2">组名称 *</label>
-                <input
-                  type="text"
+                <UIInput
                   required
-                  className="input"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 />
@@ -309,8 +303,7 @@ export default function GroupsPage() {
 
               <div>
                 <label className="block text-sm font-medium mb-2">描述</label>
-                <textarea
-                  className="input"
+                <UITextarea
                   rows={3}
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
@@ -318,16 +311,9 @@ export default function GroupsPage() {
               </div>
 
               <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  id="is_default"
-                  checked={formData.is_default}
-                  onChange={(e) => setFormData({ ...formData, is_default: e.target.checked })}
-                  className="h-4 w-4"
-                />
-                <label htmlFor="is_default" className="ml-2 text-sm">
+                <UICheckbox id="is_default" isSelected={formData.is_default} onChange={(isSelected) => setFormData({ ...formData, is_default: isSelected })}>
                   默认组（新用户自动加入）
-                </label>
+                </UICheckbox>
               </div>
 
               {panelError && (
@@ -337,14 +323,10 @@ export default function GroupsPage() {
               )}
 
               <div className="flex gap-2">
-                <button type="submit" className="btn btn-primary text-sm">创建</button>
-                <button
-                  type="button"
-                  onClick={() => setShowCreateForm(false)}
-                  className="btn btn-secondary text-sm"
-                >
+                <UIButton type="submit" variant="primary">创建</UIButton>
+                <UIButton type="button" onPress={() => setShowCreateForm(false)} variant="secondary">
                   取消
-                </button>
+                </UIButton>
               </div>
             </form>
           )}
@@ -357,34 +339,28 @@ export default function GroupsPage() {
                 {groups.map(group => {
                   const active = selectedGroup?.id === group.id;
                   return (
-                    <button
-                      key={group.id}
-                      onClick={() => openPanel(group)}
-                      className={`w-full text-left list-item list-item-pressable ${
-                        active ? 'bg-black/[0.03] dark:bg-white/[0.04]' : ''
-                      }`}
-                    >
-                      <div className="flex items-center justify-between gap-4">
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium text-gray-900 dark:text-gray-100 truncate">{group.name}</span>
-                            {group.is_default && (
-                              <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full border border-blue-200 dark:bg-blue-950 dark:text-blue-200 dark:border-blue-900 shrink-0">
-                                默认
-                              </span>
-                            )}
-                          </div>
-                          {group.description && (
-                            <div className="text-sm text-gray-600 dark:text-gray-300 mt-1 truncate">
-                              {group.description}
-                            </div>
+                    <UIButton key={group.id} onPress={() => openPanel(group)} className={`w-full text-left list-item list-item-pressable h-auto p-0 min-w-0 ${
+                      active ? 'bg-black/[0.03] dark:bg-white/[0.04]' : ''
+                    }`} variant="tertiary" ><div className="flex items-center justify-between gap-4 w-full">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-gray-900 dark:text-gray-100 truncate">{group.name}</span>
+                          {group.is_default && (
+                            <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full border border-blue-200 dark:bg-blue-950 dark:text-blue-200 dark:border-blue-900 shrink-0">
+                              默认
+                            </span>
                           )}
                         </div>
-                        <div className="text-sm text-gray-500 dark:text-gray-400 shrink-0">
-                          {group.member_count || 0} 人
-                        </div>
+                        {group.description && (
+                          <div className="text-sm text-gray-600 dark:text-gray-300 mt-1 truncate">
+                            {group.description}
+                          </div>
+                        )}
                       </div>
-                    </button>
+                      <div className="text-sm text-gray-500 dark:text-gray-400 shrink-0">
+                        {group.member_count || 0} 人
+                      </div>
+                    </div></UIButton>
                   );
                 })}
               </div>
@@ -411,24 +387,18 @@ export default function GroupsPage() {
                 <div className="flex items-center justify-between mb-2">
                   <div className="text-sm font-medium text-gray-700 dark:text-gray-200">信息</div>
                   {!editingMeta ? (
-                    <button
-                      type="button"
-                      className="btn btn-secondary text-sm"
-                      onClick={() => setEditingMeta(true)}
-                    >
+                    <UIButton type="button"
+                    variant="secondary" onPress={() => setEditingMeta(true)} >
                       编辑
-                    </button>
+                    </UIButton>
                   ) : (
-                    <button
-                      type="button"
-                      className="btn btn-secondary text-sm"
-                      onClick={() => {
-                        setEditingMeta(false);
-                        setMetaForm({ name: selectedGroup.name, description: selectedGroup.description || '' });
-                      }}
-                    >
+                    <UIButton type="button"
+                    variant="secondary" onPress={() => {
+                      setEditingMeta(false);
+                      setMetaForm({ name: selectedGroup.name, description: selectedGroup.description || '' });
+                    }} >
                       取消
-                    </button>
+                    </UIButton>
                   )}
                 </div>
 
@@ -447,37 +417,31 @@ export default function GroupsPage() {
                   <form onSubmit={handleUpdateMeta} className="space-y-3 animate-slide-up">
                     <div>
                       <label className="block text-sm font-medium mb-2">组名称 *</label>
-                      <input
-                        type="text"
+                      <UIInput
                         required
-                        className="input"
                         value={metaForm.name}
                         onChange={(e) => setMetaForm({ ...metaForm, name: e.target.value })}
                       />
                     </div>
                     <div>
                       <label className="block text-sm font-medium mb-2">描述</label>
-                      <textarea
-                        className="input"
-                        rows={3}
+                      <UITextarea
+                  rows={3}
                         value={metaForm.description}
                         onChange={(e) => setMetaForm({ ...metaForm, description: e.target.value })}
                       />
                     </div>
                     <div className="flex gap-2">
-                      <button type="submit" className="btn btn-primary text-sm">
+                      <UIButton type="submit" variant="primary">
                         保存
-                      </button>
-                      <button
-                        type="button"
-                        className="btn btn-secondary text-sm"
-                        onClick={() => {
-                          setEditingMeta(false);
-                          setMetaForm({ name: selectedGroup.name, description: selectedGroup.description || '' });
-                        }}
-                      >
+                      </UIButton>
+                      <UIButton type="button"
+                      variant="secondary" onPress={() => {
+                        setEditingMeta(false);
+                        setMetaForm({ name: selectedGroup.name, description: selectedGroup.description || '' });
+                      }} >
                         取消
-                      </button>
+                      </UIButton>
                     </div>
                   </form>
                 )}
@@ -485,12 +449,7 @@ export default function GroupsPage() {
 
               <div className="flex items-center justify-between">
                 <div className="text-sm font-medium text-gray-700">默认组</div>
-                <button
-                  onClick={() => toggleDefault(selectedGroup.id, selectedGroup.is_default)}
-                  className="btn btn-secondary text-sm"
-                >
-                  {selectedGroup.is_default ? '取消默认' : '设为默认'}
-                </button>
+                <UIButton  onPress={() => toggleDefault(selectedGroup.id, selectedGroup.is_default)} variant="secondary">{selectedGroup.is_default ? '取消默认' : '设为默认'}</UIButton>
               </div>
 
               <div>
@@ -517,12 +476,9 @@ export default function GroupsPage() {
                             <div className="text-xs text-gray-500">{m.email}</div>
                           </div>
                         </div>
-                        <button
-                          onClick={() => handleRemoveMember(m.id)}
-                          className="text-sm text-red-600 hover:text-red-800"
-                        >
+                        <UIButton onPress={() => handleRemoveMember(m.id)} className="text-red-600 hover:text-red-800 p-0 min-w-0 h-auto" variant="tertiary" size="sm">
                           移除
-                        </button>
+                        </UIButton>
                       </li>
                     ))}
                   </ul>
@@ -537,10 +493,10 @@ export default function GroupsPage() {
                   </div>
                 ) : (
                   <>
-                    <input
+                    <UIInput
                       type="text"
                       placeholder="搜索用户名或邮箱"
-                      className="input text-sm mb-3"
+                      className="mb-3"
                       value={search}
                       onChange={e => setSearch(e.target.value)}
                     />
@@ -549,27 +505,17 @@ export default function GroupsPage() {
                         <div className="p-3 text-sm text-gray-500">没有可添加的用户</div>
                       ) : (
                         filteredAvailableUsers.map(u => (
-                          <label key={u.id} className="flex items-center gap-2 px-3 py-2 hover:bg-gray-50 cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={pendingAddIds.includes(u.id)}
-                              onChange={() => togglePendingAdd(u.id)}
-                              className="h-4 w-4"
-                            />
+                          <UICheckbox key={u.id}
+                          className="flex items-center gap-2 px-3 py-2 hover:bg-gray-50 cursor-pointer max-w-full m-0" isSelected={pendingAddIds.includes(u.id)} onChange={() => togglePendingAdd(u.id)}><div className="flex items-center gap-2">
                             <span className="text-sm text-gray-900">{u.username}</span>
                             <span className="text-xs text-gray-500">{u.email}</span>
-                          </label>
+                          </div></UICheckbox>
                         ))
                       )}
                     </div>
-                    <button
-                      type="button"
-                      onClick={handleAddMembers}
-                      disabled={pendingAddIds.length === 0}
-                      className="btn btn-primary text-sm mt-3 disabled:opacity-50"
-                    >
+                    <UIButton type="button" onPress={handleAddMembers} isDisabled={pendingAddIds.length === 0} variant="primary" className="mt-3">
                       添加到用户组
-                    </button>
+                    </UIButton>
                   </>
                 )}
               </div>
@@ -577,24 +523,19 @@ export default function GroupsPage() {
               <div>
                 <div className="flex items-center justify-between mb-3">
                   <div className="text-sm font-medium text-gray-700 dark:text-gray-200">应用权限</div>
-                  <button
-                    type="button"
-                    onClick={handleUpdateAppPermissions}
-                    className="btn btn-primary text-sm"
-                    disabled={appPermissionsLoading}
-                  >
+                  <UIButton type="button" onPress={handleUpdateAppPermissions} variant="primary" isDisabled={appPermissionsLoading} >
                     保存权限
-                  </button>
+                  </UIButton>
                 </div>
                 <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
                   优先级：用户拒绝 &gt; 用户允许 &gt; 用户组拒绝 &gt; 用户组允许 &gt; 应用默认
                 </p>
-                <input
+                <UIInput
                   type="text"
                   value={appSearch}
                   onChange={(e) => setAppSearch(e.target.value)}
                   placeholder="搜索应用名称..."
-                  className="input text-sm mb-3"
+                  className="mb-3"
                 />
                 {appPermissionsLoading ? (
                   <div className="text-sm text-gray-500">加载中...</div>
@@ -622,24 +563,10 @@ export default function GroupsPage() {
                           <span className="text-sm text-gray-900 dark:text-gray-100 truncate">{app.name}</span>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
-                          <label className="flex items-center gap-1 cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={selectedGroupAllowedApps.includes(app.id)}
-                              onChange={() => toggleAllowedApp(app.id)}
-                              className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
-                            />
-                            <span className="text-xs text-green-600 dark:text-green-400">允许</span>
-                          </label>
-                          <label className="flex items-center gap-1 cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={selectedGroupDeniedApps.includes(app.id)}
-                              onChange={() => toggleDeniedApp(app.id)}
-                              className="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 rounded"
-                            />
-                            <span className="text-xs text-red-600 dark:text-red-400">拒绝</span>
-                          </label>
+                          <UICheckbox  isSelected={selectedGroupAllowedApps.includes(app.id)} onChange={() => toggleAllowedApp(app.id)}
+                          className="max-w-full m-0"><span className="text-xs text-green-600 dark:text-green-400">允许</span></UICheckbox>
+                          <UICheckbox  isSelected={selectedGroupDeniedApps.includes(app.id)} onChange={() => toggleDeniedApp(app.id)}
+                          className="max-w-full m-0"><span className="text-xs text-red-600 dark:text-red-400">拒绝</span></UICheckbox>
                         </div>
                       </div>
                     ))}
@@ -648,12 +575,9 @@ export default function GroupsPage() {
               </div>
 
               <div className="pt-2 border-t">
-                <button
-                  onClick={() => handleDelete(selectedGroup.id)}
-                  className="btn btn-danger text-sm"
-                >
+                <UIButton  onPress={() => handleDelete(selectedGroup.id)} variant="danger">
                   删除用户组
-                </button>
+                </UIButton>
               </div>
             </div>
           )}

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { totpApi } from '@/lib/api';
 import { formatDate } from '@/lib/date';
+import { UIButton, UIInput } from '@/components/ui/primitives';
 
 interface TOTPStatus {
   enabled: boolean;
@@ -235,27 +236,16 @@ export default function TOTPSetupPage() {
           </div>
 
           <div className="flex flex-wrap gap-2">
-            <button
-              onClick={copyBackupCodes}
-              className="btn btn-secondary text-sm"
-            >
-              {copied ? '已复制' : '复制备用码'}
-            </button>
-            <button
-              onClick={downloadBackupCodes}
-              className="btn btn-secondary text-sm"
-            >
+            <UIButton onPress={copyBackupCodes} className="text-sm" variant="secondary" >{copied ? '已复制' : '复制备用码'}</UIButton>
+            <UIButton onPress={downloadBackupCodes} className="text-sm" variant="secondary" >
               下载备用码
-            </button>
-            <button
-              onClick={() => {
-                setShowBackupCodes(false);
-                setBackupCodes([]);
-              }}
-              className="btn btn-primary text-sm"
-            >
+            </UIButton>
+            <UIButton onPress={() => {
+              setShowBackupCodes(false);
+              setBackupCodes([]);
+            }} className="text-sm" variant="primary" >
               我已保存
-            </button>
+            </UIButton>
           </div>
         </div>
       )}
@@ -301,26 +291,17 @@ export default function TOTPSetupPage() {
         {/* Actions */}
         {status?.enabled ? (
           <div className="flex flex-wrap gap-2">
-            <button
-              onClick={() => setShowRegenerateModal(true)}
-              className="btn btn-secondary text-sm"
-            >
+            <UIButton onPress={() => setShowRegenerateModal(true)} className="text-sm" variant="secondary" >
               重新生成备用码
-            </button>
-            <button
-              onClick={() => setShowDisableModal(true)}
-              className="btn text-sm text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950"
-            >
+            </UIButton>
+            <UIButton onPress={() => setShowDisableModal(true)} className="text-sm" variant="danger" >
               禁用身份验证器
-            </button>
+            </UIButton>
           </div>
         ) : !setupData && (
-          <button
-            onClick={handleStartSetup}
-            className="btn btn-primary"
-          >
+          <UIButton onPress={handleStartSetup} variant="primary" >
             开始设置
-          </button>
+          </UIButton>
         )}
       </div>
 
@@ -381,21 +362,15 @@ export default function TOTPSetupPage() {
 
             <form onSubmit={handleVerifySetup} className="ml-8">
               <div className="flex gap-3 items-end max-w-xs">
-                <input
+                <UIInput
                   type="text"
                   value={verificationCode}
                   onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                   placeholder="000000"
-                  className="input text-center text-xl tracking-widest font-mono flex-1"
+                  className="flex-1 text-center text-xl tracking-widest font-mono"
                   maxLength={6}
                 />
-                <button
-                  type="submit"
-                  disabled={verifying || verificationCode.length !== 6}
-                  className="btn btn-primary disabled:opacity-50"
-                >
-                  {verifying ? '验证中...' : '验证'}
-                </button>
+                <UIButton type="submit" isDisabled={verifying || verificationCode.length !== 6} variant="primary" isPending={verifying}>{verifying ? '验证中...' : '验证'}</UIButton>
               </div>
             </form>
           </div>
@@ -419,32 +394,23 @@ export default function TOTPSetupPage() {
               </div>
             )}
 
-            <input
+            <UIInput
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="请输入密码"
-              className="input w-full mb-4"
+              className="w-full mb-4"
             />
 
             <div className="flex gap-2 justify-end">
-              <button
-                onClick={() => {
-                  setShowDisableModal(false);
-                  setPassword('');
-                  setError('');
-                }}
-                className="btn btn-secondary"
-              >
+              <UIButton onPress={() => {
+                setShowDisableModal(false);
+                setPassword('');
+                setError('');
+              }} variant="secondary" >
                 取消
-              </button>
-              <button
-                onClick={handleDisable}
-                disabled={disabling || !password}
-                className="btn bg-red-600 hover:bg-red-700 text-white disabled:opacity-50"
-              >
-                {disabling ? '禁用中...' : '确认禁用'}
-              </button>
+              </UIButton>
+              <UIButton onPress={handleDisable} isDisabled={disabling || !password} variant="danger" isPending={disabling}>{disabling ? '禁用中...' : '确认禁用'}</UIButton>
             </div>
           </div>
         </div>
@@ -467,32 +433,23 @@ export default function TOTPSetupPage() {
               </div>
             )}
 
-            <input
+            <UIInput
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="请输入密码"
-              className="input w-full mb-4"
+              className="w-full mb-4"
             />
 
             <div className="flex gap-2 justify-end">
-              <button
-                onClick={() => {
-                  setShowRegenerateModal(false);
-                  setPassword('');
-                  setError('');
-                }}
-                className="btn btn-secondary"
-              >
+              <UIButton onPress={() => {
+                setShowRegenerateModal(false);
+                setPassword('');
+                setError('');
+              }} variant="secondary" >
                 取消
-              </button>
-              <button
-                onClick={handleRegenerateBackupCodes}
-                disabled={regenerating || !password}
-                className="btn btn-primary disabled:opacity-50"
-              >
-                {regenerating ? '生成中...' : '重新生成'}
-              </button>
+              </UIButton>
+              <UIButton onPress={handleRegenerateBackupCodes} isDisabled={regenerating || !password} variant="primary" isPending={regenerating}>{regenerating ? '生成中...' : '重新生成'}</UIButton>
             </div>
           </div>
         </div>

@@ -1,8 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { toast } from '@heroui/react';
 import { userApi } from '@/lib/api';
 import { formatDateTime } from '@/lib/date';
+import { UIButton } from '@/components/ui/primitives';
 import { AppWindow } from 'lucide-react';
 
 interface Authorization {
@@ -39,7 +41,7 @@ export default function AuthorizationsPage() {
       await userApi.revokeAuthorization(auth.id);
       loadAuthorizations();
     } catch (err) {
-      alert('撤销授权失败');
+      toast('撤销授权失败');
     }
   };
 
@@ -92,12 +94,9 @@ export default function AuthorizationsPage() {
                     </div>
                   </div>
 
-                  <button
-                    onClick={() => handleRevoke(auth)}
-                    className="btn btn-danger text-xs sm:text-sm shrink-0 ml-13 sm:ml-0"
-                  >
+                  <UIButton onPress={() => handleRevoke(auth)} variant="danger" className="text-xs sm:text-sm shrink-0 ml-13 sm:ml-0">
                     撤回
-                  </button>
+                  </UIButton>
                 </div>
               </li>
             ))}

@@ -1,10 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { toast } from '@heroui/react';
 import { clientApi, groupApi } from '@/lib/api';
 import SidePanel from '@/components/SidePanel';
 import { useAuthStore } from '@/lib/store';
 import { isAdmin } from '@/lib/authz';
+import { UIButton, UICheckbox, UIDescription, UIInput, UILabel, UIRadio, UIRadioGroup, UITextField, UITextarea } from '@/components/ui/primitives';
 
 interface Client {
   id: number;
@@ -133,7 +135,7 @@ export default function AppsPage() {
     if (creating) return;
 
     if (formData.allowed_scopes.length === 0) {
-      alert('请至少选择一个权限范围');
+      toast('请至少选择一个权限范围');
       return;
     }
 
@@ -170,7 +172,7 @@ export default function AppsPage() {
       });
       await loadClients();
     } catch (err: any) {
-      alert('创建应用失败: ' + (err.response?.data?.detail || '未知错误'));
+      toast('创建应用失败: ' + (err.response?.data?.detail || '未知错误'));
     } finally {
       setCreating(false);
     }
@@ -197,7 +199,7 @@ export default function AppsPage() {
     if (updating) return;
 
     if (formData.allowed_scopes.length === 0) {
-      alert('请至少选择一个权限范围');
+      toast('请至少选择一个权限范围');
       return;
     }
 
@@ -214,7 +216,7 @@ export default function AppsPage() {
         default_access: formData.default_access,
       });
 
-      alert('应用更新成功！');
+      toast('应用更新成功！');
       setShowEditForm(false);
       setEditingClient(null);
       setFormData({
@@ -229,7 +231,7 @@ export default function AppsPage() {
       });
       await loadClients();
     } catch (err: any) {
-      alert('更新应用失败: ' + (err.response?.data?.detail || '未知错误'));
+      toast('更新应用失败: ' + (err.response?.data?.detail || '未知错误'));
     } finally {
       setUpdating(false);
     }
@@ -244,7 +246,7 @@ export default function AppsPage() {
       await clientApi.delete(id);
       await loadClients();
     } catch (err) {
-      alert('删除应用失败');
+      toast('删除应用失败');
     } finally {
       setDeletingClientId(null);
     }
@@ -267,7 +269,7 @@ export default function AppsPage() {
       });
     } catch (err) {
       console.error('加载访问控制失败', err);
-      alert('加载访问控制失败');
+      toast('加载访问控制失败');
     } finally {
       setAccessControlLoading(false);
     }
@@ -286,7 +288,7 @@ export default function AppsPage() {
       setShowNewSecret(true);
       setCopyStatus(null);
     } catch (err: any) {
-      alert('重置密钥失败: ' + (err.response?.data?.detail || '未知错误'));
+      toast('重置密钥失败: ' + (err.response?.data?.detail || '未知错误'));
     } finally {
       setResettingClientId(null);
     }
@@ -301,18 +303,18 @@ export default function AppsPage() {
       accessControl.denied_group_ids.includes(id)
     );
     if (overlap.length > 0) {
-      alert('同一个用户组不能同时在允许和禁止列表中');
+      toast('同一个用户组不能同时在允许和禁止列表中');
       return;
     }
 
     try {
       setAccessControlSaving(true);
       await clientApi.updateAccessControl(selectedClient.id, accessControl);
-      alert('访问控制更新成功');
+      toast('访问控制更新成功');
       setShowAccessControl(false);
       setSelectedClient(null);
     } catch (err: any) {
-      alert('更新失败: ' + (err.response?.data?.detail || '未知错误'));
+      toast('更新失败: ' + (err.response?.data?.detail || '未知错误'));
     } finally {
       setAccessControlSaving(false);
     }
@@ -344,13 +346,7 @@ export default function AppsPage() {
     <div className="px-4 sm:px-0 animate-fade-in">
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-6 sm:mb-8">
         <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">我的应用</h1>
-        <button
-          onClick={() => setShowCreateForm(!showCreateForm)}
-          className="btn btn-primary w-full sm:w-auto"
-          disabled={creating || updating || accessControlSaving}
-        >
-          {showCreateForm ? '取消' : '+ 创建应用'}
-        </button>
+        <UIButton onPress={() => setShowCreateForm(!showCreateForm)} className="w-full sm:w-auto" variant="primary" isDisabled={creating || updating || accessControlSaving} >{showCreateForm ? '取消' : '+ 创建应用'}</UIButton>
       </div>
 
       {newClientCredentials && (
@@ -362,13 +358,10 @@ export default function AppsPage() {
                 请立即保存 `Client Secret`，关闭页面后将无法再次查看（可在此页面重置）。
               </p>
             </div>
-            <button
-              type="button"
-              className="btn btn-secondary text-xs sm:text-sm"
-              onClick={() => setNewClientCredentials(null)}
-            >
+            <UIButton type="button"
+            className="text-xs sm:text-sm" variant="secondary" onPress={() => setNewClientCredentials(null)}>
               关闭
-            </button>
+            </UIButton>
           </div>
 
           <div className="mt-4 space-y-3">
@@ -378,13 +371,10 @@ export default function AppsPage() {
                 <code className="bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded font-mono text-xs break-all select-all flex-1">
                   {newClientCredentials.client_id}
                 </code>
-                <button
-                  type="button"
-                  className="btn btn-secondary text-xs shrink-0"
-                  onClick={() => copyToClipboard(newClientCredentials.client_id, 'Client ID')}
-                >
+                <UIButton type="button"
+                className="text-xs shrink-0" variant="secondary" onPress={() => copyToClipboard(newClientCredentials.client_id, 'Client ID')}>
                   复制
-                </button>
+                </UIButton>
               </div>
             </div>
 
@@ -394,20 +384,12 @@ export default function AppsPage() {
                 <code className="bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded font-mono text-xs break-all select-all flex-1">
                   {showNewSecret ? newClientCredentials.client_secret : '••••••••••••••••'}
                 </code>
-                <button
-                  type="button"
-                  className="btn btn-secondary text-xs shrink-0"
-                  onClick={() => setShowNewSecret((v) => !v)}
-                >
-                  {showNewSecret ? '隐藏' : '显示'}
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-secondary text-xs shrink-0"
-                  onClick={() => copyToClipboard(newClientCredentials.client_secret, 'Client Secret')}
-                >
+                <UIButton type="button"
+                className="text-xs shrink-0" variant="secondary" onPress={() => setShowNewSecret((v) => !v)}>{showNewSecret ? '隐藏' : '显示'}</UIButton>
+                <UIButton type="button"
+                className="text-xs shrink-0" variant="secondary" onPress={() => copyToClipboard(newClientCredentials.client_secret, 'Client Secret')}>
                   复制
-                </button>
+                </UIButton>
               </div>
             </div>
 
@@ -426,79 +408,56 @@ export default function AppsPage() {
 
           <fieldset disabled={creating} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium mb-2">应用名称 *</label>
-              <input
-                type="text"
-                required
-                className="input"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              />
+              <UITextField isRequired>
+                <UILabel>应用名称</UILabel>
+                <UIInput type="text" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
+              </UITextField>
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-2">应用描述</label>
-              <textarea
-                className="input"
-                rows={3}
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              />
+              <UITextField>
+                <UILabel>应用描述</UILabel>
+                <UITextarea rows={3} value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} />
+              </UITextField>
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-2">应用 Logo URL</label>
-              <input
-                type="url"
-                className="input"
-                placeholder="https://example.com/logo.png"
-                value={formData.logo}
-                onChange={(e) => setFormData({ ...formData, logo: e.target.value })}
-              />
-              <p className="text-xs text-gray-500 mt-1">Logo 将显示在授权页面上</p>
+              <UITextField>
+                <UILabel>应用 Logo URL</UILabel>
+                <UIInput type="url" placeholder="https://example.com/logo.png" value={formData.logo} onChange={(e) => setFormData({ ...formData, logo: e.target.value })} />
+                <UIDescription>Logo 将显示在授权页面上</UIDescription>
+              </UITextField>
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-2">应用官网（可选）</label>
-              <input
-                type="url"
-                className="input"
-                placeholder="https://example.com"
-                value={formData.website_url}
-                onChange={(e) => setFormData({ ...formData, website_url: e.target.value })}
-              />
+              <UITextField>
+                <UILabel>应用官网（可选）</UILabel>
+                <UIInput type="url" placeholder="https://example.com" value={formData.website_url} onChange={(e) => setFormData({ ...formData, website_url: e.target.value })} />
+              </UITextField>
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-2">回调地址 * (每行一个)</label>
-              <textarea
-                required
-                className="input font-mono text-sm"
-                rows={3}
-                placeholder="http://localhost:3000/callback&#10;https://myapp.com/callback"
-                value={formData.redirect_uris}
-                onChange={(e) => setFormData({ ...formData, redirect_uris: e.target.value })}
-              />
+              <UITextField isRequired>
+                <UILabel>回调地址 (每行一个)</UILabel>
+                <UITextarea rows={3} className="font-mono text-sm" placeholder="http://localhost:3000/callback&#10;https://myapp.com/callback" value={formData.redirect_uris} onChange={(e) => setFormData({ ...formData, redirect_uris: e.target.value })} />
+              </UITextField>
             </div>
 
             <div>
               <label className="block text-sm font-medium mb-3">权限范围 *</label>
               <div className="surface overflow-hidden">
-                <div className="list">
+                <div className="list p-2 space-y-2">
                   {AVAILABLE_SCOPES.map((scope) => (
-                    <label key={scope.value} className="list-item list-item-pressable flex items-start gap-3">
-                      <input
-                        type="checkbox"
-                        id={`scope-${scope.value}`}
-                        checked={formData.allowed_scopes.includes(scope.value)}
-                        onChange={() => handleScopeToggle(scope.value)}
-                        className="h-4 w-4 mt-0.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                      />
-                      <div className="min-w-0">
-                        <div className="font-medium text-sm text-gray-900 dark:text-gray-100">{scope.label}</div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{scope.description}</div>
-                      </div>
-                    </label>
+                    <UICheckbox
+                      key={scope.value}
+                      id={`scope-${scope.value}`}
+                      isSelected={formData.allowed_scopes.includes(scope.value)}
+                      onChange={() => handleScopeToggle(scope.value)}
+                      className="w-full max-w-full items-start m-0"
+                    ><div className="w-full min-w-0">
+                      <div className="font-medium text-sm text-gray-900 dark:text-gray-100">{scope.label}</div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{scope.description}</div>
+                    </div></UICheckbox>
                   ))}
                 </div>
               </div>
@@ -508,59 +467,25 @@ export default function AppsPage() {
             </div>
 
             <div className="flex items-center">
-              <input
-                type="checkbox"
-                id="trusted"
-                checked={formData.trusted}
-                onChange={(e) => setFormData({ ...formData, trusted: e.target.checked })}
-                className="h-4 w-4"
-              />
-              <label htmlFor="trusted" className="ml-2 text-sm">
+              <UICheckbox id="trusted" isSelected={formData.trusted} onChange={(isSelected) => setFormData({ ...formData, trusted: isSelected })}>
                 信任的应用（跳过授权确认）
-              </label>
+              </UICheckbox>
             </div>
 
             <div>
               <label className="block text-sm font-medium mb-2">默认访问</label>
-              <div className="flex items-center gap-6 text-sm">
-                <label className="inline-flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="default_access"
-                    checked={formData.default_access === true}
-                    onChange={() => setFormData({ ...formData, default_access: true })}
-                    className="h-4 w-4"
-                  />
-                  <span>允许</span>
-                </label>
-                <label className="inline-flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="default_access"
-                    checked={formData.default_access === false}
-                    onChange={() => setFormData({ ...formData, default_access: false })}
-                    className="h-4 w-4"
-                  />
-                  <span>拒绝</span>
-                </label>
-              </div>
-              <p className="text-xs text-gray-500 mt-1">当未配置用户/用户组的应用权限时生效</p>
+              <UIRadioGroup
+                orientation="horizontal"
+                value={formData.default_access ? 'allow' : 'deny'}
+                onChange={(val) => setFormData({ ...formData, default_access: val === 'allow' })}
+              >
+                <UIRadio value="allow">允许</UIRadio>
+                <UIRadio value="deny">拒绝</UIRadio>
+              </UIRadioGroup>
+              <p className="text-xs text-gray-500 mt-2">当未配置用户/用户组的应用权限时生效</p>
             </div>
 
-            <button
-              type="submit"
-              className="btn btn-primary disabled:opacity-60 disabled:cursor-not-allowed"
-              disabled={creating}
-            >
-              {creating ? (
-                <span className="inline-flex items-center justify-center gap-2">
-                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-                  创建中...
-                </span>
-              ) : (
-                '创建应用'
-              )}
-            </button>
+            <UIButton type="submit" variant="primary" isDisabled={creating} isPending={creating}>{creating ? '创建中...' : '创建应用'}</UIButton>
           </fieldset>
         </form>
       )}
@@ -572,79 +497,56 @@ export default function AppsPage() {
 
           <fieldset disabled={updating} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium mb-2">应用名称 *</label>
-              <input
-                type="text"
-                required
-                className="input"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              />
+              <UITextField isRequired>
+                <UILabel>应用名称</UILabel>
+                <UIInput type="text" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
+              </UITextField>
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-2">应用描述</label>
-              <textarea
-                className="input"
-                rows={3}
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              />
+              <UITextField>
+                <UILabel>应用描述</UILabel>
+                <UITextarea rows={3} value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} />
+              </UITextField>
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-2">应用 Logo URL</label>
-              <input
-                type="url"
-                className="input"
-                placeholder="https://example.com/logo.png"
-                value={formData.logo}
-                onChange={(e) => setFormData({ ...formData, logo: e.target.value })}
-              />
-              <p className="text-xs text-gray-500 mt-1">Logo 将显示在授权页面上</p>
+              <UITextField>
+                <UILabel>应用 Logo URL</UILabel>
+                <UIInput type="url" placeholder="https://example.com/logo.png" value={formData.logo} onChange={(e) => setFormData({ ...formData, logo: e.target.value })} />
+                <UIDescription>Logo 将显示在授权页面上</UIDescription>
+              </UITextField>
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-2">应用官网（可选）</label>
-              <input
-                type="url"
-                className="input"
-                placeholder="https://example.com"
-                value={formData.website_url}
-                onChange={(e) => setFormData({ ...formData, website_url: e.target.value })}
-              />
+              <UITextField>
+                <UILabel>应用官网（可选）</UILabel>
+                <UIInput type="url" placeholder="https://example.com" value={formData.website_url} onChange={(e) => setFormData({ ...formData, website_url: e.target.value })} />
+              </UITextField>
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-2">回调地址 * (每行一个)</label>
-              <textarea
-                required
-                className="input font-mono text-sm"
-                rows={3}
-                placeholder="http://localhost:3000/callback&#10;https://myapp.com/callback"
-                value={formData.redirect_uris}
-                onChange={(e) => setFormData({ ...formData, redirect_uris: e.target.value })}
-              />
+              <UITextField isRequired>
+                <UILabel>回调地址 (每行一个)</UILabel>
+                <UITextarea rows={3} className="font-mono text-sm" placeholder="http://localhost:3000/callback&#10;https://myapp.com/callback" value={formData.redirect_uris} onChange={(e) => setFormData({ ...formData, redirect_uris: e.target.value })} />
+              </UITextField>
             </div>
 
             <div>
               <label className="block text-sm font-medium mb-3">权限范围 *</label>
               <div className="surface overflow-hidden">
-                <div className="list">
+                <div className="list p-2 space-y-2">
                   {AVAILABLE_SCOPES.map((scope) => (
-                    <label key={scope.value} className="list-item list-item-pressable flex items-start gap-3">
-                      <input
-                        type="checkbox"
-                        id={`edit-scope-${scope.value}`}
-                        checked={formData.allowed_scopes.includes(scope.value)}
-                        onChange={() => handleScopeToggle(scope.value)}
-                        className="h-4 w-4 mt-0.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                      />
-                      <div className="min-w-0">
-                        <div className="font-medium text-sm text-gray-900 dark:text-gray-100">{scope.label}</div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{scope.description}</div>
-                      </div>
-                    </label>
+                    <UICheckbox
+                      key={scope.value}
+                      id={`edit-scope-${scope.value}`}
+                      isSelected={formData.allowed_scopes.includes(scope.value)}
+                      onChange={() => handleScopeToggle(scope.value)}
+                      className="w-full max-w-full items-start m-0"
+                    ><div className="w-full min-w-0">
+                      <div className="font-medium text-sm text-gray-900 dark:text-gray-100">{scope.label}</div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{scope.description}</div>
+                    </div></UICheckbox>
                   ))}
                 </div>
               </div>
@@ -654,71 +556,32 @@ export default function AppsPage() {
             </div>
 
             <div className="flex items-center">
-              <input
-                type="checkbox"
-                id="edit-trusted"
-                checked={formData.trusted}
-                onChange={(e) => setFormData({ ...formData, trusted: e.target.checked })}
-                className="h-4 w-4"
-              />
-              <label htmlFor="edit-trusted" className="ml-2 text-sm">
+              <UICheckbox id="edit-trusted" isSelected={formData.trusted} onChange={(isSelected) => setFormData({ ...formData, trusted: isSelected })}>
                 信任的应用（跳过授权确认）
-              </label>
+              </UICheckbox>
             </div>
 
             <div>
               <label className="block text-sm font-medium mb-2">默认访问</label>
-              <div className="flex items-center gap-6 text-sm">
-                <label className="inline-flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="edit_default_access"
-                    checked={formData.default_access === true}
-                    onChange={() => setFormData({ ...formData, default_access: true })}
-                    className="h-4 w-4"
-                  />
-                  <span>允许</span>
-                </label>
-                <label className="inline-flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="edit_default_access"
-                    checked={formData.default_access === false}
-                    onChange={() => setFormData({ ...formData, default_access: false })}
-                    className="h-4 w-4"
-                  />
-                  <span>拒绝</span>
-                </label>
-              </div>
-              <p className="text-xs text-gray-500 mt-1">当未配置用户/用户组的应用权限时生效</p>
+              <UIRadioGroup
+                orientation="horizontal"
+                value={formData.default_access ? 'allow' : 'deny'}
+                onChange={(val) => setFormData({ ...formData, default_access: val === 'allow' })}
+              >
+                <UIRadio value="allow">允许</UIRadio>
+                <UIRadio value="deny">拒绝</UIRadio>
+              </UIRadioGroup>
+              <p className="text-xs text-gray-500 mt-2">当未配置用户/用户组的应用权限时生效</p>
             </div>
 
             <div className="flex space-x-3">
-              <button
-                type="submit"
-                className="btn btn-primary disabled:opacity-60 disabled:cursor-not-allowed"
-                disabled={updating}
-              >
-                {updating ? (
-                  <span className="inline-flex items-center justify-center gap-2">
-                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-                    保存中...
-                  </span>
-                ) : (
-                  '保存更改'
-                )}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowEditForm(false);
-                  setEditingClient(null);
-                }}
-                className="btn btn-secondary"
-                disabled={updating}
-              >
+              <UIButton type="submit" variant="primary" isDisabled={updating} isPending={updating}>{updating ? '保存中...' : '保存更改'}</UIButton>
+              <UIButton type="button" onPress={() => {
+                setShowEditForm(false);
+                setEditingClient(null);
+              }} variant="secondary" isDisabled={updating} >
                 取消
-              </button>
+              </UIButton>
             </div>
           </fieldset>
         </form>
@@ -765,34 +628,12 @@ export default function AppsPage() {
                       </div>
 
                       <div className="flex flex-wrap gap-2 shrink-0">
-                        <button
-                          onClick={() => openEditForm(client)}
-                          className="btn btn-secondary text-xs"
-                          disabled={creating || updating || accessControlSaving || deletingClientId === client.id || resettingClientId === client.id}
-                        >
+                        <UIButton onPress={() => openEditForm(client)} className="text-xs" variant="secondary" isDisabled={creating || updating || accessControlSaving || deletingClientId === client.id || resettingClientId === client.id} >
                           编辑
-                        </button>
-                        <button
-                          onClick={() => handleResetSecret(client)}
-                          className="btn btn-secondary text-xs"
-                          disabled={creating || updating || accessControlSaving || resettingClientId === client.id || deletingClientId === client.id}
-                        >
-                          {resettingClientId === client.id ? '重置中' : '重置密钥'}
-                        </button>
-                        <button
-                          onClick={() => openAccessControl(client)}
-                          className="btn btn-secondary text-xs"
-                          disabled={creating || updating || accessControlSaving || accessControlLoading}
-                        >
-                          {accessControlLoading && selectedClient?.id === client.id ? '加载中' : '访问控制'}
-                        </button>
-                        <button
-                          onClick={() => handleDelete(client.id, client.name)}
-                          className="btn btn-danger text-xs"
-                          disabled={creating || updating || accessControlSaving || deletingClientId === client.id || resettingClientId === client.id}
-                        >
-                          {deletingClientId === client.id ? '删除中' : '删除'}
-                        </button>
+                        </UIButton>
+                        <UIButton onPress={() => handleResetSecret(client)} className="text-xs" variant="secondary" isDisabled={creating || updating || accessControlSaving || resettingClientId === client.id || deletingClientId === client.id} isPending={resettingClientId === client.id}>{resettingClientId === client.id ? '重置中' : '重置密钥'}</UIButton>
+                        <UIButton onPress={() => openAccessControl(client)} className="text-xs" variant="secondary" isDisabled={creating || updating || accessControlSaving || accessControlLoading} isPending={accessControlLoading && selectedClient?.id === client.id}>{accessControlLoading && selectedClient?.id === client.id ? '加载中' : '访问控制'}</UIButton>
+                        <UIButton onPress={() => handleDelete(client.id, client.name)} className="text-xs" variant="danger" isDisabled={creating || updating || accessControlSaving || deletingClientId === client.id || resettingClientId === client.id} isPending={deletingClientId === client.id}>{deletingClientId === client.id ? '删除中' : '删除'}</UIButton>
                       </div>
                     </div>
                   </li>
@@ -826,24 +667,21 @@ export default function AppsPage() {
                   只有这些用户组的成员可以访问此应用
                 </p>
                 <div className="surface overflow-hidden">
-                  <div className="list">
+                  <div className="list p-2 space-y-2">
                     {groups.map((group) => (
-                      <label key={group.id} className="list-item list-item-pressable flex items-start gap-3">
-                        <input
-                          type="checkbox"
-                          id={`allowed-${group.id}`}
-                          checked={accessControl.allowed_group_ids.includes(group.id)}
-                          onChange={() => toggleGroupInList(group.id, 'allowed')}
-                          className="h-4 w-4 mt-0.5"
-                          disabled={accessControlSaving}
-                        />
-                        <div className="min-w-0 flex-1">
-                          <div className="font-medium text-sm text-gray-900 dark:text-gray-100 truncate">{group.name}</div>
-                          {group.description && (
-                            <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 truncate">{group.description}</div>
-                          )}
-                        </div>
-                      </label>
+                      <UICheckbox
+                        key={group.id}
+                        id={`allowed-${group.id}`}
+                        isSelected={accessControl.allowed_group_ids.includes(group.id)}
+                        onChange={() => toggleGroupInList(group.id, 'allowed')}
+                        isDisabled={accessControlSaving}
+                        className="w-full max-w-full items-start m-0"
+                      ><div className="w-full min-w-0 flex-1">
+                        <div className="font-medium text-sm text-gray-900 dark:text-gray-100 truncate">{group.name}</div>
+                        {group.description && (
+                          <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 truncate">{group.description}</div>
+                        )}
+                      </div></UICheckbox>
                     ))}
                   </div>
                 </div>
@@ -855,54 +693,34 @@ export default function AppsPage() {
                   这些用户组的成员无法访问此应用
                 </p>
                 <div className="surface overflow-hidden">
-                  <div className="list">
+                  <div className="list p-2 space-y-2">
                     {groups.map((group) => (
-                      <label key={group.id} className="list-item list-item-pressable flex items-start gap-3">
-                        <input
-                          type="checkbox"
-                          id={`denied-${group.id}`}
-                          checked={accessControl.denied_group_ids.includes(group.id)}
-                          onChange={() => toggleGroupInList(group.id, 'denied')}
-                          className="h-4 w-4 mt-0.5"
-                          disabled={accessControlSaving}
-                        />
-                        <div className="min-w-0 flex-1">
-                          <div className="font-medium text-sm text-gray-900 dark:text-gray-100 truncate">{group.name}</div>
-                          {group.description && (
-                            <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 truncate">{group.description}</div>
-                          )}
-                        </div>
-                      </label>
+                      <UICheckbox
+                        key={group.id}
+                        id={`denied-${group.id}`}
+                        isSelected={accessControl.denied_group_ids.includes(group.id)}
+                        onChange={() => toggleGroupInList(group.id, 'denied')}
+                        isDisabled={accessControlSaving}
+                        className="w-full max-w-full items-start m-0"
+                      ><div className="w-full min-w-0 flex-1">
+                        <div className="font-medium text-sm text-gray-900 dark:text-gray-100 truncate">{group.name}</div>
+                        {group.description && (
+                          <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 truncate">{group.description}</div>
+                        )}
+                      </div></UICheckbox>
                     ))}
                   </div>
                 </div>
               </div>
 
               <div className="flex gap-2 pt-2 border-t">
-                <button
-                  onClick={handleAccessControlSave}
-                  className="btn btn-primary flex-1 text-sm disabled:opacity-60 disabled:cursor-not-allowed"
-                  disabled={accessControlSaving}
-                >
-                  {accessControlSaving ? (
-                    <span className="inline-flex items-center justify-center gap-2">
-                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-                      保存中...
-                    </span>
-                  ) : (
-                    '保存'
-                  )}
-                </button>
-                <button
-                  onClick={() => {
-                    setShowAccessControl(false);
-                    setSelectedClient(null);
-                  }}
-                  className="btn btn-secondary flex-1 text-sm"
-                  disabled={accessControlSaving}
-                >
+                <UIButton onPress={handleAccessControlSave} className="flex-1 text-sm" variant="primary" isDisabled={accessControlSaving} isPending={accessControlSaving}>{accessControlSaving ? '保存中...' : '保存'}</UIButton>
+                <UIButton onPress={() => {
+                  setShowAccessControl(false);
+                  setSelectedClient(null);
+                }} className="flex-1 text-sm" variant="secondary" isDisabled={accessControlSaving} >
                   取消
-                </button>
+                </UIButton>
               </div>
             </div>
           )}

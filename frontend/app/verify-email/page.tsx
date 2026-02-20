@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { buttonVariants, cn } from '@heroui/react';
 import { authApi } from '@/lib/api';
 import { CheckCircle, XCircle, Loader2, Mail } from 'lucide-react';
 
@@ -64,18 +65,8 @@ function VerifyEmailContent() {
                 您的邮箱已验证，现在可以使用全部功能了。
               </p>
               <div className="space-y-3">
-                <Link
-                  href="/dashboard"
-                  className="block w-full btn btn-primary"
-                >
-                  前往控制台
-                </Link>
-                <Link
-                  href="/login"
-                  className="block w-full btn btn-secondary"
-                >
-                  登录账号
-                </Link>
+                <Link href="/dashboard" className={cn(buttonVariants({ variant: 'primary', size: 'md', fullWidth: true }))}>前往控制台</Link>
+                <Link href="/login" className={cn(buttonVariants({ variant: 'secondary', size: 'md', fullWidth: true }))}>登录账号</Link>
               </div>
             </>
           )}
@@ -92,18 +83,8 @@ function VerifyEmailContent() {
                 {errorMessage}
               </p>
               <div className="space-y-3">
-                <Link
-                  href="/dashboard"
-                  className="block w-full btn btn-primary"
-                >
-                  前往控制台重新发送
-                </Link>
-                <Link
-                  href="/login"
-                  className="block w-full btn btn-secondary"
-                >
-                  返回登录
-                </Link>
+                <Link href="/dashboard" className={cn(buttonVariants({ variant: 'primary', size: 'md', fullWidth: true }))}>前往控制台重新发送</Link>
+                <Link href="/login" className={cn(buttonVariants({ variant: 'secondary', size: 'md', fullWidth: true }))}>返回登录</Link>
               </div>
             </>
           )}
@@ -120,18 +101,8 @@ function VerifyEmailContent() {
                 请通过邮件中的链接访问此页面。
               </p>
               <div className="space-y-3">
-                <Link
-                  href="/dashboard"
-                  className="block w-full btn btn-primary"
-                >
-                  前往控制台
-                </Link>
-                <Link
-                  href="/login"
-                  className="block w-full btn btn-secondary"
-                >
-                  返回登录
-                </Link>
+                <Link href="/dashboard" className={cn(buttonVariants({ variant: 'primary', size: 'md', fullWidth: true }))}>前往控制台</Link>
+                <Link href="/login" className={cn(buttonVariants({ variant: 'secondary', size: 'md', fullWidth: true }))}>返回登录</Link>
               </div>
             </>
           )}

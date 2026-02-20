@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { adminApi } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { isAdmin } from '@/lib/authz';
+import { UIButton, UIInput, UIListBox, UISelect, UISelectItem } from '@/components/ui/primitives';
 
 interface ComputedAppPermission {
   app_id: number;
@@ -97,12 +98,9 @@ export default function UserPermissionsPage() {
       <div className="surface p-6">
         <h1 className="text-xl font-semibold mb-2">参数错误</h1>
         <p className="text-gray-600">缺少用户 ID 参数。</p>
-        <button
-          onClick={() => router.push('/admin/users')}
-          className="btn btn-primary mt-4"
-        >
+        <UIButton onPress={() => router.push('/admin/users')} variant="primary" className="mt-4">
           返回用户列表
-        </button>
+        </UIButton>
       </div>
     );
   }
@@ -129,15 +127,11 @@ export default function UserPermissionsPage() {
     <div className="px-4 sm:px-6 lg:px-8 animate-fade-in">
       {/* Header */}
       <div className="mb-6">
-        <button
-          onClick={() => router.push('/admin/users')}
-          className="text-sm text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100 mb-2 flex items-center gap-1"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
-          返回用户列表
-        </button>
+        <UIButton onPress={() => router.push('/admin/users')} className="mb-2 flex items-center gap-1 h-auto p-0 text-sm font-normal text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100" variant="tertiary" size="sm"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+        </svg>
+        返回用户列表
+                </UIButton>
         <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
           用户权限详情
           {data && <span className="text-gray-500 dark:text-gray-400 ml-2">- {data.username}</span>}
@@ -173,28 +167,24 @@ export default function UserPermissionsPage() {
 
       {/* Search */}
       <form onSubmit={handleSearch} className="mb-4 flex gap-2">
-        <input
+        <UIInput
           type="text"
           value={searchInput}
           onChange={(e) => setSearchInput(e.target.value)}
           placeholder="搜索应用名称..."
-          className="input flex-1 max-w-xs"
+          className="flex-1 max-w-xs"
         />
-        <button type="submit" className="btn btn-secondary">
+        <UIButton type="submit" variant="secondary" >
           搜索
-        </button>
+        </UIButton>
         {search && (
-          <button
-            type="button"
-            onClick={() => {
-              setSearchInput('');
-              setSearch('');
-              setPage(0);
-            }}
-            className="btn btn-secondary"
-          >
+          <UIButton type="button" onPress={() => {
+            setSearchInput('');
+            setSearch('');
+            setPage(0);
+          }} variant="secondary" >
             清除
-          </button>
+          </UIButton>
         )}
       </form>
 
@@ -276,19 +266,27 @@ export default function UserPermissionsPage() {
                     </td>
                     <td className="px-4 py-4">
                       <div className="flex items-center gap-2">
-                        <select
+                        <UISelect
                           value={item.user_permission || ''}
-                          onChange={(e) => {
-                            const value = e.target.value || null;
-                            handlePermissionChange(item.app_id, value);
+                          onChange={(value) => {
+                            const nextValue = value ? String(value) : null;
+                            handlePermissionChange(item.app_id, nextValue);
                           }}
-                          disabled={updating === item.app_id}
-                          className="input text-sm py-1 px-2 w-24"
+                          isDisabled={updating === item.app_id}
+                          className="w-24 min-w-[6rem]"
                         >
-                          <option value="">默认</option>
-                          <option value="allowed">允许</option>
-                          <option value="denied">拒绝</option>
-                        </select>
+                          <UISelect.Trigger>
+                            <UISelect.Value />
+                            <UISelect.Indicator />
+                          </UISelect.Trigger>
+                          <UISelect.Popover>
+                            <UIListBox>
+                              <UISelectItem id="">默认</UISelectItem>
+                              <UISelectItem id="allowed">允许</UISelectItem>
+                              <UISelectItem id="denied">拒绝</UISelectItem>
+                            </UIListBox>
+                          </UISelect.Popover>
+                        </UISelect>
                         {updating === item.app_id && (
                           <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
                         )}
@@ -306,20 +304,12 @@ export default function UserPermissionsPage() {
                   共 {data.total} 个应用，第 {page + 1} / {totalPages} 页
                 </div>
                 <div className="flex gap-2">
-                  <button
-                    onClick={() => setPage(p => Math.max(0, p - 1))}
-                    disabled={page === 0}
-                    className="btn btn-secondary text-sm disabled:opacity-50"
-                  >
+                  <UIButton onPress={() => setPage(p => Math.max(0, p - 1))} isDisabled={page === 0} variant="secondary" className="disabled:opacity-50">
                     上一页
-                  </button>
-                  <button
-                    onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
-                    disabled={page >= totalPages - 1}
-                    className="btn btn-secondary text-sm disabled:opacity-50"
-                  >
+                  </UIButton>
+                  <UIButton onPress={() => setPage(p => Math.min(totalPages - 1, p + 1))} isDisabled={page >= totalPages - 1} variant="secondary" className="disabled:opacity-50">
                     下一页
-                  </button>
+                  </UIButton>
                 </div>
               </div>
             )}

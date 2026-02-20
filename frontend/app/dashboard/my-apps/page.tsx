@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { userApi } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { isAdmin } from '@/lib/authz';
+import { UIButton } from '@/components/ui/primitives';
 import { ExternalLink } from 'lucide-react';
 
 interface AppItem {
@@ -53,9 +54,9 @@ export default function MyAppsPage() {
               {adminView ? '当前账号可访问的应用列表。' : '你当前有权限访问的应用列表。'}
             </p>
           </div>
-          <button onClick={loadApps} className="btn btn-secondary" disabled={loading}>
+          <UIButton onPress={loadApps} variant="tertiary" isDisabled={loading} >
             刷新
-          </button>
+          </UIButton>
         </div>
       </div>
 

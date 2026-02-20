@@ -1,6 +1,9 @@
 'use client';
 
 import { useEffect } from 'react';
+import Link from 'next/link';
+import { buttonVariants } from '@heroui/react';
+import { UIButton } from '@/components/ui/primitives';
 
 export default function Error({
   error,
@@ -22,15 +25,12 @@ export default function Error({
           请刷新重试，或返回控制台继续使用。
         </p>
         <div className="flex gap-3">
-          <button className="btn btn-primary" onClick={() => reset()}>
+          <UIButton  variant="primary" onPress={() => reset()}>
             重试
-          </button>
-          <a className="btn btn-secondary" href="/dashboard">
-            返回控制台
-          </a>
+          </UIButton>
+          <Link href="/dashboard" className={buttonVariants({ variant: 'secondary' })}>返回控制台</Link>
         </div>
       </div>
     </div>
   );
 }
-

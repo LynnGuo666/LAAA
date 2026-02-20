@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { siteApi } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { isAdmin } from '@/lib/authz';
+import { UIButton, UIInput, UILabel, UITextField } from '@/components/ui/primitives';
 
 export default function SiteSettingsPage() {
   const user = useAuthStore((s) => s.user);
@@ -79,22 +80,15 @@ export default function SiteSettingsPage() {
         ) : (
           <form onSubmit={save} className="space-y-4 max-w-lg">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">网站昵称</label>
-              <input
-                className="input"
-                value={siteName}
-                onChange={(e) => setSiteName(e.target.value)}
-                disabled={saving}
-                placeholder="例如：LAAA OAuth"
-              />
+              <UITextField isDisabled={saving}>
+                <UILabel>网站昵称</UILabel>
+                <UIInput value={siteName} onChange={(e) => setSiteName(e.target.value)} placeholder="例如：LAAA OAuth" />
+              </UITextField>
             </div>
-            <button className="btn btn-primary" type="submit" disabled={saving}>
-              {saving ? '保存中...' : '保存'}
-            </button>
+            <UIButton variant="primary" type="submit" isDisabled={saving} isPending={saving}>{saving ? '保存中...' : '保存'}</UIButton>
           </form>
         )}
       </div>
     </div>
   );
 }
-
