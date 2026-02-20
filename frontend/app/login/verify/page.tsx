@@ -491,14 +491,24 @@ export default function VerifyPage() {
                         <UIButton onPress={handleSendEmailCode} isDisabled={loading} variant="primary" className="w-full">{loading ? '发送中...' : '发送验证码'}</UIButton>
                       ) : (
                         <>
-                          <UIInput
-                            type="text"
-                            value={emailCode}
-                            onChange={(e) => setEmailCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                            placeholder="请输入6位验证码"
-                            className="text-center text-2xl tracking-widest"
-                            maxLength={6}
-                          />
+                          <div className="flex justify-center">
+                            <InputOTP
+                              value={emailCode}
+                              onChange={(value) => setEmailCode(value.replace(/\D/g, '').slice(0, 6))}
+                              maxLength={6}
+                              inputMode="numeric"
+                              pattern="^\d+$"
+                            >
+                              <InputOTP.Group>
+                                <InputOTP.Slot index={0} />
+                                <InputOTP.Slot index={1} />
+                                <InputOTP.Slot index={2} />
+                                <InputOTP.Slot index={3} />
+                                <InputOTP.Slot index={4} />
+                                <InputOTP.Slot index={5} />
+                              </InputOTP.Group>
+                            </InputOTP>
+                          </div>
                           <UIButton onPress={handleVerifyEmailCode} isDisabled={loading || emailCode.length !== 6} variant="primary" className="w-full">{loading ? '验证中...' : '验证'}</UIButton>
                           <UIButton onPress={handleSendEmailCode} isDisabled={loading || emailCooldown > 0} variant="ghost"
                           className="w-full text-sm text-blue-600 hover:text-blue-700 disabled:text-gray-400">{emailCooldown > 0 ? `重新发送 (${emailCooldown}s)` : '重新发送验证码'}</UIButton>
