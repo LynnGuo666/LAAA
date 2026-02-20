@@ -8,5 +8,10 @@ type ToastProviderProps = {
 }
 
 export default function ToastProvider({ children }: ToastProviderProps) {
-  return <Toast.Provider>{children}</Toast.Provider>
+  return (
+    <>
+      {children}
+      <Toast.Provider />
+    </>
+  )
 }
