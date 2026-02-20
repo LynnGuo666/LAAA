@@ -49,12 +49,6 @@ const METHOD_NAMES: Record<string, string> = {
   passkey: '通行密钥',
 };
 
-const METHOD_DESCRIPTIONS: Record<string, string> = {
-  email_code: '通过邮箱接收 6 位验证码完成验证',
-  totp: '使用身份验证器应用生成动态验证码',
-  passkey: '使用设备生物识别或安全密钥快速验证',
-};
-
 const ALL_METHODS: Array<'email_code' | 'totp' | 'passkey'> = ['email_code', 'totp', 'passkey'];
 
 const RISK_LEVEL_NAMES: Record<string, string> = {
@@ -406,32 +400,27 @@ export default function VerifyPage() {
         {/* Method Selection */}
         {currentStep === 'select' && (
           <div className="space-y-3">
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
               请选择验证方式 (需完成 {session.required_verifications - session.completed_verifications} 次验证)
             </p>
             {ALL_METHODS.length > 0 && (
-              <div className="min-h-56">
-                <ListBox aria-label="验证方式列表" variant="default" onAction={(key) => handleSelectMethod(String(key))}>
-                  {ALL_METHODS.map((methodKey) => {
-                    const method = methodMap.get(methodKey);
-                    const isCompleted = completedMethods.includes(methodKey);
-                    const isDisabled = !method?.available || isCompleted;
-                    return (
-                      <ListBox.Item key={methodKey} id={methodKey} isDisabled={isDisabled}>
-                        <div className="flex items-start gap-3 py-1">
-                          {methodKey === 'email_code' && <Mail className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />}
-                          {methodKey === 'totp' && <ShieldCheck className="w-4 h-4 text-green-500 shrink-0 mt-0.5" />}
-                          {methodKey === 'passkey' && <KeyRound className="w-4 h-4 text-orange-500 shrink-0 mt-0.5" />}
-                          <div className="min-w-0">
-                            <div>{METHOD_NAMES[methodKey]}</div>
-                            <div className="text-xs text-default-500 mt-0.5">{METHOD_DESCRIPTIONS[methodKey]}</div>
-                          </div>
-                        </div>
-                      </ListBox.Item>
-                    )
-                  })}
-                </ListBox>
-              </div>
+              <ListBox aria-label="验证方式列表" variant="default" onAction={(key) => handleSelectMethod(String(key))}>
+                {ALL_METHODS.map((methodKey) => {
+                  const method = methodMap.get(methodKey);
+                  const isCompleted = completedMethods.includes(methodKey);
+                  const isDisabled = !method?.available || isCompleted;
+                  return (
+                    <ListBox.Item key={methodKey} id={methodKey} isDisabled={isDisabled}>
+                      <div className="flex items-center gap-2">
+                        {methodKey === 'email_code' && <Mail className="w-4 h-4 text-blue-500" />}
+                        {methodKey === 'totp' && <ShieldCheck className="w-4 h-4 text-green-500" />}
+                        {methodKey === 'passkey' && <KeyRound className="w-4 h-4 text-orange-500" />}
+                        <span>{METHOD_NAMES[methodKey]}</span>
+                      </div>
+                    </ListBox.Item>
+                  )
+                })}
+              </ListBox>
             )}
 
             {availableMethods.length === 0 && (
