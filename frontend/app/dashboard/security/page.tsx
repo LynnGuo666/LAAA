@@ -109,6 +109,8 @@ export default function SecurityPage() {
   const [detailPasskeyName, setDetailPasskeyName] = useState('');
   const [renamingPasskey, setRenamingPasskey] = useState(false);
   const [showPasskeyDetailModal, setShowPasskeyDetailModal] = useState(false);
+  const [selectedSession, setSelectedSession] = useState<Session | null>(null);
+  const [showSessionDetailModal, setShowSessionDetailModal] = useState(false);
   const [showTotpManageModal, setShowTotpManageModal] = useState(false);
   const [activeTab, setActiveTab] = useState<SecurityTabKey>('totp');
 
@@ -239,6 +241,16 @@ export default function SecurityPage() {
     } catch {
       toast('操作失败');
     }
+  };
+
+  const handleShowSessionDetail = (session: Session) => {
+    setSelectedSession(session);
+    setShowSessionDetailModal(true);
+  };
+
+  const handleCloseSessionDetail = () => {
+    setShowSessionDetailModal(false);
+    setSelectedSession(null);
   };
 
   const handleRegisterPasskey = async () => {
@@ -506,7 +518,7 @@ export default function SecurityPage() {
             <p className="text-gray-500">暂无活跃会话</p>
           </div>
         ) : (
-          <div className="overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700">
+          <div className="overflow-hidden">
           <ul className="list">
             {sessions.map((session) => (
               <li key={session.id} className="list-item">
@@ -535,29 +547,15 @@ export default function SecurityPage() {
                         <span>
                           {session.device_type === 'mobile' ? '手机' : session.device_type === 'tablet' ? '平板' : '电脑'}
                         </span>
-                        {session.ip_address && (
-                          <>
-                            <span className="text-gray-400">·</span>
-                            <span className="break-all">{session.ip_address}</span>
-                          </>
-                        )}
-                        {(session.city || session.country) && (
-                          <>
-                            <span className="text-gray-400">·</span>
-                            <span>{[session.city, session.country].filter(Boolean).join(', ')}</span>
-                          </>
-                        )}
-                      </div>
-                      <div className="mt-2 space-y-0.5 text-xs text-gray-500 dark:text-gray-400">
-                        {session.device_id && (
-                          <p className="font-mono break-all">设备ID: {session.device_id.slice(0, 8)}...{session.device_id.slice(-6)}</p>
-                        )}
-                        <p>最后活跃：{formatDateTime(session.last_active)}</p>
-                        <p>过期时间：{formatDateTime(session.expires_at)}</p>
+                        <span className="text-gray-400">·</span>
+                        <span>点击详情查看完整信息</span>
                       </div>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0 ml-10 sm:ml-0">
+                    <UIButton onPress={() => handleShowSessionDetail(session)} variant="tertiary" className="text-xs sm:text-sm">
+                      详情
+                    </UIButton>
                     {!session.is_current && (
                       <UIButton onPress={() => handleToggleTrust(session)} variant="tertiary" className="text-xs sm:text-sm" aria-label={session.is_trusted ? '取消信任' : '标记为可信'}>
                         {session.is_trusted ? '取消信任' : '信任'}
@@ -721,12 +719,11 @@ export default function SecurityPage() {
         {passkeys.length === 0 ? (
           <div className="text-center py-8 text-gray-500 dark:text-gray-400">暂无通行密钥</div>
         ) : (
-          <div className="overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700">
+          <div className="overflow-hidden">
             <ul className="list">
               {passkeys.map((passkey) => (
                 <li key={passkey.id} className="list-item">
-                  <div className="space-y-3">
-                    <div className="flex items-start justify-between gap-4">
+                  <div className="flex items-start justify-between gap-4">
                       <div className="min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <h3 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-gray-100 truncate">{passkey.name}</h3>
@@ -738,21 +735,13 @@ export default function SecurityPage() {
                         </div>
                       </div>
                       <div className="flex gap-2 shrink-0">
+                        <UIButton onPress={() => handleShowPasskeyDetail(passkey)} variant="tertiary" className="text-xs sm:text-sm">
+                          详情
+                        </UIButton>
                         <UIButton onPress={() => void handleDeletePasskey(passkey.id, passkey.name)} variant="danger" className="text-xs sm:text-sm">
                           删除
                         </UIButton>
                       </div>
-                    </div>
-                    <div className="flex items-center justify-between gap-3">
-                      <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 truncate">
-                        点击查看详细信息
-                      </p>
-                      <div className="flex gap-2 shrink-0">
-                        <UIButton onPress={() => handleShowPasskeyDetail(passkey)} variant="tertiary" className="text-xs sm:text-sm">
-                          详情
-                        </UIButton>
-                      </div>
-                    </div>
                   </div>
                 </li>
               ))}
@@ -847,6 +836,44 @@ export default function SecurityPage() {
                 </UIButton>
                 <UIButton onPress={() => void handleRenameSelectedPasskey()} variant="primary" isDisabled={!detailPasskeyName.trim() || renamingPasskey}>
                   {renamingPasskey ? '保存中...' : '保存名称'}
+                </UIButton>
+              </AlertDialog.Footer>
+            </AlertDialog.Dialog>
+          </AlertDialog.Container>
+        </AlertDialog.Backdrop>
+      </AlertDialog>
+
+      <AlertDialog>
+        <AlertDialog.Backdrop
+          isOpen={showSessionDetailModal}
+          onOpenChange={(isOpen) => {
+            if (!isOpen) {
+              handleCloseSessionDetail();
+            }
+          }}
+        >
+          <AlertDialog.Container>
+            <AlertDialog.Dialog>
+              <AlertDialog.Header>
+                <AlertDialog.Heading>会话详情</AlertDialog.Heading>
+              </AlertDialog.Header>
+              <AlertDialog.Body>
+                {selectedSession && (
+                  <div className="space-y-2 text-sm text-gray-700 dark:text-gray-300">
+                    <div><span className="text-gray-500 dark:text-gray-400">设备名称：</span>{selectedSession.device_name || '未知设备'}</div>
+                    <div><span className="text-gray-500 dark:text-gray-400">设备类型：</span>{selectedSession.device_type === 'mobile' ? '手机' : selectedSession.device_type === 'tablet' ? '平板' : '电脑'}</div>
+                    <div><span className="text-gray-500 dark:text-gray-400">状态：</span>{selectedSession.is_current ? '当前会话' : '历史会话'}{selectedSession.is_trusted ? ' · 已信任' : ''}</div>
+                    <div><span className="text-gray-500 dark:text-gray-400">IP 地址：</span>{selectedSession.ip_address || '-'}</div>
+                    <div><span className="text-gray-500 dark:text-gray-400">位置：</span>{[selectedSession.city, selectedSession.country].filter(Boolean).join(', ') || '-'}</div>
+                    <div><span className="text-gray-500 dark:text-gray-400">设备 ID：</span><span className="font-mono break-all">{selectedSession.device_id || '-'}</span></div>
+                    <div><span className="text-gray-500 dark:text-gray-400">最后活跃：</span>{formatDateTime(selectedSession.last_active)}</div>
+                    <div><span className="text-gray-500 dark:text-gray-400">过期时间：</span>{formatDateTime(selectedSession.expires_at)}</div>
+                  </div>
+                )}
+              </AlertDialog.Body>
+              <AlertDialog.Footer>
+                <UIButton onPress={handleCloseSessionDetail} variant="primary">
+                  知道了
                 </UIButton>
               </AlertDialog.Footer>
             </AlertDialog.Dialog>
