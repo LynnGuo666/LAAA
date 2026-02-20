@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { toast } from '@heroui/react';
+import { Alert, InputOTP, Tabs, toast } from '@heroui/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { UIButton, UIInput } from '@/components/ui/primitives';
@@ -49,16 +49,18 @@ const METHOD_NAMES: Record<string, string> = {
   passkey: '通行密钥',
 };
 
+const ALL_METHODS: Array<'email_code' | 'totp' | 'passkey'> = ['email_code', 'totp', 'passkey'];
+
 const RISK_LEVEL_NAMES: Record<string, string> = {
   low: '低风险',
   medium: '中风险',
   high: '高风险',
 };
 
-const RISK_LEVEL_COLORS: Record<string, string> = {
-  low: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-  medium: 'bg-orange-100 text-orange-800 border-orange-200',
-  high: 'bg-red-100 text-red-800 border-red-200',
+const RISK_LEVEL_STATUS: Record<string, 'accent' | 'warning' | 'danger'> = {
+  low: 'accent',
+  medium: 'warning',
+  high: 'danger',
 };
 
 export default function VerifyPage() {
@@ -349,6 +351,7 @@ export default function VerifyPage() {
   const availableMethods = session.available_methods.filter(
     m => m.available && !completedMethods.includes(m.method)
   );
+  const methodMap = new Map(session.available_methods.map((m) => [m.method, m]));
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950 p-4">
@@ -369,21 +372,22 @@ export default function VerifyPage() {
         </div>
 
         {/* Risk Info */}
-        <div className={`px-4 py-3 rounded-lg border mb-6 ${RISK_LEVEL_COLORS[session.risk_level]}`}>
-          <div className="flex items-center justify-between">
-            <span className="font-medium">风险等级: {RISK_LEVEL_NAMES[session.risk_level]}</span>
-            <span className="text-sm">
-              验证进度: {session.completed_verifications}/{session.required_verifications}
-            </span>
-          </div>
-          {session.anomalies.length > 0 && (
-            <ul className="mt-2 text-sm space-y-1">
-              {session.anomalies.map((a, i) => (
-                <li key={i}>• {a.message}</li>
-              ))}
-            </ul>
-          )}
-        </div>
+        <Alert status={RISK_LEVEL_STATUS[session.risk_level]} className="mb-6">
+          <Alert.Content>
+            <Alert.Title>
+              风险等级: {RISK_LEVEL_NAMES[session.risk_level]} · 验证进度: {session.completed_verifications}/{session.required_verifications}
+            </Alert.Title>
+            {session.anomalies.length > 0 && (
+              <Alert.Description>
+                <ul className="mt-1 text-sm space-y-1">
+                  {session.anomalies.map((a, i) => (
+                    <li key={i}>• {a.message}</li>
+                  ))}
+                </ul>
+              </Alert.Description>
+            )}
+          </Alert.Content>
+        </Alert>
 
         {/* Progress bar */}
         <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mb-6">
@@ -399,31 +403,34 @@ export default function VerifyPage() {
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
               请选择验证方式 (需完成 {session.required_verifications - session.completed_verifications} 次验证)
             </p>
-            {availableMethods.map((method) => (
-              <UIButton key={method.method} onPress={() => handleSelectMethod(method.method)} variant="ghost"
-              className="w-full flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors h-auto"><div className="flex items-center gap-3">
-                {method.method === 'email_code' && (
-                  <Mail className="w-6 h-6 text-blue-500" />
-                )}
-                {method.method === 'totp' && (
-                  <ShieldCheck className="w-6 h-6 text-green-500" />
-                )}
-                {method.method === 'passkey' && (
-                  <KeyRound className="w-6 h-6 text-orange-500" />
-                )}
-                <div className="text-left">
-                  <div className="font-medium text-gray-900 dark:text-gray-100">
-                    {METHOD_NAMES[method.method]}
-                  </div>
-                  <div className="text-xs text-gray-500">
-                    {method.strength === 'strong' ? '强验证' : '标准验证'}
-                  </div>
-                </div>
-              </div>
-              <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg></UIButton>
-            ))}
+            {ALL_METHODS.length > 0 && (
+              <Tabs
+                aria-label="验证方式"
+                variant="primary"
+              >
+                <Tabs.List>
+                  {ALL_METHODS.map((methodKey) => {
+                    const method = methodMap.get(methodKey);
+                    const isCompleted = completedMethods.includes(methodKey);
+                    const isDisabled = !method?.available || isCompleted;
+                    return (
+                    <Tabs.Tab
+                      key={methodKey}
+                      id={methodKey}
+                      isDisabled={isDisabled}
+                      onPress={() => handleSelectMethod(methodKey)}
+                    >
+                      <div className="flex items-center gap-2">
+                        {methodKey === 'email_code' && <Mail className="w-4 h-4 text-blue-500" />}
+                        {methodKey === 'totp' && <ShieldCheck className="w-4 h-4 text-green-500" />}
+                        {methodKey === 'passkey' && <KeyRound className="w-4 h-4 text-orange-500" />}
+                        <span>{METHOD_NAMES[methodKey]}</span>
+                      </div>
+                    </Tabs.Tab>
+                    )})}
+                </Tabs.List>
+              </Tabs>
+            )}
 
             {availableMethods.length === 0 && (
               <p className="text-center text-gray-500 py-4">
@@ -488,14 +495,24 @@ export default function VerifyPage() {
                 <p className="text-sm text-gray-600 dark:text-gray-400">
                   请输入身份验证器应用中的6位验证码
                 </p>
-                <UIInput
-                  type="text"
-                  value={totpCode}
-                  onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                  placeholder="000000"
-                  className="text-center text-2xl tracking-widest"
-                  maxLength={6}
-                />
+                <div className="flex justify-center">
+                  <InputOTP
+                    value={totpCode}
+                    onChange={(value) => setTotpCode(value.replace(/\D/g, '').slice(0, 6))}
+                    maxLength={6}
+                    inputMode="numeric"
+                    pattern="^\d+$"
+                  >
+                    <InputOTP.Group>
+                      <InputOTP.Slot index={0} />
+                      <InputOTP.Slot index={1} />
+                      <InputOTP.Slot index={2} />
+                      <InputOTP.Slot index={3} />
+                      <InputOTP.Slot index={4} />
+                      <InputOTP.Slot index={5} />
+                    </InputOTP.Group>
+                  </InputOTP>
+                </div>
                 <UIButton onPress={handleVerifyTOTP} isDisabled={loading || totpCode.length !== 6} variant="primary" className="w-full">{loading ? '验证中...' : '验证'}</UIButton>
                 <UIButton  onPress={() => setShowBackupCode(true)} variant="ghost"
                 className="w-full text-sm text-blue-600 hover:text-blue-700">
