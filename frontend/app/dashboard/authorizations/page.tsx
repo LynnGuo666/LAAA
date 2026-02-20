@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { toast } from '@heroui/react';
+import { Card, toast } from '@heroui/react';
 import { userApi } from '@/lib/api';
 import { formatDateTime } from '@/lib/date';
 import { UIButton } from '@/components/ui/primitives';
@@ -68,10 +68,10 @@ export default function AuthorizationsPage() {
           <p className="text-gray-500">暂无已授权应用</p>
         </div>
       ) : (
-        <div className="surface overflow-hidden">
-          <ul className="list">
+        <div className="space-y-3">
             {authorizations.map((auth) => (
-              <li key={auth.id} className="list-item">
+              <Card key={auth.id} className="border border-default-200 bg-content2">
+                <div className="p-4">
                 <div className="space-y-3">
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex items-start gap-3 min-w-0">
@@ -115,9 +115,9 @@ export default function AuthorizationsPage() {
                     </div>
                   </div>
                 </div>
-              </li>
+                </div>
+              </Card>
             ))}
-          </ul>
         </div>
       )}
     </div>
