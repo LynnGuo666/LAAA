@@ -104,9 +104,11 @@ export default function SecurityPage() {
   const [showNameModal, setShowNameModal] = useState(false);
   const [newPasskeyName, setNewPasskeyName] = useState('');
   const [pendingCredential, setPendingCredential] = useState<PasskeyRegistrationPayload | null>(null);
-  const [editingPasskeyId, setEditingPasskeyId] = useState<number | null>(null);
-  const [editingPasskeyName, setEditingPasskeyName] = useState('');
   const [passkeyError, setPasskeyError] = useState<string | null>(null);
+  const [selectedPasskey, setSelectedPasskey] = useState<PasskeyCredential | null>(null);
+  const [detailPasskeyName, setDetailPasskeyName] = useState('');
+  const [renamingPasskey, setRenamingPasskey] = useState(false);
+  const [showPasskeyDetailModal, setShowPasskeyDetailModal] = useState(false);
   const [activeTab, setActiveTab] = useState<SecurityTabKey>('totp');
 
   useEffect(() => {
@@ -288,15 +290,20 @@ export default function SecurityPage() {
     }
   };
 
-  const handleRenamePasskey = async (id: number) => {
-    if (!editingPasskeyName.trim()) return;
+  const handleRenameSelectedPasskey = async () => {
+    if (!selectedPasskey || !detailPasskeyName.trim()) return;
+    setRenamingPasskey(true);
     try {
-      await passkeyApi.rename(id, editingPasskeyName.trim());
-      setEditingPasskeyId(null);
-      setEditingPasskeyName('');
+      await passkeyApi.rename(selectedPasskey.id, detailPasskeyName.trim());
       await loadPasskeys();
+      setSelectedPasskey((previous) => {
+        if (!previous) return previous;
+        return { ...previous, name: detailPasskeyName.trim() };
+      });
     } catch {
       toast('重命名失败');
+    } finally {
+      setRenamingPasskey(false);
     }
   };
 
@@ -317,6 +324,18 @@ export default function SecurityPage() {
     } catch {
       toast('删除失败');
     }
+  };
+
+  const handleShowPasskeyDetail = (passkey: PasskeyCredential) => {
+    setSelectedPasskey(passkey);
+    setDetailPasskeyName(passkey.name);
+    setShowPasskeyDetailModal(true);
+  };
+
+  const handleClosePasskeyDetail = () => {
+    setShowPasskeyDetailModal(false);
+    setSelectedPasskey(null);
+    setDetailPasskeyName('');
   };
 
   const handleChangePassword = async (e: React.FormEvent) => {
@@ -705,64 +724,34 @@ export default function SecurityPage() {
             <ul className="list">
               {passkeys.map((passkey) => (
                 <li key={passkey.id} className="list-item">
-                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-                    <div className="min-w-0 flex-1">
-                      {editingPasskeyId === passkey.id ? (
-                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                          <UIInput
-                            type="text"
-                            value={editingPasskeyName}
-                            onChange={(e) => setEditingPasskeyName(e.target.value)}
-                            className="text-sm py-1 flex-1"
-                            autoFocus
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') {
-                                void handleRenamePasskey(passkey.id);
-                              }
-                              if (e.key === 'Escape') {
-                                setEditingPasskeyId(null);
-                                setEditingPasskeyName('');
-                              }
-                            }}
-                          />
-                          <div className="flex gap-2">
-                            <UIButton onPress={() => void handleRenamePasskey(passkey.id)} variant="primary" className="text-xs sm:text-sm py-1 flex-1 sm:flex-none">
-                              保存
-                            </UIButton>
-                            <UIButton onPress={() => { setEditingPasskeyId(null); setEditingPasskeyName(''); }} variant="ghost" className="text-xs sm:text-sm py-1 flex-1 sm:flex-none">
-                              取消
-                            </UIButton>
-                          </div>
+                  <div className="space-y-3">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-gray-100 truncate">{passkey.name}</h3>
+                          {passkey.backup_eligible && (
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950 dark:text-blue-200 dark:border-blue-900 shrink-0">
+                              可同步
+                            </span>
+                          )}
                         </div>
-                      ) : (
-                        <>
-                          <div className="flex items-center gap-2 flex-wrap min-w-0">
-                            <h3 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-gray-100 truncate">{passkey.name}</h3>
-                            {passkey.backup_eligible && (
-                              <span className="text-xs px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950 dark:text-blue-200 dark:border-blue-900 shrink-0">
-                                可同步
-                              </span>
-                            )}
-                          </div>
-                          <div className="mt-2 space-y-0.5 text-xs text-gray-500 dark:text-gray-400">
-                            <p>创建时间：{formatDateTime(passkey.created_at)}</p>
-                            {passkey.last_used_at && <p>最后使用：{formatDateTime(passkey.last_used_at)}</p>}
-                            {passkey.transports && passkey.transports.length > 0 && <p>传输方式：{passkey.transports.join(', ')}</p>}
-                          </div>
-                        </>
-                      )}
-                    </div>
-
-                    {editingPasskeyId !== passkey.id && (
+                      </div>
                       <div className="flex gap-2 shrink-0">
-                        <UIButton onPress={() => { setEditingPasskeyId(passkey.id); setEditingPasskeyName(passkey.name); }} variant="ghost" className="text-xs sm:text-sm">
-                          重命名
-                        </UIButton>
                         <UIButton onPress={() => void handleDeletePasskey(passkey.id, passkey.name)} variant="danger" className="text-xs sm:text-sm">
                           删除
                         </UIButton>
                       </div>
-                    )}
+                    </div>
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 truncate">
+                        点击查看详细信息
+                      </p>
+                      <div className="flex gap-2 shrink-0">
+                        <UIButton onPress={() => handleShowPasskeyDetail(passkey)} variant="tertiary" className="text-xs sm:text-sm">
+                          详情
+                        </UIButton>
+                      </div>
+                    </div>
                   </div>
                 </li>
               ))}
@@ -806,6 +795,57 @@ export default function SecurityPage() {
                 </UIButton>
                 <UIButton onPress={() => void handleConfirmPasskeyRegistration()} isDisabled={!newPasskeyName.trim() || registeringPasskey} variant="primary">
                   {registeringPasskey ? '保存中...' : '保存'}
+                </UIButton>
+              </AlertDialog.Footer>
+            </AlertDialog.Dialog>
+          </AlertDialog.Container>
+        </AlertDialog.Backdrop>
+      </AlertDialog>
+
+      <AlertDialog>
+        <AlertDialog.Backdrop
+          isOpen={showPasskeyDetailModal}
+          onOpenChange={(isOpen) => {
+            if (!isOpen) {
+              handleClosePasskeyDetail();
+            }
+          }}
+        >
+          <AlertDialog.Container>
+            <AlertDialog.Dialog>
+              <AlertDialog.Header>
+                <AlertDialog.Heading>通行密钥详情</AlertDialog.Heading>
+              </AlertDialog.Header>
+              <AlertDialog.Body>
+                {selectedPasskey && (
+                  <div className="space-y-3 text-sm text-gray-700 dark:text-gray-300">
+                    <div>
+                      <span className="text-gray-500 dark:text-gray-400">名称：</span>
+                      <UIInput
+                        type="text"
+                        value={detailPasskeyName}
+                        onChange={(e) => setDetailPasskeyName(e.target.value)}
+                        className="mt-2"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            void handleRenameSelectedPasskey();
+                          }
+                        }}
+                      />
+                    </div>
+                    <div><span className="text-gray-500 dark:text-gray-400">创建时间：</span>{formatDateTime(selectedPasskey.created_at)}</div>
+                    <div><span className="text-gray-500 dark:text-gray-400">最后使用：</span>{selectedPasskey.last_used_at ? formatDateTime(selectedPasskey.last_used_at) : '-'}</div>
+                    <div><span className="text-gray-500 dark:text-gray-400">传输方式：</span>{selectedPasskey.transports && selectedPasskey.transports.length > 0 ? selectedPasskey.transports.join(', ') : '-'}</div>
+                    <div><span className="text-gray-500 dark:text-gray-400">可同步：</span>{selectedPasskey.backup_eligible ? '是' : '否'}</div>
+                  </div>
+                )}
+              </AlertDialog.Body>
+              <AlertDialog.Footer>
+                <UIButton onPress={() => handleClosePasskeyDetail()} variant="ghost">
+                  关闭
+                </UIButton>
+                <UIButton onPress={() => void handleRenameSelectedPasskey()} variant="primary" isDisabled={!detailPasskeyName.trim() || renamingPasskey}>
+                  {renamingPasskey ? '保存中...' : '保存名称'}
                 </UIButton>
               </AlertDialog.Footer>
             </AlertDialog.Dialog>

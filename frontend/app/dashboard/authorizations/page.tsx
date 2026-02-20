@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Card, toast } from '@heroui/react';
+import { AlertDialog, Card, toast } from '@heroui/react';
 import { userApi } from '@/lib/api';
 import { formatDateTime } from '@/lib/date';
 import { UIButton } from '@/components/ui/primitives';
@@ -21,6 +21,8 @@ export default function AuthorizationsPage() {
   const confirmDialog = useConfirmDialog();
   const [authorizations, setAuthorizations] = useState<Authorization[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedAuthorization, setSelectedAuthorization] = useState<Authorization | null>(null);
+  const [showDetailModal, setShowDetailModal] = useState(false);
 
   useEffect(() => {
     loadAuthorizations();
@@ -53,6 +55,11 @@ export default function AuthorizationsPage() {
     } catch (err) {
       toast('撤销授权失败');
     }
+  };
+
+  const handleShowDetail = (auth: Authorization) => {
+    setSelectedAuthorization(auth);
+    setShowDetailModal(true);
   };
 
   if (loading) {
@@ -100,19 +107,13 @@ export default function AuthorizationsPage() {
                     </UIButton>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs sm:text-sm text-gray-600 dark:text-gray-300">
-                    <div>
-                      <span className="text-gray-500 dark:text-gray-400">授权范围：</span>
-                      <span className="ml-1">{auth.scope || '-'}</span>
-                    </div>
-                    <div>
-                      <span className="text-gray-500 dark:text-gray-400">首次授权：</span>
-                      <span className="ml-1">{formatDateTime(auth.created_at)}</span>
-                    </div>
-                    <div>
-                      <span className="text-gray-500 dark:text-gray-400">最近使用：</span>
-                      <span className="ml-1">{formatDateTime(auth.last_used_at)}</span>
-                    </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 truncate">
+                      授权范围：{auth.scope || '-'}
+                    </p>
+                    <UIButton onPress={() => handleShowDetail(auth)} variant="tertiary" className="text-xs sm:text-sm shrink-0">
+                      详情
+                    </UIButton>
                   </div>
                 </div>
                 </div>
@@ -120,6 +121,33 @@ export default function AuthorizationsPage() {
             ))}
         </div>
       )}
+
+      <AlertDialog>
+        <AlertDialog.Backdrop isOpen={showDetailModal} onOpenChange={setShowDetailModal}>
+          <AlertDialog.Container>
+            <AlertDialog.Dialog>
+              <AlertDialog.Header>
+                <AlertDialog.Heading>授权详情</AlertDialog.Heading>
+              </AlertDialog.Header>
+              <AlertDialog.Body>
+                {selectedAuthorization && (
+                  <div className="space-y-2 text-sm text-gray-700 dark:text-gray-300">
+                    <div><span className="text-gray-500 dark:text-gray-400">应用：</span>{selectedAuthorization.client_name}</div>
+                    <div><span className="text-gray-500 dark:text-gray-400">授权范围：</span>{selectedAuthorization.scope || '-'}</div>
+                    <div><span className="text-gray-500 dark:text-gray-400">首次授权：</span>{formatDateTime(selectedAuthorization.created_at)}</div>
+                    <div><span className="text-gray-500 dark:text-gray-400">最近使用：</span>{formatDateTime(selectedAuthorization.last_used_at)}</div>
+                  </div>
+                )}
+              </AlertDialog.Body>
+              <AlertDialog.Footer>
+                <UIButton onPress={() => setShowDetailModal(false)} variant="primary">
+                  知道了
+                </UIButton>
+              </AlertDialog.Footer>
+            </AlertDialog.Dialog>
+          </AlertDialog.Container>
+        </AlertDialog.Backdrop>
+      </AlertDialog>
     </div>
   );
 }
