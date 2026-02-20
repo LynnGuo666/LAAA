@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { Tabs, buttonVariants, cn } from '@heroui/react';
+import { ListBox, ListBoxItem, Popover, Tabs } from '@heroui/react';
 import { useAuthStore } from '@/lib/store';
 import { authApi, siteApi } from '@/lib/api';
 import { isAdmin } from '@/lib/authz';
@@ -21,6 +21,7 @@ export default function DashboardLayout({
   const pathname = usePathname();
   const { user, setUser, logout } = useAuthStore();
   const [siteName, setSiteName] = useState('OAuth 服务器');
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
 
   useEffect(() => {
     // Check if user is authenticated
@@ -145,20 +146,43 @@ export default function DashboardLayout({
             </div>
 
             <div className="flex items-center gap-2 sm:gap-3">
-              {userIsAdmin && (
-                <Link
-                  href="/admin"
-                  className={cn(buttonVariants({ variant: 'primary', size: 'sm' }), 'text-xs sm:text-sm px-2 sm:px-3')}
-                >
-                  <span className="hidden sm:inline">管理面板</span>
-                  <span className="sm:hidden">管理</span>
-                </Link>
-              )}
-              <span className="hidden sm:inline text-sm text-gray-700 dark:text-gray-200">
-                {user.username}
-              </span>
-              <UIButton onPress={handleLogout} variant="tertiary" className="text-xs sm:text-sm px-2 sm:px-3"><span className="hidden sm:inline">退出登录</span>
-              <span className="sm:hidden">退出</span></UIButton>
+              <Popover isOpen={accountMenuOpen} onOpenChange={setAccountMenuOpen}>
+                <Popover.Trigger>
+                  <UIButton variant="tertiary" className="px-2 sm:px-3 min-w-0">
+                    <div className="flex items-center gap-2 min-w-0">
+                      {user.avatar ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={user.avatar} alt={user.username} className="h-7 w-7 rounded-full object-cover border border-default-300" />
+                      ) : (
+                        <div className="h-7 w-7 rounded-full bg-default-300 text-default-700 flex items-center justify-center text-xs font-semibold">
+                          {user.username.charAt(0).toUpperCase()}
+                        </div>
+                      )}
+                      <span className="hidden sm:inline text-sm text-gray-700 dark:text-gray-200 truncate">{user.username}</span>
+                    </div>
+                  </UIButton>
+                </Popover.Trigger>
+                <Popover.Content className="w-44 p-1">
+                  <ListBox
+                    aria-label="账户菜单"
+                    onAction={(key) => {
+                      const action = String(key);
+                      setAccountMenuOpen(false);
+                      if (action === 'profile') {
+                        router.push('/dashboard/profile');
+                      } else if (action === 'admin') {
+                        router.push('/admin');
+                      } else if (action === 'logout') {
+                        void handleLogout();
+                      }
+                    }}
+                  >
+                    <ListBoxItem id="profile">个人资料</ListBoxItem>
+                    {userIsAdmin && <ListBoxItem id="admin">管理面板</ListBoxItem>}
+                    <ListBoxItem id="logout" className="text-danger">退出登录</ListBoxItem>
+                  </ListBox>
+                </Popover.Content>
+              </Popover>
             </div>
           </div>
         </div>
