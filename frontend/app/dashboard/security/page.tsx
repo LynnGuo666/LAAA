@@ -557,7 +557,7 @@ export default function SecurityPage() {
                       详情
                     </UIButton>
                     {!session.is_current && (
-                      <UIButton onPress={() => handleToggleTrust(session)} variant="tertiary" className="text-xs sm:text-sm" aria-label={session.is_trusted ? '取消信任' : '标记为可信'}>
+                      <UIButton onPress={() => handleToggleTrust(session)} variant={session.is_trusted ? 'tertiary' : 'primary'} className="text-xs sm:text-sm" aria-label={session.is_trusted ? '取消信任' : '标记为可信'}>
                         {session.is_trusted ? '取消信任' : '信任'}
                       </UIButton>
                     )}
