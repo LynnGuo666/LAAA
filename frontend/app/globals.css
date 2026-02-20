@@ -6,6 +6,10 @@ body {
 }
 
 @layer components {
+  .button--secondary {
+    --button-fg: var(--color-default-foreground);
+  }
+
   .surface {
     @apply bg-white/80 backdrop-blur rounded-2xl shadow-sm border border-gray-200 dark:bg-gray-900/70 dark:border-gray-800;
   }

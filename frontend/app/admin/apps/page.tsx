@@ -1,12 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { toast } from '@heroui/react';
+import { CheckboxGroup, Checkbox, toast } from '@heroui/react';
 import { clientApi, groupApi } from '@/lib/api';
 import SidePanel from '@/components/SidePanel';
 import { useAuthStore } from '@/lib/store';
 import { isAdmin } from '@/lib/authz';
-import { UIButton, UICheckbox, UIDescription, UIInput, UILabel, UIRadio, UIRadioGroup, UITextField, UITextarea } from '@/components/ui/primitives';
+import { UIButton, UICheckbox, UIDescription, UIInput, UILabel, UIListBox, UIRadio, UIRadioGroup, UISelectItem, UITextField, UITextarea } from '@/components/ui/primitives';
 import { useConfirmDialog } from '@/components/ui/confirm-dialog-provider';
 
 interface Client {
@@ -110,15 +110,6 @@ export default function AppsPage() {
     } catch (err) {
       console.error('加载用户组列表失败', err);
     }
-  };
-
-  const handleScopeToggle = (scope: string) => {
-    setFormData(prev => ({
-      ...prev,
-      allowed_scopes: prev.allowed_scopes.includes(scope)
-        ? prev.allowed_scopes.filter(s => s !== scope)
-        : [...prev.allowed_scopes, scope]
-    }));
   };
 
   const copyToClipboard = async (text: string, label: string) => {
@@ -463,42 +454,50 @@ export default function AppsPage() {
 
             <div>
               <label className="block text-sm font-medium mb-3">权限范围 *</label>
-              <div className="surface overflow-hidden">
-                <div className="list p-2 space-y-2">
-                  {AVAILABLE_SCOPES.map((scope) => (
-                    <UICheckbox
-                      key={scope.value}
-                      id={`scope-${scope.value}`}
-                      isSelected={formData.allowed_scopes.includes(scope.value)}
-                      onChange={() => handleScopeToggle(scope.value)}
-                      className="w-full max-w-full items-start m-0"
-                    ><div className="w-full min-w-0">
+              <CheckboxGroup
+                aria-label="权限范围"
+                value={formData.allowed_scopes}
+                onChange={(value) => {
+                  setFormData((prev) => ({
+                    ...prev,
+                    allowed_scopes: Array.isArray(value) ? value.map(String) : [],
+                  }))
+                }}
+                className="space-y-2"
+              >
+                {AVAILABLE_SCOPES.map((scope) => (
+                  <UICheckbox key={scope.value} value={scope.value} variant="secondary" className="w-full max-w-full items-start m-0">
+                    <div className="w-full min-w-0">
                       <div className="font-medium text-sm text-gray-900 dark:text-gray-100">{scope.label}</div>
                       <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{scope.description}</div>
-                    </div></UICheckbox>
-                  ))}
-                </div>
-              </div>
+                    </div>
+                  </UICheckbox>
+                ))}
+              </CheckboxGroup>
               <p className="text-xs text-gray-500 mt-2">
                 已选择 {formData.allowed_scopes.length} 项权限
               </p>
             </div>
 
             <div className="flex items-center">
-              <UICheckbox id="trusted" isSelected={formData.trusted} onChange={(isSelected) => setFormData({ ...formData, trusted: isSelected })}>
-                信任的应用（跳过授权确认）
-              </UICheckbox>
+              <Checkbox id="trusted" variant="secondary" isSelected={formData.trusted} onChange={(isSelected) => setFormData({ ...formData, trusted: isSelected })}>
+                <Checkbox.Control>
+                  <Checkbox.Indicator />
+                </Checkbox.Control>
+                <Checkbox.Content>信任的应用（跳过授权确认）</Checkbox.Content>
+              </Checkbox>
             </div>
 
             <div>
               <label className="block text-sm font-medium mb-2">默认访问</label>
               <UIRadioGroup
-                orientation="horizontal"
+                orientation="vertical"
                 value={formData.default_access ? 'allow' : 'deny'}
                 onChange={(val) => setFormData({ ...formData, default_access: val === 'allow' })}
+                className="space-y-2"
               >
-                <UIRadio value="allow">允许</UIRadio>
-                <UIRadio value="deny">拒绝</UIRadio>
+              <UIRadio value="allow">允许</UIRadio>
+              <UIRadio value="deny">拒绝</UIRadio>
               </UIRadioGroup>
               <p className="text-xs text-gray-500 mt-2">当未配置用户/用户组的应用权限时生效</p>
             </div>
@@ -552,42 +551,50 @@ export default function AppsPage() {
 
             <div>
               <label className="block text-sm font-medium mb-3">权限范围 *</label>
-              <div className="surface overflow-hidden">
-                <div className="list p-2 space-y-2">
-                  {AVAILABLE_SCOPES.map((scope) => (
-                    <UICheckbox
-                      key={scope.value}
-                      id={`edit-scope-${scope.value}`}
-                      isSelected={formData.allowed_scopes.includes(scope.value)}
-                      onChange={() => handleScopeToggle(scope.value)}
-                      className="w-full max-w-full items-start m-0"
-                    ><div className="w-full min-w-0">
+              <CheckboxGroup
+                aria-label="权限范围"
+                value={formData.allowed_scopes}
+                onChange={(value) => {
+                  setFormData((prev) => ({
+                    ...prev,
+                    allowed_scopes: Array.isArray(value) ? value.map(String) : [],
+                  }))
+                }}
+                className="space-y-2"
+              >
+                {AVAILABLE_SCOPES.map((scope) => (
+                  <UICheckbox key={scope.value} value={scope.value} variant="secondary" className="w-full max-w-full items-start m-0">
+                    <div className="w-full min-w-0">
                       <div className="font-medium text-sm text-gray-900 dark:text-gray-100">{scope.label}</div>
                       <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{scope.description}</div>
-                    </div></UICheckbox>
-                  ))}
-                </div>
-              </div>
+                    </div>
+                  </UICheckbox>
+                ))}
+              </CheckboxGroup>
               <p className="text-xs text-gray-500 mt-2">
                 已选择 {formData.allowed_scopes.length} 项权限
               </p>
             </div>
 
             <div className="flex items-center">
-              <UICheckbox id="edit-trusted" isSelected={formData.trusted} onChange={(isSelected) => setFormData({ ...formData, trusted: isSelected })}>
-                信任的应用（跳过授权确认）
-              </UICheckbox>
+              <Checkbox id="edit-trusted" variant="secondary" isSelected={formData.trusted} onChange={(isSelected) => setFormData({ ...formData, trusted: isSelected })}>
+                <Checkbox.Control>
+                  <Checkbox.Indicator />
+                </Checkbox.Control>
+                <Checkbox.Content>信任的应用（跳过授权确认）</Checkbox.Content>
+              </Checkbox>
             </div>
 
             <div>
               <label className="block text-sm font-medium mb-2">默认访问</label>
               <UIRadioGroup
-                orientation="horizontal"
+                orientation="vertical"
                 value={formData.default_access ? 'allow' : 'deny'}
                 onChange={(val) => setFormData({ ...formData, default_access: val === 'allow' })}
+                className="space-y-2"
               >
-                <UIRadio value="allow">允许</UIRadio>
-                <UIRadio value="deny">拒绝</UIRadio>
+              <UIRadio value="allow">允许</UIRadio>
+              <UIRadio value="deny">拒绝</UIRadio>
               </UIRadioGroup>
               <p className="text-xs text-gray-500 mt-2">当未配置用户/用户组的应用权限时生效</p>
             </div>
@@ -613,9 +620,9 @@ export default function AppsPage() {
             </div>
           ) : (
             <div className="surface overflow-hidden">
-              <ul className="list">
+              <UIListBox aria-label="应用列表" variant="default">
                 {clients.map((client) => (
-                  <li key={client.id} className="list-item">
+                  <UISelectItem key={client.id} id={String(client.id)} textValue={client.name}>
                     <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                       <div className="min-w-0 flex-1">
                         <h3 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-gray-100 truncate">
@@ -654,9 +661,9 @@ export default function AppsPage() {
                         <UIButton onPress={() => handleDelete(client.id, client.name)} className="text-xs" variant="danger" isDisabled={creating || updating || accessControlSaving || deletingClientId === client.id || resettingClientId === client.id} isPending={deletingClientId === client.id}>{deletingClientId === client.id ? '删除中' : '删除'}</UIButton>
                       </div>
                     </div>
-                  </li>
+                  </UISelectItem>
                 ))}
-              </ul>
+              </UIListBox>
             </div>
           )}
         </section>
@@ -687,19 +694,27 @@ export default function AppsPage() {
                 <div className="surface overflow-hidden">
                   <div className="list p-2 space-y-2">
                     {groups.map((group) => (
-                      <UICheckbox
+                      <Checkbox
                         key={group.id}
                         id={`allowed-${group.id}`}
+                        variant="secondary"
                         isSelected={accessControl.allowed_group_ids.includes(group.id)}
                         onChange={() => toggleGroupInList(group.id, 'allowed')}
                         isDisabled={accessControlSaving}
                         className="w-full max-w-full items-start m-0"
-                      ><div className="w-full min-w-0 flex-1">
-                        <div className="font-medium text-sm text-gray-900 dark:text-gray-100 truncate">{group.name}</div>
-                        {group.description && (
-                          <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 truncate">{group.description}</div>
-                        )}
-                      </div></UICheckbox>
+                      >
+                        <Checkbox.Control>
+                          <Checkbox.Indicator />
+                        </Checkbox.Control>
+                        <Checkbox.Content>
+                          <div className="w-full min-w-0 flex-1">
+                            <div className="font-medium text-sm text-gray-900 dark:text-gray-100 truncate">{group.name}</div>
+                            {group.description && (
+                              <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 truncate">{group.description}</div>
+                            )}
+                          </div>
+                        </Checkbox.Content>
+                      </Checkbox>
                     ))}
                   </div>
                 </div>
@@ -713,19 +728,27 @@ export default function AppsPage() {
                 <div className="surface overflow-hidden">
                   <div className="list p-2 space-y-2">
                     {groups.map((group) => (
-                      <UICheckbox
+                      <Checkbox
                         key={group.id}
                         id={`denied-${group.id}`}
+                        variant="secondary"
                         isSelected={accessControl.denied_group_ids.includes(group.id)}
                         onChange={() => toggleGroupInList(group.id, 'denied')}
                         isDisabled={accessControlSaving}
                         className="w-full max-w-full items-start m-0"
-                      ><div className="w-full min-w-0 flex-1">
-                        <div className="font-medium text-sm text-gray-900 dark:text-gray-100 truncate">{group.name}</div>
-                        {group.description && (
-                          <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 truncate">{group.description}</div>
-                        )}
-                      </div></UICheckbox>
+                      >
+                        <Checkbox.Control>
+                          <Checkbox.Indicator />
+                        </Checkbox.Control>
+                        <Checkbox.Content>
+                          <div className="w-full min-w-0 flex-1">
+                            <div className="font-medium text-sm text-gray-900 dark:text-gray-100 truncate">{group.name}</div>
+                            {group.description && (
+                              <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 truncate">{group.description}</div>
+                            )}
+                          </div>
+                        </Checkbox.Content>
+                      </Checkbox>
                     ))}
                   </div>
                 </div>
