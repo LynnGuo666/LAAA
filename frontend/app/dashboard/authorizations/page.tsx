@@ -61,10 +61,7 @@ export default function AuthorizationsPage() {
 
   return (
     <div className="px-4 sm:px-0 animate-fade-in">
-      <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2 sm:mb-4">授权管理</h1>
-      <p className="text-gray-600 dark:text-gray-300 mb-6 sm:mb-8 text-sm sm:text-base">
-        这里列出你已授权过的应用，你可以随时撤回授权。
-      </p>
+      <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100 mb-6 sm:mb-8">授权管理</h1>
 
       {authorizations.length === 0 ? (
         <div className="surface text-center py-12">
@@ -75,8 +72,9 @@ export default function AuthorizationsPage() {
           <ul className="list">
             {authorizations.map((auth) => (
               <li key={auth.id} className="list-item">
-                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-                  <div className="flex items-start gap-3 min-w-0">
+                <div className="space-y-3">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-start gap-3 min-w-0">
                     {auth.client_logo ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
@@ -94,19 +92,28 @@ export default function AuthorizationsPage() {
                       <h3 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-gray-100 truncate">
                         {auth.client_name}
                       </h3>
-                      <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 mt-1 truncate">
-                        授权范围：{auth.scope || '-'}
-                      </p>
-                      <div className="mt-2 space-y-0.5 text-xs text-gray-500 dark:text-gray-400">
-                        <p>首次授权：{formatDateTime(auth.created_at)}</p>
-                        <p>最近使用：{formatDateTime(auth.last_used_at)}</p>
-                      </div>
                     </div>
                   </div>
 
-                  <UIButton onPress={() => handleRevoke(auth)} variant="danger" className="text-xs sm:text-sm shrink-0 ml-13 sm:ml-0">
-                    撤回
-                  </UIButton>
+                    <UIButton onPress={() => handleRevoke(auth)} variant="danger" className="text-xs sm:text-sm shrink-0">
+                      撤回
+                    </UIButton>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs sm:text-sm text-gray-600 dark:text-gray-300">
+                    <div>
+                      <span className="text-gray-500 dark:text-gray-400">授权范围：</span>
+                      <span className="ml-1">{auth.scope || '-'}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500 dark:text-gray-400">首次授权：</span>
+                      <span className="ml-1">{formatDateTime(auth.created_at)}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500 dark:text-gray-400">最近使用：</span>
+                      <span className="ml-1">{formatDateTime(auth.last_used_at)}</span>
+                    </div>
+                  </div>
                 </div>
               </li>
             ))}
