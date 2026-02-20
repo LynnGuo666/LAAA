@@ -429,7 +429,7 @@ export default function SecurityPage() {
             </Tabs.List>
           </Tabs.ListContainer>
 
-          <div className="min-w-0 rounded-xl border border-gray-200 dark:border-gray-700 p-3 sm:p-4">
+          <Card className="min-w-0 border border-default-200 bg-content2 p-3 sm:p-4">
 
           <Tabs.Panel id="totp" className="pt-4">
             <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">验证方式</h2>
@@ -701,10 +701,11 @@ export default function SecurityPage() {
         {passkeys.length === 0 ? (
           <div className="text-center py-8 text-gray-500 dark:text-gray-400">暂无通行密钥</div>
         ) : (
-          <div className="grid grid-cols-1 gap-3">
+          <div className="overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700">
+            <ul className="list">
               {passkeys.map((passkey) => (
-                <Card key={passkey.id} className="border border-default-200 bg-content2">
-                  <div className="p-4 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                <li key={passkey.id} className="list-item">
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                     <div className="min-w-0 flex-1">
                       {editingPasskeyId === passkey.id ? (
                         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
@@ -763,12 +764,13 @@ export default function SecurityPage() {
                       </div>
                     )}
                   </div>
-                </Card>
+                </li>
               ))}
+            </ul>
           </div>
         )}
           </Tabs.Panel>
-          </div>
+          </Card>
           </div>
         </Tabs>
       </div>
