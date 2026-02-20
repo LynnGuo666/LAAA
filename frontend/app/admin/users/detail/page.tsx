@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Tabs, buttonVariants, toast } from '@heroui/react';
+import { AlertDialog, Tabs, buttonVariants, toast } from '@heroui/react';
 import { adminApi, groupApi } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { isAdmin } from '@/lib/authz';
@@ -643,93 +643,108 @@ export default function UserDetailPage() {
         )}
       </div>
 
-      {/* Edit Modal */}
-      {showEditModal && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50" onClick={(e) => e.target === e.currentTarget && setShowEditModal(false)}>
-          <div className="surface max-w-md w-full p-6">
-            <h3 className="text-lg font-medium mb-4">编辑用户</h3>
-            <form onSubmit={handleEditUser} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">邮箱</label>
-                <UIInput type="email" required value={editForm.email} onChange={(e) => setEditForm({ ...editForm, email: e.target.value })} />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">头像URL</label>
-                <UIInput type="url" value={editForm.avatar} onChange={(e) => setEditForm({ ...editForm, avatar: e.target.value })} />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">状态</label>
-                <UISelect selectedKey={editForm.status} onSelectionChange={(key) => setEditForm({ ...editForm, status: String(key ?? 'active') })}>
-                  <UISelect.Trigger>
-                    <UISelect.Value />
-                    <UISelect.Indicator />
-                  </UISelect.Trigger>
-                  <UISelect.Popover>
-                    <UIListBox>
-                      <UISelectItem id="active">激活</UISelectItem>
-                      <UISelectItem id="inactive">未激活</UISelectItem>
-                      <UISelectItem id="suspended">暂停</UISelectItem>
-                    </UIListBox>
-                  </UISelect.Popover>
-                </UISelect>
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">新密码（留空不修改）</label>
-                <UIInput type="password" minLength={6} value={editForm.password} onChange={(e) => setEditForm({ ...editForm, password: e.target.value })} />
-              </div>
-              <div className="flex justify-end gap-3 pt-4">
-                <UIButton type="button" onPress={() => setShowEditModal(false)} variant="secondary" >取消</UIButton>
-                <UIButton type="submit" variant="primary" >保存</UIButton>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <AlertDialog>
+        <AlertDialog.Backdrop isOpen={showEditModal} onOpenChange={setShowEditModal}>
+          <AlertDialog.Container>
+            <AlertDialog.Dialog>
+              <AlertDialog.Header>
+                <AlertDialog.Heading>编辑用户</AlertDialog.Heading>
+              </AlertDialog.Header>
+              <form onSubmit={handleEditUser} className="space-y-4">
+                <AlertDialog.Body>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">邮箱</label>
+                    <UIInput type="email" required value={editForm.email} onChange={(e) => setEditForm({ ...editForm, email: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">头像URL</label>
+                    <UIInput type="url" value={editForm.avatar} onChange={(e) => setEditForm({ ...editForm, avatar: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">状态</label>
+                    <UISelect selectedKey={editForm.status} onSelectionChange={(key) => setEditForm({ ...editForm, status: String(key ?? 'active') })}>
+                      <UISelect.Trigger>
+                        <UISelect.Value />
+                        <UISelect.Indicator />
+                      </UISelect.Trigger>
+                      <UISelect.Popover>
+                        <UIListBox>
+                          <UISelectItem id="active">激活</UISelectItem>
+                          <UISelectItem id="inactive">未激活</UISelectItem>
+                          <UISelectItem id="suspended">暂停</UISelectItem>
+                        </UIListBox>
+                      </UISelect.Popover>
+                    </UISelect>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">新密码（留空不修改）</label>
+                    <UIInput type="password" minLength={6} value={editForm.password} onChange={(e) => setEditForm({ ...editForm, password: e.target.value })} />
+                  </div>
+                </AlertDialog.Body>
+                <AlertDialog.Footer>
+                  <UIButton type="button" onPress={() => setShowEditModal(false)} variant="secondary" >取消</UIButton>
+                  <UIButton type="submit" variant="primary" >保存</UIButton>
+                </AlertDialog.Footer>
+              </form>
+            </AlertDialog.Dialog>
+          </AlertDialog.Container>
+        </AlertDialog.Backdrop>
+      </AlertDialog>
 
-      {/* Groups Modal */}
-      {showGroupsModal && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50" onClick={(e) => e.target === e.currentTarget && setShowGroupsModal(false)}>
-          <div className="surface max-w-md w-full p-6">
-            <h3 className="text-lg font-medium mb-4">管理用户组</h3>
-            <div className="max-h-96 overflow-y-auto space-y-2">
-              {groups.map((group) => (
-                <UICheckbox key={group.id}
-                className="flex items-center gap-3 p-2 rounded hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer max-w-full m-0" isSelected={selectedGroups.includes(group.id)} onChange={() => setSelectedGroups(prev => prev.includes(group.id) ? prev.filter(id => id !== group.id) : [...prev, group.id])}><div>
-                  <div className="font-medium">{group.name}</div>
-                  {group.description && <div className="text-xs text-gray-500">{group.description}</div>}
-                </div></UICheckbox>
-              ))}
-            </div>
-            <div className="flex justify-end gap-3 pt-4">
-              <UIButton onPress={() => setShowGroupsModal(false)} variant="secondary" >取消</UIButton>
-              <UIButton onPress={handleUpdateGroups} variant="primary" >保存</UIButton>
-            </div>
-          </div>
-        </div>
-      )}
+      <AlertDialog>
+        <AlertDialog.Backdrop isOpen={showGroupsModal} onOpenChange={setShowGroupsModal}>
+          <AlertDialog.Container>
+            <AlertDialog.Dialog>
+              <AlertDialog.Header>
+                <AlertDialog.Heading>管理用户组</AlertDialog.Heading>
+              </AlertDialog.Header>
+              <AlertDialog.Body>
+                <div className="max-h-96 overflow-y-auto space-y-2">
+                  {groups.map((group) => (
+                    <UICheckbox key={group.id}
+                    className="flex items-center gap-3 p-2 rounded hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer max-w-full m-0" isSelected={selectedGroups.includes(group.id)} onChange={() => setSelectedGroups(prev => prev.includes(group.id) ? prev.filter(id => id !== group.id) : [...prev, group.id])}><div>
+                      <div className="font-medium">{group.name}</div>
+                      {group.description && <div className="text-xs text-gray-500">{group.description}</div>}
+                    </div></UICheckbox>
+                  ))}
+                </div>
+              </AlertDialog.Body>
+              <AlertDialog.Footer>
+                <UIButton onPress={() => setShowGroupsModal(false)} variant="secondary" >取消</UIButton>
+                <UIButton onPress={handleUpdateGroups} variant="primary" >保存</UIButton>
+              </AlertDialog.Footer>
+            </AlertDialog.Dialog>
+          </AlertDialog.Container>
+        </AlertDialog.Backdrop>
+      </AlertDialog>
 
-      {/* Roles Modal */}
-      {showRolesModal && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50" onClick={(e) => e.target === e.currentTarget && setShowRolesModal(false)}>
-          <div className="surface max-w-md w-full p-6">
-            <h3 className="text-lg font-medium mb-4">管理角色</h3>
-            <div className="max-h-96 overflow-y-auto space-y-2">
-              {roles.map((role) => (
-                <UICheckbox key={role.id}
-                className="flex items-center gap-3 p-2 rounded hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer max-w-full m-0" isSelected={selectedRoles.includes(role.id)} onChange={() => setSelectedRoles(prev => prev.includes(role.id) ? prev.filter(id => id !== role.id) : [...prev, role.id])}><div>
-                  <div className="font-medium">{role.name}</div>
-                  {role.description && <div className="text-xs text-gray-500">{role.description}</div>}
-                  <div className="text-xs text-gray-400">等级: {role.level}</div>
-                </div></UICheckbox>
-              ))}
-            </div>
-            <div className="flex justify-end gap-3 pt-4">
-              <UIButton onPress={() => setShowRolesModal(false)} variant="secondary" >取消</UIButton>
-              <UIButton onPress={handleUpdateRoles} variant="primary" >保存</UIButton>
-            </div>
-          </div>
-        </div>
-      )}
+      <AlertDialog>
+        <AlertDialog.Backdrop isOpen={showRolesModal} onOpenChange={setShowRolesModal}>
+          <AlertDialog.Container>
+            <AlertDialog.Dialog>
+              <AlertDialog.Header>
+                <AlertDialog.Heading>管理角色</AlertDialog.Heading>
+              </AlertDialog.Header>
+              <AlertDialog.Body>
+                <div className="max-h-96 overflow-y-auto space-y-2">
+                  {roles.map((role) => (
+                    <UICheckbox key={role.id}
+                    className="flex items-center gap-3 p-2 rounded hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer max-w-full m-0" isSelected={selectedRoles.includes(role.id)} onChange={() => setSelectedRoles(prev => prev.includes(role.id) ? prev.filter(id => id !== role.id) : [...prev, role.id])}><div>
+                      <div className="font-medium">{role.name}</div>
+                      {role.description && <div className="text-xs text-gray-500">{role.description}</div>}
+                      <div className="text-xs text-gray-400">等级: {role.level}</div>
+                    </div></UICheckbox>
+                  ))}
+                </div>
+              </AlertDialog.Body>
+              <AlertDialog.Footer>
+                <UIButton onPress={() => setShowRolesModal(false)} variant="secondary" >取消</UIButton>
+                <UIButton onPress={handleUpdateRoles} variant="primary" >保存</UIButton>
+              </AlertDialog.Footer>
+            </AlertDialog.Dialog>
+          </AlertDialog.Container>
+        </AlertDialog.Backdrop>
+      </AlertDialog>
     </div>
   );
 }

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { toast } from '@heroui/react';
+import { Chip, toast } from '@heroui/react';
 import Link from 'next/link';
 import { authApi, passkeyApi, API_URL, verificationApi } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
@@ -388,14 +388,14 @@ function LoginContent() {
             <>
               <div className="relative my-3">
                 <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-gray-200 dark:border-gray-700"></div>
+                  <div className="w-full border-t border-default-200"></div>
                 </div>
-                <div className="relative flex justify-center text-xs">
-                  <span className="px-2 bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400">或</span>
+                <div className="relative flex justify-center">
+                  <Chip size="sm" variant="soft" color="default">或</Chip>
                 </div>
               </div>
 
-              <UIButton type="button" onPress={handlePasskeyLogin} isDisabled={loading || passkeyLoading} variant="secondary" className="w-full" isPending={passkeyLoading}>{!passkeyLoading && (
+              <UIButton type="button" onPress={handlePasskeyLogin} isDisabled={loading || passkeyLoading} variant="secondary" className="w-full text-default-foreground" isPending={passkeyLoading}>{!passkeyLoading && (
                 <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M12 2C9.24 2 7 4.24 7 7C7 9.76 9.24 12 12 12C14.76 12 17 9.76 17 7C17 4.24 14.76 2 12 2ZM12 10C10.34 10 9 8.66 9 7C9 5.34 10.34 4 12 4C13.66 4 15 5.34 15 7C15 8.66 13.66 10 12 10Z" fill="currentColor"/>
                   <path d="M12 14C7.58 14 4 16.58 4 20V22H20V20C20 16.58 16.42 14 12 14ZM18 20H6V20C6 17.79 8.69 16 12 16C15.31 16 18 17.79 18 20Z" fill="currentColor"/>

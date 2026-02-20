@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { toast } from '@heroui/react';
+import { AlertDialog, toast } from '@heroui/react';
 import { passkeyApi } from '@/lib/api';
 import { formatDateTime } from '@/lib/date';
 import { useAuthStore } from '@/lib/store';
@@ -281,38 +281,43 @@ export default function PasskeysPage() {
         </div>
       )}
 
-      {/* Name Modal */}
-      {showNameModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md mx-4">
-            <h2 className="text-xl font-bold mb-4">为通行密钥命名</h2>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-              给这个通行密钥起一个便于识别的名称，例如设备名称
-            </p>
-            <UIInput
-              type="text"
-              value={newPasskeyName}
-              onChange={(e) => setNewPasskeyName(e.target.value)}
-              className="w-full mb-4"
-              placeholder="例如：MacBook Pro"
-              autoFocus
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') handleConfirmRegistration();
-              }}
-            />
-            <div className="flex justify-end gap-3">
-              <UIButton  onPress={() => {
-                setShowNameModal(false);
-                setPendingCredential(null);
-                setNewPasskeyName('');
-              }} variant="ghost">
-                取消
-              </UIButton>
-              <UIButton onPress={handleConfirmRegistration} isDisabled={!newPasskeyName.trim() || registering} variant="primary">{registering ? '保存中...' : '保存'}</UIButton>
-            </div>
-          </div>
-        </div>
-      )}
+      <AlertDialog>
+        <AlertDialog.Backdrop isOpen={showNameModal} onOpenChange={setShowNameModal}>
+          <AlertDialog.Container>
+            <AlertDialog.Dialog>
+              <AlertDialog.Header>
+                <AlertDialog.Heading>为通行密钥命名</AlertDialog.Heading>
+              </AlertDialog.Header>
+              <AlertDialog.Body>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                  给这个通行密钥起一个便于识别的名称，例如设备名称
+                </p>
+                <UIInput
+                  type="text"
+                  value={newPasskeyName}
+                  onChange={(e) => setNewPasskeyName(e.target.value)}
+                  className="w-full"
+                  placeholder="例如：MacBook Pro"
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleConfirmRegistration();
+                  }}
+                />
+              </AlertDialog.Body>
+              <AlertDialog.Footer>
+                <UIButton onPress={() => {
+                  setShowNameModal(false);
+                  setPendingCredential(null);
+                  setNewPasskeyName('');
+                }} variant="ghost">
+                  取消
+                </UIButton>
+                <UIButton onPress={handleConfirmRegistration} isDisabled={!newPasskeyName.trim() || registering} variant="primary">{registering ? '保存中...' : '保存'}</UIButton>
+              </AlertDialog.Footer>
+            </AlertDialog.Dialog>
+          </AlertDialog.Container>
+        </AlertDialog.Backdrop>
+      </AlertDialog>
     </div>
   );
 }

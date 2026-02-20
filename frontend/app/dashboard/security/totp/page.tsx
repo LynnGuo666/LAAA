@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { AlertDialog } from '@heroui/react';
 import { totpApi } from '@/lib/api';
 import { formatDate } from '@/lib/date';
 import { UIButton, UIInput } from '@/components/ui/primitives';
@@ -377,83 +378,87 @@ export default function TOTPSetupPage() {
         </div>
       )}
 
-      {/* Disable Modal */}
-      {showDisableModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="surface p-6 max-w-md w-full animate-fade-in">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
-              禁用身份验证器
-            </h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-              禁用后，您将无法使用身份验证器进行二次验证。请输入密码确认。
-            </p>
+      <AlertDialog>
+        <AlertDialog.Backdrop isOpen={showDisableModal} onOpenChange={setShowDisableModal}>
+          <AlertDialog.Container>
+            <AlertDialog.Dialog>
+              <AlertDialog.Header>
+                <AlertDialog.Heading>禁用身份验证器</AlertDialog.Heading>
+              </AlertDialog.Header>
+              <AlertDialog.Body>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                  禁用后，您将无法使用身份验证器进行二次验证。请输入密码确认。
+                </p>
 
-            {error && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded mb-4 text-sm dark:bg-red-950 dark:border-red-900 dark:text-red-200">
-                {error}
-              </div>
-            )}
+                {error && (
+                  <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded mb-4 text-sm dark:bg-red-950 dark:border-red-900 dark:text-red-200">
+                    {error}
+                  </div>
+                )}
 
-            <UIInput
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="请输入密码"
-              className="w-full mb-4"
-            />
+                <UIInput
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="请输入密码"
+                  className="w-full"
+                />
+              </AlertDialog.Body>
+              <AlertDialog.Footer>
+                <UIButton onPress={() => {
+                  setShowDisableModal(false);
+                  setPassword('');
+                  setError('');
+                }} variant="secondary" >
+                  取消
+                </UIButton>
+                <UIButton onPress={handleDisable} isDisabled={disabling || !password} variant="danger" isPending={disabling}>{disabling ? '禁用中...' : '确认禁用'}</UIButton>
+              </AlertDialog.Footer>
+            </AlertDialog.Dialog>
+          </AlertDialog.Container>
+        </AlertDialog.Backdrop>
+      </AlertDialog>
 
-            <div className="flex gap-2 justify-end">
-              <UIButton onPress={() => {
-                setShowDisableModal(false);
-                setPassword('');
-                setError('');
-              }} variant="secondary" >
-                取消
-              </UIButton>
-              <UIButton onPress={handleDisable} isDisabled={disabling || !password} variant="danger" isPending={disabling}>{disabling ? '禁用中...' : '确认禁用'}</UIButton>
-            </div>
-          </div>
-        </div>
-      )}
+      <AlertDialog>
+        <AlertDialog.Backdrop isOpen={showRegenerateModal} onOpenChange={setShowRegenerateModal}>
+          <AlertDialog.Container>
+            <AlertDialog.Dialog>
+              <AlertDialog.Header>
+                <AlertDialog.Heading>重新生成备用码</AlertDialog.Heading>
+              </AlertDialog.Header>
+              <AlertDialog.Body>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                  重新生成后，旧的备用码将失效。请输入密码确认。
+                </p>
 
-      {/* Regenerate Modal */}
-      {showRegenerateModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="surface p-6 max-w-md w-full animate-fade-in">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
-              重新生成备用码
-            </h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-              重新生成后，旧的备用码将失效。请输入密码确认。
-            </p>
+                {error && (
+                  <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded mb-4 text-sm dark:bg-red-950 dark:border-red-900 dark:text-red-200">
+                    {error}
+                  </div>
+                )}
 
-            {error && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded mb-4 text-sm dark:bg-red-950 dark:border-red-900 dark:text-red-200">
-                {error}
-              </div>
-            )}
-
-            <UIInput
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="请输入密码"
-              className="w-full mb-4"
-            />
-
-            <div className="flex gap-2 justify-end">
-              <UIButton onPress={() => {
-                setShowRegenerateModal(false);
-                setPassword('');
-                setError('');
-              }} variant="secondary" >
-                取消
-              </UIButton>
-              <UIButton onPress={handleRegenerateBackupCodes} isDisabled={regenerating || !password} variant="primary" isPending={regenerating}>{regenerating ? '生成中...' : '重新生成'}</UIButton>
-            </div>
-          </div>
-        </div>
-      )}
+                <UIInput
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="请输入密码"
+                  className="w-full"
+                />
+              </AlertDialog.Body>
+              <AlertDialog.Footer>
+                <UIButton onPress={() => {
+                  setShowRegenerateModal(false);
+                  setPassword('');
+                  setError('');
+                }} variant="secondary" >
+                  取消
+                </UIButton>
+                <UIButton onPress={handleRegenerateBackupCodes} isDisabled={regenerating || !password} variant="primary" isPending={regenerating}>{regenerating ? '生成中...' : '重新生成'}</UIButton>
+              </AlertDialog.Footer>
+            </AlertDialog.Dialog>
+          </AlertDialog.Container>
+        </AlertDialog.Backdrop>
+      </AlertDialog>
 
       {/* Info */}
       <div className="surface p-6">
