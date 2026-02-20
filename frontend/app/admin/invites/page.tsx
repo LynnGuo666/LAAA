@@ -169,8 +169,8 @@ export default function InvitesPage() {
             <label className="block text-sm font-medium text-gray-700 mb-2">用户组</label>
             <UISelect
               placeholder="请选择"
-              value={createForm.groupId.toString() || ''}
-              onChange={(value) => setCreateForm((p) => ({ ...p, groupId: Number(value ?? '') }))}
+              selectedKey={createForm.groupId ? String(createForm.groupId) : ''}
+              onSelectionChange={(key) => setCreateForm((p) => ({ ...p, groupId: Number(String(key ?? '')) }))}
               isDisabled={creating}
             >
               <UISelect.Trigger>
@@ -232,8 +232,8 @@ export default function InvitesPage() {
             <span className="text-sm text-gray-600">筛选：</span>
             <UISelect
               className="w-32"
-              value={filterActive}
-              onChange={(value) => setFilterActive(String(value) as any)}
+              selectedKey={filterActive}
+              onSelectionChange={(key) => setFilterActive(String(key) as any)}
               isDisabled={loading}
             >
               <UISelect.Trigger>

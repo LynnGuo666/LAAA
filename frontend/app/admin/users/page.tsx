@@ -440,8 +440,8 @@ export default function UsersPage() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">状态</label>
                   <UISelect
-                    value={createForm.status}
-                    onChange={(value) => setCreateForm({ ...createForm, status: String(value ?? 'active') })}
+                    selectedKey={createForm.status}
+                    onSelectionChange={(key) => setCreateForm({ ...createForm, status: String(key ?? 'active') })}
                   >
                     <UISelect.Trigger>
                       <UISelect.Value />
@@ -499,8 +499,8 @@ export default function UsersPage() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">状态</label>
                   <UISelect
-                    value={editForm.status}
-                    onChange={(value) => setEditForm({ ...editForm, status: String(value ?? 'active') })}
+                    selectedKey={editForm.status}
+                    onSelectionChange={(key) => setEditForm({ ...editForm, status: String(key ?? 'active') })}
                   >
                     <UISelect.Trigger>
                       <UISelect.Value />

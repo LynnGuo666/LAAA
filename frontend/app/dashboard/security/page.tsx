@@ -174,8 +174,8 @@ export default function SecurityPage() {
             {adminUser ? (
               <UISelect
                 aria-label="最大并发会话数"
-                value={String(settings?.max_sessions || 3)}
-                onChange={(value) => handleUpdateSettings({ max_sessions: Number(value ?? '3') })}
+                selectedKey={String(settings?.max_sessions || 3)}
+                onSelectionChange={(key) => handleUpdateSettings({ max_sessions: Number(String(key ?? '3')) })}
                 isDisabled={saving}
                 className="w-32"
               >

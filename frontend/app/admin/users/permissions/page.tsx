@@ -267,9 +267,9 @@ export default function UserPermissionsPage() {
                     <td className="px-4 py-4">
                       <div className="flex items-center gap-2">
                         <UISelect
-                          value={item.user_permission || ''}
-                          onChange={(value) => {
-                            const nextValue = value ? String(value) : null;
+                          selectedKey={item.user_permission || ''}
+                          onSelectionChange={(key) => {
+                            const nextValue = key ? String(key) : null;
                             handlePermissionChange(item.app_id, nextValue);
                           }}
                           isDisabled={updating === item.app_id}

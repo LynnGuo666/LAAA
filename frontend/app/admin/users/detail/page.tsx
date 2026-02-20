@@ -656,7 +656,7 @@ export default function UserDetailPage() {
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">状态</label>
-                <UISelect value={editForm.status} onChange={(value) => setEditForm({ ...editForm, status: String(value ?? 'active') })}>
+                <UISelect selectedKey={editForm.status} onSelectionChange={(key) => setEditForm({ ...editForm, status: String(key ?? 'active') })}>
                   <UISelect.Trigger>
                     <UISelect.Value />
                     <UISelect.Indicator />
