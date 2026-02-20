@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { AlertDialog, Card, toast } from '@heroui/react';
+import { AlertDialog, toast } from '@heroui/react';
 import { userApi } from '@/lib/api';
 import { formatDateTime } from '@/lib/date';
 import { UIButton } from '@/components/ui/primitives';
@@ -75,12 +75,11 @@ export default function AuthorizationsPage() {
           <p className="text-gray-500">暂无已授权应用</p>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="surface overflow-hidden">
+          <ul className="list">
             {authorizations.map((auth) => (
-              <Card key={auth.id} className="border border-default-200 bg-content2">
-                <div className="p-4">
-                <div className="space-y-3">
-                  <div className="flex items-start justify-between gap-4">
+              <li key={auth.id} className="list-item">
+                <div className="flex items-start justify-between gap-4">
                     <div className="flex items-start gap-3 min-w-0">
                     {auth.client_logo ? (
                       // eslint-disable-next-line @next/next/no-img-element
@@ -99,26 +98,24 @@ export default function AuthorizationsPage() {
                       <h3 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-gray-100 truncate">
                         {auth.client_name}
                       </h3>
+                      <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 mt-1 truncate">
+                        授权范围：{auth.scope || '-'}
+                      </p>
                     </div>
                   </div>
 
-                    <UIButton onPress={() => handleRevoke(auth)} variant="danger" className="text-xs sm:text-sm shrink-0">
+                  <div className="flex items-center gap-2 shrink-0">
+                    <UIButton onPress={() => handleShowDetail(auth)} variant="tertiary" className="text-xs sm:text-sm">
+                      详情
+                    </UIButton>
+                    <UIButton onPress={() => handleRevoke(auth)} variant="danger" className="text-xs sm:text-sm">
                       撤回
                     </UIButton>
                   </div>
-
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 truncate">
-                      授权范围：{auth.scope || '-'}
-                    </p>
-                    <UIButton onPress={() => handleShowDetail(auth)} variant="tertiary" className="text-xs sm:text-sm shrink-0">
-                      详情
-                    </UIButton>
-                  </div>
                 </div>
-                </div>
-              </Card>
+              </li>
             ))}
+          </ul>
         </div>
       )}
 
