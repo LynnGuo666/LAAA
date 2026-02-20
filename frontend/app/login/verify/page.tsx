@@ -98,6 +98,7 @@ export default function VerifyPage() {
 
   // Skip verification state
   const [skipping, setSkipping] = useState(false);
+  const [verifyModalOpen, setVerifyModalOpen] = useState(true);
 
   useEffect(() => {
     // Load session from sessionStorage
@@ -147,6 +148,7 @@ export default function VerifyPage() {
     setShowBackupCode(false);
     setError('');
     setSuccess('');
+    setVerifyModalOpen(false);
   };
 
   const handleSendEmailCode = async () => {
@@ -380,107 +382,114 @@ export default function VerifyPage() {
             安全验证
           </h1>
           <p className="text-sm text-gray-600 dark:text-gray-400">
-            检测到可疑登录活动，请完成身份验证
+            检测到可疑登录活动，请在弹窗中完成身份验证
           </p>
-        </div>
-
-        {/* Risk Info */}
-        <Alert status={RISK_LEVEL_STATUS[session.risk_level]} className="mb-6">
-          <Alert.Content>
-            <Alert.Title>
-              风险等级: {RISK_LEVEL_NAMES[session.risk_level]} · 验证进度: {session.completed_verifications}/{session.required_verifications}
-            </Alert.Title>
-            {session.anomalies.length > 0 && (
-              <Alert.Description>
-                <ul className="mt-1 text-sm space-y-1">
-                  {session.anomalies.map((a, i) => (
-                    <li key={i}>• {a.message}</li>
-                  ))}
-                </ul>
-              </Alert.Description>
-            )}
-          </Alert.Content>
-        </Alert>
-
-        {/* Progress bar */}
-        <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mb-6">
-          <div
-            className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-            style={{ width: `${(session.completed_verifications / session.required_verifications) * 100}%` }}
-          ></div>
-        </div>
-
-        {/* Method Selection */}
-        {currentStep === 'select' && (
-          <div className="space-y-3">
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
-              请选择验证方式 (需完成 {session.required_verifications - session.completed_verifications} 次验证)
-            </p>
-            {ALL_METHODS.length > 0 && (
-              <div className="min-h-56">
-                <ListBox aria-label="验证方式列表" variant="default" onAction={(key) => handleSelectMethod(String(key))}>
-                  {ALL_METHODS.map((methodKey) => {
-                    const method = methodMap.get(methodKey);
-                    const isCompleted = completedMethods.includes(methodKey);
-                    const isDisabled = !method?.available || isCompleted;
-                    return (
-                      <ListBox.Item key={methodKey} id={methodKey} isDisabled={isDisabled}>
-                        <div className="flex items-start gap-3 py-1">
-                          {methodKey === 'email_code' && <Mail className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />}
-                          {methodKey === 'totp' && <ShieldCheck className="w-4 h-4 text-green-500 shrink-0 mt-0.5" />}
-                          {methodKey === 'passkey' && <KeyRound className="w-4 h-4 text-orange-500 shrink-0 mt-0.5" />}
-                          <div className="min-w-0">
-                            <div>{METHOD_NAMES[methodKey]}</div>
-                            <div className="text-xs text-default-500 mt-0.5">{METHOD_DESCRIPTIONS[methodKey]}</div>
-                          </div>
-                        </div>
-                      </ListBox.Item>
-                    )
-                  })}
-                </ListBox>
-              </div>
-            )}
-
-            {availableMethods.length === 0 && (
-              <p className="text-center text-gray-500 py-4">
-                没有可用的验证方式，请联系管理员
-              </p>
-            )}
-
-            {/* Skip verification option */}
-            <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700 text-center">
-              <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
-                无法完成验证？
-              </p>
-              <UIButton onPress={handleSkipVerification} isDisabled={skipping} variant="ghost"
-              className="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 disabled:opacity-50">{skipping ? '处理中...' : '跳过验证，进入受限模式'}</UIButton>
-            </div>
-
-            <div className="pt-4">
-              <Link href="/login" className="text-sm text-blue-600 hover:text-blue-700">
-                ← 返回登录
-              </Link>
-            </div>
+          <div className="mt-5">
+            <UIButton onPress={() => setVerifyModalOpen(true)} variant="primary" className="w-full">
+              开始验证
+            </UIButton>
           </div>
-        )}
+        </div>
 
         <AlertDialog>
           <AlertDialog.Backdrop
-            isOpen={currentStep !== 'select'}
+            isOpen={verifyModalOpen}
             onOpenChange={(open) => {
-              if (!open) closeMethodModal();
+              if (!open) {
+                setVerifyModalOpen(false);
+                setCurrentStep('select');
+                setShowBackupCode(false);
+              }
             }}
           >
             <AlertDialog.Container>
               <AlertDialog.Dialog>
                 <AlertDialog.Header>
                   <AlertDialog.Heading>
+                    {currentStep === 'select' && '选择验证方式'}
                     {currentStep === 'email_code' && '邮件验证码'}
                     {currentStep === 'totp' && (showBackupCode ? '备用码验证' : '身份验证器')}
                     {currentStep === 'passkey' && '通行密钥'}
                   </AlertDialog.Heading>
                 </AlertDialog.Header>
                 <AlertDialog.Body>
+                  {currentStep === 'select' && (
+                    <div className="space-y-3">
+                      <Alert status={RISK_LEVEL_STATUS[session.risk_level]}>
+                        <Alert.Content>
+                          <Alert.Title>
+                            风险等级: {RISK_LEVEL_NAMES[session.risk_level]} · 验证进度: {session.completed_verifications}/{session.required_verifications}
+                          </Alert.Title>
+                          {session.anomalies.length > 0 && (
+                            <Alert.Description>
+                              <ul className="mt-1 text-sm space-y-1">
+                                {session.anomalies.map((a, i) => (
+                                  <li key={i}>• {a.message}</li>
+                                ))}
+                              </ul>
+                            </Alert.Description>
+                          )}
+                        </Alert.Content>
+                      </Alert>
+
+                      <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mb-1">
+                        <div
+                          className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                          style={{ width: `${(session.completed_verifications / session.required_verifications) * 100}%` }}
+                        ></div>
+                      </div>
+
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+                        请选择验证方式 (需完成 {session.required_verifications - session.completed_verifications} 次验证)
+                      </p>
+
+                      {ALL_METHODS.length > 0 && (
+                        <div className="min-h-56">
+                          <ListBox aria-label="验证方式列表" variant="default" onAction={(key) => handleSelectMethod(String(key))}>
+                            {ALL_METHODS.map((methodKey) => {
+                              const method = methodMap.get(methodKey);
+                              const isCompleted = completedMethods.includes(methodKey);
+                              const isDisabled = !method?.available || isCompleted;
+                              return (
+                                <ListBox.Item key={methodKey} id={methodKey} isDisabled={isDisabled} className="text-foreground">
+                                  <div className="flex items-start gap-3 py-1">
+                                    {methodKey === 'email_code' && <Mail className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" />}
+                                    {methodKey === 'totp' && <ShieldCheck className="w-5 h-5 text-green-500 shrink-0 mt-0.5" />}
+                                    {methodKey === 'passkey' && <KeyRound className="w-5 h-5 text-orange-500 shrink-0 mt-0.5" />}
+                                    <div className="min-w-0">
+                                      <div className="font-medium text-foreground">{METHOD_NAMES[methodKey]}</div>
+                                      <div className="text-xs text-foreground/70 mt-0.5">{METHOD_DESCRIPTIONS[methodKey]}</div>
+                                    </div>
+                                  </div>
+                                </ListBox.Item>
+                              )
+                            })}
+                          </ListBox>
+                        </div>
+                      )}
+
+                      {availableMethods.length === 0 && (
+                        <p className="text-center text-gray-500 py-4">
+                          没有可用的验证方式，请联系管理员
+                        </p>
+                      )}
+
+                      <div className="mt-2 pt-4 border-t border-gray-200 dark:border-gray-700 text-center">
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
+                          无法完成验证？
+                        </p>
+                        <UIButton onPress={handleSkipVerification} isDisabled={skipping} variant="ghost"
+                        className="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 disabled:opacity-50">{skipping ? '处理中...' : '跳过验证，进入受限模式'}</UIButton>
+                      </div>
+
+                      <div className="pt-2 text-center">
+                        <Link href="/login" className="text-sm text-blue-600 hover:text-blue-700">
+                          ← 返回登录
+                        </Link>
+                      </div>
+                    </div>
+                  )}
+
                   {currentStep === 'email_code' && (
                     <div className="space-y-4">
                       <p className="text-sm text-gray-600 dark:text-gray-400">
