@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Alert, InputOTP, Tabs, toast } from '@heroui/react';
+import { Alert, InputOTP, ListBox, toast } from '@heroui/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { UIButton, UIInput } from '@/components/ui/primitives';
@@ -404,32 +404,23 @@ export default function VerifyPage() {
               请选择验证方式 (需完成 {session.required_verifications - session.completed_verifications} 次验证)
             </p>
             {ALL_METHODS.length > 0 && (
-              <Tabs
-                aria-label="验证方式"
-                variant="primary"
-              >
-                <Tabs.List>
-                  {ALL_METHODS.map((methodKey) => {
-                    const method = methodMap.get(methodKey);
-                    const isCompleted = completedMethods.includes(methodKey);
-                    const isDisabled = !method?.available || isCompleted;
-                    return (
-                    <Tabs.Tab
-                      key={methodKey}
-                      id={methodKey}
-                      isDisabled={isDisabled}
-                      onPress={() => handleSelectMethod(methodKey)}
-                    >
+              <ListBox aria-label="验证方式列表" variant="default" onAction={(key) => handleSelectMethod(String(key))}>
+                {ALL_METHODS.map((methodKey) => {
+                  const method = methodMap.get(methodKey);
+                  const isCompleted = completedMethods.includes(methodKey);
+                  const isDisabled = !method?.available || isCompleted;
+                  return (
+                    <ListBox.Item key={methodKey} id={methodKey} isDisabled={isDisabled}>
                       <div className="flex items-center gap-2">
                         {methodKey === 'email_code' && <Mail className="w-4 h-4 text-blue-500" />}
                         {methodKey === 'totp' && <ShieldCheck className="w-4 h-4 text-green-500" />}
                         {methodKey === 'passkey' && <KeyRound className="w-4 h-4 text-orange-500" />}
                         <span>{METHOD_NAMES[methodKey]}</span>
                       </div>
-                    </Tabs.Tab>
-                    )})}
-                </Tabs.List>
-              </Tabs>
+                    </ListBox.Item>
+                  )
+                })}
+              </ListBox>
             )}
 
             {availableMethods.length === 0 && (

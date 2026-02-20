@@ -72,25 +72,26 @@ export function ConfirmDialogProvider({ children }: ConfirmDialogProviderProps) 
   return (
     <ConfirmDialogContext.Provider value={confirm}>
       {children}
-      <AlertDialog isOpen={isOpen} onOpenChange={handleOpenChange}>
-        <AlertDialog.Backdrop />
-        <AlertDialog.Container>
-          <AlertDialog.Dialog>
-            <AlertDialog.Header>
-              <AlertDialog.Icon status={options.status} />
-              <AlertDialog.Heading>{options.title}</AlertDialog.Heading>
-            </AlertDialog.Header>
-            <AlertDialog.Body>{options.description}</AlertDialog.Body>
-            <AlertDialog.Footer>
-              <Button variant="secondary" onPress={() => resolveAndClose(false)}>
-                {options.cancelText}
-              </Button>
-              <Button variant={options.confirmVariant} onPress={() => resolveAndClose(true)}>
-                {options.confirmText}
-              </Button>
-            </AlertDialog.Footer>
-          </AlertDialog.Dialog>
-        </AlertDialog.Container>
+      <AlertDialog>
+        <AlertDialog.Backdrop isOpen={isOpen} onOpenChange={handleOpenChange}>
+          <AlertDialog.Container>
+            <AlertDialog.Dialog>
+              <AlertDialog.Header>
+                <AlertDialog.Icon status={options.status} />
+                <AlertDialog.Heading>{options.title}</AlertDialog.Heading>
+              </AlertDialog.Header>
+              <AlertDialog.Body>{options.description}</AlertDialog.Body>
+              <AlertDialog.Footer>
+                <Button variant="secondary" onPress={() => resolveAndClose(false)}>
+                  {options.cancelText}
+                </Button>
+                <Button variant={options.confirmVariant} onPress={() => resolveAndClose(true)}>
+                  {options.confirmText}
+                </Button>
+              </AlertDialog.Footer>
+            </AlertDialog.Dialog>
+          </AlertDialog.Container>
+        </AlertDialog.Backdrop>
       </AlertDialog>
     </ConfirmDialogContext.Provider>
   )
