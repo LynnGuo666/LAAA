@@ -50,7 +50,7 @@ export default function MyAppsPage() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="rounded-xl border border-default-200 bg-content1 p-6">
+      <div className="p-1">
         <div className="flex items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
@@ -72,34 +72,34 @@ export default function MyAppsPage() {
         </div>
       )}
 
-      <div className="rounded-xl border border-default-200 bg-content1 p-4">
+      <div>
         {loading ? (
           <div className="p-6 text-gray-600 dark:text-gray-300">加载中...</div>
         ) : apps.length === 0 ? (
           <div className="p-6 text-gray-600 dark:text-gray-300">暂无可访问应用</div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {apps.map((app) => (
               <Card key={app.id} className="border border-default-200 bg-content2">
-                <div className="p-4 space-y-4">
+                <div className="p-3 space-y-3">
                   <div className="flex items-start gap-3">
                     {app.logo ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
                         src={app.logo}
                         alt={app.name}
-                        className="h-10 w-10 rounded-lg object-cover shrink-0 border border-default-200"
+                        className="h-9 w-9 rounded-md object-cover shrink-0 border border-default-200"
                       />
                     ) : (
-                      <div className="h-10 w-10 rounded-lg bg-default-200 shrink-0" />
+                      <div className="h-9 w-9 rounded-md bg-default-200 shrink-0" />
                     )}
 
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
-                        <span className="font-semibold text-foreground truncate">{app.name}</span>
+                        <span className="font-medium text-foreground truncate">{app.name}</span>
                         {app.website_url && <ExternalLink className="h-4 w-4 text-default-500 shrink-0" aria-hidden />}
                       </div>
-                      <p className="text-sm text-default-600 mt-1 line-clamp-2 min-h-10">
+                      <p className="text-xs text-default-600 mt-1 line-clamp-2 min-h-8">
                         {app.description || '该应用暂未提供描述'}
                       </p>
                     </div>

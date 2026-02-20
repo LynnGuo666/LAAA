@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { buttonVariants, cn } from '@heroui/react';
+import { Tabs, buttonVariants, cn } from '@heroui/react';
 import { useAuthStore } from '@/lib/store';
 import { authApi, siteApi } from '@/lib/api';
 import { isAdmin } from '@/lib/authz';
@@ -95,6 +95,7 @@ export default function DashboardLayout({
   ];
 
   const userIsAdmin = isAdmin(user);
+  const activeDesktopNav = navLinks.find((link) => pathname === link.href || pathname.startsWith(`${link.href}/`))?.href || navLinks[0].href;
 
   // Show restricted mode overlay if user is restricted
   if (user.is_restricted) {
@@ -120,23 +121,26 @@ export default function DashboardLayout({
                 {siteName}
               </Link>
 
-              <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
-                {navLinks.map((link) => {
-                  const isActive = pathname === link.href || pathname.startsWith(`${link.href}/`);
-                  return (
-                    <Link
-                      key={link.href}
-                      href={link.href}
-                      className={`inline-flex items-center px-1 pt-1 text-sm font-medium border-b-2 ${
-                        isActive
-                          ? 'text-blue-600 border-blue-600'
-                          : 'text-gray-500 dark:text-gray-300 border-transparent hover:border-gray-300 dark:hover:border-gray-600'
-                      }`}
-                    >
-                      {link.label}
-                    </Link>
-                  );
-                })}
+              <div className="hidden sm:ml-6 sm:flex sm:items-center">
+                <Tabs
+                  className="w-full"
+                  selectedKey={activeDesktopNav}
+                  variant="primary"
+                  onSelectionChange={(key) => {
+                    router.push(String(key));
+                  }}
+                >
+                  <Tabs.ListContainer>
+                    <Tabs.List aria-label="Dashboard Navigation" className="flex-nowrap">
+                      {navLinks.map((link) => (
+                        <Tabs.Tab key={link.href} id={link.href} className="whitespace-nowrap">
+                          {link.label}
+                          <Tabs.Indicator />
+                        </Tabs.Tab>
+                      ))}
+                    </Tabs.List>
+                  </Tabs.ListContainer>
+                </Tabs>
               </div>
             </div>
 
