@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Alert, AlertDialog, InputOTP, ListBox, toast } from '@heroui/react';
+import { Alert, InputOTP, ListBox, toast } from '@heroui/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { UIButton, UIInput } from '@/components/ui/primitives';
@@ -98,7 +98,6 @@ export default function VerifyPage() {
 
   // Skip verification state
   const [skipping, setSkipping] = useState(false);
-  const [verifyModalOpen, setVerifyModalOpen] = useState(true);
 
   useEffect(() => {
     // Load session from sessionStorage
@@ -141,14 +140,6 @@ export default function VerifyPage() {
     } else if (method === 'passkey') {
       setCurrentStep('passkey');
     }
-  };
-
-  const closeMethodModal = () => {
-    setCurrentStep('select');
-    setShowBackupCode(false);
-    setError('');
-    setSuccess('');
-    setVerifyModalOpen(false);
   };
 
   const handleSendEmailCode = async () => {
@@ -382,230 +373,199 @@ export default function VerifyPage() {
             安全验证
           </h1>
           <p className="text-sm text-gray-600 dark:text-gray-400">
-            检测到可疑登录活动，请在弹窗中完成身份验证
+            检测到可疑登录活动，请完成身份验证
           </p>
-          <div className="mt-5">
-            <UIButton onPress={() => setVerifyModalOpen(true)} variant="primary" className="w-full">
-              开始验证
-            </UIButton>
-          </div>
         </div>
 
-        <AlertDialog>
-          <AlertDialog.Backdrop
-            isOpen={verifyModalOpen}
-            onOpenChange={(open) => {
-              if (!open) {
-                setVerifyModalOpen(false);
-                setCurrentStep('select');
-                setShowBackupCode(false);
-              }
-            }}
-          >
-            <AlertDialog.Container>
-              <AlertDialog.Dialog>
-                <AlertDialog.Header>
-                  <AlertDialog.Heading>
-                    {currentStep === 'select' && '选择验证方式'}
-                    {currentStep === 'email_code' && '邮件验证码'}
-                    {currentStep === 'totp' && (showBackupCode ? '备用码验证' : '身份验证器')}
-                    {currentStep === 'passkey' && '通行密钥'}
-                  </AlertDialog.Heading>
-                </AlertDialog.Header>
-                <AlertDialog.Body>
-                  {currentStep === 'select' && (
-                    <div className="space-y-3">
-                      <Alert status={RISK_LEVEL_STATUS[session.risk_level]}>
-                        <Alert.Content>
-                          <Alert.Title>
-                            风险等级: {RISK_LEVEL_NAMES[session.risk_level]} · 验证进度: {session.completed_verifications}/{session.required_verifications}
-                          </Alert.Title>
-                          {session.anomalies.length > 0 && (
-                            <Alert.Description>
-                              <ul className="mt-1 text-sm space-y-1">
-                                {session.anomalies.map((a, i) => (
-                                  <li key={i}>• {a.message}</li>
-                                ))}
-                              </ul>
-                            </Alert.Description>
-                          )}
-                        </Alert.Content>
-                      </Alert>
+        {/* Risk Info */}
+        <Alert status={RISK_LEVEL_STATUS[session.risk_level]} className="mb-6">
+          <Alert.Content>
+            <Alert.Title>
+              风险等级: {RISK_LEVEL_NAMES[session.risk_level]} · 验证进度: {session.completed_verifications}/{session.required_verifications}
+            </Alert.Title>
+            {session.anomalies.length > 0 && (
+              <Alert.Description>
+                <ul className="mt-1 text-sm space-y-1">
+                  {session.anomalies.map((a, i) => (
+                    <li key={i}>• {a.message}</li>
+                  ))}
+                </ul>
+              </Alert.Description>
+            )}
+          </Alert.Content>
+        </Alert>
 
-                      <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mb-1">
-                        <div
-                          className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                          style={{ width: `${(session.completed_verifications / session.required_verifications) * 100}%` }}
-                        ></div>
-                      </div>
+        {/* Progress bar */}
+        <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mb-6">
+          <div
+            className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+            style={{ width: `${(session.completed_verifications / session.required_verifications) * 100}%` }}
+          ></div>
+        </div>
 
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
-                        请选择验证方式 (需完成 {session.required_verifications - session.completed_verifications} 次验证)
-                      </p>
-
-                      {ALL_METHODS.length > 0 && (
-                        <div className="min-h-56">
-                          <ListBox aria-label="验证方式列表" variant="default" onAction={(key) => handleSelectMethod(String(key))}>
-                            {ALL_METHODS.map((methodKey) => {
-                              const method = methodMap.get(methodKey);
-                              const isCompleted = completedMethods.includes(methodKey);
-                              const isDisabled = !method?.available || isCompleted;
-                              return (
-                                <ListBox.Item key={methodKey} id={methodKey} isDisabled={isDisabled} className="text-foreground">
-                                  <div className="flex items-start gap-3 py-1">
-                                    {methodKey === 'email_code' && <Mail className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" />}
-                                    {methodKey === 'totp' && <ShieldCheck className="w-5 h-5 text-green-500 shrink-0 mt-0.5" />}
-                                    {methodKey === 'passkey' && <KeyRound className="w-5 h-5 text-orange-500 shrink-0 mt-0.5" />}
-                                    <div className="min-w-0">
-                                      <div className="font-medium text-foreground">{METHOD_NAMES[methodKey]}</div>
-                                      <div className="text-xs text-foreground/70 mt-0.5">{METHOD_DESCRIPTIONS[methodKey]}</div>
-                                    </div>
-                                  </div>
-                                </ListBox.Item>
-                              )
-                            })}
-                          </ListBox>
+        {/* Method Selection */}
+        {currentStep === 'select' && (
+          <div className="space-y-3">
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+              请选择验证方式 (需完成 {session.required_verifications - session.completed_verifications} 次验证)
+            </p>
+            {ALL_METHODS.length > 0 && (
+              <div className="min-h-56">
+                <ListBox aria-label="验证方式列表" variant="default" onAction={(key) => handleSelectMethod(String(key))}>
+                  {ALL_METHODS.map((methodKey) => {
+                    const method = methodMap.get(methodKey);
+                    const isCompleted = completedMethods.includes(methodKey);
+                    const isDisabled = !method?.available || isCompleted;
+                    return (
+                      <ListBox.Item key={methodKey} id={methodKey} isDisabled={isDisabled}>
+                        <div className="flex items-start gap-3 py-1">
+                          {methodKey === 'email_code' && <Mail className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />}
+                          {methodKey === 'totp' && <ShieldCheck className="w-4 h-4 text-green-500 shrink-0 mt-0.5" />}
+                          {methodKey === 'passkey' && <KeyRound className="w-4 h-4 text-orange-500 shrink-0 mt-0.5" />}
+                          <div className="min-w-0">
+                            <div>{METHOD_NAMES[methodKey]}</div>
+                            <div className="text-xs text-default-500 mt-0.5">{METHOD_DESCRIPTIONS[methodKey]}</div>
+                          </div>
                         </div>
-                      )}
+                      </ListBox.Item>
+                    )
+                  })}
+                </ListBox>
+              </div>
+            )}
 
-                      {availableMethods.length === 0 && (
-                        <p className="text-center text-gray-500 py-4">
-                          没有可用的验证方式，请联系管理员
-                        </p>
-                      )}
+            {availableMethods.length === 0 && (
+              <p className="text-center text-gray-500 py-4">
+                没有可用的验证方式，请联系管理员
+              </p>
+            )}
 
-                      <div className="mt-2 pt-4 border-t border-gray-200 dark:border-gray-700 text-center">
-                        <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
-                          无法完成验证？
-                        </p>
-                        <UIButton onPress={handleSkipVerification} isDisabled={skipping} variant="ghost"
-                        className="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 disabled:opacity-50">{skipping ? '处理中...' : '跳过验证，进入受限模式'}</UIButton>
-                      </div>
+            {/* Skip verification option */}
+            <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700 text-center">
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
+                无法完成验证？
+              </p>
+              <UIButton onPress={handleSkipVerification} isDisabled={skipping} variant="ghost"
+              className="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 disabled:opacity-50">{skipping ? '处理中...' : '跳过验证，进入受限模式'}</UIButton>
+            </div>
 
-                      <div className="pt-2 text-center">
-                        <Link href="/login" className="text-sm text-blue-600 hover:text-blue-700">
-                          ← 返回登录
-                        </Link>
-                      </div>
-                    </div>
-                  )}
+            <div className="pt-4">
+              <Link href="/login" className="text-sm text-blue-600 hover:text-blue-700">
+                ← 返回登录
+              </Link>
+            </div>
+          </div>
+        )}
 
-                  {currentStep === 'email_code' && (
-                    <div className="space-y-4">
-                      <p className="text-sm text-gray-600 dark:text-gray-400">
-                        验证码将发送到 <strong>{session.email_masked}</strong>
-                      </p>
+        {/* Email Code Verification */}
+        {currentStep === 'email_code' && (
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              验证码将发送到 <strong>{session.email_masked}</strong>
+            </p>
 
-                      {!emailCodeSent ? (
-                        <UIButton onPress={handleSendEmailCode} isDisabled={loading} variant="primary" className="w-full">{loading ? '发送中...' : '发送验证码'}</UIButton>
-                      ) : (
-                        <>
-                          <div className="flex justify-center">
-                            <InputOTP
-                              value={emailCode}
-                              onChange={(value) => setEmailCode(value.replace(/\D/g, '').slice(0, 6))}
-                              maxLength={6}
-                              inputMode="numeric"
-                              pattern="^\d+$"
-                            >
-                              <InputOTP.Group>
-                                <InputOTP.Slot index={0} />
-                                <InputOTP.Slot index={1} />
-                                <InputOTP.Slot index={2} />
-                                <InputOTP.Slot index={3} />
-                                <InputOTP.Slot index={4} />
-                                <InputOTP.Slot index={5} />
-                              </InputOTP.Group>
-                            </InputOTP>
-                          </div>
-                          <UIButton onPress={handleVerifyEmailCode} isDisabled={loading || emailCode.length !== 6} variant="primary" className="w-full">{loading ? '验证中...' : '验证'}</UIButton>
-                          <UIButton onPress={handleSendEmailCode} isDisabled={loading || emailCooldown > 0} variant="ghost"
-                          className="w-full text-sm text-blue-600 hover:text-blue-700 disabled:text-gray-400">{emailCooldown > 0 ? `重新发送 (${emailCooldown}s)` : '重新发送验证码'}</UIButton>
-                        </>
-                      )}
+            {!emailCodeSent ? (
+              <UIButton onPress={handleSendEmailCode} isDisabled={loading} variant="primary" className="w-full">{loading ? '发送中...' : '发送验证码'}</UIButton>
+            ) : (
+              <>
+                <UIInput
+                  type="text"
+                  value={emailCode}
+                  onChange={(e) => setEmailCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  placeholder="请输入6位验证码"
+                  className="text-center text-2xl tracking-widest"
+                  maxLength={6}
+                />
+                <UIButton onPress={handleVerifyEmailCode} isDisabled={loading || emailCode.length !== 6} variant="primary" className="w-full">{loading ? '验证中...' : '验证'}</UIButton>
+                <UIButton onPress={handleSendEmailCode} isDisabled={loading || emailCooldown > 0} variant="ghost"
+                className="w-full text-sm text-blue-600 hover:text-blue-700 disabled:text-gray-400">{emailCooldown > 0 ? `重新发送 (${emailCooldown}s)` : '重新发送验证码'}</UIButton>
+              </>
+            )}
 
-                      <UIButton onPress={closeMethodModal} variant="ghost" className="w-full text-sm text-gray-500 hover:text-gray-700">
-                        选择其他验证方式
-                      </UIButton>
-                    </div>
-                  )}
+            <UIButton  onPress={() => setCurrentStep('select')} variant="ghost"
+            className="w-full text-sm text-gray-500 hover:text-gray-700">
+              选择其他验证方式
+            </UIButton>
+          </div>
+        )}
 
-                  {currentStep === 'totp' && (
-                    <div className="space-y-4">
-                      {!showBackupCode ? (
-                        <>
-                          <p className="text-sm text-gray-600 dark:text-gray-400">
-                            请输入身份验证器应用中的6位验证码
-                          </p>
-                          <div className="flex justify-center">
-                            <InputOTP
-                              value={totpCode}
-                              onChange={(value) => setTotpCode(value.replace(/\D/g, '').slice(0, 6))}
-                              maxLength={6}
-                              inputMode="numeric"
-                              pattern="^\d+$"
-                            >
-                              <InputOTP.Group>
-                                <InputOTP.Slot index={0} />
-                                <InputOTP.Slot index={1} />
-                                <InputOTP.Slot index={2} />
-                                <InputOTP.Slot index={3} />
-                                <InputOTP.Slot index={4} />
-                                <InputOTP.Slot index={5} />
-                              </InputOTP.Group>
-                            </InputOTP>
-                          </div>
-                          <UIButton onPress={handleVerifyTOTP} isDisabled={loading || totpCode.length !== 6} variant="primary" className="w-full">{loading ? '验证中...' : '验证'}</UIButton>
-                          <UIButton onPress={() => setShowBackupCode(true)} variant="ghost" className="w-full text-sm text-blue-600 hover:text-blue-700">
-                            使用备用码
-                          </UIButton>
-                        </>
-                      ) : (
-                        <>
-                          <p className="text-sm text-gray-600 dark:text-gray-400">
-                            请输入您的8位备用码
-                          </p>
-                          <UIInput
-                            type="text"
-                            value={backupCode}
-                            onChange={(e) => setBackupCode(e.target.value.toUpperCase().slice(0, 8))}
-                            placeholder="XXXXXXXX"
-                            className="text-center text-2xl tracking-widest"
-                            maxLength={8}
-                          />
-                          <UIButton onPress={handleVerifyBackupCode} isDisabled={loading || backupCode.length !== 8} variant="primary" className="w-full">{loading ? '验证中...' : '验证'}</UIButton>
-                          <UIButton onPress={() => setShowBackupCode(false)} variant="ghost" className="w-full text-sm text-blue-600 hover:text-blue-700">
-                            使用身份验证器
-                          </UIButton>
-                        </>
-                      )}
+        {/* TOTP Verification */}
+        {currentStep === 'totp' && (
+          <div className="space-y-4">
+            {!showBackupCode ? (
+              <>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  请输入身份验证器应用中的6位验证码
+                </p>
+                <div className="flex justify-center">
+                  <InputOTP
+                    value={totpCode}
+                    onChange={(value) => setTotpCode(value.replace(/\D/g, '').slice(0, 6))}
+                    maxLength={6}
+                    inputMode="numeric"
+                    pattern="^\d+$"
+                  >
+                    <InputOTP.Group>
+                      <InputOTP.Slot index={0} />
+                      <InputOTP.Slot index={1} />
+                      <InputOTP.Slot index={2} />
+                      <InputOTP.Slot index={3} />
+                      <InputOTP.Slot index={4} />
+                      <InputOTP.Slot index={5} />
+                    </InputOTP.Group>
+                  </InputOTP>
+                </div>
+                <UIButton onPress={handleVerifyTOTP} isDisabled={loading || totpCode.length !== 6} variant="primary" className="w-full">{loading ? '验证中...' : '验证'}</UIButton>
+                <UIButton  onPress={() => setShowBackupCode(true)} variant="ghost"
+                className="w-full text-sm text-blue-600 hover:text-blue-700">
+                  使用备用码
+                </UIButton>
+              </>
+            ) : (
+              <>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  请输入您的8位备用码
+                </p>
+                <UIInput
+                  type="text"
+                  value={backupCode}
+                  onChange={(e) => setBackupCode(e.target.value.toUpperCase().slice(0, 8))}
+                  placeholder="XXXXXXXX"
+                  className="text-center text-2xl tracking-widest"
+                  maxLength={8}
+                />
+                <UIButton onPress={handleVerifyBackupCode} isDisabled={loading || backupCode.length !== 8} variant="primary" className="w-full">{loading ? '验证中...' : '验证'}</UIButton>
+                <UIButton  onPress={() => setShowBackupCode(false)} variant="ghost"
+                className="w-full text-sm text-blue-600 hover:text-blue-700">
+                  使用身份验证器
+                </UIButton>
+              </>
+            )}
 
-                      <UIButton onPress={closeMethodModal} variant="ghost" className="w-full text-sm text-gray-500 hover:text-gray-700">
-                        选择其他验证方式
-                      </UIButton>
-                    </div>
-                  )}
+            <UIButton  onPress={() => setCurrentStep('select')} variant="ghost"
+            className="w-full text-sm text-gray-500 hover:text-gray-700">
+              选择其他验证方式
+            </UIButton>
+          </div>
+        )}
 
-                  {currentStep === 'passkey' && (
-                    <div className="space-y-4">
-                      <p className="text-sm text-gray-600 dark:text-gray-400 text-center">
-                        使用您的通行密钥进行验证
-                      </p>
-                      <div className="text-center py-8">
-                        <KeyRound className="w-16 h-16 text-orange-500 mx-auto" />
-                      </div>
-                      <UIButton onPress={handlePasskeyVerify} isDisabled={loading || !webAuthnSupported} variant="primary" className="w-full">{loading ? '验证中...' : '使用通行密钥验证'}</UIButton>
+        {/* Passkey Verification */}
+        {currentStep === 'passkey' && (
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600 dark:text-gray-400 text-center">
+              使用您的通行密钥进行验证
+            </p>
+            <div className="text-center py-8">
+              <KeyRound className="w-16 h-16 text-orange-500 mx-auto" />
+            </div>
+            <UIButton onPress={handlePasskeyVerify} isDisabled={loading || !webAuthnSupported} variant="primary" className="w-full">{loading ? '验证中...' : '使用通行密钥验证'}</UIButton>
 
-                      <UIButton onPress={closeMethodModal} variant="ghost" className="w-full text-sm text-gray-500 hover:text-gray-700">
-                        选择其他验证方式
-                      </UIButton>
-                    </div>
-                  )}
-                </AlertDialog.Body>
-              </AlertDialog.Dialog>
-            </AlertDialog.Container>
-          </AlertDialog.Backdrop>
-        </AlertDialog>
+            <UIButton  onPress={() => setCurrentStep('select')} variant="ghost"
+            className="w-full text-sm text-gray-500 hover:text-gray-700">
+              选择其他验证方式
+            </UIButton>
+          </div>
+        )}
       </div>
     </div>
   );
