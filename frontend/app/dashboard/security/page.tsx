@@ -1,13 +1,13 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
-import { AlertDialog, Card, Tabs, buttonVariants, toast } from '@heroui/react';
+import { AlertDialog, Card, Tabs, toast } from '@heroui/react';
 import { userApi, totpApi, passkeyApi } from '@/lib/api';
 import { formatDateTime } from '@/lib/date';
 import { useAuthStore } from '@/lib/store';
 import { UIButton, UIInput, UILabel, UITextField } from '@/components/ui/primitives';
 import { useConfirmDialog } from '@/components/ui/confirm-dialog-provider';
+import { TotpManageModal } from '@/components/security/TotpManageModal';
 import { Check, AlertTriangle } from 'lucide-react';
 import {
   isWebAuthnSupported,
@@ -109,6 +109,7 @@ export default function SecurityPage() {
   const [detailPasskeyName, setDetailPasskeyName] = useState('');
   const [renamingPasskey, setRenamingPasskey] = useState(false);
   const [showPasskeyDetailModal, setShowPasskeyDetailModal] = useState(false);
+  const [showTotpManageModal, setShowTotpManageModal] = useState(false);
   const [activeTab, setActiveTab] = useState<SecurityTabKey>('totp');
 
   useEffect(() => {
@@ -480,9 +481,9 @@ export default function SecurityPage() {
                     </p>
                   </div>
                 </div>
-                <Link href="/dashboard/security/totp" className={buttonVariants({ variant: 'secondary' })}>
+                <UIButton onPress={() => setShowTotpManageModal(true)} variant="secondary">
                   {totpStatus?.enabled ? '管理' : '设置'}
-                </Link>
+                </UIButton>
               </div>
             </div>
           </Tabs.Panel>
@@ -852,6 +853,12 @@ export default function SecurityPage() {
           </AlertDialog.Container>
         </AlertDialog.Backdrop>
       </AlertDialog>
+
+      <TotpManageModal
+        isOpen={showTotpManageModal}
+        onOpenChange={setShowTotpManageModal}
+        onStatusUpdated={(nextStatus) => setTotpStatus(nextStatus)}
+      />
     </div>
   );
 }
