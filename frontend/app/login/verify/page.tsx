@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Alert, InputOTP, ListBox, toast } from '@heroui/react';
+import { Alert, AlertDialog, InputOTP, ListBox, toast } from '@heroui/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { UIButton, UIInput } from '@/components/ui/primitives';
@@ -140,6 +140,13 @@ export default function VerifyPage() {
     } else if (method === 'passkey') {
       setCurrentStep('passkey');
     }
+  };
+
+  const closeMethodModal = () => {
+    setCurrentStep('select');
+    setShowBackupCode(false);
+    setError('');
+    setSuccess('');
   };
 
   const handleSendEmailCode = async () => {
@@ -457,115 +464,129 @@ export default function VerifyPage() {
           </div>
         )}
 
-        {/* Email Code Verification */}
-        {currentStep === 'email_code' && (
-          <div className="space-y-4">
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              验证码将发送到 <strong>{session.email_masked}</strong>
-            </p>
+        <AlertDialog>
+          <AlertDialog.Backdrop
+            isOpen={currentStep !== 'select'}
+            onOpenChange={(open) => {
+              if (!open) closeMethodModal();
+            }}
+          >
+            <AlertDialog.Container>
+              <AlertDialog.Dialog>
+                <AlertDialog.Header>
+                  <AlertDialog.Heading>
+                    {currentStep === 'email_code' && '邮件验证码'}
+                    {currentStep === 'totp' && (showBackupCode ? '备用码验证' : '身份验证器')}
+                    {currentStep === 'passkey' && '通行密钥'}
+                  </AlertDialog.Heading>
+                </AlertDialog.Header>
+                <AlertDialog.Body>
+                  {currentStep === 'email_code' && (
+                    <div className="space-y-4">
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        验证码将发送到 <strong>{session.email_masked}</strong>
+                      </p>
 
-            {!emailCodeSent ? (
-              <UIButton onPress={handleSendEmailCode} isDisabled={loading} variant="primary" className="w-full">{loading ? '发送中...' : '发送验证码'}</UIButton>
-            ) : (
-              <>
-                <UIInput
-                  type="text"
-                  value={emailCode}
-                  onChange={(e) => setEmailCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                  placeholder="请输入6位验证码"
-                  className="text-center text-2xl tracking-widest"
-                  maxLength={6}
-                />
-                <UIButton onPress={handleVerifyEmailCode} isDisabled={loading || emailCode.length !== 6} variant="primary" className="w-full">{loading ? '验证中...' : '验证'}</UIButton>
-                <UIButton onPress={handleSendEmailCode} isDisabled={loading || emailCooldown > 0} variant="ghost"
-                className="w-full text-sm text-blue-600 hover:text-blue-700 disabled:text-gray-400">{emailCooldown > 0 ? `重新发送 (${emailCooldown}s)` : '重新发送验证码'}</UIButton>
-              </>
-            )}
+                      {!emailCodeSent ? (
+                        <UIButton onPress={handleSendEmailCode} isDisabled={loading} variant="primary" className="w-full">{loading ? '发送中...' : '发送验证码'}</UIButton>
+                      ) : (
+                        <>
+                          <UIInput
+                            type="text"
+                            value={emailCode}
+                            onChange={(e) => setEmailCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                            placeholder="请输入6位验证码"
+                            className="text-center text-2xl tracking-widest"
+                            maxLength={6}
+                          />
+                          <UIButton onPress={handleVerifyEmailCode} isDisabled={loading || emailCode.length !== 6} variant="primary" className="w-full">{loading ? '验证中...' : '验证'}</UIButton>
+                          <UIButton onPress={handleSendEmailCode} isDisabled={loading || emailCooldown > 0} variant="ghost"
+                          className="w-full text-sm text-blue-600 hover:text-blue-700 disabled:text-gray-400">{emailCooldown > 0 ? `重新发送 (${emailCooldown}s)` : '重新发送验证码'}</UIButton>
+                        </>
+                      )}
 
-            <UIButton  onPress={() => setCurrentStep('select')} variant="ghost"
-            className="w-full text-sm text-gray-500 hover:text-gray-700">
-              选择其他验证方式
-            </UIButton>
-          </div>
-        )}
+                      <UIButton onPress={closeMethodModal} variant="ghost" className="w-full text-sm text-gray-500 hover:text-gray-700">
+                        选择其他验证方式
+                      </UIButton>
+                    </div>
+                  )}
 
-        {/* TOTP Verification */}
-        {currentStep === 'totp' && (
-          <div className="space-y-4">
-            {!showBackupCode ? (
-              <>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  请输入身份验证器应用中的6位验证码
-                </p>
-                <div className="flex justify-center">
-                  <InputOTP
-                    value={totpCode}
-                    onChange={(value) => setTotpCode(value.replace(/\D/g, '').slice(0, 6))}
-                    maxLength={6}
-                    inputMode="numeric"
-                    pattern="^\d+$"
-                  >
-                    <InputOTP.Group>
-                      <InputOTP.Slot index={0} />
-                      <InputOTP.Slot index={1} />
-                      <InputOTP.Slot index={2} />
-                      <InputOTP.Slot index={3} />
-                      <InputOTP.Slot index={4} />
-                      <InputOTP.Slot index={5} />
-                    </InputOTP.Group>
-                  </InputOTP>
-                </div>
-                <UIButton onPress={handleVerifyTOTP} isDisabled={loading || totpCode.length !== 6} variant="primary" className="w-full">{loading ? '验证中...' : '验证'}</UIButton>
-                <UIButton  onPress={() => setShowBackupCode(true)} variant="ghost"
-                className="w-full text-sm text-blue-600 hover:text-blue-700">
-                  使用备用码
-                </UIButton>
-              </>
-            ) : (
-              <>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  请输入您的8位备用码
-                </p>
-                <UIInput
-                  type="text"
-                  value={backupCode}
-                  onChange={(e) => setBackupCode(e.target.value.toUpperCase().slice(0, 8))}
-                  placeholder="XXXXXXXX"
-                  className="text-center text-2xl tracking-widest"
-                  maxLength={8}
-                />
-                <UIButton onPress={handleVerifyBackupCode} isDisabled={loading || backupCode.length !== 8} variant="primary" className="w-full">{loading ? '验证中...' : '验证'}</UIButton>
-                <UIButton  onPress={() => setShowBackupCode(false)} variant="ghost"
-                className="w-full text-sm text-blue-600 hover:text-blue-700">
-                  使用身份验证器
-                </UIButton>
-              </>
-            )}
+                  {currentStep === 'totp' && (
+                    <div className="space-y-4">
+                      {!showBackupCode ? (
+                        <>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">
+                            请输入身份验证器应用中的6位验证码
+                          </p>
+                          <div className="flex justify-center">
+                            <InputOTP
+                              value={totpCode}
+                              onChange={(value) => setTotpCode(value.replace(/\D/g, '').slice(0, 6))}
+                              maxLength={6}
+                              inputMode="numeric"
+                              pattern="^\d+$"
+                            >
+                              <InputOTP.Group>
+                                <InputOTP.Slot index={0} />
+                                <InputOTP.Slot index={1} />
+                                <InputOTP.Slot index={2} />
+                                <InputOTP.Slot index={3} />
+                                <InputOTP.Slot index={4} />
+                                <InputOTP.Slot index={5} />
+                              </InputOTP.Group>
+                            </InputOTP>
+                          </div>
+                          <UIButton onPress={handleVerifyTOTP} isDisabled={loading || totpCode.length !== 6} variant="primary" className="w-full">{loading ? '验证中...' : '验证'}</UIButton>
+                          <UIButton onPress={() => setShowBackupCode(true)} variant="ghost" className="w-full text-sm text-blue-600 hover:text-blue-700">
+                            使用备用码
+                          </UIButton>
+                        </>
+                      ) : (
+                        <>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">
+                            请输入您的8位备用码
+                          </p>
+                          <UIInput
+                            type="text"
+                            value={backupCode}
+                            onChange={(e) => setBackupCode(e.target.value.toUpperCase().slice(0, 8))}
+                            placeholder="XXXXXXXX"
+                            className="text-center text-2xl tracking-widest"
+                            maxLength={8}
+                          />
+                          <UIButton onPress={handleVerifyBackupCode} isDisabled={loading || backupCode.length !== 8} variant="primary" className="w-full">{loading ? '验证中...' : '验证'}</UIButton>
+                          <UIButton onPress={() => setShowBackupCode(false)} variant="ghost" className="w-full text-sm text-blue-600 hover:text-blue-700">
+                            使用身份验证器
+                          </UIButton>
+                        </>
+                      )}
 
-            <UIButton  onPress={() => setCurrentStep('select')} variant="ghost"
-            className="w-full text-sm text-gray-500 hover:text-gray-700">
-              选择其他验证方式
-            </UIButton>
-          </div>
-        )}
+                      <UIButton onPress={closeMethodModal} variant="ghost" className="w-full text-sm text-gray-500 hover:text-gray-700">
+                        选择其他验证方式
+                      </UIButton>
+                    </div>
+                  )}
 
-        {/* Passkey Verification */}
-        {currentStep === 'passkey' && (
-          <div className="space-y-4">
-            <p className="text-sm text-gray-600 dark:text-gray-400 text-center">
-              使用您的通行密钥进行验证
-            </p>
-            <div className="text-center py-8">
-              <KeyRound className="w-16 h-16 text-orange-500 mx-auto" />
-            </div>
-            <UIButton onPress={handlePasskeyVerify} isDisabled={loading || !webAuthnSupported} variant="primary" className="w-full">{loading ? '验证中...' : '使用通行密钥验证'}</UIButton>
+                  {currentStep === 'passkey' && (
+                    <div className="space-y-4">
+                      <p className="text-sm text-gray-600 dark:text-gray-400 text-center">
+                        使用您的通行密钥进行验证
+                      </p>
+                      <div className="text-center py-8">
+                        <KeyRound className="w-16 h-16 text-orange-500 mx-auto" />
+                      </div>
+                      <UIButton onPress={handlePasskeyVerify} isDisabled={loading || !webAuthnSupported} variant="primary" className="w-full">{loading ? '验证中...' : '使用通行密钥验证'}</UIButton>
 
-            <UIButton  onPress={() => setCurrentStep('select')} variant="ghost"
-            className="w-full text-sm text-gray-500 hover:text-gray-700">
-              选择其他验证方式
-            </UIButton>
-          </div>
-        )}
+                      <UIButton onPress={closeMethodModal} variant="ghost" className="w-full text-sm text-gray-500 hover:text-gray-700">
+                        选择其他验证方式
+                      </UIButton>
+                    </div>
+                  )}
+                </AlertDialog.Body>
+              </AlertDialog.Dialog>
+            </AlertDialog.Container>
+          </AlertDialog.Backdrop>
+        </AlertDialog>
       </div>
     </div>
   );
