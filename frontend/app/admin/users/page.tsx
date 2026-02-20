@@ -7,6 +7,7 @@ import { formatDate } from '@/lib/date';
 import { useAuthStore } from '@/lib/store';
 import { isAdmin } from '@/lib/authz';
 import { UIButton, UICheckbox, UIInput, UIListBox, UISelect, UISelectItem } from '@/components/ui/primitives';
+import { useConfirmDialog } from '@/components/ui/confirm-dialog-provider';
 
 interface User {
   id: number;
@@ -34,6 +35,7 @@ interface Role {
 }
 
 export default function UsersPage() {
+  const confirmDialog = useConfirmDialog();
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
   const canManageUsers = isAdmin(user);
@@ -171,7 +173,15 @@ export default function UsersPage() {
   };
 
   const handleDeleteUser = async (userId: number) => {
-    if (!confirm('确定要删除这个用户吗？此操作不可撤销。')) return;
+    const shouldDelete = await confirmDialog({
+      title: '确认删除用户',
+      description: '确定要删除这个用户吗？此操作不可撤销。',
+      confirmText: '删除用户',
+      cancelText: '取消',
+      status: 'danger',
+      confirmVariant: 'danger',
+    });
+    if (!shouldDelete) return;
     try {
       await adminApi.deleteUser(userId);
       loadUsers();

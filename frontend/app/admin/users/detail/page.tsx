@@ -9,6 +9,7 @@ import { useAuthStore } from '@/lib/store';
 import { isAdmin } from '@/lib/authz';
 import { formatDateTime } from '@/lib/date';
 import { UIButton, UICheckbox, UIInput, UIListBox, UISelect, UISelectItem } from '@/components/ui/primitives';
+import { useConfirmDialog } from '@/components/ui/confirm-dialog-provider';
 
 interface User {
   id: number;
@@ -94,6 +95,7 @@ interface SecurityMethods {
 type Tab = 'info' | 'logs' | 'sessions' | 'passkeys' | 'authorizations';
 
 export default function UserDetailPage() {
+  const confirmDialog = useConfirmDialog();
   const searchParams = useSearchParams();
   const router = useRouter();
   const userId = Number(searchParams.get('id'));
@@ -313,7 +315,15 @@ export default function UserDetailPage() {
   };
 
   const handleRevokeSession = async (sessionId: number) => {
-    if (!confirm('确定要强制登出此会话吗？')) return;
+    const shouldRevoke = await confirmDialog({
+      title: '确认强制登出',
+      description: '确定要强制登出此会话吗？',
+      confirmText: '确认登出',
+      cancelText: '取消',
+      status: 'warning',
+      confirmVariant: 'danger',
+    });
+    if (!shouldRevoke) return;
     try {
       await adminApi.revokeUserSession(userId, sessionId);
       loadSessions();
@@ -323,7 +333,15 @@ export default function UserDetailPage() {
   };
 
   const handleRevokeAllSessions = async () => {
-    if (!confirm('确定要登出该用户的所有会话吗？')) return;
+    const shouldRevokeAll = await confirmDialog({
+      title: '确认登出所有会话',
+      description: '确定要登出该用户的所有会话吗？',
+      confirmText: '全部登出',
+      cancelText: '取消',
+      status: 'danger',
+      confirmVariant: 'danger',
+    });
+    if (!shouldRevokeAll) return;
     try {
       const response = await adminApi.revokeAllUserSessions(userId);
       toast(response.data.message);

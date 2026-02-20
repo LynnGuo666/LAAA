@@ -7,6 +7,7 @@ import SidePanel from '@/components/SidePanel';
 import { useAuthStore } from '@/lib/store';
 import { isAdmin } from '@/lib/authz';
 import { UIButton, UICheckbox, UIDescription, UIInput, UILabel, UIRadio, UIRadioGroup, UITextField, UITextarea } from '@/components/ui/primitives';
+import { useConfirmDialog } from '@/components/ui/confirm-dialog-provider';
 
 interface Client {
   id: number;
@@ -38,6 +39,7 @@ const AVAILABLE_SCOPES = [
 ];
 
 export default function AppsPage() {
+  const confirmDialog = useConfirmDialog();
   const user = useAuthStore((s) => s.user);
   const canManageClients = isAdmin(user);
   const [clients, setClients] = useState<Client[]>([]);
@@ -239,7 +241,15 @@ export default function AppsPage() {
 
   const handleDelete = async (id: number, name: string) => {
     if (deletingClientId) return;
-    if (!confirm(`确定要删除应用 "${name}" 吗？`)) return;
+    const shouldDelete = await confirmDialog({
+      title: '确认删除应用',
+      description: `确定要删除应用 "${name}" 吗？`,
+      confirmText: '删除应用',
+      cancelText: '取消',
+      status: 'danger',
+      confirmVariant: 'danger',
+    });
+    if (!shouldDelete) return;
 
     try {
       setDeletingClientId(id);
@@ -277,7 +287,15 @@ export default function AppsPage() {
 
   const handleResetSecret = async (client: Client) => {
     if (resettingClientId) return;
-    if (!confirm(`确定要重置 "${client.name}" 的 Client Secret 吗？重置后旧密钥将立即失效。`)) return;
+    const shouldReset = await confirmDialog({
+      title: '确认重置密钥',
+      description: `确定要重置 "${client.name}" 的 Client Secret 吗？重置后旧密钥将立即失效。`,
+      confirmText: '重置密钥',
+      cancelText: '取消',
+      status: 'warning',
+      confirmVariant: 'danger',
+    });
+    if (!shouldReset) return;
     try {
       setResettingClientId(client.id);
       const response = await clientApi.resetSecret(client.id);

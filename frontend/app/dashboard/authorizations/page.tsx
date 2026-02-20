@@ -5,6 +5,7 @@ import { toast } from '@heroui/react';
 import { userApi } from '@/lib/api';
 import { formatDateTime } from '@/lib/date';
 import { UIButton } from '@/components/ui/primitives';
+import { useConfirmDialog } from '@/components/ui/confirm-dialog-provider';
 import { AppWindow } from 'lucide-react';
 
 interface Authorization {
@@ -17,6 +18,7 @@ interface Authorization {
 }
 
 export default function AuthorizationsPage() {
+  const confirmDialog = useConfirmDialog();
   const [authorizations, setAuthorizations] = useState<Authorization[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -36,7 +38,15 @@ export default function AuthorizationsPage() {
   };
 
   const handleRevoke = async (auth: Authorization) => {
-    if (!confirm(`确定要撤销对 "${auth.client_name}" 的授权吗？`)) return;
+    const shouldRevoke = await confirmDialog({
+      title: '确认撤销授权',
+      description: `确定要撤销对 "${auth.client_name}" 的授权吗？`,
+      confirmText: '撤销授权',
+      cancelText: '取消',
+      status: 'danger',
+      confirmVariant: 'danger',
+    });
+    if (!shouldRevoke) return;
     try {
       await userApi.revokeAuthorization(auth.id);
       loadAuthorizations();

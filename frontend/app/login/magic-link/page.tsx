@@ -2,6 +2,7 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { toast } from '@heroui/react';
 import Link from 'next/link';
 import { verificationApi, authApi } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
@@ -22,6 +23,7 @@ function MagicLinkContent() {
     if (!token) {
       setStatus('error');
       setError('无效的验证链接');
+      toast.danger('无效的验证链接');
       return;
     }
 
@@ -125,6 +127,7 @@ function MagicLinkContent() {
       if (errorDetail.includes('device') || errorDetail.includes('设备')) {
         setStatus('device_mismatch');
         setError('此链接必须在请求它的同一设备上打开。请在原设备上重新点击链接。');
+        toast.warning('此链接必须在请求它的同一设备上打开。请在原设备上重新点击链接。');
 
         // Notify the original tab about device mismatch (for verification flow)
         if (sessionToken) {
@@ -137,12 +140,16 @@ function MagicLinkContent() {
       } else if (errorDetail.includes('expired') || errorDetail.includes('过期')) {
         setStatus('error');
         setError('验证链接已过期，请重新请求');
+        toast.danger('验证链接已过期，请重新请求');
       } else if (errorDetail.includes('used') || errorDetail.includes('已使用')) {
         setStatus('error');
         setError('此验证链接已被使用');
+        toast.danger('此验证链接已被使用');
       } else {
         setStatus('error');
-        setError(errorDetail || '验证失败，请重试');
+        const message = errorDetail || '验证失败，请重试';
+        setError(message);
+        toast.danger(message);
       }
     }
   };

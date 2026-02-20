@@ -1,9 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { toast } from '@heroui/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { UIButton, UIInput } from '@/components/ui/primitives';
+import { useConfirmDialog } from '@/components/ui/confirm-dialog-provider';
 import { verificationApi, authApi } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { Mail, ShieldCheck, KeyRound } from 'lucide-react';
@@ -61,6 +63,7 @@ const RISK_LEVEL_COLORS: Record<string, string> = {
 
 export default function VerifyPage() {
   const router = useRouter();
+  const confirmDialog = useConfirmDialog();
   const setAuth = useAuthStore((state) => state.setAuth);
 
   const [session, setSession] = useState<VerificationSession | null>(null);
@@ -142,7 +145,9 @@ export default function VerifyPage() {
       setEmailCooldown(60);
       setSuccess('验证码已发送到您的邮箱');
     } catch (err: any) {
-      setError(err.response?.data?.detail || '发送验证码失败');
+      const message = err.response?.data?.detail || '发送验证码失败';
+      setError(message);
+      toast.danger(message);
     } finally {
       setLoading(false);
     }
@@ -157,7 +162,9 @@ export default function VerifyPage() {
       const response = await verificationApi.verifyEmailCode(session.session_token, emailCode);
       await handleVerificationResponse(response.data, 'email_code');
     } catch (err: any) {
-      setError(err.response?.data?.detail || '验证失败');
+      const message = err.response?.data?.detail || '验证失败';
+      setError(message);
+      toast.danger(message);
     } finally {
       setLoading(false);
     }
@@ -172,7 +179,9 @@ export default function VerifyPage() {
       const response = await verificationApi.verifyTOTP(session.session_token, totpCode);
       await handleVerificationResponse(response.data, 'totp');
     } catch (err: any) {
-      setError(err.response?.data?.detail || '验证失败');
+      const message = err.response?.data?.detail || '验证失败';
+      setError(message);
+      toast.danger(message);
     } finally {
       setLoading(false);
     }
@@ -187,7 +196,9 @@ export default function VerifyPage() {
       const response = await verificationApi.verifyBackupCode(session.session_token, backupCode);
       await handleVerificationResponse(response.data, 'totp');
     } catch (err: any) {
-      setError(err.response?.data?.detail || '验证失败');
+      const message = err.response?.data?.detail || '验证失败';
+      setError(message);
+      toast.danger(message);
     } finally {
       setLoading(false);
     }
@@ -216,8 +227,11 @@ export default function VerifyPage() {
     } catch (err: any) {
       if (err.name === 'NotAllowedError') {
         setError('用户取消了操作');
+        toast.warning('用户取消了操作');
       } else {
-        setError(err.response?.data?.detail || '通行密钥验证失败');
+        const message = err.response?.data?.detail || '通行密钥验证失败';
+        setError(message);
+        toast.danger(message);
       }
     } finally {
       setLoading(false);
@@ -276,7 +290,15 @@ export default function VerifyPage() {
   const handleSkipVerification = async () => {
     if (!session) return;
 
-    if (!confirm('跳过验证后，您需要先完成邮箱验证和设置二次验证方式才能正常使用系统。确定要继续吗？')) {
+    const shouldSkip = await confirmDialog({
+      title: '确认跳过验证',
+      description: '跳过验证后，您需要先完成邮箱验证和设置二次验证方式才能正常使用系统。确定要继续吗？',
+      confirmText: '继续跳过',
+      cancelText: '取消',
+      status: 'warning',
+      confirmVariant: 'primary',
+    });
+    if (!shouldSkip) {
       return;
     }
 
@@ -308,7 +330,9 @@ export default function VerifyPage() {
       // Redirect to original destination (user will see restricted mode overlay in dashboard)
       router.push(session.redirect || '/dashboard');
     } catch (err: any) {
-      setError(err.response?.data?.detail || '跳过验证失败');
+      const message = err.response?.data?.detail || '跳过验证失败';
+      setError(message);
+      toast.danger(message);
     } finally {
       setSkipping(false);
     }

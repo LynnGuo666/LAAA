@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { toast } from '@heroui/react';
 import { userApi } from '@/lib/api';
 import { UIButton } from '@/components/ui/primitives';
+import { useConfirmDialog } from '@/components/ui/confirm-dialog-provider';
 import { formatDateTime } from '@/lib/date';
 
 interface Session {
@@ -21,6 +22,7 @@ interface Session {
 }
 
 export default function SessionsPage() {
+  const confirmDialog = useConfirmDialog();
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
   const [revoking, setRevoking] = useState(false);
@@ -41,7 +43,15 @@ export default function SessionsPage() {
   };
 
   const handleRevoke = async (id: number, deviceName: string) => {
-    if (!confirm(`确定要撤销 "${deviceName}" 的会话吗？`)) return;
+    const shouldRevoke = await confirmDialog({
+      title: '确认撤销会话',
+      description: `确定要撤销 "${deviceName}" 的会话吗？`,
+      confirmText: '撤销',
+      cancelText: '取消',
+      status: 'warning',
+      confirmVariant: 'danger',
+    });
+    if (!shouldRevoke) return;
 
     try {
       await userApi.revokeSession(id);
@@ -52,7 +62,15 @@ export default function SessionsPage() {
   };
 
   const handleRevokeOthers = async () => {
-    if (!confirm('确定要登出所有其他设备吗？')) return;
+    const shouldRevokeOthers = await confirmDialog({
+      title: '确认登出其他设备',
+      description: '确定要登出所有其他设备吗？',
+      confirmText: '确认登出',
+      cancelText: '取消',
+      status: 'warning',
+      confirmVariant: 'danger',
+    });
+    if (!shouldRevokeOthers) return;
 
     setRevoking(true);
     try {

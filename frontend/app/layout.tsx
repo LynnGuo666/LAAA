@@ -1,5 +1,6 @@
 import './globals.css'
 import type { Metadata } from 'next'
+import { ConfirmDialogProvider } from '@/components/ui/confirm-dialog-provider'
 import ToastProvider from './toast-provider'
 
 export const metadata: Metadata = {
@@ -14,7 +15,11 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body><ToastProvider>{children}</ToastProvider></body>
+      <body>
+        <ToastProvider>
+          <ConfirmDialogProvider>{children}</ConfirmDialogProvider>
+        </ToastProvider>
+      </body>
     </html>
   )
 }

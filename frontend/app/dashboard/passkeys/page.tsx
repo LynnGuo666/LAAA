@@ -7,6 +7,7 @@ import { formatDateTime } from '@/lib/date';
 import { useAuthStore } from '@/lib/store';
 import { Check, AlertTriangle } from 'lucide-react';
 import { UIButton, UIInput } from '@/components/ui/primitives';
+import { useConfirmDialog } from '@/components/ui/confirm-dialog-provider';
 import {
   isWebAuthnSupported,
   isPlatformAuthenticatorAvailable,
@@ -18,6 +19,7 @@ import {
 } from '@/lib/webauthn';
 
 export default function PasskeysPage() {
+  const confirmDialog = useConfirmDialog();
   const user = useAuthStore((s) => s.user);
   const [passkeys, setPasskeys] = useState<PasskeyCredential[]>([]);
   const [loading, setLoading] = useState(true);
@@ -127,7 +129,15 @@ export default function PasskeysPage() {
   };
 
   const handleDelete = async (id: number, name: string) => {
-    if (!confirm(`确定要删除通行密钥 "${name}" 吗？删除后将无法使用此通行密钥登录。`)) return;
+    const shouldDelete = await confirmDialog({
+      title: '确认删除通行密钥',
+      description: `确定要删除通行密钥 "${name}" 吗？删除后将无法使用此通行密钥登录。`,
+      confirmText: '删除',
+      cancelText: '取消',
+      status: 'danger',
+      confirmVariant: 'danger',
+    });
+    if (!shouldDelete) return;
 
     try {
       await passkeyApi.delete(id);

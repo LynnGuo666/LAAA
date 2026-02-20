@@ -2,6 +2,7 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { toast } from '@heroui/react';
 import Link from 'next/link';
 import { authApi, passkeyApi, API_URL, verificationApi } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
@@ -200,6 +201,7 @@ function LoginContent() {
       }
       const errorMsg = err.response?.data?.detail || err.message || '登录失败，请重试';
       setError(errorMsg);
+      toast.danger(errorMsg);
     } finally {
       setLoading(false);
     }
@@ -208,6 +210,7 @@ function LoginContent() {
   const handlePasskeyLogin = async () => {
     if (!webAuthnSupported) {
       setError('您的浏览器不支持通行密钥');
+      toast.warning('您的浏览器不支持通行密钥');
       return;
     }
 
@@ -279,10 +282,13 @@ function LoginContent() {
       }
       if (err.name === 'NotAllowedError') {
         setError('用户取消了操作');
+        toast.warning('用户取消了操作');
       } else if (err.response?.data?.detail) {
         setError(err.response.data.detail);
+        toast.danger(err.response.data.detail);
       } else {
         setError('通行密钥登录失败，请重试');
+        toast.danger('通行密钥登录失败，请重试');
       }
     } finally {
       setPasskeyLoading(false);
