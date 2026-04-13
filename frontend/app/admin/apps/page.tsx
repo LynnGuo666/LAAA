@@ -1,178 +1,228 @@
-'use client';
+'use client'
 
-import { useEffect, useState } from 'react';
-import { AlertDialog, Button, Card, CheckboxGroup, Checkbox, Chip, Description, Input, Label, RadioGroup, TextArea, TextField, toast } from '@heroui/react';
-import { clientApi, groupApi } from '@/lib/api';
-import SidePanel from '@/components/SidePanel';
-import { useAuthStore } from '@/lib/store';
-import { isAdmin } from '@/lib/authz';
-import { UICheckbox, UIRadio } from '@/components/ui/primitives';
-import { useConfirmDialog } from '@/components/ui/confirm-dialog-provider';
+import { useEffect, useState } from 'react'
+import {
+  Button,
+  Card,
+  Checkbox,
+  CheckboxGroup,
+  Chip,
+  Input,
+  RadioGroup,
+  TextArea,
+  toast,
+} from '@heroui/react'
+import {
+  AdminEmptyState,
+  AdminFieldGroup,
+  AdminFormField,
+  AdminLoadingState,
+  AdminModalForm,
+  AdminNotice,
+  AdminPageHeader,
+  AdminSection,
+  EntityAvatar,
+} from '@/components/admin/admin-ui'
+import SidePanel from '@/components/SidePanel'
+import { UICheckbox, UIRadio } from '@/components/ui/primitives'
+import { useConfirmDialog } from '@/components/ui/confirm-dialog-provider'
+import { clientApi, groupApi } from '@/lib/api'
+import { isAdmin } from '@/lib/authz'
+import { useAuthStore } from '@/lib/store'
 
 interface Client {
-  id: number;
-  client_id: string;
-  name: string;
-  description?: string;
-  logo?: string;
-  website_url?: string;
-  redirect_uris: string[];
-  allowed_scopes: string[];
-  trusted: boolean;
-  default_access: boolean;
-  created_at: string;
+  id: number
+  client_id: string
+  name: string
+  description?: string
+  logo?: string
+  website_url?: string
+  redirect_uris: string[]
+  allowed_scopes: string[]
+  trusted: boolean
+  default_access: boolean
+  created_at: string
 }
 
 interface Group {
-  id: number;
-  name: string;
-  description?: string;
+  id: number
+  name: string
+  description?: string
 }
 
-// 可用的 OAuth Scopes
 const AVAILABLE_SCOPES = [
   { value: 'profile', label: '基本信息 (profile)', description: '用户名、头像等基本信息' },
-  { value: 'email', label: '邮箱地址 (email)', description: '用户的邮箱地址' },
-  { value: 'openid', label: 'OpenID Connect (openid)', description: 'OpenID Connect 标准' },
+  { value: 'email', label: '邮箱地址 (email)', description: '用户邮箱地址' },
+  { value: 'openid', label: 'OpenID Connect (openid)', description: 'OIDC 标准身份范围' },
   { value: 'read', label: '读取权限 (read)', description: '读取用户数据' },
   { value: 'write', label: '写入权限 (write)', description: '修改用户数据' },
-];
+]
 
 export default function AppsPage() {
-  const confirmDialog = useConfirmDialog();
-  const user = useAuthStore((s) => s.user);
-  const canManageClients = isAdmin(user);
-  const [clients, setClients] = useState<Client[]>([]);
-  const [groups, setGroups] = useState<Group[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [creating, setCreating] = useState(false);
-  const [updating, setUpdating] = useState(false);
-  const [resettingClientId, setResettingClientId] = useState<number | null>(null);
-  const [deletingClientId, setDeletingClientId] = useState<number | null>(null);
-  const [accessControlLoading, setAccessControlLoading] = useState(false);
-  const [accessControlSaving, setAccessControlSaving] = useState(false);
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [editingClient, setEditingClient] = useState<Client | null>(null);
-  const [showAccessControl, setShowAccessControl] = useState(false);
-  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  const confirmDialog = useConfirmDialog()
+  const user = useAuthStore((state) => state.user)
+  const canManageClients = isAdmin(user)
+
+  const [clients, setClients] = useState<Client[]>([])
+  const [groups, setGroups] = useState<Group[]>([])
+  const [loading, setLoading] = useState(true)
+  const [pageError, setPageError] = useState<string | null>(null)
+
+  const [creating, setCreating] = useState(false)
+  const [updating, setUpdating] = useState(false)
+  const [resettingClientId, setResettingClientId] = useState<number | null>(null)
+  const [deletingClientId, setDeletingClientId] = useState<number | null>(null)
+  const [accessControlLoading, setAccessControlLoading] = useState(false)
+  const [accessControlSaving, setAccessControlSaving] = useState(false)
+
+  const [showCreateModal, setShowCreateModal] = useState(false)
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [editingClient, setEditingClient] = useState<Client | null>(null)
+  const [showAccessControl, setShowAccessControl] = useState(false)
+  const [selectedClient, setSelectedClient] = useState<Client | null>(null)
+
+  const [formError, setFormError] = useState<string | null>(null)
+  const [accessControlError, setAccessControlError] = useState<string | null>(null)
+
   const [newClientCredentials, setNewClientCredentials] = useState<{
-    client_id: string;
-    client_secret: string;
-  } | null>(null);
-  const [showNewSecret, setShowNewSecret] = useState(true);
-  const [copyStatus, setCopyStatus] = useState<string | null>(null);
+    client_id: string
+    client_secret: string
+  } | null>(null)
+  const [showNewSecret, setShowNewSecret] = useState(true)
+  const [copyStatus, setCopyStatus] = useState<string | null>(null)
   const [accessControl, setAccessControl] = useState({
     allowed_group_ids: [] as number[],
     denied_group_ids: [] as number[],
-  });
+  })
   const [formData, setFormData] = useState({
     name: '',
     description: '',
     logo: '',
     website_url: '',
     redirect_uris: '',
-    allowed_scopes: ['profile', 'email'],  // 默认选中
+    allowed_scopes: ['profile', 'email'],
     trusted: false,
     default_access: false,
-  });
-
-  useEffect(() => {
-    if (!canManageClients) return;
-    loadClients();
-    loadGroups();
-  }, [canManageClients]);
-
-  if (!canManageClients) {
-    return (
-      <div className="surface p-6">
-        <h1 className="text-xl font-semibold mb-2">无权限</h1>
-        <p className="text-gray-600">该页面仅管理员可访问。</p>
-      </div>
-    );
-  }
+  })
 
   const loadClients = async () => {
     try {
-      const response = await clientApi.list();
-      setClients(response.data);
-    } catch (err) {
-      console.error('加载应用列表失败', err);
+      const response = await clientApi.list()
+      setClients(response.data)
+    } catch (err: any) {
+      setPageError(err.response?.data?.detail || '加载应用列表失败')
+      setClients([])
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   const loadGroups = async () => {
     try {
-      const response = await groupApi.list();
-      setGroups(response.data);
-    } catch (err) {
-      console.error('加载用户组列表失败', err);
+      const response = await groupApi.list()
+      setGroups(response.data)
+    } catch {
+      setGroups([])
     }
-  };
+  }
+
+  useEffect(() => {
+    if (!canManageClients) return
+    setPageError(null)
+    void Promise.all([loadClients(), loadGroups()])
+  }, [canManageClients])
+
+  const resetForm = () => {
+    setFormError(null)
+    setFormData({
+      name: '',
+      description: '',
+      logo: '',
+      website_url: '',
+      redirect_uris: '',
+      allowed_scopes: ['profile', 'email'],
+      trusted: false,
+      default_access: false,
+    })
+  }
+
+  const closeCreateModal = () => {
+    setShowCreateModal(false)
+    resetForm()
+  }
+
+  const closeEditModal = () => {
+    setShowEditModal(false)
+    setEditingClient(null)
+    resetForm()
+  }
 
   const copyToClipboard = async (text: string, label: string) => {
     try {
-      await navigator.clipboard.writeText(text);
-      setCopyStatus(`${label} 已复制`);
-      window.setTimeout(() => setCopyStatus(null), 1500);
+      await navigator.clipboard.writeText(text)
+      setCopyStatus(`${label} 已复制`)
+      toast(`${label} 已复制`)
+      window.setTimeout(() => setCopyStatus(null), 1500)
     } catch {
-      setCopyStatus('复制失败，请手动复制');
-      window.setTimeout(() => setCopyStatus(null), 2000);
+      setCopyStatus('复制失败，请手动复制')
+      toast('复制失败，请手动复制')
+      window.setTimeout(() => setCopyStatus(null), 2000)
     }
-  };
+  }
 
-  const handleCreate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (creating) return;
-
+  const validateForm = () => {
+    if (!formData.name.trim()) {
+      return '应用名称不能为空'
+    }
     if (formData.allowed_scopes.length === 0) {
-      toast('请至少选择一个权限范围');
-      return;
+      return '请至少选择一个权限范围'
+    }
+    if (formData.redirect_uris.split('\n').filter((item) => item.trim()).length === 0) {
+      return '请至少填写一个回调地址'
+    }
+    return null
+  }
+
+  const handleCreate = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const validationError = validateForm()
+    if (validationError) {
+      setFormError(validationError)
+      return
     }
 
     try {
-      setCreating(true);
+      setCreating(true)
+      setFormError(null)
       const response = await clientApi.create({
-        name: formData.name,
+        name: formData.name.trim(),
         description: formData.description || undefined,
         logo: formData.logo || undefined,
         website_url: formData.website_url || undefined,
-        redirect_uris: formData.redirect_uris.split('\n').filter(u => u.trim()),
+        redirect_uris: formData.redirect_uris.split('\n').filter((item) => item.trim()),
         allowed_scopes: formData.allowed_scopes,
         trusted: formData.trusted,
         default_access: formData.default_access,
-      });
-
+      })
       setNewClientCredentials({
         client_id: response.data.client_id,
         client_secret: response.data.client_secret,
-      });
-      setShowNewSecret(true);
-      setCopyStatus(null);
-
-      setShowCreateModal(false);
-      setFormData({
-        name: '',
-        description: '',
-        logo: '',
-        website_url: '',
-        redirect_uris: '',
-        allowed_scopes: ['profile', 'email'],
-        trusted: false,
-        default_access: false,
-      });
-      await loadClients();
+      })
+      setShowNewSecret(true)
+      setCopyStatus(null)
+      closeCreateModal()
+      await loadClients()
+      toast('应用已创建')
     } catch (err: any) {
-      toast('创建应用失败: ' + (err.response?.data?.detail || '未知错误'));
+      setFormError(err.response?.data?.detail || '创建应用失败')
     } finally {
-      setCreating(false);
+      setCreating(false)
     }
-  };
+  }
 
   const openEditForm = (client: Client) => {
-    setEditingClient(client);
+    setEditingClient(client)
+    setFormError(null)
     setFormData({
       name: client.name,
       description: client.description || '',
@@ -182,546 +232,600 @@ export default function AppsPage() {
       allowed_scopes: client.allowed_scopes,
       trusted: client.trusted,
       default_access: client.default_access,
-    });
-    setShowEditModal(true);
-  };
+    })
+    setShowEditModal(true)
+  }
 
-  const handleUpdate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingClient) return;
-    if (updating) return;
+  const handleUpdate = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (!editingClient) return
 
-    if (formData.allowed_scopes.length === 0) {
-      toast('请至少选择一个权限范围');
-      return;
+    const validationError = validateForm()
+    if (validationError) {
+      setFormError(validationError)
+      return
     }
 
     try {
-      setUpdating(true);
+      setUpdating(true)
+      setFormError(null)
       await clientApi.update(editingClient.id, {
-        name: formData.name,
+        name: formData.name.trim(),
         description: formData.description || undefined,
         logo: formData.logo || undefined,
         website_url: formData.website_url || undefined,
-        redirect_uris: formData.redirect_uris.split('\n').filter(u => u.trim()),
+        redirect_uris: formData.redirect_uris.split('\n').filter((item) => item.trim()),
         allowed_scopes: formData.allowed_scopes,
         trusted: formData.trusted,
         default_access: formData.default_access,
-      });
-
-      toast('应用更新成功！');
-      setShowEditModal(false);
-      setEditingClient(null);
-      setFormData({
-        name: '',
-        description: '',
-        logo: '',
-        website_url: '',
-        redirect_uris: '',
-        allowed_scopes: ['profile', 'email'],
-        trusted: false,
-        default_access: false,
-      });
-      await loadClients();
+      })
+      closeEditModal()
+      await loadClients()
+      toast('应用已更新')
     } catch (err: any) {
-      toast('更新应用失败: ' + (err.response?.data?.detail || '未知错误'));
+      setFormError(err.response?.data?.detail || '更新应用失败')
     } finally {
-      setUpdating(false);
+      setUpdating(false)
     }
-  };
+  }
 
-  const handleDelete = async (id: number, name: string) => {
-    if (deletingClientId) return;
+  const handleDelete = async (client: Client) => {
     const shouldDelete = await confirmDialog({
       title: '确认删除应用',
-      description: `确定要删除应用 "${name}" 吗？`,
+      description: `确定要删除应用 ${client.name} 吗？`,
       confirmText: '删除应用',
       cancelText: '取消',
       status: 'danger',
       confirmVariant: 'danger',
-    });
-    if (!shouldDelete) return;
+    })
+
+    if (!shouldDelete) return
 
     try {
-      setDeletingClientId(id);
-      await clientApi.delete(id);
-      await loadClients();
-    } catch (err) {
-      toast('删除应用失败');
+      setDeletingClientId(client.id)
+      await clientApi.delete(client.id)
+      await loadClients()
+      toast('应用已删除')
+    } catch (err: any) {
+      setPageError(err.response?.data?.detail || '删除应用失败')
     } finally {
-      setDeletingClientId(null);
+      setDeletingClientId(null)
     }
-  };
+  }
 
   const openAccessControl = async (client: Client) => {
-    setSelectedClient(client);
-    setShowAccessControl(true);
-    setAccessControlLoading(true);
+    setSelectedClient(client)
+    setShowAccessControl(true)
+    setAccessControlError(null)
+    setAccessControlLoading(true)
+
     try {
-      const response = await clientApi.getAccessControl(client.id);
-      const data = response.data;
+      const response = await clientApi.getAccessControl(client.id)
+      const data = response.data
       setAccessControl({
         allowed_group_ids: Array.isArray(data.allowed_groups)
-          ? data.allowed_groups.map((g: Group) => g.id)
+          ? data.allowed_groups.map((group: Group) => group.id)
           : [],
         denied_group_ids: Array.isArray(data.denied_groups)
-          ? data.denied_groups.map((g: Group) => g.id)
+          ? data.denied_groups.map((group: Group) => group.id)
           : [],
-      });
-    } catch (err) {
-      console.error('加载访问控制失败', err);
-      toast('加载访问控制失败');
+      })
+    } catch (err: any) {
+      setAccessControlError(err.response?.data?.detail || '加载访问控制失败')
     } finally {
-      setAccessControlLoading(false);
+      setAccessControlLoading(false)
     }
-  };
+  }
+
+  const closeAccessControl = () => {
+    setShowAccessControl(false)
+    setSelectedClient(null)
+    setAccessControlError(null)
+    setAccessControl({ allowed_group_ids: [], denied_group_ids: [] })
+  }
 
   const handleResetSecret = async (client: Client) => {
-    if (resettingClientId) return;
     const shouldReset = await confirmDialog({
       title: '确认重置密钥',
-      description: `确定要重置 "${client.name}" 的 Client Secret 吗？重置后旧密钥将立即失效。`,
+      description: `确定要重置 ${client.name} 的 Client Secret 吗？旧密钥会立即失效。`,
       confirmText: '重置密钥',
       cancelText: '取消',
       status: 'warning',
       confirmVariant: 'danger',
-    });
-    if (!shouldReset) return;
+    })
+
+    if (!shouldReset) return
+
     try {
-      setResettingClientId(client.id);
-      const response = await clientApi.resetSecret(client.id);
+      setResettingClientId(client.id)
+      const response = await clientApi.resetSecret(client.id)
       setNewClientCredentials({
         client_id: response.data.client_id,
         client_secret: response.data.client_secret,
-      });
-      setShowNewSecret(true);
-      setCopyStatus(null);
+      })
+      setShowNewSecret(true)
+      setCopyStatus(null)
+      toast('密钥已重置')
     } catch (err: any) {
-      toast('重置密钥失败: ' + (err.response?.data?.detail || '未知错误'));
+      setPageError(err.response?.data?.detail || '重置密钥失败')
     } finally {
-      setResettingClientId(null);
+      setResettingClientId(null)
     }
-  };
+  }
 
   const handleAccessControlSave = async () => {
-    if (!selectedClient) return;
-    if (accessControlSaving) return;
+    if (!selectedClient) return
 
-    // 检查是否有重复
-    const overlap = accessControl.allowed_group_ids.filter(id =>
-      accessControl.denied_group_ids.includes(id)
-    );
+    const overlap = accessControl.allowed_group_ids.filter((id) =>
+      accessControl.denied_group_ids.includes(id),
+    )
     if (overlap.length > 0) {
-      toast('同一个用户组不能同时在允许和禁止列表中');
-      return;
+      setAccessControlError('同一个用户组不能同时出现在允许和禁止列表中')
+      return
     }
 
     try {
-      setAccessControlSaving(true);
-      await clientApi.updateAccessControl(selectedClient.id, accessControl);
-      toast('访问控制更新成功');
-      setShowAccessControl(false);
-      setSelectedClient(null);
+      setAccessControlSaving(true)
+      setAccessControlError(null)
+      await clientApi.updateAccessControl(selectedClient.id, accessControl)
+      toast('访问控制已更新')
+      closeAccessControl()
     } catch (err: any) {
-      toast('更新失败: ' + (err.response?.data?.detail || '未知错误'));
+      setAccessControlError(err.response?.data?.detail || '更新访问控制失败')
     } finally {
-      setAccessControlSaving(false);
+      setAccessControlSaving(false)
     }
-  };
+  }
 
   const toggleGroupInList = (groupId: number, listType: 'allowed' | 'denied') => {
     if (listType === 'allowed') {
-      setAccessControl(prev => ({
-        ...prev,
-        allowed_group_ids: prev.allowed_group_ids.includes(groupId)
-          ? prev.allowed_group_ids.filter(id => id !== groupId)
-          : [...prev.allowed_group_ids, groupId]
-      }));
-    } else {
-      setAccessControl(prev => ({
-        ...prev,
-        denied_group_ids: prev.denied_group_ids.includes(groupId)
-          ? prev.denied_group_ids.filter(id => id !== groupId)
-          : [...prev.denied_group_ids, groupId]
-      }));
+      setAccessControl((previous) => ({
+        ...previous,
+        denied_group_ids: previous.denied_group_ids.filter((id) => id !== groupId),
+        allowed_group_ids: previous.allowed_group_ids.includes(groupId)
+          ? previous.allowed_group_ids.filter((id) => id !== groupId)
+          : [...previous.allowed_group_ids, groupId],
+      }))
+      return
     }
-  };
+
+    setAccessControl((previous) => ({
+      ...previous,
+      allowed_group_ids: previous.allowed_group_ids.filter((id) => id !== groupId),
+      denied_group_ids: previous.denied_group_ids.includes(groupId)
+        ? previous.denied_group_ids.filter((id) => id !== groupId)
+        : [...previous.denied_group_ids, groupId],
+    }))
+  }
+
+  const renderAppFormFields = () => (
+    <>
+      {formError ? <AdminNotice tone="danger" description={formError} /> : null}
+
+      <AdminFormField label="应用名称" isRequired>
+        <Input
+          type="text"
+          value={formData.name}
+          onChange={(event) =>
+            setFormData((previous) => ({ ...previous, name: event.target.value }))
+          }
+        />
+      </AdminFormField>
+
+      <AdminFormField label="应用描述">
+        <TextArea
+          rows={3}
+          value={formData.description}
+          onChange={(event) =>
+            setFormData((previous) => ({ ...previous, description: event.target.value }))
+          }
+        />
+      </AdminFormField>
+
+      <AdminFormField
+        label="应用 Logo URL"
+        description="Logo 会显示在授权页面上。"
+      >
+        <Input
+          type="url"
+          placeholder="https://example.com/logo.png"
+          value={formData.logo}
+          onChange={(event) =>
+            setFormData((previous) => ({ ...previous, logo: event.target.value }))
+          }
+        />
+      </AdminFormField>
+
+      <AdminFormField label="应用官网">
+        <Input
+          type="url"
+          placeholder="https://example.com"
+          value={formData.website_url}
+          onChange={(event) =>
+            setFormData((previous) => ({ ...previous, website_url: event.target.value }))
+          }
+        />
+      </AdminFormField>
+
+      <AdminFormField
+        label="回调地址"
+        description="每行一个回调地址。"
+        isRequired
+      >
+        <TextArea
+          rows={4}
+          className="font-mono text-sm"
+          placeholder={`http://localhost:3000/callback\nhttps://myapp.com/callback`}
+          value={formData.redirect_uris}
+          onChange={(event) =>
+            setFormData((previous) => ({ ...previous, redirect_uris: event.target.value }))
+          }
+        />
+      </AdminFormField>
+
+      <AdminFieldGroup
+        label="权限范围"
+        description={`已选择 ${formData.allowed_scopes.length} 项权限。`}
+      >
+        <CheckboxGroup
+          aria-label="权限范围"
+          value={formData.allowed_scopes}
+          onChange={(value) =>
+            setFormData((previous) => ({
+              ...previous,
+              allowed_scopes: Array.isArray(value) ? value.map(String) : [],
+            }))
+          }
+          className="space-y-2"
+        >
+          {AVAILABLE_SCOPES.map((scope) => (
+            <UICheckbox
+              key={scope.value}
+              value={scope.value}
+              className="m-0 max-w-full rounded-2xl border border-default-200/70 px-3 py-3"
+            >
+              <div className="min-w-0">
+                <p className="font-medium text-foreground">{scope.label}</p>
+                <p className="mt-1 text-xs text-default-500">{scope.description}</p>
+              </div>
+            </UICheckbox>
+          ))}
+        </CheckboxGroup>
+      </AdminFieldGroup>
+
+      <AdminFieldGroup label="信任应用">
+        <Checkbox
+          variant="secondary"
+          isSelected={formData.trusted}
+          onChange={(isSelected) =>
+            setFormData((previous) => ({ ...previous, trusted: isSelected }))
+          }
+        >
+          <Checkbox.Control>
+            <Checkbox.Indicator />
+          </Checkbox.Control>
+          <Checkbox.Content>信任的应用将跳过授权确认</Checkbox.Content>
+        </Checkbox>
+      </AdminFieldGroup>
+
+      <AdminFieldGroup
+        label="默认访问"
+        description="当未配置用户或用户组权限时，将采用这里的默认策略。"
+      >
+        <RadioGroup
+          orientation="vertical"
+          value={formData.default_access ? 'allow' : 'deny'}
+          onChange={(value) =>
+            setFormData((previous) => ({
+              ...previous,
+              default_access: value === 'allow',
+            }))
+          }
+          className="space-y-2"
+        >
+          <UIRadio value="allow">允许</UIRadio>
+          <UIRadio value="deny">拒绝</UIRadio>
+        </RadioGroup>
+      </AdminFieldGroup>
+    </>
+  )
+
+  if (!canManageClients) {
+    return (
+      <AdminNotice tone="danger" title="无权限" description="该页面仅管理员可访问。" />
+    )
+  }
 
   if (loading) {
-    return <div className="text-center py-12 text-gray-600">加载中...</div>;
+    return <AdminLoadingState label="正在加载应用..." />
   }
 
   return (
-    <div className="px-4 sm:px-0 animate-fade-in">
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-6 sm:mb-8">
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">我的应用</h1>
-        <Button onPress={() => setShowCreateModal(true)} className="w-full sm:w-auto" variant="primary" isDisabled={creating || updating || accessControlSaving}>+ 创建应用</Button>
-      </div>
+    <div className="space-y-6">
+      <AdminPageHeader
+        title="应用管理"
+        description="统一管理 OAuth 应用、回调地址、授权范围和访问控制策略。"
+        actions={
+          <Button variant="primary" onPress={() => setShowCreateModal(true)}>
+            创建应用
+          </Button>
+        }
+      />
 
-      {newClientCredentials && (
-        <div className="surface p-4 sm:p-6 mb-6 sm:mb-8 border-l-4 border-yellow-400">
-          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
-            <div className="flex-1">
-              <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100">应用密钥（仅本次显示）</h2>
-              <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 mt-1">
-                请立即保存 `Client Secret`，关闭页面后将无法再次查看（可在此页面重置）。
-              </p>
+      {pageError ? <AdminNotice tone="danger" description={pageError} /> : null}
+
+      {newClientCredentials ? (
+        <AdminSection className="border-warning/40">
+          <Card.Header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <Card.Title>应用密钥仅本次显示</Card.Title>
+              <Card.Description>
+                请立即保存 Client Secret。关闭后无法再次查看，但可以在此页面重置。
+              </Card.Description>
             </div>
-            <Button type="button"
-            className="text-xs sm:text-sm" variant="secondary" onPress={() => setNewClientCredentials(null)}>
+            <Button variant="secondary" onPress={() => setNewClientCredentials(null)}>
               关闭
             </Button>
-          </div>
-
-          <div className="mt-4 space-y-3">
-            <div className="flex flex-col gap-2">
-              <div className="text-xs sm:text-sm font-medium">Client ID</div>
+          </Card.Header>
+          <Card.Content className="space-y-4 p-6 pt-0">
+            <AdminFieldGroup label="Client ID">
               <div className="flex items-center gap-2">
-                <code className="bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded font-mono text-xs break-all select-all flex-1">
+                <code className="flex-1 rounded-xl bg-default-100 px-3 py-2 text-xs font-medium">
                   {newClientCredentials.client_id}
                 </code>
-                <Button type="button"
-                className="text-xs shrink-0" variant="secondary" onPress={() => copyToClipboard(newClientCredentials.client_id, 'Client ID')}>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onPress={() =>
+                    void copyToClipboard(newClientCredentials.client_id, 'Client ID')
+                  }
+                >
                   复制
                 </Button>
               </div>
-            </div>
+            </AdminFieldGroup>
 
-            <div className="flex flex-col gap-2">
-              <div className="text-xs sm:text-sm font-medium">Client Secret</div>
-              <div className="flex items-center gap-2">
-                <code className="bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded font-mono text-xs break-all select-all flex-1">
-                  {showNewSecret ? newClientCredentials.client_secret : '••••••••••••••••'}
+            <AdminFieldGroup label="Client Secret">
+              <div className="flex flex-wrap items-center gap-2">
+                <code className="min-w-0 flex-1 rounded-xl bg-default-100 px-3 py-2 text-xs font-medium break-all">
+                  {showNewSecret
+                    ? newClientCredentials.client_secret
+                    : '••••••••••••••••'}
                 </code>
-                <Button type="button"
-                className="text-xs shrink-0" variant="secondary" onPress={() => setShowNewSecret((v) => !v)}>{showNewSecret ? '隐藏' : '显示'}</Button>
-                <Button type="button"
-                className="text-xs shrink-0" variant="secondary" onPress={() => copyToClipboard(newClientCredentials.client_secret, 'Client Secret')}>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onPress={() => setShowNewSecret((value) => !value)}
+                >
+                  {showNewSecret ? '隐藏' : '显示'}
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onPress={() =>
+                    void copyToClipboard(newClientCredentials.client_secret, 'Client Secret')
+                  }
+                >
                   复制
                 </Button>
               </div>
-            </div>
+              {copyStatus ? <p className="text-xs text-default-500">{copyStatus}</p> : null}
+            </AdminFieldGroup>
+          </Card.Content>
+        </AdminSection>
+      ) : null}
 
-            {copyStatus && (
-              <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-300">
-                {copyStatus}
-              </div>
-            )}
-          </div>
+      {clients.length === 0 ? (
+        <AdminEmptyState
+          title="还没有应用"
+          description="创建一个应用后，就能配置 OAuth 回调和访问控制。"
+          action={
+            <Button variant="primary" onPress={() => setShowCreateModal(true)}>
+              创建应用
+            </Button>
+          }
+        />
+      ) : (
+        <div className="grid gap-4 xl:grid-cols-2">
+          {clients.map((client) => (
+            <AdminSection key={client.id}>
+              <Card.Header className="flex items-start justify-between gap-4">
+                <div className="flex items-start gap-3">
+                  <EntityAvatar src={client.logo} name={client.name} rounded="lg" />
+                  <div className="min-w-0">
+                    <Card.Title>{client.name}</Card.Title>
+                    {client.description ? (
+                      <Card.Description className="mt-1">
+                        {client.description}
+                      </Card.Description>
+                    ) : null}
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {client.trusted ? (
+                    <Chip color="success" variant="soft" size="sm">
+                      信任应用
+                    </Chip>
+                  ) : null}
+                  <Chip
+                    color={client.default_access ? 'accent' : 'default'}
+                    variant="soft"
+                    size="sm"
+                  >
+                    默认{client.default_access ? '允许' : '拒绝'}
+                  </Chip>
+                </div>
+              </Card.Header>
+
+              <Card.Content className="space-y-3 px-6 pb-0">
+                <div className="space-y-1 text-sm text-default-600">
+                  <p>
+                    Client ID：
+                    <code className="ml-2 rounded-lg bg-default-100 px-2 py-1 text-xs font-medium">
+                      {client.client_id}
+                    </code>
+                  </p>
+                  <p>权限范围：{client.allowed_scopes.join('、')}</p>
+                  {client.website_url ? <p>官网：{client.website_url}</p> : null}
+                </div>
+              </Card.Content>
+
+              <Card.Footer className="flex flex-wrap gap-2">
+                <Button variant="primary" size="sm" onPress={() => openEditForm(client)}>
+                  编辑
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  isPending={resettingClientId === client.id}
+                  isDisabled={resettingClientId === client.id}
+                  onPress={() => void handleResetSecret(client)}
+                >
+                  重置密钥
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  isPending={accessControlLoading && selectedClient?.id === client.id}
+                  isDisabled={accessControlLoading && selectedClient?.id === client.id}
+                  onPress={() => void openAccessControl(client)}
+                >
+                  访问控制
+                </Button>
+                <Button
+                  variant="danger"
+                  size="sm"
+                  isPending={deletingClientId === client.id}
+                  isDisabled={deletingClientId === client.id}
+                  onPress={() => void handleDelete(client)}
+                >
+                  删除
+                </Button>
+              </Card.Footer>
+            </AdminSection>
+          ))}
         </div>
       )}
 
-      <div className="flex flex-col lg:flex-row gap-6">
-        <section className="flex-1 space-y-4">
-          {clients.length === 0 ? (
-            <Card>
-              <Card.Content className="py-12 text-center">
-                <p className="text-gray-500">还没有应用，创建一个开始使用吧！</p>
-              </Card.Content>
-            </Card>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {clients.map((client) => (
-                <Card key={client.id}>
-                  <Card.Header>
-                    <div className="flex items-start gap-3">
-                      {client.logo ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={client.logo}
-                          alt={client.name}
-                          className="h-10 w-10 rounded-lg border border-gray-200 dark:border-gray-700 shrink-0 object-cover"
-                        />
-                      ) : (
-                        <div className="h-10 w-10 rounded-lg bg-blue-500 flex items-center justify-center text-white text-lg font-bold shrink-0">
-                          {client.name.charAt(0).toUpperCase()}
-                        </div>
-                      )}
-                      <div className="min-w-0 flex-1">
-                        <Card.Title className="truncate">{client.name}</Card.Title>
-                        {client.description && (
-                          <Card.Description className="line-clamp-2">{client.description}</Card.Description>
-                        )}
+      <SidePanel
+        title={selectedClient ? `访问控制：${selectedClient.name}` : '访问控制'}
+        open={showAccessControl && !!selectedClient}
+        onClose={closeAccessControl}
+      >
+        {!selectedClient ? null : accessControlLoading ? (
+          <AdminLoadingState label="正在加载访问控制..." className="border-0 p-0 shadow-none" />
+        ) : (
+          <div className="space-y-6">
+            {accessControlError ? (
+              <AdminNotice tone="danger" description={accessControlError} />
+            ) : null}
+
+            <AdminNotice
+              tone="accent"
+              description="允许列表与禁止列表互斥；同一个用户组不会同时出现在两边。"
+            />
+
+            <AdminFieldGroup
+              label="允许访问（白名单）"
+              description="这些用户组的成员可以访问此应用。"
+            >
+              <AdminSection className="border-dashed">
+                <Card.Content className="max-h-72 space-y-2 overflow-y-auto p-4">
+                  {groups.map((group) => (
+                    <UICheckbox
+                      key={group.id}
+                      className="m-0 max-w-full rounded-2xl border border-default-200/70 px-3 py-3"
+                      isSelected={accessControl.allowed_group_ids.includes(group.id)}
+                      onChange={() => toggleGroupInList(group.id, 'allowed')}
+                    >
+                      <div className="min-w-0">
+                        <p className="font-medium text-foreground">{group.name}</p>
+                        {group.description ? (
+                          <p className="mt-1 text-xs text-default-500">{group.description}</p>
+                        ) : null}
                       </div>
-                    </div>
-                    <div className="flex gap-2 flex-wrap mt-3">
-                      {client.trusted && <Chip color="success" variant="soft" size="sm">信任应用</Chip>}
-                      <Chip color={client.default_access ? 'accent' : 'default'} variant="soft" size="sm">
-                        默认{client.default_access ? '允许' : '拒绝'}
-                      </Chip>
-                    </div>
-                  </Card.Header>
-                  <Card.Content className="space-y-2 text-xs text-gray-600 dark:text-gray-300">
-                    <p>
-                      <span className="font-medium text-gray-900 dark:text-gray-100">Client ID: </span>
-                      <code className="bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded font-mono break-all select-all">
-                        {client.client_id}
-                      </code>
-                    </p>
-                    <p className="truncate">
-                      <span className="font-medium text-gray-900 dark:text-gray-100">权限范围: </span>
-                      {client.allowed_scopes.join(', ')}
-                    </p>
-                  </Card.Content>
-                  <Card.Footer className="flex flex-wrap gap-2">
-                    <Button onPress={() => openEditForm(client)} size="sm" variant="secondary" isDisabled={creating || updating || accessControlSaving || deletingClientId === client.id || resettingClientId === client.id}>
-                      编辑
-                    </Button>
-                    <Button onPress={() => handleResetSecret(client)} size="sm" variant="secondary" isDisabled={creating || updating || accessControlSaving || resettingClientId === client.id || deletingClientId === client.id} isPending={resettingClientId === client.id}>
-                      {resettingClientId === client.id ? '重置中' : '重置密钥'}
-                    </Button>
-                    <Button onPress={() => openAccessControl(client)} size="sm" variant="secondary" isDisabled={creating || updating || accessControlSaving || accessControlLoading} isPending={accessControlLoading && selectedClient?.id === client.id}>
-                      {accessControlLoading && selectedClient?.id === client.id ? '加载中' : '访问控制'}
-                    </Button>
-                    <Button onPress={() => handleDelete(client.id, client.name)} size="sm" variant="danger" isDisabled={creating || updating || accessControlSaving || deletingClientId === client.id || resettingClientId === client.id} isPending={deletingClientId === client.id}>
-                      {deletingClientId === client.id ? '删除中' : '删除'}
-                    </Button>
-                  </Card.Footer>
-                </Card>
-              ))}
+                    </UICheckbox>
+                  ))}
+                </Card.Content>
+              </AdminSection>
+            </AdminFieldGroup>
+
+            <AdminFieldGroup
+              label="禁止访问（黑名单）"
+              description="这些用户组的成员会被拒绝访问。"
+            >
+              <AdminSection className="border-dashed">
+                <Card.Content className="max-h-72 space-y-2 overflow-y-auto p-4">
+                  {groups.map((group) => (
+                    <UICheckbox
+                      key={group.id}
+                      className="m-0 max-w-full rounded-2xl border border-default-200/70 px-3 py-3"
+                      isSelected={accessControl.denied_group_ids.includes(group.id)}
+                      onChange={() => toggleGroupInList(group.id, 'denied')}
+                    >
+                      <div className="min-w-0">
+                        <p className="font-medium text-foreground">{group.name}</p>
+                        {group.description ? (
+                          <p className="mt-1 text-xs text-default-500">{group.description}</p>
+                        ) : null}
+                      </div>
+                    </UICheckbox>
+                  ))}
+                </Card.Content>
+              </AdminSection>
+            </AdminFieldGroup>
+
+            <div className="flex gap-2 pt-2">
+              <Button
+                variant="primary"
+                className="flex-1"
+                isPending={accessControlSaving}
+                isDisabled={accessControlSaving}
+                onPress={() => void handleAccessControlSave()}
+              >
+                保存
+              </Button>
+              <Button
+                variant="secondary"
+                className="flex-1"
+                isDisabled={accessControlSaving}
+                onPress={closeAccessControl}
+              >
+                取消
+              </Button>
             </div>
-          )}
-        </section>
+          </div>
+        )}
+      </SidePanel>
 
-        <SidePanel
-          title={selectedClient ? `访问控制：${selectedClient.name}` : '访问控制'}
-          open={showAccessControl && !!selectedClient}
-          onClose={() => {
-            setShowAccessControl(false);
-            setSelectedClient(null);
-          }}
-        >
-          {!selectedClient ? (
-            <div className="text-sm text-gray-500">请选择左侧应用</div>
-          ) : accessControlLoading ? (
-            <div className="text-sm text-gray-600 dark:text-gray-300">加载中...</div>
-          ) : (
-            <div className="space-y-6">
-              <p className="text-sm text-gray-600 dark:text-gray-300">
-                设置哪些用户组可以访问此应用。不设置任何限制时，所有用户都可访问。
-              </p>
+      <AdminModalForm
+        title="创建新应用"
+        description="创建后即可生成 Client ID / Secret，并继续配置访问控制。"
+        isOpen={showCreateModal}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) closeCreateModal()
+          else setShowCreateModal(true)
+        }}
+        onSubmit={handleCreate}
+        primaryActionLabel="创建应用"
+        isPending={creating}
+      >
+        {renderAppFormFields()}
+      </AdminModalForm>
 
-              <div>
-                <h3 className="font-semibold mb-2">允许访问（白名单）</h3>
-                <p className="text-sm text-gray-500 mb-3">
-                  只有这些用户组的成员可以访问此应用
-                </p>
-                <div className="surface overflow-hidden">
-                  <div className="list p-2 space-y-2">
-                    {groups.map((group) => (
-                      <Checkbox
-                        key={group.id}
-                        id={`allowed-${group.id}`}
-                        variant="secondary"
-                        isSelected={accessControl.allowed_group_ids.includes(group.id)}
-                        onChange={() => toggleGroupInList(group.id, 'allowed')}
-                        isDisabled={accessControlSaving}
-                        className="w-full max-w-full items-start m-0"
-                      >
-                        <Checkbox.Control>
-                          <Checkbox.Indicator />
-                        </Checkbox.Control>
-                        <Checkbox.Content>
-                          <div className="w-full min-w-0 flex-1">
-                            <div className="font-medium text-sm text-gray-900 dark:text-gray-100 truncate">{group.name}</div>
-                            {group.description && (
-                              <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 truncate">{group.description}</div>
-                            )}
-                          </div>
-                        </Checkbox.Content>
-                      </Checkbox>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <h3 className="font-semibold mb-2">禁止访问（黑名单）</h3>
-                <p className="text-sm text-gray-500 mb-3">
-                  这些用户组的成员无法访问此应用
-                </p>
-                <div className="surface overflow-hidden">
-                  <div className="list p-2 space-y-2">
-                    {groups.map((group) => (
-                      <Checkbox
-                        key={group.id}
-                        id={`denied-${group.id}`}
-                        variant="secondary"
-                        isSelected={accessControl.denied_group_ids.includes(group.id)}
-                        onChange={() => toggleGroupInList(group.id, 'denied')}
-                        isDisabled={accessControlSaving}
-                        className="w-full max-w-full items-start m-0"
-                      >
-                        <Checkbox.Control>
-                          <Checkbox.Indicator />
-                        </Checkbox.Control>
-                        <Checkbox.Content>
-                          <div className="w-full min-w-0 flex-1">
-                            <div className="font-medium text-sm text-gray-900 dark:text-gray-100 truncate">{group.name}</div>
-                            {group.description && (
-                              <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 truncate">{group.description}</div>
-                            )}
-                          </div>
-                        </Checkbox.Content>
-                      </Checkbox>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex gap-2 pt-2 border-t">
-                <Button onPress={handleAccessControlSave} className="flex-1 text-sm" variant="primary" isDisabled={accessControlSaving} isPending={accessControlSaving}>{accessControlSaving ? '保存中...' : '保存'}</Button>
-                <Button onPress={() => {
-                  setShowAccessControl(false);
-                  setSelectedClient(null);
-                }} className="flex-1 text-sm" variant="secondary" isDisabled={accessControlSaving} >
-                  取消
-                </Button>
-              </div>
-            </div>
-          )}
-        </SidePanel>
-      </div>
-
-      {/* 创建应用 Modal */}
-      <AlertDialog>
-        <AlertDialog.Backdrop isOpen={showCreateModal} onOpenChange={setShowCreateModal}>
-          <AlertDialog.Container>
-            <AlertDialog.Dialog>
-              <AlertDialog.Header>
-                <AlertDialog.Heading>创建新应用</AlertDialog.Heading>
-              </AlertDialog.Header>
-              <form onSubmit={handleCreate}>
-                <AlertDialog.Body className="overflow-y-auto max-h-[60vh]">
-                  <fieldset disabled={creating} className="space-y-4">
-                    <TextField isRequired>
-                      <Label>应用名称</Label>
-                      <Input type="text" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
-                    </TextField>
-                    <TextField>
-                      <Label>应用描述</Label>
-                      <TextArea rows={3} value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} />
-                    </TextField>
-                    <TextField>
-                      <Label>应用 Logo URL</Label>
-                      <Input type="url" placeholder="https://example.com/logo.png" value={formData.logo} onChange={(e) => setFormData({ ...formData, logo: e.target.value })} />
-                      <Description>Logo 将显示在授权页面上</Description>
-                    </TextField>
-                    <TextField>
-                      <Label>应用官网（可选）</Label>
-                      <Input type="url" placeholder="https://example.com" value={formData.website_url} onChange={(e) => setFormData({ ...formData, website_url: e.target.value })} />
-                    </TextField>
-                    <TextField isRequired>
-                      <Label>回调地址（每行一个）</Label>
-                      <TextArea rows={3} className="font-mono text-sm" placeholder="http://localhost:3000/callback&#10;https://myapp.com/callback" value={formData.redirect_uris} onChange={(e) => setFormData({ ...formData, redirect_uris: e.target.value })} />
-                    </TextField>
-                    <div>
-                      <label className="block text-sm font-medium mb-3">权限范围 *</label>
-                      <CheckboxGroup aria-label="权限范围" value={formData.allowed_scopes} onChange={(value) => setFormData((prev) => ({ ...prev, allowed_scopes: Array.isArray(value) ? value.map(String) : [] }))} className="space-y-2">
-                        {AVAILABLE_SCOPES.map((scope) => (
-                          <UICheckbox key={scope.value} value={scope.value} variant="secondary" className="w-full max-w-full items-start m-0">
-                            <div className="w-full min-w-0">
-                              <div className="font-medium text-sm">{scope.label}</div>
-                              <div className="text-xs text-gray-500 mt-0.5">{scope.description}</div>
-                            </div>
-                          </UICheckbox>
-                        ))}
-                      </CheckboxGroup>
-                      <p className="text-xs text-gray-500 mt-2">已选择 {formData.allowed_scopes.length} 项权限</p>
-                    </div>
-                    <Checkbox variant="secondary" isSelected={formData.trusted} onChange={(isSelected) => setFormData({ ...formData, trusted: isSelected })}>
-                      <Checkbox.Control><Checkbox.Indicator /></Checkbox.Control>
-                      <Checkbox.Content>信任的应用（跳过授权确认）</Checkbox.Content>
-                    </Checkbox>
-                    <div>
-                      <label className="block text-sm font-medium mb-2">默认访问</label>
-                      <RadioGroup orientation="vertical" value={formData.default_access ? 'allow' : 'deny'} onChange={(val) => setFormData({ ...formData, default_access: val === 'allow' })} className="space-y-2">
-                        <UIRadio value="allow">允许</UIRadio>
-                        <UIRadio value="deny">拒绝</UIRadio>
-                      </RadioGroup>
-                      <p className="text-xs text-gray-500 mt-2">当未配置用户/用户组的应用权限时生效</p>
-                    </div>
-                  </fieldset>
-                </AlertDialog.Body>
-                <AlertDialog.Footer>
-                  <Button type="button" variant="secondary" onPress={() => setShowCreateModal(false)}>取消</Button>
-                  <Button type="submit" variant="primary" isDisabled={creating} isPending={creating}>{creating ? '创建中...' : '创建'}</Button>
-                </AlertDialog.Footer>
-              </form>
-            </AlertDialog.Dialog>
-          </AlertDialog.Container>
-        </AlertDialog.Backdrop>
-      </AlertDialog>
-
-      {/* 编辑应用 Modal */}
-      <AlertDialog>
-        <AlertDialog.Backdrop isOpen={showEditModal && !!editingClient} onOpenChange={setShowEditModal}>
-          <AlertDialog.Container>
-            <AlertDialog.Dialog>
-              <AlertDialog.Header>
-                <AlertDialog.Heading>编辑应用：{editingClient?.name}</AlertDialog.Heading>
-              </AlertDialog.Header>
-              <form onSubmit={handleUpdate}>
-                <AlertDialog.Body className="overflow-y-auto max-h-[60vh]">
-                  <fieldset disabled={updating} className="space-y-4">
-                    <TextField isRequired>
-                      <Label>应用名称</Label>
-                      <Input type="text" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
-                    </TextField>
-                    <TextField>
-                      <Label>应用描述</Label>
-                      <TextArea rows={3} value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} />
-                    </TextField>
-                    <TextField>
-                      <Label>应用 Logo URL</Label>
-                      <Input type="url" placeholder="https://example.com/logo.png" value={formData.logo} onChange={(e) => setFormData({ ...formData, logo: e.target.value })} />
-                      <Description>Logo 将显示在授权页面上</Description>
-                    </TextField>
-                    <TextField>
-                      <Label>应用官网（可选）</Label>
-                      <Input type="url" placeholder="https://example.com" value={formData.website_url} onChange={(e) => setFormData({ ...formData, website_url: e.target.value })} />
-                    </TextField>
-                    <TextField isRequired>
-                      <Label>回调地址（每行一个）</Label>
-                      <TextArea rows={3} className="font-mono text-sm" placeholder="http://localhost:3000/callback&#10;https://myapp.com/callback" value={formData.redirect_uris} onChange={(e) => setFormData({ ...formData, redirect_uris: e.target.value })} />
-                    </TextField>
-                    <div>
-                      <label className="block text-sm font-medium mb-3">权限范围 *</label>
-                      <CheckboxGroup aria-label="权限范围" value={formData.allowed_scopes} onChange={(value) => setFormData((prev) => ({ ...prev, allowed_scopes: Array.isArray(value) ? value.map(String) : [] }))} className="space-y-2">
-                        {AVAILABLE_SCOPES.map((scope) => (
-                          <UICheckbox key={scope.value} value={scope.value} variant="secondary" className="w-full max-w-full items-start m-0">
-                            <div className="w-full min-w-0">
-                              <div className="font-medium text-sm">{scope.label}</div>
-                              <div className="text-xs text-gray-500 mt-0.5">{scope.description}</div>
-                            </div>
-                          </UICheckbox>
-                        ))}
-                      </CheckboxGroup>
-                      <p className="text-xs text-gray-500 mt-2">已选择 {formData.allowed_scopes.length} 项权限</p>
-                    </div>
-                    <Checkbox variant="secondary" isSelected={formData.trusted} onChange={(isSelected) => setFormData({ ...formData, trusted: isSelected })}>
-                      <Checkbox.Control><Checkbox.Indicator /></Checkbox.Control>
-                      <Checkbox.Content>信任的应用（跳过授权确认）</Checkbox.Content>
-                    </Checkbox>
-                    <div>
-                      <label className="block text-sm font-medium mb-2">默认访问</label>
-                      <RadioGroup orientation="vertical" value={formData.default_access ? 'allow' : 'deny'} onChange={(val) => setFormData({ ...formData, default_access: val === 'allow' })} className="space-y-2">
-                        <UIRadio value="allow">允许</UIRadio>
-                        <UIRadio value="deny">拒绝</UIRadio>
-                      </RadioGroup>
-                      <p className="text-xs text-gray-500 mt-2">当未配置用户/用户组的应用权限时生效</p>
-                    </div>
-                  </fieldset>
-                </AlertDialog.Body>
-                <AlertDialog.Footer>
-                  <Button type="button" variant="secondary" onPress={() => { setShowEditModal(false); setEditingClient(null); }}>取消</Button>
-                  <Button type="submit" variant="primary" isDisabled={updating} isPending={updating}>{updating ? '保存中...' : '保存'}</Button>
-                </AlertDialog.Footer>
-              </form>
-            </AlertDialog.Dialog>
-          </AlertDialog.Container>
-        </AlertDialog.Backdrop>
-      </AlertDialog>
+      <AdminModalForm
+        title={editingClient ? `编辑应用：${editingClient.name}` : '编辑应用'}
+        isOpen={showEditModal && !!editingClient}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) closeEditModal()
+          else setShowEditModal(true)
+        }}
+        onSubmit={handleUpdate}
+        primaryActionLabel="保存"
+        isPending={updating}
+      >
+        {renderAppFormFields()}
+      </AdminModalForm>
     </div>
-  );
+  )
 }

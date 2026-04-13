@@ -1,100 +1,108 @@
-'use client';
+'use client'
 
-import { useEffect, useState } from 'react';
-import { Alert, Button, Input, Label, TextField } from '@heroui/react';
-import { siteApi } from '@/lib/api';
-import { useAuthStore } from '@/lib/store';
-import { isAdmin } from '@/lib/authz';
+import { useEffect, useState } from 'react'
+import { Button, Card, Input } from '@heroui/react'
+import {
+  AdminFormField,
+  AdminLoadingState,
+  AdminNotice,
+  AdminPageHeader,
+  AdminSection,
+} from '@/components/admin/admin-ui'
+import { siteApi } from '@/lib/api'
+import { isAdmin } from '@/lib/authz'
+import { useAuthStore } from '@/lib/store'
 
 export default function SiteSettingsPage() {
-  const user = useAuthStore((s) => s.user);
-  const canManage = isAdmin(user);
+  const user = useAuthStore((state) => state.user)
+  const canManage = isAdmin(user)
 
-  const [siteName, setSiteName] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
+  const [siteName, setSiteName] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!canManage) return;
-    setLoading(true);
-    siteApi.get()
-      .then((res) => setSiteName(res.data?.site_name || ''))
-      .catch((err) => setError(err.response?.data?.detail || '加载站点配置失败'))
-      .finally(() => setLoading(false));
-  }, [canManage]);
+    if (!canManage) return
 
-  const save = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-    setSuccess(null);
-    const trimmed = siteName.trim();
-    if (!trimmed) {
-      setError('站点名称不能为空');
-      return;
+    setLoading(true)
+    siteApi
+      .get()
+      .then((response) => {
+        setSiteName(response.data?.site_name || '')
+      })
+      .catch((err) => {
+        setError(err.response?.data?.detail || '加载站点配置失败')
+      })
+      .finally(() => {
+        setLoading(false)
+      })
+  }, [canManage])
+
+  const handleSave = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    setError(null)
+    setSuccess(null)
+
+    const trimmedName = siteName.trim()
+    if (!trimmedName) {
+      setError('站点名称不能为空')
+      return
     }
-    setSaving(true);
+
+    setSaving(true)
     try {
-      const res = await siteApi.update(trimmed);
-      setSiteName(res.data?.site_name || trimmed);
-      setSuccess('已保存');
-      window.setTimeout(() => setSuccess(null), 1500);
+      const response = await siteApi.update(trimmedName)
+      setSiteName(response.data?.site_name || trimmedName)
+      setSuccess('站点设置已保存')
+      window.setTimeout(() => setSuccess(null), 1500)
     } catch (err: any) {
-      setError(err.response?.data?.detail || '保存失败');
+      setError(err.response?.data?.detail || '保存失败')
     } finally {
-      setSaving(false);
+      setSaving(false)
     }
-  };
+  }
 
   if (!canManage) {
     return (
-      <div className="card">
-        <h1 className="text-xl font-semibold mb-2">无权限</h1>
-        <p className="text-gray-600">该页面仅管理员可访问。</p>
-      </div>
-    );
+      <AdminNotice tone="danger" title="无权限" description="该页面仅管理员可访问。" />
+    )
+  }
+
+  if (loading) {
+    return <AdminLoadingState label="正在读取站点设置..." />
   }
 
   return (
     <div className="space-y-6">
-      <div className="card">
-        <h1 className="text-2xl font-bold">站点设置</h1>
-        <p className="text-gray-600 mt-1">修改网站昵称（用于前端显示）。</p>
-      </div>
+      <AdminPageHeader
+        title="站点设置"
+        description="修改前端显示使用的站点名称。"
+      />
 
-      {error && (
-        <Alert status="danger">
-          <Alert.Indicator />
-          <Alert.Content>
-            <Alert.Description>{error}</Alert.Description>
-          </Alert.Content>
-        </Alert>
-      )}
-      {success && (
-        <Alert status="success">
-          <Alert.Indicator />
-          <Alert.Content>
-            <Alert.Description>{success}</Alert.Description>
-          </Alert.Content>
-        </Alert>
-      )}
+      {error ? <AdminNotice tone="danger" description={error} /> : null}
+      {success ? <AdminNotice tone="success" description={success} /> : null}
 
-      <div className="card">
-        {loading ? (
-          <div className="text-gray-600">加载中...</div>
-        ) : (
-          <form onSubmit={save} className="space-y-4 max-w-lg">
-            <div>
-              <TextField isDisabled={saving}>
-                <Label>网站昵称</Label>
-                <Input value={siteName} onChange={(e) => setSiteName(e.target.value)} placeholder="例如：LAAA OAuth" />
-              </TextField>
+      <AdminSection className="max-w-2xl">
+        <Card.Content className="p-6">
+          <form onSubmit={handleSave} className="space-y-5">
+            <AdminFormField label="网站昵称" isRequired isDisabled={saving}>
+              <Input
+                value={siteName}
+                onChange={(event) => setSiteName(event.target.value)}
+                placeholder="例如：LAAA OAuth"
+              />
+            </AdminFormField>
+
+            <div className="flex justify-end">
+              <Button type="submit" variant="primary" isPending={saving} isDisabled={saving}>
+                保存
+              </Button>
             </div>
-            <Button variant="primary" type="submit" isDisabled={saving} isPending={saving}>{saving ? '保存中...' : '保存'}</Button>
           </form>
-        )}
-      </div>
+        </Card.Content>
+      </AdminSection>
     </div>
-  );
+  )
 }

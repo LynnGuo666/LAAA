@@ -1,101 +1,95 @@
-'use client';
+'use client'
 
-import { useEffect, useState } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
-import Link from 'next/link';
-import { Button, buttonVariants, cn, Disclosure, Spinner } from '@heroui/react';
-import { useAuthStore } from '@/lib/store';
-import { authApi, siteApi } from '@/lib/api';
-import { isAdmin } from '@/lib/authz';
-import { ThemeToggle } from '@/components/ThemeToggle';
+import { useEffect, useState } from 'react'
+import Link from 'next/link'
+import { usePathname, useRouter } from 'next/navigation'
+import { Button, Disclosure, buttonVariants, cn } from '@heroui/react'
+import { AdminLoadingState, AdminSection } from '@/components/admin/admin-ui'
+import { ThemeToggle } from '@/components/ThemeToggle'
+import { isAdmin } from '@/lib/authz'
+import { authApi, siteApi } from '@/lib/api'
+import { useAuthStore } from '@/lib/store'
 
-type NavItem = { href: string; label: string };
-type NavGroup = { label: string; items: NavItem[] };
+type NavItem = {
+  href: string
+  label: string
+}
 
-export default function AdminLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const { user, setUser, logout } = useAuthStore();
-  const [siteName, setSiteName] = useState('OAuth 服务器');
+type NavGroup = {
+  label: string
+  items: NavItem[]
+}
+
+export default function AdminLayout({ children }: { children: React.ReactNode }) {
+  const router = useRouter()
+  const pathname = usePathname()
+  const { user, setUser, logout } = useAuthStore()
+  const [siteName, setSiteName] = useState('OAuth 服务器')
 
   useEffect(() => {
-    // Check if user is authenticated
-    const token = localStorage.getItem('access_token');
+    const token = localStorage.getItem('access_token')
     if (!token) {
-      router.push('/login');
-      return;
+      router.push('/login')
+      return
     }
 
-    // Load user if not already loaded
     if (!user) {
-      authApi.getMe()
+      authApi
+        .getMe()
         .then((response) => {
-          setUser(response.data);
+          setUser(response.data)
         })
         .catch(() => {
-          router.push('/login');
-        });
+          router.push('/login')
+        })
     }
-  }, [user, setUser, router]);
+  }, [router, setUser, user])
 
   useEffect(() => {
-    siteApi.get()
-      .then((res) => setSiteName(res.data?.site_name || 'OAuth 服务器'))
+    siteApi
+      .get()
+      .then((response) => {
+        setSiteName(response.data?.site_name || 'OAuth 服务器')
+      })
       .catch(() => {
         // ignore
-      });
-  }, []);
+      })
+  }, [])
 
-  // Admin permission check
   useEffect(() => {
-    if (!user) return;
-
-    if (!isAdmin(user)) {
-      router.replace('/dashboard');
+    if (user && !isAdmin(user)) {
+      router.replace('/dashboard')
     }
-  }, [user, router]);
+  }, [router, user])
 
   const handleLogout = async () => {
-    const refreshToken = localStorage.getItem('refresh_token');
+    const refreshToken = localStorage.getItem('refresh_token')
     if (refreshToken) {
       try {
-        await authApi.logout(refreshToken);
-      } catch (err) {
-        // Ignore errors
+        await authApi.logout(refreshToken)
+      } catch {
+        // ignore
       }
     }
-    logout();
-    router.push('/login');
-  };
+    logout()
+    router.push('/login')
+  }
 
   if (!user) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <Spinner size="lg" />
-          <p className="text-sm text-default-500">加载中...</p>
-        </div>
+      <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+        <AdminLoadingState />
       </div>
-    );
+    )
   }
 
-  // Non-admin users should not see admin panel
   if (!isAdmin(user)) {
-    return null;
+    return null
   }
 
   const adminNavGroups: NavGroup[] = [
     { label: '总览', items: [{ href: '/admin', label: '控制台' }] },
-    {
-      label: '应用',
-      items: [
-        { href: '/admin/apps', label: '应用管理' },
-      ],
-    },
+    { label: '应用', items: [{ href: '/admin/apps', label: '应用管理' }] },
     {
       label: '用户与权限',
       items: [
@@ -104,117 +98,102 @@ export default function AdminLayout({
         { href: '/admin/invites', label: '邀请码' },
       ],
     },
-    {
-      label: '系统',
-      items: [
-        { href: '/admin/settings', label: '站点设置' },
-      ],
-    },
-  ];
+    { label: '系统', items: [{ href: '/admin/settings', label: '站点设置' }] },
+  ]
 
   const isActiveHref = (href: string) => {
-    if (href === '/admin') return pathname === '/admin';
-    return pathname === href || pathname.startsWith(`${href}/`);
-  };
+    if (href === '/admin') return pathname === '/admin'
+    return pathname === href || pathname.startsWith(`${href}/`)
+  }
 
   const AdminNavContent = () => (
-    <nav className="overflow-hidden rounded-lg border border-gray-200 dark:border-gray-800">
-      {adminNavGroups.map((group, index) => (
-        <div key={group.label} className={index > 0 ? 'border-t border-gray-200 dark:border-gray-800' : ''}>
-          <div className="px-3 py-2 text-xs font-semibold tracking-wide text-gray-500 dark:text-gray-400 bg-gray-50/70 dark:bg-gray-900/40">
+    <div className="space-y-5">
+      {adminNavGroups.map((group) => (
+        <div key={group.label} className="space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-default-500">
             {group.label}
-          </div>
-          <div>
+          </p>
+          <div className="flex flex-col gap-2">
             {group.items.map((item) => {
-              const active = isActiveHref(item.href);
+              const active = isActiveHref(item.href)
               return (
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`block px-3 py-2 text-sm ${
-                    active
-                      ? 'bg-blue-600/10 text-blue-700 dark:text-blue-300'
-                      : 'text-gray-700 dark:text-gray-200 hover:bg-black/[0.03] dark:hover:bg-white/[0.04]'
-                  }`}
+                  className={cn(
+                    buttonVariants({
+                      variant: active ? 'primary' : 'secondary',
+                      size: 'sm',
+                    }),
+                    'justify-start',
+                  )}
                 >
                   {item.label}
                 </Link>
-              );
+              )
             })}
           </div>
         </div>
       ))}
-    </nav>
-  );
-
-  const AdminSideNav = ({ className = '' }: { className?: string }) => (
-    <aside className={className}>
-      <div className="surface p-3">
-        <AdminNavContent />
-      </div>
-    </aside>
-  );
+    </div>
+  )
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
-      {/* Navigation */}
-      <nav className="bg-white dark:bg-gray-900 shadow-sm border-b border-transparent dark:border-gray-800">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16">
-            <div className="flex">
-              <Link
-                href="/admin"
-                className="flex items-center px-2 py-2 text-xl font-bold"
-              >
-                {siteName}
-                <span className="ml-2 text-xs font-normal text-gray-500 dark:text-gray-400">管理</span>
-              </Link>
-            </div>
-
-            <div className="flex items-center gap-2 sm:gap-3">
-              <ThemeToggle />
-              <Link
-                href="/dashboard/my-apps"
-                className={cn(buttonVariants({ variant: 'secondary', size: 'sm' }), 'text-xs sm:text-sm px-2 sm:px-3')}
-              >
-                <span className="hidden sm:inline">返回用户面板</span>
-                <span className="sm:hidden">用户面板</span>
-              </Link>
-              <span className="hidden sm:inline text-sm text-gray-700 dark:text-gray-200">
-                {user.username}
+      <header className="border-b border-default-200/70 bg-background/95 backdrop-blur">
+        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+          <div className="min-w-0">
+            <Link href="/admin" className="text-lg font-semibold text-foreground sm:text-xl">
+              {siteName}
+              <span className="ml-2 text-xs font-medium uppercase tracking-[0.2em] text-default-500">
+                Admin
               </span>
-              <Button  onPress={handleLogout} variant="secondary" className="text-xs sm:text-sm px-2 sm:px-3"><span className="hidden sm:inline">退出登录</span>
-              <span className="sm:hidden">退出</span></Button>
-            </div>
+            </Link>
+          </div>
+
+          <div className="flex items-center gap-2 sm:gap-3">
+            <ThemeToggle />
+            <Link
+              href="/dashboard/my-apps"
+              className={buttonVariants({ variant: 'secondary', size: 'sm' })}
+            >
+              返回用户面板
+            </Link>
+            <span className="hidden text-sm text-default-600 sm:inline">{user.username}</span>
+            <Button variant="secondary" size="sm" onPress={handleLogout}>
+              退出登录
+            </Button>
           </div>
         </div>
-      </nav>
+      </header>
 
-      {/* Main content */}
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div className="flex flex-col gap-6 md:flex-row md:items-start">
-          {/* Mobile menu */}
-          <div className="md:hidden">
-            <div className="surface p-3">
+      <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+          <div className="lg:hidden">
+            <AdminSection className="p-4">
               <Disclosure>
                 <Disclosure.Heading>
-                  <Disclosure.Trigger className="w-full text-left text-sm font-medium text-gray-700 dark:text-gray-200 px-2 py-1 flex items-center justify-between">
-                    菜单
+                  <Disclosure.Trigger className="flex w-full items-center justify-between rounded-2xl px-1 py-1 text-left text-sm font-medium text-foreground">
+                    管理菜单
                     <Disclosure.Indicator />
                   </Disclosure.Trigger>
                 </Disclosure.Heading>
-                <Disclosure.Content className="mt-3 px-1">
+                <Disclosure.Content className="pt-4">
                   <AdminNavContent />
                 </Disclosure.Content>
               </Disclosure>
-            </div>
+            </AdminSection>
           </div>
-          {/* Desktop sidebar */}
-          <AdminSideNav className="hidden md:block w-full md:w-64 shrink-0" />
-          {/* Content */}
+
+          <aside className="hidden w-72 shrink-0 lg:block">
+            <AdminSection className="p-4">
+              <AdminNavContent />
+            </AdminSection>
+          </aside>
+
           <div className="min-w-0 flex-1">{children}</div>
         </div>
       </main>
     </div>
-  );
+  )
 }
