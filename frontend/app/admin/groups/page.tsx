@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Button, Input, TextArea } from '@heroui/react';
+import { Button, Chip, Description, Input, Label, ListBox, TextArea } from '@heroui/react';
 import { adminApi, groupApi, clientApi, groupAppApi } from '@/lib/api';
 import SidePanel from '@/components/SidePanel';
 import { useAuthStore } from '@/lib/store';
@@ -334,37 +334,38 @@ export default function GroupsPage() {
 
           <div className="surface overflow-hidden">
             {groups.length === 0 ? (
-              <div className="p-8 text-center text-gray-500">暂无用户组</div>
+              <p className="p-8 text-center text-sm text-gray-500">暂无用户组</p>
             ) : (
-              <div className="list">
-                {groups.map(group => {
-                  const active = selectedGroup?.id === group.id;
-                  return (
-                    <Button key={group.id} onPress={() => openPanel(group)} className={`w-full text-left list-item list-item-pressable h-auto p-0 min-w-0 ${
-                      active ? 'bg-black/[0.03] dark:bg-white/[0.04]' : ''
-                    }`} variant="tertiary" ><div className="flex items-center justify-between gap-4 w-full">
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium text-gray-900 dark:text-gray-100 truncate">{group.name}</span>
+              <ListBox
+                aria-label="用户组列表"
+                selectionMode="single"
+                selectedKeys={selectedGroup ? new Set([String(selectedGroup.id)]) : new Set()}
+                onAction={(key) => {
+                  const group = groups.find(g => String(g.id) === String(key));
+                  if (group) openPanel(group);
+                }}
+              >
+                {groups.map(group => (
+                  <ListBox.Item key={group.id} id={String(group.id)} textValue={group.name}>
+                    <div className="flex items-center justify-between gap-4 w-full">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <Label className="font-medium truncate">{group.name}</Label>
                           {group.is_default && (
-                            <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full border border-blue-200 dark:bg-blue-950 dark:text-blue-200 dark:border-blue-900 shrink-0">
-                              默认
-                            </span>
+                            <Chip color="accent" variant="soft" size="sm">默认</Chip>
                           )}
                         </div>
                         {group.description && (
-                          <div className="text-sm text-gray-600 dark:text-gray-300 mt-1 truncate">
-                            {group.description}
-                          </div>
+                          <Description className="truncate">{group.description}</Description>
                         )}
                       </div>
-                      <div className="text-sm text-gray-500 dark:text-gray-400 shrink-0">
+                      <span className="text-sm text-gray-500 dark:text-gray-400 shrink-0">
                         {group.member_count || 0} 人
-                      </div>
-                    </div></Button>
-                  );
-                })}
-              </div>
+                      </span>
+                    </div>
+                  </ListBox.Item>
+                ))}
+              </ListBox>
             )}
           </div>
         </section>
