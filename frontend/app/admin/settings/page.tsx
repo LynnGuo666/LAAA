@@ -65,6 +65,7 @@ export default function SiteSettingsPage() {
 
       {error && (
         <Alert status="danger">
+          <Alert.Indicator />
           <Alert.Content>
             <Alert.Description>{error}</Alert.Description>
           </Alert.Content>
@@ -72,6 +73,7 @@ export default function SiteSettingsPage() {
       )}
       {success && (
         <Alert status="success">
+          <Alert.Indicator />
           <Alert.Content>
             <Alert.Description>{success}</Alert.Description>
           </Alert.Content>

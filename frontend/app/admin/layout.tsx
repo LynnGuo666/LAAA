@@ -197,9 +197,12 @@ export default function AdminLayout({
           <div className="md:hidden">
             <div className="surface p-3">
               <Disclosure>
-                <Disclosure.Trigger className="w-full text-left text-sm font-medium text-gray-700 dark:text-gray-200 px-2 py-1">
-                  菜单
-                </Disclosure.Trigger>
+                <Disclosure.Heading>
+                  <Disclosure.Trigger className="w-full text-left text-sm font-medium text-gray-700 dark:text-gray-200 px-2 py-1 flex items-center justify-between">
+                    菜单
+                    <Disclosure.Indicator />
+                  </Disclosure.Trigger>
+                </Disclosure.Heading>
                 <Disclosure.Content className="mt-3 px-1">
                   <AdminNavContent />
                 </Disclosure.Content>

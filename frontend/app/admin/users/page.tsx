@@ -290,6 +290,7 @@ export default function UsersPage() {
 
         {error && (
           <Alert status="danger" className="mt-4">
+            <Alert.Indicator />
             <Alert.Content>
               <Alert.Description>{error}</Alert.Description>
             </Alert.Content>

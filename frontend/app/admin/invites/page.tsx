@@ -158,6 +158,7 @@ export default function InvitesPage() {
 
       {error && (
         <Alert status="danger">
+          <Alert.Indicator />
           <Alert.Content>
             <Alert.Description>{error}</Alert.Description>
           </Alert.Content>

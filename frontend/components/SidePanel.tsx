@@ -20,9 +20,9 @@ export default function SidePanel({ title, open, onClose, children }: SidePanelP
       >
         <Drawer.Content placement="right">
           <Drawer.Dialog aria-label={title}>
+            <Drawer.CloseTrigger />
             <Drawer.Header>
               <Drawer.Heading>{title}</Drawer.Heading>
-              <Drawer.CloseTrigger />
             </Drawer.Header>
             <Drawer.Body>{children}</Drawer.Body>
           </Drawer.Dialog>
