@@ -1,11 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { AlertDialog, Card, Tabs, toast } from '@heroui/react';
+import { AlertDialog, Button, Card, Input, Label, Tabs, TextField, toast } from '@heroui/react';
 import { userApi, totpApi, passkeyApi } from '@/lib/api';
 import { formatDateTime } from '@/lib/date';
 import { useAuthStore } from '@/lib/store';
-import { UIButton, UIInput, UILabel, UITextField } from '@/components/ui/primitives';
 import { useConfirmDialog } from '@/components/ui/confirm-dialog-provider';
 import { TotpManageModal } from '@/components/security/TotpManageModal';
 import { Check, AlertTriangle } from 'lucide-react';
@@ -441,8 +440,8 @@ export default function SecurityPage() {
   return (
     <div className="px-4 sm:px-0 animate-fade-in space-y-6 sm:space-y-8">
       <div>
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">安全设置</h1>
-        <p className="text-gray-600 dark:text-gray-300 mt-1 text-sm sm:text-base">
+        <h1 className="text-2xl sm:text-3xl font-bold text-foreground">安全设置</h1>
+        <p className="text-default-600 mt-1 text-sm sm:text-base">
           管理您的账户安全设置和查看登录历史。
         </p>
       </div>
@@ -464,8 +463,8 @@ export default function SecurityPage() {
           <Card className="min-w-0 border border-default-200 bg-content2 p-3 sm:p-4">
 
           <Tabs.Panel id="totp" className="pt-4">
-            <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">验证方式</h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+            <h2 className="text-lg sm:text-xl font-semibold text-foreground mb-2">验证方式</h2>
+            <p className="text-sm text-default-500 mb-4">
               启用两步验证后，当检测到可疑登录时，需要额外的验证步骤才能登录。
             </p>
             <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
@@ -474,28 +473,28 @@ export default function SecurityPage() {
                   <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
                     totpStatus?.enabled
                       ? 'bg-green-100 dark:bg-green-900'
-                      : 'bg-gray-100 dark:bg-gray-800'
+                      : 'bg-default-100'
                   }`}>
                     <svg className={`w-5 h-5 ${
                       totpStatus?.enabled
                         ? 'text-green-600 dark:text-green-400'
-                        : 'text-gray-400 dark:text-gray-500'
+                        : 'text-default-400'
                     }`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                     </svg>
                   </div>
                   <div>
-                    <h3 className="font-medium text-gray-900 dark:text-gray-100">身份验证器 (TOTP)</h3>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                    <h3 className="font-medium text-foreground">身份验证器 (TOTP)</h3>
+                    <p className="text-sm text-default-500">
                       {totpStatus?.enabled
                         ? `已启用 · 剩余 ${totpStatus.backup_codes_remaining || 0} 个备用码`
                         : '使用 Google Authenticator 等应用生成验证码'}
                     </p>
                   </div>
                 </div>
-                <UIButton onPress={() => setShowTotpManageModal(true)} variant="secondary">
+                <Button onPress={() => setShowTotpManageModal(true)} variant="secondary">
                   {totpStatus?.enabled ? '管理' : '设置'}
-                </UIButton>
+                </Button>
               </div>
             </div>
           </Tabs.Panel>
@@ -504,13 +503,13 @@ export default function SecurityPage() {
             <div className="space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
-            <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-gray-100">设备会话</h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">管理当前登录设备和会话状态</p>
+            <h2 className="text-lg sm:text-xl font-semibold text-foreground">设备会话</h2>
+            <p className="text-sm text-default-500 mt-1">管理当前登录设备和会话状态</p>
           </div>
           {otherSessionsCount > 0 && (
-            <UIButton onPress={handleRevokeOtherSessions} isDisabled={revoking} variant="danger" className="text-sm shrink-0 w-full sm:w-auto">
+            <Button onPress={handleRevokeOtherSessions} isDisabled={revoking} variant="danger" className="text-sm shrink-0 w-full sm:w-auto">
               {revoking ? '处理中...' : `登出其他设备 (${otherSessionsCount})`}
-            </UIButton>
+            </Button>
           )}
         </div>
         {sessions.length === 0 ? (
@@ -524,12 +523,12 @@ export default function SecurityPage() {
               <li key={session.id} className="list-item">
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                   <div className="flex items-start gap-3 min-w-0">
-                    <div className="p-2 bg-gray-100 dark:bg-gray-700 rounded-lg text-gray-600 dark:text-gray-300 shrink-0">
+                    <div className="p-2 bg-gray-100 dark:bg-gray-700 rounded-lg text-default-600 shrink-0">
                       {getDeviceIcon(session.device_type)}
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <h3 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-gray-100 break-all">
+                        <h3 className="text-sm sm:text-base font-semibold text-foreground break-all">
                           {session.device_name || '未知设备'}
                         </h3>
                         {session.is_current && (
@@ -543,7 +542,7 @@ export default function SecurityPage() {
                           </span>
                         )}
                       </div>
-                      <div className="mt-1 text-xs sm:text-sm text-gray-600 dark:text-gray-300 flex items-center gap-1 sm:gap-2 flex-wrap">
+                      <div className="mt-1 text-xs sm:text-sm text-default-600 flex items-center gap-1 sm:gap-2 flex-wrap">
                         <span>
                           {session.device_type === 'mobile' ? '手机' : session.device_type === 'tablet' ? '平板' : '电脑'}
                         </span>
@@ -553,17 +552,17 @@ export default function SecurityPage() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0 ml-10 sm:ml-0">
-                    <UIButton onPress={() => handleShowSessionDetail(session)} variant="tertiary" className="text-xs sm:text-sm">
+                    <Button onPress={() => handleShowSessionDetail(session)} variant="tertiary" className="text-xs sm:text-sm">
                       详情
-                    </UIButton>
+                    </Button>
                     {!session.is_current && (
-                      <UIButton onPress={() => handleToggleTrust(session)} variant={session.is_trusted ? 'tertiary' : 'primary'} className="text-xs sm:text-sm" aria-label={session.is_trusted ? '取消信任' : '标记为可信'}>
+                      <Button onPress={() => handleToggleTrust(session)} variant={session.is_trusted ? 'tertiary' : 'primary'} className="text-xs sm:text-sm" aria-label={session.is_trusted ? '取消信任' : '标记为可信'}>
                         {session.is_trusted ? '取消信任' : '信任'}
-                      </UIButton>
+                      </Button>
                     )}
-                    <UIButton onPress={() => handleRevokeSession(session.id, session.device_name || '当前设备')} variant="danger" className="text-xs sm:text-sm">
+                    <Button onPress={() => handleRevokeSession(session.id, session.device_name || '当前设备')} variant="danger" className="text-xs sm:text-sm">
                       撤销
-                    </UIButton>
+                    </Button>
                   </div>
                 </div>
               </li>
@@ -575,7 +574,7 @@ export default function SecurityPage() {
           </Tabs.Panel>
 
           <Tabs.Panel id="password" className="pt-4">
-        <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">密码安全</h2>
+        <h2 className="text-lg sm:text-xl font-semibold text-foreground mb-4">密码安全</h2>
         <form onSubmit={handleChangePassword} className="space-y-4 max-w-md">
           {passwordError && (
             <div className="p-3 bg-red-50 border border-red-200 rounded-lg dark:bg-red-950 dark:border-red-900">
@@ -589,28 +588,28 @@ export default function SecurityPage() {
           )}
 
           <div>
-            <UITextField isRequired isDisabled={changingPassword}>
-              <UILabel>当前密码</UILabel>
-              <UIInput type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} placeholder="请输入当前密码" />
-            </UITextField>
+            <TextField isRequired isDisabled={changingPassword}>
+              <Label>当前密码</Label>
+              <Input type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} placeholder="请输入当前密码" />
+            </TextField>
           </div>
 
           <div>
-            <UITextField isRequired isDisabled={changingPassword}>
-              <UILabel>新密码</UILabel>
-              <UIInput type="password" minLength={6} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="至少 6 个字符" />
-            </UITextField>
+            <TextField isRequired isDisabled={changingPassword}>
+              <Label>新密码</Label>
+              <Input type="password" minLength={6} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="至少 6 个字符" />
+            </TextField>
           </div>
 
           <div>
-            <UITextField isRequired isDisabled={changingPassword}>
-              <UILabel>确认新密码</UILabel>
-              <UIInput type="password" minLength={6} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="再次输入新密码" />
-            </UITextField>
+            <TextField isRequired isDisabled={changingPassword}>
+              <Label>确认新密码</Label>
+              <Input type="password" minLength={6} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="再次输入新密码" />
+            </TextField>
           </div>
 
           <div className="pt-2">
-            <UIButton type="submit" isDisabled={changingPassword} variant="primary" isPending={changingPassword}>{changingPassword ? '修改中...' : '修改密码'}</UIButton>
+            <Button type="submit" isDisabled={changingPassword} variant="primary" isPending={changingPassword}>{changingPassword ? '修改中...' : '修改密码'}</Button>
           </div>
         </form>
           </Tabs.Panel>
@@ -618,8 +617,8 @@ export default function SecurityPage() {
           <Tabs.Panel id="history" className="pt-4">
             <div className="space-y-4">
         <div>
-          <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-gray-100">登录记录</h2>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+          <h2 className="text-lg sm:text-xl font-semibold text-foreground">登录记录</h2>
+          <p className="text-sm text-default-500 mt-1">
             您账户的最近登录行为记录
           </p>
         </div>
@@ -632,7 +631,7 @@ export default function SecurityPage() {
           <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
             <table className="min-w-full text-sm">
               <thead>
-                <tr className="border-b border-gray-200 dark:border-gray-700 text-left text-xs text-gray-500 dark:text-gray-400">
+                <tr className="border-b border-gray-200 dark:border-gray-700 text-left text-xs text-default-500">
                   <th className="px-4 sm:px-6 py-3 font-medium">状态</th>
                   <th className="px-4 sm:px-6 py-3 font-medium">设备</th>
                   <th className="px-4 sm:px-6 py-3 font-medium">登录方式</th>
@@ -645,7 +644,7 @@ export default function SecurityPage() {
                   <tr key={log.id} className="border-b border-gray-100 dark:border-gray-800 align-top">
                     <td className="px-4 sm:px-6 py-3">{getStatusBadge(log)}</td>
                     <td className="px-4 sm:px-6 py-3">
-                      <div className="text-sm font-medium text-gray-900 dark:text-gray-100">{log.device_name || '未知设备'}</div>
+                      <div className="text-sm font-medium text-foreground">{log.device_name || '未知设备'}</div>
                       {!log.success && log.failure_reason && (
                         <div className="mt-1 text-xs text-red-600 dark:text-red-400">
                           失败原因：{log.failure_reason === 'invalid_password' ? '密码错误' :
@@ -655,16 +654,16 @@ export default function SecurityPage() {
                         </div>
                       )}
                     </td>
-                    <td className="px-4 sm:px-6 py-3 text-gray-600 dark:text-gray-300">{getLoginMethodText(log.login_method)}</td>
-                    <td className="px-4 sm:px-6 py-3 text-gray-600 dark:text-gray-300">
+                    <td className="px-4 sm:px-6 py-3 text-default-600">{getLoginMethodText(log.login_method)}</td>
+                    <td className="px-4 sm:px-6 py-3 text-default-600">
                       <div className="break-all">{log.ip_address || '-'}</div>
                       {(log.city || log.country) && (
-                        <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        <div className="text-xs text-default-500 mt-1">
                           {[log.city, log.country].filter(Boolean).join(', ')}
                         </div>
                       )}
                     </td>
-                    <td className="px-4 sm:px-6 py-3 text-xs sm:text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">{formatDateTime(log.created_at)}</td>
+                    <td className="px-4 sm:px-6 py-3 text-xs sm:text-sm text-default-500 whitespace-nowrap">{formatDateTime(log.created_at)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -675,8 +674,8 @@ export default function SecurityPage() {
           </Tabs.Panel>
 
           <Tabs.Panel id="passkeys" className="pt-4">
-        <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">通行密钥</h2>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+        <h2 className="text-lg sm:text-xl font-semibold text-foreground mb-2">通行密钥</h2>
+        <p className="text-sm text-default-500 mb-4">
           管理用于登录验证的通行密钥
         </p>
 
@@ -706,9 +705,9 @@ export default function SecurityPage() {
         )}
 
         <div className="mb-4">
-          <UIButton onPress={handleRegisterPasskey} isDisabled={!webAuthnSupported || registeringPasskey || !user?.email_verified} variant="primary">
+          <Button onPress={handleRegisterPasskey} isDisabled={!webAuthnSupported || registeringPasskey || !user?.email_verified} variant="primary">
             {registeringPasskey ? '正在注册...' : '添加通行密钥'}
-          </UIButton>
+          </Button>
           {platformAvailable && (
             <span className="ml-3 text-sm text-green-600 dark:text-green-400 inline-flex items-center gap-1">
               <Check className="w-4 h-4" /> 检测到平台认证器
@@ -717,7 +716,7 @@ export default function SecurityPage() {
         </div>
 
         {passkeys.length === 0 ? (
-          <div className="text-center py-8 text-gray-500 dark:text-gray-400">暂无通行密钥</div>
+          <div className="text-center py-8 text-default-500">暂无通行密钥</div>
         ) : (
           <div className="overflow-hidden">
             <ul className="list">
@@ -726,7 +725,7 @@ export default function SecurityPage() {
                   <div className="flex items-start justify-between gap-4">
                       <div className="min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <h3 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-gray-100 truncate">{passkey.name}</h3>
+                          <h3 className="text-sm sm:text-base font-semibold text-foreground truncate">{passkey.name}</h3>
                           {passkey.backup_eligible && (
                             <span className="text-xs px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950 dark:text-blue-200 dark:border-blue-900 shrink-0">
                               可同步
@@ -735,12 +734,12 @@ export default function SecurityPage() {
                         </div>
                       </div>
                       <div className="flex gap-2 shrink-0">
-                        <UIButton onPress={() => handleShowPasskeyDetail(passkey)} variant="tertiary" className="text-xs sm:text-sm">
+                        <Button onPress={() => handleShowPasskeyDetail(passkey)} variant="tertiary" className="text-xs sm:text-sm">
                           详情
-                        </UIButton>
-                        <UIButton onPress={() => void handleDeletePasskey(passkey.id, passkey.name)} variant="danger" className="text-xs sm:text-sm">
+                        </Button>
+                        <Button onPress={() => void handleDeletePasskey(passkey.id, passkey.name)} variant="danger" className="text-xs sm:text-sm">
                           删除
-                        </UIButton>
+                        </Button>
                       </div>
                   </div>
                 </li>
@@ -762,10 +761,10 @@ export default function SecurityPage() {
                 <AlertDialog.Heading>为通行密钥命名</AlertDialog.Heading>
               </AlertDialog.Header>
               <AlertDialog.Body>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                <p className="text-sm text-default-600 mb-4">
                   给这个通行密钥起一个便于识别的名称，例如设备名称
                 </p>
-                <UIInput
+                <Input
                   type="text"
                   value={newPasskeyName}
                   onChange={(e) => setNewPasskeyName(e.target.value)}
@@ -780,12 +779,12 @@ export default function SecurityPage() {
                 />
               </AlertDialog.Body>
               <AlertDialog.Footer>
-                <UIButton onPress={() => { setShowNameModal(false); setPendingCredential(null); setNewPasskeyName(''); }} variant="ghost">
+                <Button onPress={() => { setShowNameModal(false); setPendingCredential(null); setNewPasskeyName(''); }} variant="ghost">
                   取消
-                </UIButton>
-                <UIButton onPress={() => void handleConfirmPasskeyRegistration()} isDisabled={!newPasskeyName.trim() || registeringPasskey} variant="primary">
+                </Button>
+                <Button onPress={() => void handleConfirmPasskeyRegistration()} isDisabled={!newPasskeyName.trim() || registeringPasskey} variant="primary">
                   {registeringPasskey ? '保存中...' : '保存'}
-                </UIButton>
+                </Button>
               </AlertDialog.Footer>
             </AlertDialog.Dialog>
           </AlertDialog.Container>
@@ -810,8 +809,8 @@ export default function SecurityPage() {
                 {selectedPasskey && (
                   <div className="space-y-3 text-sm text-gray-700 dark:text-gray-300">
                     <div>
-                      <span className="text-gray-500 dark:text-gray-400">名称：</span>
-                      <UIInput
+                      <span className="text-default-500">名称：</span>
+                      <Input
                         type="text"
                         value={detailPasskeyName}
                         onChange={(e) => setDetailPasskeyName(e.target.value)}
@@ -823,20 +822,20 @@ export default function SecurityPage() {
                         }}
                       />
                     </div>
-                    <div><span className="text-gray-500 dark:text-gray-400">创建时间：</span>{formatDateTime(selectedPasskey.created_at)}</div>
-                    <div><span className="text-gray-500 dark:text-gray-400">最后使用：</span>{selectedPasskey.last_used_at ? formatDateTime(selectedPasskey.last_used_at) : '-'}</div>
-                    <div><span className="text-gray-500 dark:text-gray-400">传输方式：</span>{selectedPasskey.transports && selectedPasskey.transports.length > 0 ? selectedPasskey.transports.join(', ') : '-'}</div>
-                    <div><span className="text-gray-500 dark:text-gray-400">可同步：</span>{selectedPasskey.backup_eligible ? '是' : '否'}</div>
+                    <div><span className="text-default-500">创建时间：</span>{formatDateTime(selectedPasskey.created_at)}</div>
+                    <div><span className="text-default-500">最后使用：</span>{selectedPasskey.last_used_at ? formatDateTime(selectedPasskey.last_used_at) : '-'}</div>
+                    <div><span className="text-default-500">传输方式：</span>{selectedPasskey.transports && selectedPasskey.transports.length > 0 ? selectedPasskey.transports.join(', ') : '-'}</div>
+                    <div><span className="text-default-500">可同步：</span>{selectedPasskey.backup_eligible ? '是' : '否'}</div>
                   </div>
                 )}
               </AlertDialog.Body>
               <AlertDialog.Footer>
-                <UIButton onPress={() => handleClosePasskeyDetail()} variant="ghost">
+                <Button onPress={() => handleClosePasskeyDetail()} variant="ghost">
                   关闭
-                </UIButton>
-                <UIButton onPress={() => void handleRenameSelectedPasskey()} variant="primary" isDisabled={!detailPasskeyName.trim() || renamingPasskey}>
+                </Button>
+                <Button onPress={() => void handleRenameSelectedPasskey()} variant="primary" isDisabled={!detailPasskeyName.trim() || renamingPasskey}>
                   {renamingPasskey ? '保存中...' : '保存名称'}
-                </UIButton>
+                </Button>
               </AlertDialog.Footer>
             </AlertDialog.Dialog>
           </AlertDialog.Container>
@@ -860,21 +859,21 @@ export default function SecurityPage() {
               <AlertDialog.Body>
                 {selectedSession && (
                   <div className="space-y-2 text-sm text-gray-700 dark:text-gray-300">
-                    <div><span className="text-gray-500 dark:text-gray-400">设备名称：</span>{selectedSession.device_name || '未知设备'}</div>
-                    <div><span className="text-gray-500 dark:text-gray-400">设备类型：</span>{selectedSession.device_type === 'mobile' ? '手机' : selectedSession.device_type === 'tablet' ? '平板' : '电脑'}</div>
-                    <div><span className="text-gray-500 dark:text-gray-400">状态：</span>{selectedSession.is_current ? '当前会话' : '历史会话'}{selectedSession.is_trusted ? ' · 已信任' : ''}</div>
-                    <div><span className="text-gray-500 dark:text-gray-400">IP 地址：</span>{selectedSession.ip_address || '-'}</div>
-                    <div><span className="text-gray-500 dark:text-gray-400">位置：</span>{[selectedSession.city, selectedSession.country].filter(Boolean).join(', ') || '-'}</div>
-                    <div><span className="text-gray-500 dark:text-gray-400">设备 ID：</span><span className="font-mono break-all">{selectedSession.device_id || '-'}</span></div>
-                    <div><span className="text-gray-500 dark:text-gray-400">最后活跃：</span>{formatDateTime(selectedSession.last_active)}</div>
-                    <div><span className="text-gray-500 dark:text-gray-400">过期时间：</span>{formatDateTime(selectedSession.expires_at)}</div>
+                    <div><span className="text-default-500">设备名称：</span>{selectedSession.device_name || '未知设备'}</div>
+                    <div><span className="text-default-500">设备类型：</span>{selectedSession.device_type === 'mobile' ? '手机' : selectedSession.device_type === 'tablet' ? '平板' : '电脑'}</div>
+                    <div><span className="text-default-500">状态：</span>{selectedSession.is_current ? '当前会话' : '历史会话'}{selectedSession.is_trusted ? ' · 已信任' : ''}</div>
+                    <div><span className="text-default-500">IP 地址：</span>{selectedSession.ip_address || '-'}</div>
+                    <div><span className="text-default-500">位置：</span>{[selectedSession.city, selectedSession.country].filter(Boolean).join(', ') || '-'}</div>
+                    <div><span className="text-default-500">设备 ID：</span><span className="font-mono break-all">{selectedSession.device_id || '-'}</span></div>
+                    <div><span className="text-default-500">最后活跃：</span>{formatDateTime(selectedSession.last_active)}</div>
+                    <div><span className="text-default-500">过期时间：</span>{formatDateTime(selectedSession.expires_at)}</div>
                   </div>
                 )}
               </AlertDialog.Body>
               <AlertDialog.Footer>
-                <UIButton onPress={handleCloseSessionDetail} variant="primary">
+                <Button onPress={handleCloseSessionDetail} variant="primary">
                   知道了
-                </UIButton>
+                </Button>
               </AlertDialog.Footer>
             </AlertDialog.Dialog>
           </AlertDialog.Container>

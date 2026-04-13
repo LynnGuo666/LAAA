@@ -3,12 +3,12 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { AlertDialog, Tabs, buttonVariants, toast } from '@heroui/react';
+import { AlertDialog, Button, buttonVariants, Input, ListBox, ListBoxItem, Select, Spinner, Tabs, toast } from '@heroui/react';
 import { adminApi, groupApi } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { isAdmin } from '@/lib/authz';
 import { formatDateTime } from '@/lib/date';
-import { UIButton, UICheckbox, UIInput, UIListBox, UISelect, UISelectItem } from '@/components/ui/primitives';
+import { UICheckbox } from '@/components/ui/primitives';
 import { useConfirmDialog } from '@/components/ui/confirm-dialog-provider';
 
 interface User {
@@ -244,9 +244,9 @@ export default function UserDetailPage() {
       <div className="surface p-6">
         <h1 className="text-xl font-semibold mb-2">参数错误</h1>
         <p className="text-gray-600">缺少用户 ID 参数。</p>
-        <UIButton  onPress={() => router.push('/admin/users')} variant="primary" className="mt-4">
+        <Button  onPress={() => router.push('/admin/users')} variant="primary" className="mt-4">
           返回用户列表
-        </UIButton>
+        </Button>
       </div>
     );
   }
@@ -254,7 +254,7 @@ export default function UserDetailPage() {
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <Spinner size="lg" />
       </div>
     );
   }
@@ -386,11 +386,11 @@ export default function UserDetailPage() {
             </div>
           )}
           <div>
-            <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+            <h1 className="text-2xl font-semibold text-foreground flex items-center gap-2">
               {user.username}
               {getStatusBadge(user.status)}
             </h1>
-            <p className="text-gray-600 dark:text-gray-400">{user.email}</p>
+            <p className="text-default-600">{user.email}</p>
             <p className="text-sm text-gray-500">ID: {user.id} · 创建于 {formatDateTime(user.created_at)}</p>
           </div>
         </div>
@@ -417,10 +417,10 @@ export default function UserDetailPage() {
         {activeTab === 'info' && (
           <div className="space-y-6">
             <div className="flex flex-wrap gap-3">
-              <UIButton onPress={() => setShowEditModal(true)} variant="primary" >编辑信息</UIButton>
-              <UIButton onPress={openGroupsModal} variant="secondary" >管理用户组</UIButton>
-              <UIButton onPress={openRolesModal} variant="secondary" >管理角色</UIButton>
-              <UIButton onPress={() => router.push(`/admin/users/permissions?id=${userId}`)} variant="secondary" >应用权限</UIButton>
+              <Button onPress={() => setShowEditModal(true)} variant="primary" >编辑信息</Button>
+              <Button onPress={openGroupsModal} variant="secondary" >管理用户组</Button>
+              <Button onPress={openRolesModal} variant="secondary" >管理角色</Button>
+              <Button onPress={() => router.push(`/admin/users/permissions?id=${userId}`)} variant="secondary" >应用权限</Button>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
               <div><span className="text-gray-500">用户组：</span>{user.groups.length ? user.groups.join(', ') : '无'}</div>
@@ -436,13 +436,13 @@ export default function UserDetailPage() {
                   {/* 邮箱验证 */}
                   <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
                     <div className="flex items-center gap-3 mb-2">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center ${securityMethods.email_verified ? 'bg-green-100 dark:bg-green-900' : 'bg-gray-100 dark:bg-gray-800'}`}>
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center ${securityMethods.email_verified ? 'bg-green-100 dark:bg-green-900' : 'bg-default-100'}`}>
                         <svg className={`w-4 h-4 ${securityMethods.email_verified ? 'text-green-600 dark:text-green-400' : 'text-gray-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                         </svg>
                       </div>
                       <div>
-                        <div className="font-medium text-gray-900 dark:text-gray-100">邮箱验证</div>
+                        <div className="font-medium text-foreground">邮箱验证</div>
                         <div className={`text-xs ${securityMethods.email_verified ? 'text-green-600 dark:text-green-400' : 'text-gray-500'}`}>
                           {securityMethods.email_verified ? '已验证' : '未验证'}
                         </div>
@@ -458,13 +458,13 @@ export default function UserDetailPage() {
                   {/* 身份验证器 (TOTP) */}
                   <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
                     <div className="flex items-center gap-3 mb-2">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center ${securityMethods.totp_enabled ? 'bg-green-100 dark:bg-green-900' : 'bg-gray-100 dark:bg-gray-800'}`}>
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center ${securityMethods.totp_enabled ? 'bg-green-100 dark:bg-green-900' : 'bg-default-100'}`}>
                         <svg className={`w-4 h-4 ${securityMethods.totp_enabled ? 'text-green-600 dark:text-green-400' : 'text-gray-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                         </svg>
                       </div>
                       <div>
-                        <div className="font-medium text-gray-900 dark:text-gray-100">身份验证器</div>
+                        <div className="font-medium text-foreground">身份验证器</div>
                         <div className={`text-xs ${securityMethods.totp_enabled ? 'text-green-600 dark:text-green-400' : 'text-gray-500'}`}>
                           {securityMethods.totp_enabled ? '已启用' : '未启用'}
                         </div>
@@ -480,13 +480,13 @@ export default function UserDetailPage() {
                   {/* 通行密钥 */}
                   <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
                     <div className="flex items-center gap-3 mb-2">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center ${securityMethods.passkey_count > 0 ? 'bg-green-100 dark:bg-green-900' : 'bg-gray-100 dark:bg-gray-800'}`}>
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center ${securityMethods.passkey_count > 0 ? 'bg-green-100 dark:bg-green-900' : 'bg-default-100'}`}>
                         <svg className={`w-4 h-4 ${securityMethods.passkey_count > 0 ? 'text-green-600 dark:text-green-400' : 'text-gray-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
                         </svg>
                       </div>
                       <div>
-                        <div className="font-medium text-gray-900 dark:text-gray-100">通行密钥</div>
+                        <div className="font-medium text-foreground">通行密钥</div>
                         <div className={`text-xs ${securityMethods.passkey_count > 0 ? 'text-green-600 dark:text-green-400' : 'text-gray-500'}`}>
                           {securityMethods.passkey_count > 0 ? `已绑定 ${securityMethods.passkey_count} 个` : '未绑定'}
                         </div>
@@ -520,7 +520,7 @@ export default function UserDetailPage() {
                             {log.is_suspicious && <span className="px-2 py-0.5 text-xs rounded bg-yellow-100 text-yellow-800 dark:bg-yellow-950 dark:text-yellow-200">可疑</span>}
                             {log.login_method && <span className="text-xs text-gray-500">{log.login_method}</span>}
                           </div>
-                          <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                          <div className="text-sm text-default-600 mt-1">
                             {log.ip_address && <span>{log.ip_address}</span>}
                             {(log.city || log.country) && <span> · {[log.city, log.country].filter(Boolean).join(', ')}</span>}
                             {log.device_type && <span> · {log.device_type}</span>}
@@ -538,8 +538,8 @@ export default function UserDetailPage() {
                   <div className="mt-4 flex justify-between items-center">
                     <span className="text-sm text-gray-500">第 {logsPage + 1} / {Math.ceil(logsTotal / 20)} 页</span>
                     <div className="flex gap-2">
-                      <UIButton onPress={() => setLogsPage(p => Math.max(0, p - 1))} isDisabled={logsPage === 0} variant="secondary" className="disabled:opacity-50">上一页</UIButton>
-                      <UIButton onPress={() => setLogsPage(p => p + 1)} isDisabled={(logsPage + 1) * 20 >= logsTotal} variant="secondary" className="disabled:opacity-50">下一页</UIButton>
+                      <Button onPress={() => setLogsPage(p => Math.max(0, p - 1))} isDisabled={logsPage === 0} variant="secondary" className="disabled:opacity-50">上一页</Button>
+                      <Button onPress={() => setLogsPage(p => p + 1)} isDisabled={(logsPage + 1) * 20 >= logsTotal} variant="secondary" className="disabled:opacity-50">下一页</Button>
                     </div>
                   </div>
                 )}
@@ -553,7 +553,7 @@ export default function UserDetailPage() {
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-medium">活跃会话 ({sessions.length})</h3>
               {sessions.length > 0 && (
-                <UIButton onPress={handleRevokeAllSessions} variant="danger" >登出全部</UIButton>
+                <Button onPress={handleRevokeAllSessions} variant="danger" >登出全部</Button>
               )}
             </div>
             {sessions.length === 0 ? (
@@ -568,7 +568,7 @@ export default function UserDetailPage() {
                           <span className="font-medium">{session.device_name || '未知设备'}</span>
                           {session.is_trusted && <span className="px-2 py-0.5 text-xs rounded bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-200">可信</span>}
                         </div>
-                        <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                        <div className="text-sm text-default-600 mt-1">
                           {session.device_type && <span>{session.device_type === 'mobile' ? '手机' : session.device_type === 'tablet' ? '平板' : '电脑'}</span>}
                           {session.ip_address && <span> · {session.ip_address}</span>}
                           {(session.city || session.country) && <span> · {[session.city, session.country].filter(Boolean).join(', ')}</span>}
@@ -577,7 +577,7 @@ export default function UserDetailPage() {
                           最后活跃：{formatDateTime(session.last_active)} · 过期：{formatDateTime(session.expires_at)}
                         </div>
                       </div>
-                      <UIButton onPress={() => handleRevokeSession(session.id)} variant="danger" size="sm">登出</UIButton>
+                      <Button onPress={() => handleRevokeSession(session.id)} variant="danger" size="sm">登出</Button>
                     </div>
                   </li>
                 ))}
@@ -599,7 +599,7 @@ export default function UserDetailPage() {
                       <span className="font-medium">{passkey.name}</span>
                       {passkey.backup_eligible && <span className="px-2 py-0.5 text-xs rounded bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-200">可同步</span>}
                     </div>
-                    <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                    <div className="text-sm text-default-600 mt-1">
                       创建：{formatDateTime(passkey.created_at)}
                       {passkey.last_used_at && <span> · 最后使用：{formatDateTime(passkey.last_used_at)}</span>}
                     </div>
@@ -624,13 +624,13 @@ export default function UserDetailPage() {
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={auth.client_logo} alt={auth.client_name} className="h-10 w-10 rounded" />
                       ) : (
-                        <div className="h-10 w-10 rounded bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-gray-500">
+                        <div className="h-10 w-10 rounded bg-default-200 flex items-center justify-center text-gray-500">
                           {auth.client_name.charAt(0).toUpperCase()}
                         </div>
                       )}
                       <div>
                         <div className="font-medium">{auth.client_name}</div>
-                        <div className="text-sm text-gray-600 dark:text-gray-400">
+                        <div className="text-sm text-default-600">
                           权限：{auth.scope} · 授权于 {formatDateTime(auth.created_at)}
                         </div>
                       </div>
@@ -654,36 +654,36 @@ export default function UserDetailPage() {
                 <AlertDialog.Body>
                   <div>
                     <label className="block text-sm font-medium mb-1">邮箱</label>
-                    <UIInput type="email" required value={editForm.email} onChange={(e) => setEditForm({ ...editForm, email: e.target.value })} />
+                    <Input type="email" required value={editForm.email} onChange={(e) => setEditForm({ ...editForm, email: e.target.value })} />
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-1">头像URL</label>
-                    <UIInput type="url" value={editForm.avatar} onChange={(e) => setEditForm({ ...editForm, avatar: e.target.value })} />
+                    <Input type="url" value={editForm.avatar} onChange={(e) => setEditForm({ ...editForm, avatar: e.target.value })} />
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-1">状态</label>
-                    <UISelect selectedKey={editForm.status} onSelectionChange={(key) => setEditForm({ ...editForm, status: String(key ?? 'active') })}>
-                      <UISelect.Trigger>
-                        <UISelect.Value />
-                        <UISelect.Indicator />
-                      </UISelect.Trigger>
-                      <UISelect.Popover>
-                        <UIListBox>
-                          <UISelectItem id="active">激活</UISelectItem>
-                          <UISelectItem id="inactive">未激活</UISelectItem>
-                          <UISelectItem id="suspended">暂停</UISelectItem>
-                        </UIListBox>
-                      </UISelect.Popover>
-                    </UISelect>
+                    <Select selectedKey={editForm.status} onSelectionChange={(key) => setEditForm({ ...editForm, status: String(key ?? 'active') })}>
+                      <Select.Trigger>
+                        <Select.Value />
+                        <Select.Indicator />
+                      </Select.Trigger>
+                      <Select.Popover>
+                        <ListBox>
+                          <SelectItem id="active">激活</SelectItem>
+                          <SelectItem id="inactive">未激活</SelectItem>
+                          <SelectItem id="suspended">暂停</SelectItem>
+                        </ListBox>
+                      </Select.Popover>
+                    </Select>
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-1">新密码（留空不修改）</label>
-                    <UIInput type="password" minLength={6} value={editForm.password} onChange={(e) => setEditForm({ ...editForm, password: e.target.value })} />
+                    <Input type="password" minLength={6} value={editForm.password} onChange={(e) => setEditForm({ ...editForm, password: e.target.value })} />
                   </div>
                 </AlertDialog.Body>
                 <AlertDialog.Footer>
-                  <UIButton type="button" onPress={() => setShowEditModal(false)} variant="secondary" >取消</UIButton>
-                  <UIButton type="submit" variant="primary" >保存</UIButton>
+                  <Button type="button" onPress={() => setShowEditModal(false)} variant="secondary" >取消</Button>
+                  <Button type="submit" variant="primary" >保存</Button>
                 </AlertDialog.Footer>
               </form>
             </AlertDialog.Dialog>
@@ -710,8 +710,8 @@ export default function UserDetailPage() {
                 </div>
               </AlertDialog.Body>
               <AlertDialog.Footer>
-                <UIButton onPress={() => setShowGroupsModal(false)} variant="secondary" >取消</UIButton>
-                <UIButton onPress={handleUpdateGroups} variant="primary" >保存</UIButton>
+                <Button onPress={() => setShowGroupsModal(false)} variant="secondary" >取消</Button>
+                <Button onPress={handleUpdateGroups} variant="primary" >保存</Button>
               </AlertDialog.Footer>
             </AlertDialog.Dialog>
           </AlertDialog.Container>
@@ -738,8 +738,8 @@ export default function UserDetailPage() {
                 </div>
               </AlertDialog.Body>
               <AlertDialog.Footer>
-                <UIButton onPress={() => setShowRolesModal(false)} variant="secondary" >取消</UIButton>
-                <UIButton onPress={handleUpdateRoles} variant="primary" >保存</UIButton>
+                <Button onPress={() => setShowRolesModal(false)} variant="secondary" >取消</Button>
+                <Button onPress={handleUpdateRoles} variant="primary" >保存</Button>
               </AlertDialog.Footer>
             </AlertDialog.Dialog>
           </AlertDialog.Container>

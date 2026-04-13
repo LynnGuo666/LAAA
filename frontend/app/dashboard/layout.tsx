@@ -3,12 +3,12 @@
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { ListBox, ListBoxItem, Popover, Tabs } from '@heroui/react';
+import { Button, ListBox, ListBoxItem, Popover, Spinner, Tabs } from '@heroui/react';
 import { useAuthStore } from '@/lib/store';
 import { authApi, siteApi } from '@/lib/api';
 import { isAdmin } from '@/lib/authz';
-import { UIButton } from '@/components/ui/primitives';
 import RestrictedModeOverlay from '@/components/RestrictedModeOverlay';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 type NavItem = { href: string; label: string };
 
@@ -78,9 +78,9 @@ export default function DashboardLayout({
   if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">加载中...</p>
+        <div className="flex flex-col items-center gap-3">
+          <Spinner size="lg" />
+          <p className="text-sm text-default-500">加载中...</p>
         </div>
       </div>
     );
@@ -148,9 +148,10 @@ export default function DashboardLayout({
             </div>
 
             <div className="flex items-center gap-2 sm:gap-3">
+              <ThemeToggle />
               <Popover isOpen={accountMenuOpen} onOpenChange={setAccountMenuOpen}>
                 <Popover.Trigger>
-                  <UIButton variant="tertiary" className="px-2 sm:px-3 min-w-0">
+                  <Button variant="tertiary" className="px-2 sm:px-3 min-w-0">
                     <div className="flex items-center gap-2 min-w-0">
                       {user.avatar ? (
                         // eslint-disable-next-line @next/next/no-img-element
@@ -162,7 +163,7 @@ export default function DashboardLayout({
                       )}
                       <span className="hidden sm:inline text-sm text-gray-700 dark:text-gray-200 truncate">{user.username}</span>
                     </div>
-                  </UIButton>
+                  </Button>
                 </Popover.Trigger>
                 <Popover.Content className="w-44 p-1">
                   <ListBox

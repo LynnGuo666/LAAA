@@ -1,10 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { AlertDialog, toast } from '@heroui/react';
+import { AlertDialog, Button, toast } from '@heroui/react';
 import { userApi } from '@/lib/api';
 import { formatDateTime } from '@/lib/date';
-import { UIButton } from '@/components/ui/primitives';
 import { useConfirmDialog } from '@/components/ui/confirm-dialog-provider';
 import { AppWindow } from 'lucide-react';
 
@@ -105,12 +104,12 @@ export default function AuthorizationsPage() {
                   </div>
 
                   <div className="flex items-center gap-2 shrink-0">
-                    <UIButton onPress={() => handleShowDetail(auth)} variant="tertiary" className="text-xs sm:text-sm">
+                    <Button onPress={() => handleShowDetail(auth)} variant="tertiary" className="text-xs sm:text-sm">
                       详情
-                    </UIButton>
-                    <UIButton onPress={() => handleRevoke(auth)} variant="danger" className="text-xs sm:text-sm">
+                    </Button>
+                    <Button onPress={() => handleRevoke(auth)} variant="danger" className="text-xs sm:text-sm">
                       撤回
-                    </UIButton>
+                    </Button>
                   </div>
                 </div>
               </li>
@@ -137,9 +136,9 @@ export default function AuthorizationsPage() {
                 )}
               </AlertDialog.Body>
               <AlertDialog.Footer>
-                <UIButton onPress={() => setShowDetailModal(false)} variant="primary">
+                <Button onPress={() => setShowDetailModal(false)} variant="primary">
                   知道了
-                </UIButton>
+                </Button>
               </AlertDialog.Footer>
             </AlertDialog.Dialog>
           </AlertDialog.Container>

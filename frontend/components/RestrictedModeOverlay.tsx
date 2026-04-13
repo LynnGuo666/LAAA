@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { UIButton, UIInput } from '@/components/ui/primitives';
+import { Button, Input } from '@heroui/react';
 import { authApi, totpApi, passkeyApi } from '@/lib/api';
 import { User } from '@/lib/store';
 import {
@@ -238,23 +238,23 @@ export default function RestrictedModeOverlay({ user, onComplete }: RestrictedMo
   const hasSecondFactor = totpEnabled || passkeyCount > 0;
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
+    <div className="min-h-screen bg-background">
       {/* Simple header */}
-      <nav className="bg-white dark:bg-gray-900 shadow-sm border-b border-transparent dark:border-gray-800">
+      <nav className="bg-surface shadow-sm border-b border-transparent dark:border-gray-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
             <div className="flex items-center">
-              <span className="text-xl font-bold text-gray-900 dark:text-gray-100">
+              <span className="text-xl font-bold text-foreground">
                 账户设置
               </span>
             </div>
             <div className="flex items-center gap-3">
-              <span className="text-sm text-gray-700 dark:text-gray-200">
+              <span className="text-sm text-foreground/80">
                 {user.username}
               </span>
-              <UIButton onPress={handleLogout} variant="tertiary" className="text-sm inline-flex items-center gap-1"><LogOut className="w-4 h-4" />
+              <Button onPress={handleLogout} variant="tertiary" className="text-sm inline-flex items-center gap-1"><LogOut className="w-4 h-4" />
               退出
-                            </UIButton>
+                            </Button>
             </div>
           </div>
         </div>
@@ -287,7 +287,7 @@ export default function RestrictedModeOverlay({ user, onComplete }: RestrictedMo
             }`}>
               {emailVerified ? <Check className="w-5 h-5" /> : '1'}
             </div>
-            <span className={`text-sm ${emailVerified ? 'text-green-600 dark:text-green-400' : 'text-gray-900 dark:text-gray-100'}`}>
+            <span className={`text-sm ${emailVerified ? 'text-green-600 dark:text-green-400' : 'text-foreground'}`}>
               验证邮箱
             </span>
           </div>
@@ -298,11 +298,11 @@ export default function RestrictedModeOverlay({ user, onComplete }: RestrictedMo
                 ? 'bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-400'
                 : emailVerified
                   ? 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400'
-                  : 'bg-gray-100 dark:bg-gray-800 text-gray-400'
+                  : 'bg-default-100 text-gray-400'
             }`}>
               {hasSecondFactor ? <Check className="w-5 h-5" /> : '2'}
             </div>
-            <span className={`text-sm ${hasSecondFactor ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-gray-400'}`}>
+            <span className={`text-sm ${hasSecondFactor ? 'text-green-600 dark:text-green-400' : 'text-default-500'}`}>
               设置二次验证
             </span>
           </div>
@@ -338,10 +338,10 @@ export default function RestrictedModeOverlay({ user, onComplete }: RestrictedMo
                   )}
                 </div>
                 <div className="flex-1">
-                  <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-1">
+                  <h3 className="font-semibold text-foreground mb-1">
                     第一步：验证邮箱
                   </h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                  <p className="text-sm text-default-600 mb-3">
                     当前邮箱：{user.email}
                   </p>
 
@@ -352,7 +352,7 @@ export default function RestrictedModeOverlay({ user, onComplete }: RestrictedMo
                     </span>
                   ) : editingEmail ? (
                     <div className="space-y-3">
-                      <UIInput
+                      <Input
                         type="email"
                         value={newEmail}
                         onChange={(e) => setNewEmail(e.target.value)}
@@ -360,26 +360,26 @@ export default function RestrictedModeOverlay({ user, onComplete }: RestrictedMo
                         className="w-full max-w-sm"
                       />
                       <div className="flex gap-2">
-                        <UIButton onPress={handleChangeEmail} isDisabled={loading} variant="primary" className="text-sm">{loading ? '保存中...' : '保存'}</UIButton>
-                        <UIButton onPress={() => {
+                        <Button onPress={handleChangeEmail} isDisabled={loading} variant="primary" className="text-sm">{loading ? '保存中...' : '保存'}</Button>
+                        <Button onPress={() => {
                           setEditingEmail(false);
                           setNewEmail('');
                         }} variant="tertiary" className="text-sm">
                           取消
-                        </UIButton>
+                        </Button>
                       </div>
                     </div>
                   ) : (
                     <div className="flex flex-wrap gap-2">
-                      <UIButton onPress={handleSendVerificationEmail} isDisabled={loading || emailCooldown > 0} variant="primary" className="text-sm inline-flex items-center gap-1">{loading ? (
+                      <Button onPress={handleSendVerificationEmail} isDisabled={loading || emailCooldown > 0} variant="primary" className="text-sm inline-flex items-center gap-1">{loading ? (
                         <Loader2 className="w-4 h-4 animate-spin" />
                       ) : (
                         <Mail className="w-4 h-4" />
                       )}
-                      {emailCooldown > 0 ? `重新发送 (${emailCooldown}s)` : '发送验证邮件'}</UIButton>
-                      <UIButton onPress={() => setEditingEmail(true)} variant="tertiary" className="text-sm inline-flex items-center gap-1"><Edit2 className="w-4 h-4" />
+                      {emailCooldown > 0 ? `重新发送 (${emailCooldown}s)` : '发送验证邮件'}</Button>
+                      <Button onPress={() => setEditingEmail(true)} variant="tertiary" className="text-sm inline-flex items-center gap-1"><Edit2 className="w-4 h-4" />
                       修改邮箱
-                                            </UIButton>
+                                            </Button>
                     </div>
                   )}
                 </div>
@@ -392,7 +392,7 @@ export default function RestrictedModeOverlay({ user, onComplete }: RestrictedMo
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
                   hasSecondFactor
                     ? 'bg-green-100 dark:bg-green-900'
-                    : 'bg-gray-100 dark:bg-gray-800'
+                    : 'bg-default-100'
                 }`}>
                   {hasSecondFactor ? (
                     <Check className="w-5 h-5 text-green-600 dark:text-green-400" />
@@ -401,10 +401,10 @@ export default function RestrictedModeOverlay({ user, onComplete }: RestrictedMo
                   )}
                 </div>
                 <div className="flex-1">
-                  <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-1">
+                  <h3 className="font-semibold text-foreground mb-1">
                     第二步：设置二次验证
                   </h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                  <p className="text-sm text-default-600 mb-4">
                     选择以下任一方式增强账户安全
                   </p>
 
@@ -426,29 +426,29 @@ export default function RestrictedModeOverlay({ user, onComplete }: RestrictedMo
                   ) : (
                     <div className="grid gap-3 sm:grid-cols-2">
                       {/* TOTP option */}
-                      <UIButton onPress={handleStartTOTPSetup} isDisabled={loading || !emailVerified} variant="ghost"
+                      <Button onPress={handleStartTOTPSetup} isDisabled={loading || !emailVerified} variant="ghost"
                       className="flex items-center gap-3 p-4 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-left h-auto"><ShieldCheck className="w-8 h-8 text-green-500" />
                       <div>
-                        <div className="font-medium text-gray-900 dark:text-gray-100">
+                        <div className="font-medium text-foreground">
                           身份验证器
                         </div>
                         <div className="text-xs text-gray-500">
                           使用 TOTP 应用
                         </div>
-                      </div></UIButton>
+                      </div></Button>
 
                       {/* Passkey option */}
                       {webAuthnSupported && (
-                        <UIButton onPress={handleStartPasskeySetup} isDisabled={loading || !emailVerified} variant="ghost"
+                        <Button onPress={handleStartPasskeySetup} isDisabled={loading || !emailVerified} variant="ghost"
                         className="flex items-center gap-3 p-4 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-left h-auto"><KeyRound className="w-8 h-8 text-orange-500" />
                         <div>
-                          <div className="font-medium text-gray-900 dark:text-gray-100">
+                          <div className="font-medium text-foreground">
                             通行密钥
                           </div>
                           <div className="text-xs text-gray-500">
                             使用设备生物识别
                           </div>
-                        </div></UIButton>
+                        </div></Button>
                       )}
                     </div>
                   )}
@@ -463,10 +463,10 @@ export default function RestrictedModeOverlay({ user, onComplete }: RestrictedMo
           <div className="surface p-6">
             {showBackupCodes ? (
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+                <h3 className="text-lg font-semibold text-foreground mb-4">
                   保存您的备用码
                 </h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                <p className="text-sm text-default-600 mb-4">
                   如果您无法访问身份验证器应用，可以使用这些备用码登录。每个备用码只能使用一次。
                 </p>
                 <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 mb-4">
@@ -478,27 +478,27 @@ export default function RestrictedModeOverlay({ user, onComplete }: RestrictedMo
                     ))}
                   </div>
                 </div>
-                <UIButton onPress={handleBackupCodesSaved} variant="primary" >
+                <Button onPress={handleBackupCodesSaved} variant="primary" >
                   我已保存备用码
-                </UIButton>
+                </Button>
               </div>
             ) : totpSetupData ? (
               <div>
                 <div className="flex items-center gap-2 mb-4">
-                  <UIButton  onPress={() => {
+                  <Button  onPress={() => {
                     setCurrentStep('overview');
                     setTotpSetupData(null);
                   }} variant="ghost"
                   className="text-gray-500 hover:text-gray-700 p-1 h-auto w-auto"><svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                  </svg></UIButton>
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                  </svg></Button>
+                  <h3 className="text-lg font-semibold text-foreground">
                     设置身份验证器
                   </h3>
                 </div>
 
                 <div className="mb-6">
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                  <p className="text-sm text-default-600 mb-4">
                     使用 Google Authenticator 或其他 TOTP 应用扫描下方二维码
                   </p>
                   <div className="flex justify-center mb-4">
@@ -512,18 +512,18 @@ export default function RestrictedModeOverlay({ user, onComplete }: RestrictedMo
                   </div>
                   <div className="text-center">
                     <p className="text-sm text-gray-500 mb-2">手动输入密钥：</p>
-                    <code className="inline-block px-3 py-2 bg-gray-100 dark:bg-gray-800 rounded font-mono text-sm select-all">
+                    <code className="inline-block px-3 py-2 bg-default-100 rounded font-mono text-sm select-all">
                       {totpSetupData.secret}
                     </code>
                   </div>
                 </div>
 
                 <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                  <p className="text-sm text-default-600 mb-3">
                     输入应用中显示的 6 位验证码
                   </p>
                   <div className="flex gap-3">
-                    <UIInput
+                    <Input
                       type="text"
                       value={totpCode}
                       onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
@@ -531,7 +531,7 @@ export default function RestrictedModeOverlay({ user, onComplete }: RestrictedMo
                       className="text-center text-xl tracking-widest font-mono w-40"
                       maxLength={6}
                     />
-                    <UIButton onPress={handleVerifyTOTP} isDisabled={loading || totpCode.length !== 6} variant="primary">{loading ? '验证中...' : '验证'}</UIButton>
+                    <Button onPress={handleVerifyTOTP} isDisabled={loading || totpCode.length !== 6} variant="primary">{loading ? '验证中...' : '验证'}</Button>
                   </div>
                 </div>
               </div>
@@ -548,16 +548,16 @@ export default function RestrictedModeOverlay({ user, onComplete }: RestrictedMo
         {currentStep === 'passkey' && (
           <div className="surface p-6">
             <div className="flex items-center gap-2 mb-4">
-              <UIButton  onPress={() => setCurrentStep('overview')} variant="ghost"
+              <Button  onPress={() => setCurrentStep('overview')} variant="ghost"
               className="text-gray-500 hover:text-gray-700 p-1 h-auto w-auto"><svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg></UIButton>
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+              </svg></Button>
+              <h3 className="text-lg font-semibold text-foreground">
                 绑定通行密钥
               </h3>
             </div>
 
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
+            <p className="text-sm text-default-600 mb-6">
               通行密钥使用您设备的生物识别（指纹、面容）或 PIN 码进行身份验证，既安全又便捷。
             </p>
 
@@ -565,7 +565,7 @@ export default function RestrictedModeOverlay({ user, onComplete }: RestrictedMo
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 通行密钥名称
               </label>
-              <UIInput
+              <Input
                 type="text"
                 value={passkeyName}
                 onChange={(e) => setPasskeyName(e.target.value)}
@@ -574,7 +574,7 @@ export default function RestrictedModeOverlay({ user, onComplete }: RestrictedMo
               />
             </div>
 
-            <UIButton onPress={handleRegisterPasskey} isDisabled={passkeyRegistering || !passkeyName.trim()} variant="primary" className="inline-flex items-center gap-2">{passkeyRegistering ? (
+            <Button onPress={handleRegisterPasskey} isDisabled={passkeyRegistering || !passkeyName.trim()} variant="primary" className="inline-flex items-center gap-2">{passkeyRegistering ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
                 注册中...
@@ -584,7 +584,7 @@ export default function RestrictedModeOverlay({ user, onComplete }: RestrictedMo
                 <KeyRound className="w-4 h-4" />
                 创建通行密钥
               </>
-            )}</UIButton>
+            )}</Button>
           </div>
         )}
       </main>

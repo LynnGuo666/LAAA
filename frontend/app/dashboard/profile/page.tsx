@@ -4,8 +4,7 @@ import { useState } from 'react';
 import { useAuthStore } from '@/lib/store';
 import { userApi } from '@/lib/api';
 import { formatDate } from '@/lib/date';
-import { UIButton, UIDescription, UIInput, UILabel, UITextField } from '@/components/ui/primitives';
-import { Card } from '@heroui/react';
+import { Button, Card, Description, Input, Label, TextField } from '@heroui/react';
 
 export default function ProfilePage() {
   const { user, setUser } = useAuthStore();
@@ -52,29 +51,29 @@ export default function ProfilePage() {
           )}
 
           <div>
-            <UITextField isDisabled>
-              <UILabel>用户名</UILabel>
-              <UIInput type="text" value={user.username} />
-              <UIDescription>用户名不可修改</UIDescription>
-            </UITextField>
+            <TextField isDisabled>
+              <Label>用户名</Label>
+              <Input type="text" value={user.username} />
+              <Description>用户名不可修改</Description>
+            </TextField>
           </div>
 
           <div>
-            <UITextField isRequired isDisabled={loading}>
-              <UILabel>邮箱</UILabel>
-              <UIInput type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} />
-            </UITextField>
+            <TextField isRequired isDisabled={loading}>
+              <Label>邮箱</Label>
+              <Input type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} />
+            </TextField>
           </div>
 
           <div>
-            <UITextField isDisabled={loading}>
-              <UILabel>头像 URL</UILabel>
-              <UIInput type="url" placeholder="https://example.com/avatar.jpg" value={formData.avatar} onChange={(e) => setFormData({ ...formData, avatar: e.target.value })} />
-            </UITextField>
+            <TextField isDisabled={loading}>
+              <Label>头像 URL</Label>
+              <Input type="url" placeholder="https://example.com/avatar.jpg" value={formData.avatar} onChange={(e) => setFormData({ ...formData, avatar: e.target.value })} />
+            </TextField>
           </div>
 
           <div className="pt-2">
-            <UIButton type="submit" isDisabled={loading} variant="primary" isPending={loading}>{loading ? '保存中...' : '保存更改'}</UIButton>
+            <Button type="submit" isDisabled={loading} variant="primary" isPending={loading}>{loading ? '保存中...' : '保存更改'}</Button>
           </div>
         </form>
 

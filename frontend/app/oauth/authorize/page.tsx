@@ -2,11 +2,10 @@
 
 import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { toast } from '@heroui/react';
+import { Button, Spinner, toast } from '@heroui/react';
 import { authApi, API_URL } from '@/lib/api';
 import axios from 'axios';
 import { AlertTriangle, Ban, Check } from 'lucide-react';
-import { UIButton } from '@/components/ui/primitives';
 
 interface ClientInfo {
   name: string;
@@ -189,9 +188,9 @@ function AuthorizeContent() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">正在验证...</p>
+        <div className="flex flex-col items-center gap-3">
+          <Spinner size="lg" />
+          <p className="text-sm text-default-500">正在验证...</p>
         </div>
       </div>
     );
@@ -207,9 +206,9 @@ function AuthorizeContent() {
             </div>
             <h1 className="text-2xl font-bold text-gray-900 mb-4">授权请求错误</h1>
             <p className="text-gray-600 mb-6">{error}</p>
-            <UIButton  onPress={() => router.push('/dashboard')} variant="primary" className="w-full">
+            <Button  onPress={() => router.push('/dashboard')} variant="primary" className="w-full">
               返回控制台
-            </UIButton>
+            </Button>
           </div>
         </div>
       </div>
@@ -229,13 +228,13 @@ function AuthorizeContent() {
               {error || '抱歉，您没有权限访问此应用。请联系管理员为您分配相应的用户组权限。'}
             </p>
             <div className="space-y-3">
-              <UIButton  onPress={() => router.push('/dashboard')} variant="primary" className="w-full">
+              <Button  onPress={() => router.push('/dashboard')} variant="primary" className="w-full">
                 返回控制台
-              </UIButton>
+              </Button>
               {redirectUri && (
-                <UIButton  onPress={handleDeny} variant="secondary" className="w-full">
+                <Button  onPress={handleDeny} variant="secondary" className="w-full">
                   返回应用
-                </UIButton>
+                </Button>
               )}
             </div>
           </div>
@@ -268,9 +267,9 @@ function AuthorizeContent() {
                   <p className="text-xs text-gray-500">{currentUser.email}</p>
                 </div>
               </div>
-              <UIButton onPress={handleSwitchAccount} className="text-sm text-blue-600" variant="tertiary" isDisabled={!!submitting} >
+              <Button onPress={handleSwitchAccount} className="text-sm text-blue-600" variant="tertiary" isDisabled={!!submitting} >
                 切换账号
-              </UIButton>
+              </Button>
             </div>
           </div>
         )}
@@ -322,8 +321,8 @@ function AuthorizeContent() {
         </div>
 
         <div className="space-y-3">
-          <UIButton onPress={handleApprove} variant="primary" className="w-full" isDisabled={!!submitting} isPending={submitting === 'approve'}>{submitting === 'approve' ? '授权中...' : '授权'}</UIButton>
-          <UIButton onPress={handleDeny} variant="secondary" className="w-full" isDisabled={!!submitting} isPending={submitting === 'deny'}>{submitting === 'deny' ? '正在返回...' : '拒绝'}</UIButton>
+          <Button onPress={handleApprove} variant="primary" className="w-full" isDisabled={!!submitting} isPending={submitting === 'approve'}>{submitting === 'approve' ? '授权中...' : '授权'}</Button>
+          <Button onPress={handleDeny} variant="secondary" className="w-full" isDisabled={!!submitting} isPending={submitting === 'deny'}>{submitting === 'deny' ? '正在返回...' : '拒绝'}</Button>
         </div>
 
         <p className="text-xs text-gray-500 text-center mt-4">
@@ -338,9 +337,9 @@ export default function AuthorizePage() {
   return (
     <Suspense fallback={
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">加载中...</p>
+        <div className="flex flex-col items-center gap-3">
+          <Spinner size="lg" />
+          <p className="text-sm text-default-500">加载中...</p>
         </div>
       </div>
     }>

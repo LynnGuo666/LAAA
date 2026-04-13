@@ -1,12 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { CheckboxGroup, Checkbox, toast } from '@heroui/react';
+import { Button, CheckboxGroup, Checkbox, Description, Input, Label, ListBox, ListBoxItem, Radio, RadioGroup, TextArea, TextField, toast } from '@heroui/react';
 import { clientApi, groupApi } from '@/lib/api';
 import SidePanel from '@/components/SidePanel';
 import { useAuthStore } from '@/lib/store';
 import { isAdmin } from '@/lib/authz';
-import { UIButton, UICheckbox, UIDescription, UIInput, UILabel, UIListBox, UIRadio, UIRadioGroup, UISelectItem, UITextField, UITextarea } from '@/components/ui/primitives';
+import { UICheckbox } from '@/components/ui/primitives';
 import { useConfirmDialog } from '@/components/ui/confirm-dialog-provider';
 
 interface Client {
@@ -355,7 +355,7 @@ export default function AppsPage() {
     <div className="px-4 sm:px-0 animate-fade-in">
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-6 sm:mb-8">
         <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">我的应用</h1>
-        <UIButton onPress={() => setShowCreateForm(!showCreateForm)} className="w-full sm:w-auto" variant="primary" isDisabled={creating || updating || accessControlSaving} >{showCreateForm ? '取消' : '+ 创建应用'}</UIButton>
+        <Button onPress={() => setShowCreateForm(!showCreateForm)} className="w-full sm:w-auto" variant="primary" isDisabled={creating || updating || accessControlSaving} >{showCreateForm ? '取消' : '+ 创建应用'}</Button>
       </div>
 
       {newClientCredentials && (
@@ -367,10 +367,10 @@ export default function AppsPage() {
                 请立即保存 `Client Secret`，关闭页面后将无法再次查看（可在此页面重置）。
               </p>
             </div>
-            <UIButton type="button"
+            <Button type="button"
             className="text-xs sm:text-sm" variant="secondary" onPress={() => setNewClientCredentials(null)}>
               关闭
-            </UIButton>
+            </Button>
           </div>
 
           <div className="mt-4 space-y-3">
@@ -380,10 +380,10 @@ export default function AppsPage() {
                 <code className="bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded font-mono text-xs break-all select-all flex-1">
                   {newClientCredentials.client_id}
                 </code>
-                <UIButton type="button"
+                <Button type="button"
                 className="text-xs shrink-0" variant="secondary" onPress={() => copyToClipboard(newClientCredentials.client_id, 'Client ID')}>
                   复制
-                </UIButton>
+                </Button>
               </div>
             </div>
 
@@ -393,12 +393,12 @@ export default function AppsPage() {
                 <code className="bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded font-mono text-xs break-all select-all flex-1">
                   {showNewSecret ? newClientCredentials.client_secret : '••••••••••••••••'}
                 </code>
-                <UIButton type="button"
-                className="text-xs shrink-0" variant="secondary" onPress={() => setShowNewSecret((v) => !v)}>{showNewSecret ? '隐藏' : '显示'}</UIButton>
-                <UIButton type="button"
+                <Button type="button"
+                className="text-xs shrink-0" variant="secondary" onPress={() => setShowNewSecret((v) => !v)}>{showNewSecret ? '隐藏' : '显示'}</Button>
+                <Button type="button"
                 className="text-xs shrink-0" variant="secondary" onPress={() => copyToClipboard(newClientCredentials.client_secret, 'Client Secret')}>
                   复制
-                </UIButton>
+                </Button>
               </div>
             </div>
 
@@ -417,39 +417,39 @@ export default function AppsPage() {
 
           <fieldset disabled={creating} className="space-y-4">
             <div>
-              <UITextField isRequired>
-                <UILabel>应用名称</UILabel>
-                <UIInput type="text" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
-              </UITextField>
+              <TextField isRequired>
+                <Label>应用名称</Label>
+                <Input type="text" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
+              </TextField>
             </div>
 
             <div>
-              <UITextField>
-                <UILabel>应用描述</UILabel>
-                <UITextarea rows={3} value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} />
-              </UITextField>
+              <TextField>
+                <Label>应用描述</Label>
+                <TextArea rows={3} value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} />
+              </TextField>
             </div>
 
             <div>
-              <UITextField>
-                <UILabel>应用 Logo URL</UILabel>
-                <UIInput type="url" placeholder="https://example.com/logo.png" value={formData.logo} onChange={(e) => setFormData({ ...formData, logo: e.target.value })} />
-                <UIDescription>Logo 将显示在授权页面上</UIDescription>
-              </UITextField>
+              <TextField>
+                <Label>应用 Logo URL</Label>
+                <Input type="url" placeholder="https://example.com/logo.png" value={formData.logo} onChange={(e) => setFormData({ ...formData, logo: e.target.value })} />
+                <Description>Logo 将显示在授权页面上</Description>
+              </TextField>
             </div>
 
             <div>
-              <UITextField>
-                <UILabel>应用官网（可选）</UILabel>
-                <UIInput type="url" placeholder="https://example.com" value={formData.website_url} onChange={(e) => setFormData({ ...formData, website_url: e.target.value })} />
-              </UITextField>
+              <TextField>
+                <Label>应用官网（可选）</Label>
+                <Input type="url" placeholder="https://example.com" value={formData.website_url} onChange={(e) => setFormData({ ...formData, website_url: e.target.value })} />
+              </TextField>
             </div>
 
             <div>
-              <UITextField isRequired>
-                <UILabel>回调地址 (每行一个)</UILabel>
-                <UITextarea rows={3} className="font-mono text-sm" placeholder="http://localhost:3000/callback&#10;https://myapp.com/callback" value={formData.redirect_uris} onChange={(e) => setFormData({ ...formData, redirect_uris: e.target.value })} />
-              </UITextField>
+              <TextField isRequired>
+                <Label>回调地址 (每行一个)</Label>
+                <TextArea rows={3} className="font-mono text-sm" placeholder="http://localhost:3000/callback&#10;https://myapp.com/callback" value={formData.redirect_uris} onChange={(e) => setFormData({ ...formData, redirect_uris: e.target.value })} />
+              </TextField>
             </div>
 
             <div>
@@ -490,19 +490,19 @@ export default function AppsPage() {
 
             <div>
               <label className="block text-sm font-medium mb-2">默认访问</label>
-              <UIRadioGroup
+              <RadioGroup
                 orientation="vertical"
                 value={formData.default_access ? 'allow' : 'deny'}
                 onChange={(val) => setFormData({ ...formData, default_access: val === 'allow' })}
                 className="space-y-2"
               >
-              <UIRadio value="allow">允许</UIRadio>
-              <UIRadio value="deny">拒绝</UIRadio>
-              </UIRadioGroup>
+              <Radio value="allow">允许</Radio>
+              <Radio value="deny">拒绝</Radio>
+              </RadioGroup>
               <p className="text-xs text-gray-500 mt-2">当未配置用户/用户组的应用权限时生效</p>
             </div>
 
-            <UIButton type="submit" variant="primary" isDisabled={creating} isPending={creating}>{creating ? '创建中...' : '创建应用'}</UIButton>
+            <Button type="submit" variant="primary" isDisabled={creating} isPending={creating}>{creating ? '创建中...' : '创建应用'}</Button>
           </fieldset>
         </form>
       )}
@@ -514,39 +514,39 @@ export default function AppsPage() {
 
           <fieldset disabled={updating} className="space-y-4">
             <div>
-              <UITextField isRequired>
-                <UILabel>应用名称</UILabel>
-                <UIInput type="text" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
-              </UITextField>
+              <TextField isRequired>
+                <Label>应用名称</Label>
+                <Input type="text" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
+              </TextField>
             </div>
 
             <div>
-              <UITextField>
-                <UILabel>应用描述</UILabel>
-                <UITextarea rows={3} value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} />
-              </UITextField>
+              <TextField>
+                <Label>应用描述</Label>
+                <TextArea rows={3} value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} />
+              </TextField>
             </div>
 
             <div>
-              <UITextField>
-                <UILabel>应用 Logo URL</UILabel>
-                <UIInput type="url" placeholder="https://example.com/logo.png" value={formData.logo} onChange={(e) => setFormData({ ...formData, logo: e.target.value })} />
-                <UIDescription>Logo 将显示在授权页面上</UIDescription>
-              </UITextField>
+              <TextField>
+                <Label>应用 Logo URL</Label>
+                <Input type="url" placeholder="https://example.com/logo.png" value={formData.logo} onChange={(e) => setFormData({ ...formData, logo: e.target.value })} />
+                <Description>Logo 将显示在授权页面上</Description>
+              </TextField>
             </div>
 
             <div>
-              <UITextField>
-                <UILabel>应用官网（可选）</UILabel>
-                <UIInput type="url" placeholder="https://example.com" value={formData.website_url} onChange={(e) => setFormData({ ...formData, website_url: e.target.value })} />
-              </UITextField>
+              <TextField>
+                <Label>应用官网（可选）</Label>
+                <Input type="url" placeholder="https://example.com" value={formData.website_url} onChange={(e) => setFormData({ ...formData, website_url: e.target.value })} />
+              </TextField>
             </div>
 
             <div>
-              <UITextField isRequired>
-                <UILabel>回调地址 (每行一个)</UILabel>
-                <UITextarea rows={3} className="font-mono text-sm" placeholder="http://localhost:3000/callback&#10;https://myapp.com/callback" value={formData.redirect_uris} onChange={(e) => setFormData({ ...formData, redirect_uris: e.target.value })} />
-              </UITextField>
+              <TextField isRequired>
+                <Label>回调地址 (每行一个)</Label>
+                <TextArea rows={3} className="font-mono text-sm" placeholder="http://localhost:3000/callback&#10;https://myapp.com/callback" value={formData.redirect_uris} onChange={(e) => setFormData({ ...formData, redirect_uris: e.target.value })} />
+              </TextField>
             </div>
 
             <div>
@@ -587,26 +587,26 @@ export default function AppsPage() {
 
             <div>
               <label className="block text-sm font-medium mb-2">默认访问</label>
-              <UIRadioGroup
+              <RadioGroup
                 orientation="vertical"
                 value={formData.default_access ? 'allow' : 'deny'}
                 onChange={(val) => setFormData({ ...formData, default_access: val === 'allow' })}
                 className="space-y-2"
               >
-              <UIRadio value="allow">允许</UIRadio>
-              <UIRadio value="deny">拒绝</UIRadio>
-              </UIRadioGroup>
+              <Radio value="allow">允许</Radio>
+              <Radio value="deny">拒绝</Radio>
+              </RadioGroup>
               <p className="text-xs text-gray-500 mt-2">当未配置用户/用户组的应用权限时生效</p>
             </div>
 
             <div className="flex space-x-3">
-              <UIButton type="submit" variant="primary" isDisabled={updating} isPending={updating}>{updating ? '保存中...' : '保存更改'}</UIButton>
-              <UIButton type="button" onPress={() => {
+              <Button type="submit" variant="primary" isDisabled={updating} isPending={updating}>{updating ? '保存中...' : '保存更改'}</Button>
+              <Button type="button" onPress={() => {
                 setShowEditForm(false);
                 setEditingClient(null);
               }} variant="secondary" isDisabled={updating} >
                 取消
-              </UIButton>
+              </Button>
             </div>
           </fieldset>
         </form>
@@ -620,9 +620,9 @@ export default function AppsPage() {
             </div>
           ) : (
             <div className="surface overflow-hidden">
-              <UIListBox aria-label="应用列表" variant="default">
+              <ListBox aria-label="应用列表" variant="default">
                 {clients.map((client) => (
-                  <UISelectItem key={client.id} id={String(client.id)} textValue={client.name}>
+                  <ListBoxItem key={client.id} id={String(client.id)} textValue={client.name}>
                     <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                       <div className="min-w-0 flex-1">
                         <h3 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-gray-100 truncate">
@@ -653,17 +653,17 @@ export default function AppsPage() {
                       </div>
 
                       <div className="flex flex-wrap gap-2 shrink-0">
-                        <UIButton onPress={() => openEditForm(client)} className="text-xs" variant="secondary" isDisabled={creating || updating || accessControlSaving || deletingClientId === client.id || resettingClientId === client.id} >
+                        <Button onPress={() => openEditForm(client)} className="text-xs" variant="secondary" isDisabled={creating || updating || accessControlSaving || deletingClientId === client.id || resettingClientId === client.id} >
                           编辑
-                        </UIButton>
-                        <UIButton onPress={() => handleResetSecret(client)} className="text-xs" variant="secondary" isDisabled={creating || updating || accessControlSaving || resettingClientId === client.id || deletingClientId === client.id} isPending={resettingClientId === client.id}>{resettingClientId === client.id ? '重置中' : '重置密钥'}</UIButton>
-                        <UIButton onPress={() => openAccessControl(client)} className="text-xs" variant="secondary" isDisabled={creating || updating || accessControlSaving || accessControlLoading} isPending={accessControlLoading && selectedClient?.id === client.id}>{accessControlLoading && selectedClient?.id === client.id ? '加载中' : '访问控制'}</UIButton>
-                        <UIButton onPress={() => handleDelete(client.id, client.name)} className="text-xs" variant="danger" isDisabled={creating || updating || accessControlSaving || deletingClientId === client.id || resettingClientId === client.id} isPending={deletingClientId === client.id}>{deletingClientId === client.id ? '删除中' : '删除'}</UIButton>
+                        </Button>
+                        <Button onPress={() => handleResetSecret(client)} className="text-xs" variant="secondary" isDisabled={creating || updating || accessControlSaving || resettingClientId === client.id || deletingClientId === client.id} isPending={resettingClientId === client.id}>{resettingClientId === client.id ? '重置中' : '重置密钥'}</Button>
+                        <Button onPress={() => openAccessControl(client)} className="text-xs" variant="secondary" isDisabled={creating || updating || accessControlSaving || accessControlLoading} isPending={accessControlLoading && selectedClient?.id === client.id}>{accessControlLoading && selectedClient?.id === client.id ? '加载中' : '访问控制'}</Button>
+                        <Button onPress={() => handleDelete(client.id, client.name)} className="text-xs" variant="danger" isDisabled={creating || updating || accessControlSaving || deletingClientId === client.id || resettingClientId === client.id} isPending={deletingClientId === client.id}>{deletingClientId === client.id ? '删除中' : '删除'}</Button>
                       </div>
                     </div>
-                  </UISelectItem>
+                  </ListBoxItem>
                 ))}
-              </UIListBox>
+              </ListBox>
             </div>
           )}
         </section>
@@ -755,13 +755,13 @@ export default function AppsPage() {
               </div>
 
               <div className="flex gap-2 pt-2 border-t">
-                <UIButton onPress={handleAccessControlSave} className="flex-1 text-sm" variant="primary" isDisabled={accessControlSaving} isPending={accessControlSaving}>{accessControlSaving ? '保存中...' : '保存'}</UIButton>
-                <UIButton onPress={() => {
+                <Button onPress={handleAccessControlSave} className="flex-1 text-sm" variant="primary" isDisabled={accessControlSaving} isPending={accessControlSaving}>{accessControlSaving ? '保存中...' : '保存'}</Button>
+                <Button onPress={() => {
                   setShowAccessControl(false);
                   setSelectedClient(null);
                 }} className="flex-1 text-sm" variant="secondary" isDisabled={accessControlSaving} >
                   取消
-                </UIButton>
+                </Button>
               </div>
             </div>
           )}

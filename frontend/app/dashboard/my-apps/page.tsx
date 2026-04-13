@@ -4,8 +4,7 @@ import { useEffect, useState } from 'react';
 import { userApi } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { isAdmin } from '@/lib/authz';
-import { UIButton } from '@/components/ui/primitives';
-import { Card } from '@heroui/react';
+import { Button, Card } from '@heroui/react';
 import { ExternalLink } from 'lucide-react';
 
 interface AppItem {
@@ -57,9 +56,9 @@ export default function MyAppsPage() {
               {adminView ? '应用列表' : '我的应用'}
             </h1>
           </div>
-          <UIButton onPress={loadApps} variant="tertiary" isDisabled={loading} >
+          <Button onPress={loadApps} variant="tertiary" isDisabled={loading} >
             刷新
-          </UIButton>
+          </Button>
         </div>
       </div>
 
@@ -103,14 +102,14 @@ export default function MyAppsPage() {
                   </div>
 
                   <div className="flex justify-end">
-                    <UIButton
+                    <Button
                       onPress={() => openApp(app)}
                       variant={app.website_url ? 'primary' : 'tertiary'}
                       isDisabled={!app.website_url}
                       className="w-auto px-3 text-sm"
                     >
                       {app.website_url ? '进入应用' : '暂无入口'}
-                    </UIButton>
+                    </Button>
                   </div>
                 </div>
               </Card>

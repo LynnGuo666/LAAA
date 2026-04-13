@@ -1,11 +1,11 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { Button, Input, ListBox, ListBoxItem, Select } from '@heroui/react';
 import { adminApi, groupApi } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { isAdmin } from '@/lib/authz';
 import { formatDateTime } from '@/lib/date';
-import { UIButton, UIInput, UIListBox, UISelect, UISelectItem } from '@/components/ui/primitives';
 
 interface Group {
   id: number;
@@ -150,9 +150,9 @@ export default function InvitesPage() {
             <h1 className="text-2xl font-bold">邀请码</h1>
             <p className="text-gray-600 mt-1">邀请制注册：邀请码决定新用户所属用户组。</p>
           </div>
-          <UIButton onPress={loadAll} variant="secondary" isDisabled={loading} >
+          <Button onPress={loadAll} variant="secondary" isDisabled={loading} >
             刷新
-          </UIButton>
+          </Button>
         </div>
       </div>
 
@@ -167,30 +167,30 @@ export default function InvitesPage() {
         <form onSubmit={handleCreate} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">用户组</label>
-            <UISelect
+            <Select
               placeholder="请选择"
               selectedKey={createForm.groupId ? String(createForm.groupId) : ''}
               onSelectionChange={(key) => setCreateForm((p) => ({ ...p, groupId: Number(String(key ?? '')) }))}
               isDisabled={creating}
             >
-              <UISelect.Trigger>
-                <UISelect.Value />
-                <UISelect.Indicator />
-              </UISelect.Trigger>
-              <UISelect.Popover>
-                <UIListBox>
-                  <UISelectItem id="">请选择</UISelectItem>
+              <Select.Trigger>
+                <Select.Value />
+                <Select.Indicator />
+              </Select.Trigger>
+              <Select.Popover>
+                <ListBox>
+                  <SelectItem id="">请选择</SelectItem>
                   {groups.map((g) => (
-                    <UISelectItem key={g.id} id={String(g.id)}>{g.name}</UISelectItem>
+                    <SelectItem key={g.id} id={String(g.id)}>{g.name}</SelectItem>
                   ))}
-                </UIListBox>
-              </UISelect.Popover>
-            </UISelect>
+                </ListBox>
+              </Select.Popover>
+            </Select>
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">过期时间（可选）</label>
-            <UIInput
+            <Input
               type="datetime-local"
               value={createForm.expiresAtLocal}
               onChange={(e) => setCreateForm((p) => ({ ...p, expiresAtLocal: e.target.value }))}
@@ -200,7 +200,7 @@ export default function InvitesPage() {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">使用次数（可选）</label>
-            <UIInput
+            <Input
               type="number"
               min={1}
               value={createForm.maxUses}
@@ -211,12 +211,12 @@ export default function InvitesPage() {
           </div>
 
           <div className="flex items-end md:justify-end">
-            <UIButton className="w-full md:w-auto" variant="primary" type="submit" isDisabled={creating} >{creating ? '生成中...' : '生成'}</UIButton>
+            <Button className="w-full md:w-auto" variant="primary" type="submit" isDisabled={creating} >{creating ? '生成中...' : '生成'}</Button>
           </div>
         </form>
         <div className="mt-4">
           <label className="block text-sm font-medium text-gray-700 mb-2">备注（可选）</label>
-          <UIInput
+          <Input
             value={createForm.note}
             onChange={(e) => setCreateForm((p) => ({ ...p, note: e.target.value }))}
             disabled={creating}
@@ -230,24 +230,24 @@ export default function InvitesPage() {
           <h2 className="text-lg font-semibold">邀请码列表</h2>
           <div className="flex items-center gap-2">
             <span className="text-sm text-gray-600">筛选：</span>
-            <UISelect
+            <Select
               className="w-32"
               selectedKey={filterActive}
               onSelectionChange={(key) => setFilterActive(String(key) as any)}
               isDisabled={loading}
             >
-              <UISelect.Trigger>
-                <UISelect.Value />
-                <UISelect.Indicator />
-              </UISelect.Trigger>
-              <UISelect.Popover>
-                <UIListBox>
-                  <UISelectItem id="active">仅有效</UISelectItem>
-                  <UISelectItem id="inactive">仅无效</UISelectItem>
-                  <UISelectItem id="all">全部</UISelectItem>
-                </UIListBox>
-              </UISelect.Popover>
-            </UISelect>
+              <Select.Trigger>
+                <Select.Value />
+                <Select.Indicator />
+              </Select.Trigger>
+              <Select.Popover>
+                <ListBox>
+                  <SelectItem id="active">仅有效</SelectItem>
+                  <SelectItem id="inactive">仅无效</SelectItem>
+                  <SelectItem id="all">全部</SelectItem>
+                </ListBox>
+              </Select.Popover>
+            </Select>
           </div>
         </div>
 
@@ -276,9 +276,9 @@ export default function InvitesPage() {
                   <tr key={i.id} className="border-t border-gray-100">
                     <td className="py-2 pr-4 font-mono">
                       {i.code}
-                      <UIButton className="ml-2 text-blue-600 hover:text-blue-700 h-auto p-0 min-w-0" onPress={() => copy(i.code)} type="button" variant="tertiary" size="sm">
+                      <Button className="ml-2 text-blue-600 hover:text-blue-700 h-auto p-0 min-w-0" onPress={() => copy(i.code)} type="button" variant="tertiary" size="sm">
                         复制
-                      </UIButton>
+                      </Button>
                     </td>
                     <td className="py-2 pr-4">{i.group_name || `#${i.group_id}`}</td>
                     <td className="py-2 pr-4">
@@ -299,9 +299,9 @@ export default function InvitesPage() {
                     </td>
                     <td className="py-2 pr-4 text-gray-700">{i.note || ''}</td>
                     <td className="py-2 pr-4">
-                      <UIButton variant="secondary" type="button" isDisabled={!i.is_active} onPress={() => handleDeactivate(i.id)} size="sm">
+                      <Button variant="secondary" type="button" isDisabled={!i.is_active} onPress={() => handleDeactivate(i.id)} size="sm">
                         停用
-                      </UIButton>
+                      </Button>
                     </td>
                   </tr>
                   );

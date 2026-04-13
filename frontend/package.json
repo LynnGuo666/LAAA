@@ -9,8 +9,8 @@
     "export": "next build"
   },
   "dependencies": {
-    "@heroui/react": "^3.0.0-beta.7",
-    "@heroui/styles": "^3.0.0-beta.7",
+    "@heroui/react": "^3.0.2",
+    "@heroui/styles": "^3.0.2",
     "agentation": "^2.2.1",
     "axios": "^1.6.0",
     "lucide-react": "^0.561.0",

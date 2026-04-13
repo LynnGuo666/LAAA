@@ -6,6 +6,7 @@ import { adminApi, clientApi } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { isAdmin } from '@/lib/authz';
 import { AppWindow, ChevronRight, ExternalLink, Users, UserPlus, Settings } from 'lucide-react';
+import { Spinner } from '@heroui/react';
 import { useRouter } from 'next/navigation';
 
 export default function AdminDashboardPage() {
@@ -53,8 +54,8 @@ export default function AdminDashboardPage() {
       <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-8">管理控制台</h1>
 
       {loading ? (
-        <div className="text-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+        <div className="flex justify-center py-12">
+          <Spinner size="lg" />
         </div>
       ) : (
         <>

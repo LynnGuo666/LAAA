@@ -3,9 +3,9 @@
 import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { buttonVariants, cn } from '@heroui/react';
+import { buttonVariants, cn, Spinner } from '@heroui/react';
 import { authApi } from '@/lib/api';
-import { CheckCircle, XCircle, Loader2, Mail } from 'lucide-react';
+import { CheckCircle, XCircle, Mail } from 'lucide-react';
 
 type VerificationStatus = 'loading' | 'success' | 'error' | 'no-token';
 
@@ -42,7 +42,7 @@ function VerifyEmailContent() {
           {status === 'loading' && (
             <>
               <div className="w-16 h-16 mx-auto mb-6 flex items-center justify-center">
-                <Loader2 className="w-12 h-12 text-blue-500 animate-spin" />
+                <Spinner size="lg" />
               </div>
               <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">
                 正在验证邮箱
@@ -117,9 +117,9 @@ export default function VerifyEmailPage() {
     <Suspense
       fallback={
         <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950 px-4">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-4 text-gray-600 dark:text-gray-300">加载中...</p>
+          <div className="flex flex-col items-center gap-3">
+            <Spinner size="lg" />
+            <p className="text-sm text-default-500">加载中...</p>
           </div>
         </div>
       }

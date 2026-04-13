@@ -3,10 +3,9 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { AlertDialog } from '@heroui/react';
+import { AlertDialog, Button, Input } from '@heroui/react';
 import { totpApi } from '@/lib/api';
 import { formatDate } from '@/lib/date';
-import { UIButton, UIInput } from '@/components/ui/primitives';
 
 interface TOTPStatus {
   enabled: boolean;
@@ -237,16 +236,16 @@ export default function TOTPSetupPage() {
           </div>
 
           <div className="flex flex-wrap gap-2">
-            <UIButton onPress={copyBackupCodes} className="text-sm" variant="secondary" >{copied ? '已复制' : '复制备用码'}</UIButton>
-            <UIButton onPress={downloadBackupCodes} className="text-sm" variant="secondary" >
+            <Button onPress={copyBackupCodes} className="text-sm" variant="secondary" >{copied ? '已复制' : '复制备用码'}</Button>
+            <Button onPress={downloadBackupCodes} className="text-sm" variant="secondary" >
               下载备用码
-            </UIButton>
-            <UIButton onPress={() => {
+            </Button>
+            <Button onPress={() => {
               setShowBackupCodes(false);
               setBackupCodes([]);
             }} className="text-sm" variant="primary" >
               我已保存
-            </UIButton>
+            </Button>
           </div>
         </div>
       )}
@@ -292,17 +291,17 @@ export default function TOTPSetupPage() {
         {/* Actions */}
         {status?.enabled ? (
           <div className="flex flex-wrap gap-2">
-            <UIButton onPress={() => setShowRegenerateModal(true)} className="text-sm" variant="secondary" >
+            <Button onPress={() => setShowRegenerateModal(true)} className="text-sm" variant="secondary" >
               重新生成备用码
-            </UIButton>
-            <UIButton onPress={() => setShowDisableModal(true)} className="text-sm" variant="danger" >
+            </Button>
+            <Button onPress={() => setShowDisableModal(true)} className="text-sm" variant="danger" >
               禁用身份验证器
-            </UIButton>
+            </Button>
           </div>
         ) : !setupData && (
-          <UIButton onPress={handleStartSetup} variant="primary" >
+          <Button onPress={handleStartSetup} variant="primary" >
             开始设置
-          </UIButton>
+          </Button>
         )}
       </div>
 
@@ -363,7 +362,7 @@ export default function TOTPSetupPage() {
 
             <form onSubmit={handleVerifySetup} className="ml-8">
               <div className="flex gap-3 items-end max-w-xs">
-                <UIInput
+                <Input
                   type="text"
                   value={verificationCode}
                   onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
@@ -371,7 +370,7 @@ export default function TOTPSetupPage() {
                   className="flex-1 text-center text-xl tracking-widest font-mono"
                   maxLength={6}
                 />
-                <UIButton type="submit" isDisabled={verifying || verificationCode.length !== 6} variant="primary" isPending={verifying}>{verifying ? '验证中...' : '验证'}</UIButton>
+                <Button type="submit" isDisabled={verifying || verificationCode.length !== 6} variant="primary" isPending={verifying}>{verifying ? '验证中...' : '验证'}</Button>
               </div>
             </form>
           </div>
@@ -396,7 +395,7 @@ export default function TOTPSetupPage() {
                   </div>
                 )}
 
-                <UIInput
+                <Input
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -405,14 +404,14 @@ export default function TOTPSetupPage() {
                 />
               </AlertDialog.Body>
               <AlertDialog.Footer>
-                <UIButton onPress={() => {
+                <Button onPress={() => {
                   setShowDisableModal(false);
                   setPassword('');
                   setError('');
                 }} variant="secondary" >
                   取消
-                </UIButton>
-                <UIButton onPress={handleDisable} isDisabled={disabling || !password} variant="danger" isPending={disabling}>{disabling ? '禁用中...' : '确认禁用'}</UIButton>
+                </Button>
+                <Button onPress={handleDisable} isDisabled={disabling || !password} variant="danger" isPending={disabling}>{disabling ? '禁用中...' : '确认禁用'}</Button>
               </AlertDialog.Footer>
             </AlertDialog.Dialog>
           </AlertDialog.Container>
@@ -437,7 +436,7 @@ export default function TOTPSetupPage() {
                   </div>
                 )}
 
-                <UIInput
+                <Input
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -446,14 +445,14 @@ export default function TOTPSetupPage() {
                 />
               </AlertDialog.Body>
               <AlertDialog.Footer>
-                <UIButton onPress={() => {
+                <Button onPress={() => {
                   setShowRegenerateModal(false);
                   setPassword('');
                   setError('');
                 }} variant="secondary" >
                   取消
-                </UIButton>
-                <UIButton onPress={handleRegenerateBackupCodes} isDisabled={regenerating || !password} variant="primary" isPending={regenerating}>{regenerating ? '生成中...' : '重新生成'}</UIButton>
+                </Button>
+                <Button onPress={handleRegenerateBackupCodes} isDisabled={regenerating || !password} variant="primary" isPending={regenerating}>{regenerating ? '生成中...' : '重新生成'}</Button>
               </AlertDialog.Footer>
             </AlertDialog.Dialog>
           </AlertDialog.Container>

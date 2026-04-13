@@ -1,10 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { Button, Input, Label, TextField } from '@heroui/react';
 import { siteApi } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { isAdmin } from '@/lib/authz';
-import { UIButton, UIInput, UILabel, UITextField } from '@/components/ui/primitives';
 
 export default function SiteSettingsPage() {
   const user = useAuthStore((s) => s.user);
@@ -80,12 +80,12 @@ export default function SiteSettingsPage() {
         ) : (
           <form onSubmit={save} className="space-y-4 max-w-lg">
             <div>
-              <UITextField isDisabled={saving}>
-                <UILabel>网站昵称</UILabel>
-                <UIInput value={siteName} onChange={(e) => setSiteName(e.target.value)} placeholder="例如：LAAA OAuth" />
-              </UITextField>
+              <TextField isDisabled={saving}>
+                <Label>网站昵称</Label>
+                <Input value={siteName} onChange={(e) => setSiteName(e.target.value)} placeholder="例如：LAAA OAuth" />
+              </TextField>
             </div>
-            <UIButton variant="primary" type="submit" isDisabled={saving} isPending={saving}>{saving ? '保存中...' : '保存'}</UIButton>
+            <Button variant="primary" type="submit" isDisabled={saving} isPending={saving}>{saving ? '保存中...' : '保存'}</Button>
           </form>
         )}
       </div>

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Chip, toast } from '@heroui/react';
+import { Button, Chip, Description, Input, Label, Spinner, TextField, toast } from '@heroui/react';
 import Link from 'next/link';
 import { authApi, passkeyApi, API_URL, verificationApi } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
@@ -13,7 +13,7 @@ import {
   getPasskeyCredential,
   serializeAuthenticationCredential,
 } from '@/lib/webauthn';
-import { UIButton, UICheckbox, UIInput, UILabel, UITextField } from '@/components/ui/primitives';
+import { UICheckbox } from '@/components/ui/primitives';
 
 interface ClientInfo {
   name: string;
@@ -297,10 +297,10 @@ function LoginContent() {
 
   if (loadingClient) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">加载中...</p>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950">
+        <div className="flex flex-col items-center gap-3">
+          <Spinner size="lg" />
+          <p className="text-sm text-default-500">加载中...</p>
         </div>
       </div>
     );
@@ -362,17 +362,17 @@ function LoginContent() {
           )}
 
           <div>
-            <UITextField isRequired isDisabled={loading}>
-              <UILabel>用户名</UILabel>
-              <UIInput id="username" type="text" value={formData.username} onChange={(e) => setFormData({ ...formData, username: e.target.value })} placeholder="请输入用户名" />
-            </UITextField>
+            <TextField isRequired isDisabled={loading}>
+              <Label>用户名</Label>
+              <Input id="username" type="text" value={formData.username} onChange={(e) => setFormData({ ...formData, username: e.target.value })} placeholder="请输入用户名" />
+            </TextField>
           </div>
 
           <div>
-            <UITextField isRequired isDisabled={loading}>
-              <UILabel>密码</UILabel>
-              <UIInput id="password" type="password" value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} placeholder="请输入密码" />
-            </UITextField>
+            <TextField isRequired isDisabled={loading}>
+              <Label>密码</Label>
+              <Input id="password" type="password" value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} placeholder="请输入密码" />
+            </TextField>
           </div>
 
           <div className="flex items-center">
@@ -382,7 +382,7 @@ function LoginContent() {
             </UICheckbox>
           </div>
 
-          <UIButton type="submit" isDisabled={loading || passkeyLoading} variant="primary" className="w-full" isPending={loading}>{loading ? '登录中...' : '登录'}</UIButton>
+          <Button type="submit" isDisabled={loading || passkeyLoading} variant="primary" className="w-full" isPending={loading}>{loading ? '登录中...' : '登录'}</Button>
 
           {webAuthnSupported && (
             <>
@@ -395,13 +395,13 @@ function LoginContent() {
                 </div>
               </div>
 
-              <UIButton type="button" onPress={handlePasskeyLogin} isDisabled={loading || passkeyLoading} variant="secondary" className="w-full text-default-foreground" isPending={passkeyLoading}>{!passkeyLoading && (
+              <Button type="button" onPress={handlePasskeyLogin} isDisabled={loading || passkeyLoading} variant="secondary" className="w-full text-default-foreground" isPending={passkeyLoading}>{!passkeyLoading && (
                 <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M12 2C9.24 2 7 4.24 7 7C7 9.76 9.24 12 12 12C14.76 12 17 9.76 17 7C17 4.24 14.76 2 12 2ZM12 10C10.34 10 9 8.66 9 7C9 5.34 10.34 4 12 4C13.66 4 15 5.34 15 7C15 8.66 13.66 10 12 10Z" fill="currentColor"/>
                   <path d="M12 14C7.58 14 4 16.58 4 20V22H20V20C20 16.58 16.42 14 12 14ZM18 20H6V20C6 17.79 8.69 16 12 16C15.31 16 18 17.79 18 20Z" fill="currentColor"/>
                 </svg>
               )}
-              {passkeyLoading ? '验证中...' : '使用通行密钥登录'}</UIButton>
+              {passkeyLoading ? '验证中...' : '使用通行密钥登录'}</Button>
             </>
           )}
 
@@ -420,10 +420,10 @@ function LoginContent() {
 export default function LoginPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">加载中...</p>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950">
+        <div className="flex flex-col items-center gap-3">
+          <Spinner size="lg" />
+          <p className="text-sm text-default-500">加载中...</p>
         </div>
       </div>
     }>

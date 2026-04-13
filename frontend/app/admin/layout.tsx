@@ -3,11 +3,11 @@
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { buttonVariants, cn } from '@heroui/react';
+import { Button, buttonVariants, cn, ListBox, ListBoxItem, Spinner } from '@heroui/react';
 import { useAuthStore } from '@/lib/store';
 import { authApi, siteApi } from '@/lib/api';
 import { isAdmin } from '@/lib/authz';
-import { UIButton } from '@/components/ui/primitives';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 type NavItem = { href: string; label: string };
 type NavGroup = { label: string; items: NavItem[] };
@@ -75,9 +75,9 @@ export default function AdminLayout({
   if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">加载中...</p>
+        <div className="flex flex-col items-center gap-3">
+          <Spinner size="lg" />
+          <p className="text-sm text-default-500">加载中...</p>
         </div>
       </div>
     );
@@ -118,30 +118,36 @@ export default function AdminLayout({
   };
 
   const AdminNavContent = () => (
-    <div className="space-y-3">
-      {adminNavGroups.map((group) => (
-        <div key={group.label}>
-          <div className="px-3 py-2 text-xs font-semibold tracking-wide text-gray-500 dark:text-gray-400">
+    <div className="overflow-hidden rounded-lg border border-gray-200 dark:border-gray-800">
+      {adminNavGroups.map((group, index) => (
+        <div key={group.label} className={index > 0 ? 'border-t border-gray-200 dark:border-gray-800' : ''}>
+          <div className="px-3 py-2 text-xs font-semibold tracking-wide text-gray-500 dark:text-gray-400 bg-gray-50/70 dark:bg-gray-900/40">
             {group.label}
           </div>
-          <div className="space-y-1">
+          <ListBox
+            aria-label={`${group.label}导航`}
+            variant="default"
+            selectionMode="single"
+            selectedKeys={new Set(group.items.filter((item) => isActiveHref(item.href)).map((item) => item.href))}
+            onAction={(key) => router.push(String(key))}
+          >
             {group.items.map((item) => {
               const active = isActiveHref(item.href);
               return (
-                <Link
+                <ListBoxItem
                   key={item.href}
-                  href={item.href}
-                  className={`block px-3 py-2 rounded-lg text-sm ${
+                  id={item.href}
+                  className={`text-sm ${
                     active
                       ? 'bg-blue-600/10 text-blue-700 dark:text-blue-300'
                       : 'text-gray-700 dark:text-gray-200 hover:bg-black/[0.03] dark:hover:bg-white/[0.04]'
                   }`}
                 >
                   {item.label}
-                </Link>
+                </ListBoxItem>
               );
             })}
-          </div>
+          </ListBox>
         </div>
       ))}
     </div>
@@ -172,6 +178,7 @@ export default function AdminLayout({
             </div>
 
             <div className="flex items-center gap-2 sm:gap-3">
+              <ThemeToggle />
               <Link
                 href="/dashboard/my-apps"
                 className={cn(buttonVariants({ variant: 'secondary', size: 'sm' }), 'text-xs sm:text-sm px-2 sm:px-3')}
@@ -182,8 +189,8 @@ export default function AdminLayout({
               <span className="hidden sm:inline text-sm text-gray-700 dark:text-gray-200">
                 {user.username}
               </span>
-              <UIButton  onPress={handleLogout} variant="secondary" className="text-xs sm:text-sm px-2 sm:px-3"><span className="hidden sm:inline">退出登录</span>
-              <span className="sm:hidden">退出</span></UIButton>
+              <Button  onPress={handleLogout} variant="secondary" className="text-xs sm:text-sm px-2 sm:px-3"><span className="hidden sm:inline">退出登录</span>
+              <span className="sm:hidden">退出</span></Button>
             </div>
           </div>
         </div>

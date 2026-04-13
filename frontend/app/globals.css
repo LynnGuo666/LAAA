@@ -1,2 +1,5 @@
 @import "tailwindcss";
 @import "@heroui/styles";
+
+/* 启用基于 data-theme 属性的 dark: 变体（配合 HeroUI 主题系统） */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));

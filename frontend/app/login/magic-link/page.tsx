@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { toast } from '@heroui/react';
+import { Spinner, toast } from '@heroui/react';
 import Link from 'next/link';
 import { verificationApi, authApi } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
@@ -160,8 +160,8 @@ function MagicLinkContent() {
         {/* Verifying */}
         {status === 'verifying' && (
           <>
-            <div className="w-16 h-16 mx-auto mb-6 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <div className="w-16 h-16 mx-auto mb-6 bg-primary/10 rounded-full flex items-center justify-center">
+              <Spinner size="md" />
             </div>
             <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">
               正在验证
@@ -261,9 +261,9 @@ export default function MagicLinkPage() {
   return (
     <Suspense fallback={
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600 dark:text-gray-400">加载中...</p>
+        <div className="flex flex-col items-center gap-3">
+          <Spinner size="lg" />
+          <p className="text-sm text-default-500">加载中...</p>
         </div>
       </div>
     }>

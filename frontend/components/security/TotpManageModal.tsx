@@ -1,8 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { AlertDialog, toast } from '@heroui/react';
-import { UIButton, UIInput } from '@/components/ui/primitives';
+import { AlertDialog, Button, Input, toast } from '@heroui/react';
 import { totpApi } from '@/lib/api';
 import type { AxiosError } from 'axios';
 
@@ -172,9 +171,9 @@ export function TotpManageModal({ isOpen, onOpenChange, onStatusUpdated }: TotpM
             ))}
           </div>
           <div className="flex flex-wrap gap-2">
-            <UIButton onPress={() => void copyBackupCodes()} variant="secondary" className="text-sm">{copied ? '已复制' : '复制备用码'}</UIButton>
-            <UIButton onPress={downloadBackupCodes} variant="secondary" className="text-sm">下载备用码</UIButton>
-            <UIButton onPress={() => { setShowBackupCodes(false); setBackupCodes([]); }} variant="primary" className="text-sm">我已保存</UIButton>
+            <Button onPress={() => void copyBackupCodes()} variant="secondary" className="text-sm">{copied ? '已复制' : '复制备用码'}</Button>
+            <Button onPress={downloadBackupCodes} variant="secondary" className="text-sm">下载备用码</Button>
+            <Button onPress={() => { setShowBackupCodes(false); setBackupCodes([]); }} variant="primary" className="text-sm">我已保存</Button>
           </div>
         </div>
       )}
@@ -189,11 +188,11 @@ export function TotpManageModal({ isOpen, onOpenChange, onStatusUpdated }: TotpM
           </div>
           {status?.enabled ? (
             <div className="flex gap-2">
-              <UIButton onPress={() => setView('regenerate')} variant="secondary" className="text-sm">重新生成备用码</UIButton>
-              <UIButton onPress={() => setView('disable')} variant="danger" className="text-sm">禁用</UIButton>
+              <Button onPress={() => setView('regenerate')} variant="secondary" className="text-sm">重新生成备用码</Button>
+              <Button onPress={() => setView('disable')} variant="danger" className="text-sm">禁用</Button>
             </div>
           ) : (
-            <UIButton onPress={() => void handleStartSetup()} variant="primary" className="text-sm">开始设置</UIButton>
+            <Button onPress={() => void handleStartSetup()} variant="primary" className="text-sm">开始设置</Button>
           )}
         </div>
 
@@ -207,7 +206,7 @@ export function TotpManageModal({ isOpen, onOpenChange, onStatusUpdated }: TotpM
             </div>
             <code className="block px-3 py-2 bg-gray-100 dark:bg-gray-800 rounded font-mono text-sm text-center select-all">{setupData.secret}</code>
             <div className="flex gap-2 items-end">
-              <UIInput
+              <Input
                 type="text"
                 value={verificationCode}
                 onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
@@ -215,9 +214,9 @@ export function TotpManageModal({ isOpen, onOpenChange, onStatusUpdated }: TotpM
                 className="flex-1 text-center text-xl tracking-widest font-mono"
                 maxLength={6}
               />
-              <UIButton onPress={() => void handleVerifySetup()} isDisabled={verifying || verificationCode.length !== 6} variant="primary" isPending={verifying}>
+              <Button onPress={() => void handleVerifySetup()} isDisabled={verifying || verificationCode.length !== 6} variant="primary" isPending={verifying}>
                 {verifying ? '验证中...' : '验证'}
-              </UIButton>
+              </Button>
             </div>
           </div>
         )}
@@ -231,7 +230,7 @@ export function TotpManageModal({ isOpen, onOpenChange, onStatusUpdated }: TotpM
         <h4 className="font-semibold text-gray-900 dark:text-gray-100">{title}</h4>
         <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">请输入密码确认操作。</p>
       </div>
-      <UIInput
+      <Input
         type="password"
         value={password}
         onChange={(e) => setPassword(e.target.value)}
@@ -239,10 +238,10 @@ export function TotpManageModal({ isOpen, onOpenChange, onStatusUpdated }: TotpM
         className="w-full"
       />
       <div className="flex justify-between gap-2">
-        <UIButton onPress={() => { setView('main'); setPassword(''); }} variant="ghost">返回</UIButton>
-        <UIButton onPress={() => void onConfirm()} isDisabled={pending || !password} variant={view === 'disable' ? 'danger' : 'primary'} isPending={pending}>
+        <Button onPress={() => { setView('main'); setPassword(''); }} variant="ghost">返回</Button>
+        <Button onPress={() => void onConfirm()} isDisabled={pending || !password} variant={view === 'disable' ? 'danger' : 'primary'} isPending={pending}>
           {pending ? '处理中...' : actionLabel}
-        </UIButton>
+        </Button>
       </div>
     </div>
   );
@@ -263,7 +262,7 @@ export function TotpManageModal({ isOpen, onOpenChange, onStatusUpdated }: TotpM
               {view === 'regenerate' && renderPasswordView('重新生成备用码', '重新生成', regenerating, handleRegenerateBackupCodes)}
             </AlertDialog.Body>
             <AlertDialog.Footer>
-              <UIButton onPress={() => onOpenChange(false)} variant="ghost">关闭</UIButton>
+              <Button onPress={() => onOpenChange(false)} variant="ghost">关闭</Button>
             </AlertDialog.Footer>
           </AlertDialog.Dialog>
         </AlertDialog.Container>

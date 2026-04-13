@@ -1,13 +1,8 @@
 'use client'
 
 import { Toast } from '@heroui/react'
-import type { ReactNode } from 'react'
 
-type ToastProviderProps = {
-  children: ReactNode
-}
-
-export default function ToastProvider({ children }: ToastProviderProps) {
+export default function ToastProvider({ children }: { children: React.ReactNode }) {
   return (
     <>
       {children}

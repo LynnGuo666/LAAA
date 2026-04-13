@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { Spinner } from '@heroui/react';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -12,9 +13,9 @@ export default function DashboardPage() {
 
   return (
     <div className="flex items-center justify-center min-h-[50vh]">
-      <div className="text-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-        <p className="mt-4 text-gray-600">正在跳转...</p>
+      <div className="flex flex-col items-center gap-3">
+        <Spinner size="lg" />
+        <p className="text-sm text-default-500">正在跳转...</p>
       </div>
     </div>
   );
