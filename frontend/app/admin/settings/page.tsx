@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Button, Input, Label, TextField } from '@heroui/react';
+import { Alert, Button, Input, Label, TextField } from '@heroui/react';
 import { siteApi } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { isAdmin } from '@/lib/authz';
@@ -64,14 +64,18 @@ export default function SiteSettingsPage() {
       </div>
 
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-          {error}
-        </div>
+        <Alert status="danger">
+          <Alert.Content>
+            <Alert.Description>{error}</Alert.Description>
+          </Alert.Content>
+        </Alert>
       )}
       {success && (
-        <div className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-lg">
-          {success}
-        </div>
+        <Alert status="success">
+          <Alert.Content>
+            <Alert.Description>{success}</Alert.Description>
+          </Alert.Content>
+        </Alert>
       )}
 
       <div className="card">

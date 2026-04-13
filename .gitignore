@@ -110,3 +110,8 @@ backend/data/GeoIP2-CN.mmdb
 .claude/settings.local.json
 .gitignore
 backend/data/ip2region.xdb
+.agents/
+.claude/
+.factory/
+.trae/
+skills-lock.json

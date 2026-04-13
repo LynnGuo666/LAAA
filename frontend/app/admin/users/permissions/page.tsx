@@ -281,9 +281,9 @@ export default function UserPermissionsPage() {
                           </Select.Trigger>
                           <Select.Popover>
                             <ListBox>
-                              <SelectItem id="">默认</SelectItem>
-                              <SelectItem id="allowed">允许</SelectItem>
-                              <SelectItem id="denied">拒绝</SelectItem>
+                              <ListBoxItem id="">默认</ListBoxItem>
+                              <ListBoxItem id="allowed">允许</ListBoxItem>
+                              <ListBoxItem id="denied">拒绝</ListBoxItem>
                             </ListBox>
                           </Select.Popover>
                         </Select>

@@ -669,9 +669,9 @@ export default function UserDetailPage() {
                       </Select.Trigger>
                       <Select.Popover>
                         <ListBox>
-                          <SelectItem id="active">激活</SelectItem>
-                          <SelectItem id="inactive">未激活</SelectItem>
-                          <SelectItem id="suspended">暂停</SelectItem>
+                          <ListBoxItem id="active">激活</ListBoxItem>
+                          <ListBoxItem id="inactive">未激活</ListBoxItem>
+                          <ListBoxItem id="suspended">暂停</ListBoxItem>
                         </ListBox>
                       </Select.Popover>
                     </Select>

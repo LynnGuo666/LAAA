@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { AlertDialog, Button, Input, ListBox, ListBoxItem, Select, Spinner } from '@heroui/react';
+import { Alert, AlertDialog, Button, Chip, Input, ListBox, ListBoxItem, Pagination, Select, Spinner } from '@heroui/react';
 import { adminApi, groupApi } from '@/lib/api';
 import { formatDate } from '@/lib/date';
 import { useAuthStore } from '@/lib/store';
@@ -253,10 +253,10 @@ export default function UsersPage() {
   };
 
   const getStatusBadge = (status: string) => {
-    const styles: Record<string, string> = {
-      active: 'bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-200 dark:border-green-900',
-      inactive: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-100 dark:border-gray-700',
-      suspended: 'bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-200 dark:border-red-900',
+    const colorMap: Record<string, 'success' | 'default' | 'danger'> = {
+      active: 'success',
+      inactive: 'default',
+      suspended: 'danger',
     };
     const labels: Record<string, string> = {
       active: '激活',
@@ -264,9 +264,9 @@ export default function UsersPage() {
       suspended: '暂停',
     };
     return (
-      <span className={`px-2 py-1 text-xs rounded-full border ${styles[status] || styles.inactive}`}>
-        {labels[status] || status}
-      </span>
+      <Chip color={colorMap[status] ?? 'default'} variant="soft" size="sm">
+        {labels[status] ?? status}
+      </Chip>
     );
   };
 
@@ -289,18 +289,17 @@ export default function UsersPage() {
         </div>
 
         {error && (
-          <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-md dark:bg-red-950 dark:border-red-900">
-            <p className="text-sm text-red-600 dark:text-red-200">{error}</p>
-          </div>
+          <Alert status="danger" className="mt-4">
+            <Alert.Content>
+              <Alert.Description>{error}</Alert.Description>
+            </Alert.Content>
+          </Alert>
         )}
 
         <div className="mt-6">
           <div className="surface overflow-hidden">
             {/* Search & Stats */}
-            <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-800 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-              <div className="text-sm text-gray-600 dark:text-gray-300">
-                共 {total} 位用户
-              </div>
+            <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-800 flex flex-col sm:flex-row sm:items-center sm:justify-end gap-3">
               <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-2">
                 <Input
                   value={searchInput}
@@ -382,18 +381,29 @@ export default function UsersPage() {
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-800 flex items-center justify-between">
-              <div className="text-sm text-gray-500 dark:text-gray-400">
-                第 {page + 1} / {totalPages} 页
-              </div>
-              <div className="flex gap-2">
-                <Button onPress={() => setPage(p => Math.max(0, p - 1))} isDisabled={page === 0} variant="secondary">
-                  上一页
-                </Button>
-                <Button onPress={() => setPage(p => Math.min(totalPages - 1, p + 1))} isDisabled={page >= totalPages - 1} variant="secondary">
-                  下一页
-                </Button>
-              </div>
+            <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-800">
+              <Pagination>
+                <Pagination.Summary>第 {page + 1} / {totalPages} 页，共 {total} 位用户</Pagination.Summary>
+                <Pagination.Content>
+                  <Pagination.Item>
+                    <Pagination.Previous isDisabled={page === 0} onPress={() => setPage(p => Math.max(0, p - 1))}>
+                      上一页
+                    </Pagination.Previous>
+                  </Pagination.Item>
+                  {Array.from({ length: totalPages }, (_, i) => (
+                    <Pagination.Item key={i}>
+                      <Pagination.Link isActive={page === i} onPress={() => setPage(i)}>
+                        {i + 1}
+                      </Pagination.Link>
+                    </Pagination.Item>
+                  ))}
+                  <Pagination.Item>
+                    <Pagination.Next isDisabled={page >= totalPages - 1} onPress={() => setPage(p => Math.min(totalPages - 1, p + 1))}>
+                      下一页
+                    </Pagination.Next>
+                  </Pagination.Item>
+                </Pagination.Content>
+              </Pagination>
             </div>
           )}
         </div>
@@ -450,9 +460,9 @@ export default function UsersPage() {
                         </Select.Trigger>
                         <Select.Popover>
                           <ListBox>
-                            <SelectItem id="active">激活</SelectItem>
-                            <SelectItem id="inactive">未激活</SelectItem>
-                            <SelectItem id="suspended">暂停</SelectItem>
+                            <ListBoxItem id="active">激活</ListBoxItem>
+                            <ListBoxItem id="inactive">未激活</ListBoxItem>
+                            <ListBoxItem id="suspended">暂停</ListBoxItem>
                           </ListBox>
                         </Select.Popover>
                       </Select>
@@ -509,9 +519,9 @@ export default function UsersPage() {
                         </Select.Trigger>
                         <Select.Popover>
                           <ListBox>
-                            <SelectItem id="active">激活</SelectItem>
-                            <SelectItem id="inactive">未激活</SelectItem>
-                            <SelectItem id="suspended">暂停</SelectItem>
+                            <ListBoxItem id="active">激活</ListBoxItem>
+                            <ListBoxItem id="inactive">未激活</ListBoxItem>
+                            <ListBoxItem id="suspended">暂停</ListBoxItem>
                           </ListBox>
                         </Select.Popover>
                       </Select>

@@ -1,12 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Button, CheckboxGroup, Checkbox, Description, Input, Label, ListBox, ListBoxItem, Radio, RadioGroup, TextArea, TextField, toast } from '@heroui/react';
+import { Button, CheckboxGroup, Checkbox, Description, Input, Label, RadioGroup, TextArea, TextField, toast } from '@heroui/react';
 import { clientApi, groupApi } from '@/lib/api';
 import SidePanel from '@/components/SidePanel';
 import { useAuthStore } from '@/lib/store';
 import { isAdmin } from '@/lib/authz';
-import { UICheckbox } from '@/components/ui/primitives';
+import { UICheckbox, UIRadio } from '@/components/ui/primitives';
 import { useConfirmDialog } from '@/components/ui/confirm-dialog-provider';
 
 interface Client {
@@ -496,8 +496,8 @@ export default function AppsPage() {
                 onChange={(val) => setFormData({ ...formData, default_access: val === 'allow' })}
                 className="space-y-2"
               >
-              <Radio value="allow">允许</Radio>
-              <Radio value="deny">拒绝</Radio>
+                <UIRadio value="allow">允许</UIRadio>
+                <UIRadio value="deny">拒绝</UIRadio>
               </RadioGroup>
               <p className="text-xs text-gray-500 mt-2">当未配置用户/用户组的应用权限时生效</p>
             </div>
@@ -593,8 +593,8 @@ export default function AppsPage() {
                 onChange={(val) => setFormData({ ...formData, default_access: val === 'allow' })}
                 className="space-y-2"
               >
-              <Radio value="allow">允许</Radio>
-              <Radio value="deny">拒绝</Radio>
+                <UIRadio value="allow">允许</UIRadio>
+                <UIRadio value="deny">拒绝</UIRadio>
               </RadioGroup>
               <p className="text-xs text-gray-500 mt-2">当未配置用户/用户组的应用权限时生效</p>
             </div>
@@ -620,9 +620,9 @@ export default function AppsPage() {
             </div>
           ) : (
             <div className="surface overflow-hidden">
-              <ListBox aria-label="应用列表" variant="default">
+              <ul className="list">
                 {clients.map((client) => (
-                  <ListBoxItem key={client.id} id={String(client.id)} textValue={client.name}>
+                  <li key={client.id} className="list-item">
                     <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                       <div className="min-w-0 flex-1">
                         <h3 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-gray-100 truncate">
@@ -653,7 +653,7 @@ export default function AppsPage() {
                       </div>
 
                       <div className="flex flex-wrap gap-2 shrink-0">
-                        <Button onPress={() => openEditForm(client)} className="text-xs" variant="secondary" isDisabled={creating || updating || accessControlSaving || deletingClientId === client.id || resettingClientId === client.id} >
+                        <Button onPress={() => openEditForm(client)} className="text-xs" variant="secondary" isDisabled={creating || updating || accessControlSaving || deletingClientId === client.id || resettingClientId === client.id}>
                           编辑
                         </Button>
                         <Button onPress={() => handleResetSecret(client)} className="text-xs" variant="secondary" isDisabled={creating || updating || accessControlSaving || resettingClientId === client.id || deletingClientId === client.id} isPending={resettingClientId === client.id}>{resettingClientId === client.id ? '重置中' : '重置密钥'}</Button>
@@ -661,9 +661,9 @@ export default function AppsPage() {
                         <Button onPress={() => handleDelete(client.id, client.name)} className="text-xs" variant="danger" isDisabled={creating || updating || accessControlSaving || deletingClientId === client.id || resettingClientId === client.id} isPending={deletingClientId === client.id}>{deletingClientId === client.id ? '删除中' : '删除'}</Button>
                       </div>
                     </div>
-                  </ListBoxItem>
+                  </li>
                 ))}
-              </ListBox>
+              </ul>
             </div>
           )}
         </section>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Button, Input, ListBox, ListBoxItem, Select } from '@heroui/react';
+import { Alert, Button, Input, ListBox, ListBoxItem, Select } from '@heroui/react';
 import { adminApi, groupApi } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { isAdmin } from '@/lib/authz';
@@ -157,9 +157,11 @@ export default function InvitesPage() {
       </div>
 
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-          {error}
-        </div>
+        <Alert status="danger">
+          <Alert.Content>
+            <Alert.Description>{error}</Alert.Description>
+          </Alert.Content>
+        </Alert>
       )}
 
       <div className="card">
@@ -179,9 +181,9 @@ export default function InvitesPage() {
               </Select.Trigger>
               <Select.Popover>
                 <ListBox>
-                  <SelectItem id="">请选择</SelectItem>
+                  <ListBoxItem id="">请选择</ListBoxItem>
                   {groups.map((g) => (
-                    <SelectItem key={g.id} id={String(g.id)}>{g.name}</SelectItem>
+                    <ListBoxItem key={g.id} id={String(g.id)}>{g.name}</ListBoxItem>
                   ))}
                 </ListBox>
               </Select.Popover>
@@ -242,9 +244,9 @@ export default function InvitesPage() {
               </Select.Trigger>
               <Select.Popover>
                 <ListBox>
-                  <SelectItem id="active">仅有效</SelectItem>
-                  <SelectItem id="inactive">仅无效</SelectItem>
-                  <SelectItem id="all">全部</SelectItem>
+                  <ListBoxItem id="active">仅有效</ListBoxItem>
+                  <ListBoxItem id="inactive">仅无效</ListBoxItem>
+                  <ListBoxItem id="all">全部</ListBoxItem>
                 </ListBox>
               </Select.Popover>
             </Select>

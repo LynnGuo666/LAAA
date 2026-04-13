@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { Button, buttonVariants, cn, ListBox, ListBoxItem, Spinner } from '@heroui/react';
+import { Button, buttonVariants, cn, Disclosure, Spinner } from '@heroui/react';
 import { useAuthStore } from '@/lib/store';
 import { authApi, siteApi } from '@/lib/api';
 import { isAdmin } from '@/lib/authz';
@@ -118,39 +118,33 @@ export default function AdminLayout({
   };
 
   const AdminNavContent = () => (
-    <div className="overflow-hidden rounded-lg border border-gray-200 dark:border-gray-800">
+    <nav className="overflow-hidden rounded-lg border border-gray-200 dark:border-gray-800">
       {adminNavGroups.map((group, index) => (
         <div key={group.label} className={index > 0 ? 'border-t border-gray-200 dark:border-gray-800' : ''}>
           <div className="px-3 py-2 text-xs font-semibold tracking-wide text-gray-500 dark:text-gray-400 bg-gray-50/70 dark:bg-gray-900/40">
             {group.label}
           </div>
-          <ListBox
-            aria-label={`${group.label}导航`}
-            variant="default"
-            selectionMode="single"
-            selectedKeys={new Set(group.items.filter((item) => isActiveHref(item.href)).map((item) => item.href))}
-            onAction={(key) => router.push(String(key))}
-          >
+          <div>
             {group.items.map((item) => {
               const active = isActiveHref(item.href);
               return (
-                <ListBoxItem
+                <Link
                   key={item.href}
-                  id={item.href}
-                  className={`text-sm ${
+                  href={item.href}
+                  className={`block px-3 py-2 text-sm ${
                     active
                       ? 'bg-blue-600/10 text-blue-700 dark:text-blue-300'
                       : 'text-gray-700 dark:text-gray-200 hover:bg-black/[0.03] dark:hover:bg-white/[0.04]'
                   }`}
                 >
                   {item.label}
-                </ListBoxItem>
+                </Link>
               );
             })}
-          </ListBox>
+          </div>
         </div>
       ))}
-    </div>
+    </nav>
   );
 
   const AdminSideNav = ({ className = '' }: { className?: string }) => (
@@ -201,14 +195,16 @@ export default function AdminLayout({
         <div className="flex flex-col gap-6 md:flex-row md:items-start">
           {/* Mobile menu */}
           <div className="md:hidden">
-            <details className="surface p-3">
-              <summary className="cursor-pointer select-none text-sm font-medium text-gray-700 dark:text-gray-200 px-2 py-1">
-                菜单
-              </summary>
-              <div className="mt-3 px-1">
-                <AdminNavContent />
-              </div>
-            </details>
+            <div className="surface p-3">
+              <Disclosure>
+                <Disclosure.Trigger className="w-full text-left text-sm font-medium text-gray-700 dark:text-gray-200 px-2 py-1">
+                  菜单
+                </Disclosure.Trigger>
+                <Disclosure.Content className="mt-3 px-1">
+                  <AdminNavContent />
+                </Disclosure.Content>
+              </Disclosure>
+            </div>
           </div>
           {/* Desktop sidebar */}
           <AdminSideNav className="hidden md:block w-full md:w-64 shrink-0" />
