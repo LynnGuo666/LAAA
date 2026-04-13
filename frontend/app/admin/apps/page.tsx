@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Button, CheckboxGroup, Checkbox, Description, Input, Label, RadioGroup, TextArea, TextField, toast } from '@heroui/react';
+import { AlertDialog, Button, Card, CheckboxGroup, Checkbox, Chip, Description, Input, Label, RadioGroup, TextArea, TextField, toast } from '@heroui/react';
 import { clientApi, groupApi } from '@/lib/api';
 import SidePanel from '@/components/SidePanel';
 import { useAuthStore } from '@/lib/store';
@@ -51,8 +51,8 @@ export default function AppsPage() {
   const [deletingClientId, setDeletingClientId] = useState<number | null>(null);
   const [accessControlLoading, setAccessControlLoading] = useState(false);
   const [accessControlSaving, setAccessControlSaving] = useState(false);
-  const [showCreateForm, setShowCreateForm] = useState(false);
-  const [showEditForm, setShowEditForm] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [showAccessControl, setShowAccessControl] = useState(false);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
@@ -152,7 +152,7 @@ export default function AppsPage() {
       setShowNewSecret(true);
       setCopyStatus(null);
 
-      setShowCreateForm(false);
+      setShowCreateModal(false);
       setFormData({
         name: '',
         description: '',
@@ -183,7 +183,7 @@ export default function AppsPage() {
       trusted: client.trusted,
       default_access: client.default_access,
     });
-    setShowEditForm(true);
+    setShowEditModal(true);
   };
 
   const handleUpdate = async (e: React.FormEvent) => {
@@ -210,7 +210,7 @@ export default function AppsPage() {
       });
 
       toast('应用更新成功！');
-      setShowEditForm(false);
+      setShowEditModal(false);
       setEditingClient(null);
       setFormData({
         name: '',
@@ -355,7 +355,7 @@ export default function AppsPage() {
     <div className="px-4 sm:px-0 animate-fade-in">
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-6 sm:mb-8">
         <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">我的应用</h1>
-        <Button onPress={() => setShowCreateForm(!showCreateForm)} className="w-full sm:w-auto" variant="primary" isDisabled={creating || updating || accessControlSaving} >{showCreateForm ? '取消' : '+ 创建应用'}</Button>
+        <Button onPress={() => setShowCreateModal(true)} className="w-full sm:w-auto" variant="primary" isDisabled={creating || updating || accessControlSaving}>+ 创建应用</Button>
       </div>
 
       {newClientCredentials && (
@@ -411,259 +411,74 @@ export default function AppsPage() {
         </div>
       )}
 
-      {showCreateForm && (
-        <form onSubmit={handleCreate} className="surface mb-8 p-6 space-y-4 animate-slide-up">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">创建新应用</h2>
-
-          <fieldset disabled={creating} className="space-y-4">
-            <div>
-              <TextField isRequired>
-                <Label>应用名称</Label>
-                <Input type="text" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
-              </TextField>
-            </div>
-
-            <div>
-              <TextField>
-                <Label>应用描述</Label>
-                <TextArea rows={3} value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} />
-              </TextField>
-            </div>
-
-            <div>
-              <TextField>
-                <Label>应用 Logo URL</Label>
-                <Input type="url" placeholder="https://example.com/logo.png" value={formData.logo} onChange={(e) => setFormData({ ...formData, logo: e.target.value })} />
-                <Description>Logo 将显示在授权页面上</Description>
-              </TextField>
-            </div>
-
-            <div>
-              <TextField>
-                <Label>应用官网（可选）</Label>
-                <Input type="url" placeholder="https://example.com" value={formData.website_url} onChange={(e) => setFormData({ ...formData, website_url: e.target.value })} />
-              </TextField>
-            </div>
-
-            <div>
-              <TextField isRequired>
-                <Label>回调地址 (每行一个)</Label>
-                <TextArea rows={3} className="font-mono text-sm" placeholder="http://localhost:3000/callback&#10;https://myapp.com/callback" value={formData.redirect_uris} onChange={(e) => setFormData({ ...formData, redirect_uris: e.target.value })} />
-              </TextField>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-3">权限范围 *</label>
-              <CheckboxGroup
-                aria-label="权限范围"
-                value={formData.allowed_scopes}
-                onChange={(value) => {
-                  setFormData((prev) => ({
-                    ...prev,
-                    allowed_scopes: Array.isArray(value) ? value.map(String) : [],
-                  }))
-                }}
-                className="space-y-2"
-              >
-                {AVAILABLE_SCOPES.map((scope) => (
-                  <UICheckbox key={scope.value} value={scope.value} variant="secondary" className="w-full max-w-full items-start m-0">
-                    <div className="w-full min-w-0">
-                      <div className="font-medium text-sm text-gray-900 dark:text-gray-100">{scope.label}</div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{scope.description}</div>
-                    </div>
-                  </UICheckbox>
-                ))}
-              </CheckboxGroup>
-              <p className="text-xs text-gray-500 mt-2">
-                已选择 {formData.allowed_scopes.length} 项权限
-              </p>
-            </div>
-
-            <div className="flex items-center">
-              <Checkbox id="trusted" variant="secondary" isSelected={formData.trusted} onChange={(isSelected) => setFormData({ ...formData, trusted: isSelected })}>
-                <Checkbox.Control>
-                  <Checkbox.Indicator />
-                </Checkbox.Control>
-                <Checkbox.Content>信任的应用（跳过授权确认）</Checkbox.Content>
-              </Checkbox>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-2">默认访问</label>
-              <RadioGroup
-                orientation="vertical"
-                value={formData.default_access ? 'allow' : 'deny'}
-                onChange={(val) => setFormData({ ...formData, default_access: val === 'allow' })}
-                className="space-y-2"
-              >
-                <UIRadio value="allow">允许</UIRadio>
-                <UIRadio value="deny">拒绝</UIRadio>
-              </RadioGroup>
-              <p className="text-xs text-gray-500 mt-2">当未配置用户/用户组的应用权限时生效</p>
-            </div>
-
-            <Button type="submit" variant="primary" isDisabled={creating} isPending={creating}>{creating ? '创建中...' : '创建应用'}</Button>
-          </fieldset>
-        </form>
-      )}
-
-      {/* 编辑应用表单 */}
-      {showEditForm && editingClient && (
-        <form onSubmit={handleUpdate} className="surface mb-8 p-6 space-y-4 animate-slide-up">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">编辑应用: {editingClient.name}</h2>
-
-          <fieldset disabled={updating} className="space-y-4">
-            <div>
-              <TextField isRequired>
-                <Label>应用名称</Label>
-                <Input type="text" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
-              </TextField>
-            </div>
-
-            <div>
-              <TextField>
-                <Label>应用描述</Label>
-                <TextArea rows={3} value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} />
-              </TextField>
-            </div>
-
-            <div>
-              <TextField>
-                <Label>应用 Logo URL</Label>
-                <Input type="url" placeholder="https://example.com/logo.png" value={formData.logo} onChange={(e) => setFormData({ ...formData, logo: e.target.value })} />
-                <Description>Logo 将显示在授权页面上</Description>
-              </TextField>
-            </div>
-
-            <div>
-              <TextField>
-                <Label>应用官网（可选）</Label>
-                <Input type="url" placeholder="https://example.com" value={formData.website_url} onChange={(e) => setFormData({ ...formData, website_url: e.target.value })} />
-              </TextField>
-            </div>
-
-            <div>
-              <TextField isRequired>
-                <Label>回调地址 (每行一个)</Label>
-                <TextArea rows={3} className="font-mono text-sm" placeholder="http://localhost:3000/callback&#10;https://myapp.com/callback" value={formData.redirect_uris} onChange={(e) => setFormData({ ...formData, redirect_uris: e.target.value })} />
-              </TextField>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-3">权限范围 *</label>
-              <CheckboxGroup
-                aria-label="权限范围"
-                value={formData.allowed_scopes}
-                onChange={(value) => {
-                  setFormData((prev) => ({
-                    ...prev,
-                    allowed_scopes: Array.isArray(value) ? value.map(String) : [],
-                  }))
-                }}
-                className="space-y-2"
-              >
-                {AVAILABLE_SCOPES.map((scope) => (
-                  <UICheckbox key={scope.value} value={scope.value} variant="secondary" className="w-full max-w-full items-start m-0">
-                    <div className="w-full min-w-0">
-                      <div className="font-medium text-sm text-gray-900 dark:text-gray-100">{scope.label}</div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{scope.description}</div>
-                    </div>
-                  </UICheckbox>
-                ))}
-              </CheckboxGroup>
-              <p className="text-xs text-gray-500 mt-2">
-                已选择 {formData.allowed_scopes.length} 项权限
-              </p>
-            </div>
-
-            <div className="flex items-center">
-              <Checkbox id="edit-trusted" variant="secondary" isSelected={formData.trusted} onChange={(isSelected) => setFormData({ ...formData, trusted: isSelected })}>
-                <Checkbox.Control>
-                  <Checkbox.Indicator />
-                </Checkbox.Control>
-                <Checkbox.Content>信任的应用（跳过授权确认）</Checkbox.Content>
-              </Checkbox>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-2">默认访问</label>
-              <RadioGroup
-                orientation="vertical"
-                value={formData.default_access ? 'allow' : 'deny'}
-                onChange={(val) => setFormData({ ...formData, default_access: val === 'allow' })}
-                className="space-y-2"
-              >
-                <UIRadio value="allow">允许</UIRadio>
-                <UIRadio value="deny">拒绝</UIRadio>
-              </RadioGroup>
-              <p className="text-xs text-gray-500 mt-2">当未配置用户/用户组的应用权限时生效</p>
-            </div>
-
-            <div className="flex space-x-3">
-              <Button type="submit" variant="primary" isDisabled={updating} isPending={updating}>{updating ? '保存中...' : '保存更改'}</Button>
-              <Button type="button" onPress={() => {
-                setShowEditForm(false);
-                setEditingClient(null);
-              }} variant="secondary" isDisabled={updating} >
-                取消
-              </Button>
-            </div>
-          </fieldset>
-        </form>
-      )}
-
       <div className="flex flex-col lg:flex-row gap-6">
         <section className="flex-1 space-y-4">
           {clients.length === 0 ? (
-            <div className="surface text-center py-12">
-              <p className="text-gray-500">还没有应用，创建一个开始使用吧！</p>
-            </div>
+            <Card>
+              <Card.Content className="py-12 text-center">
+                <p className="text-gray-500">还没有应用，创建一个开始使用吧！</p>
+              </Card.Content>
+            </Card>
           ) : (
-            <div className="surface overflow-hidden">
-              <ul className="list">
-                {clients.map((client) => (
-                  <li key={client.id} className="list-item">
-                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-                      <div className="min-w-0 flex-1">
-                        <h3 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-gray-100 truncate">
-                          {client.name}
-                        </h3>
-                        {client.description && (
-                          <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 mt-1 line-clamp-2">
-                            {client.description}
-                          </p>
-                        )}
-                        <div className="mt-2 space-y-1 text-xs sm:text-sm text-gray-600 dark:text-gray-300">
-                          <p className="truncate">
-                            <span className="font-medium">Client ID:</span>{' '}
-                            <code className="bg-gray-100 dark:bg-gray-800 px-1 sm:px-2 py-0.5 sm:py-1 rounded text-xs">
-                              {client.client_id}
-                            </code>
-                          </p>
-                          <p className="truncate">
-                            <span className="font-medium">权限范围:</span> {client.allowed_scopes.join(', ')}
-                          </p>
-                          <p className="truncate">
-                            <span className="font-medium">默认访问:</span> {client.default_access ? '允许' : '拒绝'}
-                          </p>
-                          {client.trusted && (
-                            <p className="text-green-600 dark:text-green-400">已设为信任应用</p>
-                          )}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {clients.map((client) => (
+                <Card key={client.id}>
+                  <Card.Header>
+                    <div className="flex items-start gap-3">
+                      {client.logo ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={client.logo}
+                          alt={client.name}
+                          className="h-10 w-10 rounded-lg border border-gray-200 dark:border-gray-700 shrink-0 object-cover"
+                        />
+                      ) : (
+                        <div className="h-10 w-10 rounded-lg bg-blue-500 flex items-center justify-center text-white text-lg font-bold shrink-0">
+                          {client.name.charAt(0).toUpperCase()}
                         </div>
-                      </div>
-
-                      <div className="flex flex-wrap gap-2 shrink-0">
-                        <Button onPress={() => openEditForm(client)} className="text-xs" variant="secondary" isDisabled={creating || updating || accessControlSaving || deletingClientId === client.id || resettingClientId === client.id}>
-                          编辑
-                        </Button>
-                        <Button onPress={() => handleResetSecret(client)} className="text-xs" variant="secondary" isDisabled={creating || updating || accessControlSaving || resettingClientId === client.id || deletingClientId === client.id} isPending={resettingClientId === client.id}>{resettingClientId === client.id ? '重置中' : '重置密钥'}</Button>
-                        <Button onPress={() => openAccessControl(client)} className="text-xs" variant="secondary" isDisabled={creating || updating || accessControlSaving || accessControlLoading} isPending={accessControlLoading && selectedClient?.id === client.id}>{accessControlLoading && selectedClient?.id === client.id ? '加载中' : '访问控制'}</Button>
-                        <Button onPress={() => handleDelete(client.id, client.name)} className="text-xs" variant="danger" isDisabled={creating || updating || accessControlSaving || deletingClientId === client.id || resettingClientId === client.id} isPending={deletingClientId === client.id}>{deletingClientId === client.id ? '删除中' : '删除'}</Button>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <Card.Title className="truncate">{client.name}</Card.Title>
+                        {client.description && (
+                          <Card.Description className="line-clamp-2">{client.description}</Card.Description>
+                        )}
                       </div>
                     </div>
-                  </li>
-                ))}
-              </ul>
+                    <div className="flex gap-2 flex-wrap mt-3">
+                      {client.trusted && <Chip color="success" variant="soft" size="sm">信任应用</Chip>}
+                      <Chip color={client.default_access ? 'accent' : 'default'} variant="soft" size="sm">
+                        默认{client.default_access ? '允许' : '拒绝'}
+                      </Chip>
+                    </div>
+                  </Card.Header>
+                  <Card.Content className="space-y-2 text-xs text-gray-600 dark:text-gray-300">
+                    <p>
+                      <span className="font-medium text-gray-900 dark:text-gray-100">Client ID: </span>
+                      <code className="bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded font-mono break-all select-all">
+                        {client.client_id}
+                      </code>
+                    </p>
+                    <p className="truncate">
+                      <span className="font-medium text-gray-900 dark:text-gray-100">权限范围: </span>
+                      {client.allowed_scopes.join(', ')}
+                    </p>
+                  </Card.Content>
+                  <Card.Footer className="flex flex-wrap gap-2">
+                    <Button onPress={() => openEditForm(client)} size="sm" variant="secondary" isDisabled={creating || updating || accessControlSaving || deletingClientId === client.id || resettingClientId === client.id}>
+                      编辑
+                    </Button>
+                    <Button onPress={() => handleResetSecret(client)} size="sm" variant="secondary" isDisabled={creating || updating || accessControlSaving || resettingClientId === client.id || deletingClientId === client.id} isPending={resettingClientId === client.id}>
+                      {resettingClientId === client.id ? '重置中' : '重置密钥'}
+                    </Button>
+                    <Button onPress={() => openAccessControl(client)} size="sm" variant="secondary" isDisabled={creating || updating || accessControlSaving || accessControlLoading} isPending={accessControlLoading && selectedClient?.id === client.id}>
+                      {accessControlLoading && selectedClient?.id === client.id ? '加载中' : '访问控制'}
+                    </Button>
+                    <Button onPress={() => handleDelete(client.id, client.name)} size="sm" variant="danger" isDisabled={creating || updating || accessControlSaving || deletingClientId === client.id || resettingClientId === client.id} isPending={deletingClientId === client.id}>
+                      {deletingClientId === client.id ? '删除中' : '删除'}
+                    </Button>
+                  </Card.Footer>
+                </Card>
+              ))}
             </div>
           )}
         </section>
@@ -767,6 +582,146 @@ export default function AppsPage() {
           )}
         </SidePanel>
       </div>
+
+      {/* 创建应用 Modal */}
+      <AlertDialog>
+        <AlertDialog.Backdrop isOpen={showCreateModal} onOpenChange={setShowCreateModal}>
+          <AlertDialog.Container>
+            <AlertDialog.Dialog>
+              <AlertDialog.Header>
+                <AlertDialog.Heading>创建新应用</AlertDialog.Heading>
+              </AlertDialog.Header>
+              <form onSubmit={handleCreate}>
+                <AlertDialog.Body className="overflow-y-auto max-h-[60vh]">
+                  <fieldset disabled={creating} className="space-y-4">
+                    <TextField isRequired>
+                      <Label>应用名称</Label>
+                      <Input type="text" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
+                    </TextField>
+                    <TextField>
+                      <Label>应用描述</Label>
+                      <TextArea rows={3} value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} />
+                    </TextField>
+                    <TextField>
+                      <Label>应用 Logo URL</Label>
+                      <Input type="url" placeholder="https://example.com/logo.png" value={formData.logo} onChange={(e) => setFormData({ ...formData, logo: e.target.value })} />
+                      <Description>Logo 将显示在授权页面上</Description>
+                    </TextField>
+                    <TextField>
+                      <Label>应用官网（可选）</Label>
+                      <Input type="url" placeholder="https://example.com" value={formData.website_url} onChange={(e) => setFormData({ ...formData, website_url: e.target.value })} />
+                    </TextField>
+                    <TextField isRequired>
+                      <Label>回调地址（每行一个）</Label>
+                      <TextArea rows={3} className="font-mono text-sm" placeholder="http://localhost:3000/callback&#10;https://myapp.com/callback" value={formData.redirect_uris} onChange={(e) => setFormData({ ...formData, redirect_uris: e.target.value })} />
+                    </TextField>
+                    <div>
+                      <label className="block text-sm font-medium mb-3">权限范围 *</label>
+                      <CheckboxGroup aria-label="权限范围" value={formData.allowed_scopes} onChange={(value) => setFormData((prev) => ({ ...prev, allowed_scopes: Array.isArray(value) ? value.map(String) : [] }))} className="space-y-2">
+                        {AVAILABLE_SCOPES.map((scope) => (
+                          <UICheckbox key={scope.value} value={scope.value} variant="secondary" className="w-full max-w-full items-start m-0">
+                            <div className="w-full min-w-0">
+                              <div className="font-medium text-sm">{scope.label}</div>
+                              <div className="text-xs text-gray-500 mt-0.5">{scope.description}</div>
+                            </div>
+                          </UICheckbox>
+                        ))}
+                      </CheckboxGroup>
+                      <p className="text-xs text-gray-500 mt-2">已选择 {formData.allowed_scopes.length} 项权限</p>
+                    </div>
+                    <Checkbox variant="secondary" isSelected={formData.trusted} onChange={(isSelected) => setFormData({ ...formData, trusted: isSelected })}>
+                      <Checkbox.Control><Checkbox.Indicator /></Checkbox.Control>
+                      <Checkbox.Content>信任的应用（跳过授权确认）</Checkbox.Content>
+                    </Checkbox>
+                    <div>
+                      <label className="block text-sm font-medium mb-2">默认访问</label>
+                      <RadioGroup orientation="vertical" value={formData.default_access ? 'allow' : 'deny'} onChange={(val) => setFormData({ ...formData, default_access: val === 'allow' })} className="space-y-2">
+                        <UIRadio value="allow">允许</UIRadio>
+                        <UIRadio value="deny">拒绝</UIRadio>
+                      </RadioGroup>
+                      <p className="text-xs text-gray-500 mt-2">当未配置用户/用户组的应用权限时生效</p>
+                    </div>
+                  </fieldset>
+                </AlertDialog.Body>
+                <AlertDialog.Footer>
+                  <Button type="button" variant="secondary" onPress={() => setShowCreateModal(false)}>取消</Button>
+                  <Button type="submit" variant="primary" isDisabled={creating} isPending={creating}>{creating ? '创建中...' : '创建'}</Button>
+                </AlertDialog.Footer>
+              </form>
+            </AlertDialog.Dialog>
+          </AlertDialog.Container>
+        </AlertDialog.Backdrop>
+      </AlertDialog>
+
+      {/* 编辑应用 Modal */}
+      <AlertDialog>
+        <AlertDialog.Backdrop isOpen={showEditModal && !!editingClient} onOpenChange={setShowEditModal}>
+          <AlertDialog.Container>
+            <AlertDialog.Dialog>
+              <AlertDialog.Header>
+                <AlertDialog.Heading>编辑应用：{editingClient?.name}</AlertDialog.Heading>
+              </AlertDialog.Header>
+              <form onSubmit={handleUpdate}>
+                <AlertDialog.Body className="overflow-y-auto max-h-[60vh]">
+                  <fieldset disabled={updating} className="space-y-4">
+                    <TextField isRequired>
+                      <Label>应用名称</Label>
+                      <Input type="text" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
+                    </TextField>
+                    <TextField>
+                      <Label>应用描述</Label>
+                      <TextArea rows={3} value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} />
+                    </TextField>
+                    <TextField>
+                      <Label>应用 Logo URL</Label>
+                      <Input type="url" placeholder="https://example.com/logo.png" value={formData.logo} onChange={(e) => setFormData({ ...formData, logo: e.target.value })} />
+                      <Description>Logo 将显示在授权页面上</Description>
+                    </TextField>
+                    <TextField>
+                      <Label>应用官网（可选）</Label>
+                      <Input type="url" placeholder="https://example.com" value={formData.website_url} onChange={(e) => setFormData({ ...formData, website_url: e.target.value })} />
+                    </TextField>
+                    <TextField isRequired>
+                      <Label>回调地址（每行一个）</Label>
+                      <TextArea rows={3} className="font-mono text-sm" placeholder="http://localhost:3000/callback&#10;https://myapp.com/callback" value={formData.redirect_uris} onChange={(e) => setFormData({ ...formData, redirect_uris: e.target.value })} />
+                    </TextField>
+                    <div>
+                      <label className="block text-sm font-medium mb-3">权限范围 *</label>
+                      <CheckboxGroup aria-label="权限范围" value={formData.allowed_scopes} onChange={(value) => setFormData((prev) => ({ ...prev, allowed_scopes: Array.isArray(value) ? value.map(String) : [] }))} className="space-y-2">
+                        {AVAILABLE_SCOPES.map((scope) => (
+                          <UICheckbox key={scope.value} value={scope.value} variant="secondary" className="w-full max-w-full items-start m-0">
+                            <div className="w-full min-w-0">
+                              <div className="font-medium text-sm">{scope.label}</div>
+                              <div className="text-xs text-gray-500 mt-0.5">{scope.description}</div>
+                            </div>
+                          </UICheckbox>
+                        ))}
+                      </CheckboxGroup>
+                      <p className="text-xs text-gray-500 mt-2">已选择 {formData.allowed_scopes.length} 项权限</p>
+                    </div>
+                    <Checkbox variant="secondary" isSelected={formData.trusted} onChange={(isSelected) => setFormData({ ...formData, trusted: isSelected })}>
+                      <Checkbox.Control><Checkbox.Indicator /></Checkbox.Control>
+                      <Checkbox.Content>信任的应用（跳过授权确认）</Checkbox.Content>
+                    </Checkbox>
+                    <div>
+                      <label className="block text-sm font-medium mb-2">默认访问</label>
+                      <RadioGroup orientation="vertical" value={formData.default_access ? 'allow' : 'deny'} onChange={(val) => setFormData({ ...formData, default_access: val === 'allow' })} className="space-y-2">
+                        <UIRadio value="allow">允许</UIRadio>
+                        <UIRadio value="deny">拒绝</UIRadio>
+                      </RadioGroup>
+                      <p className="text-xs text-gray-500 mt-2">当未配置用户/用户组的应用权限时生效</p>
+                    </div>
+                  </fieldset>
+                </AlertDialog.Body>
+                <AlertDialog.Footer>
+                  <Button type="button" variant="secondary" onPress={() => { setShowEditModal(false); setEditingClient(null); }}>取消</Button>
+                  <Button type="submit" variant="primary" isDisabled={updating} isPending={updating}>{updating ? '保存中...' : '保存'}</Button>
+                </AlertDialog.Footer>
+              </form>
+            </AlertDialog.Dialog>
+          </AlertDialog.Container>
+        </AlertDialog.Backdrop>
+      </AlertDialog>
     </div>
   );
 }
