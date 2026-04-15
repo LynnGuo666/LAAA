@@ -19,6 +19,7 @@ import {
   AdminNotice,
   AdminPageHeader,
   AdminSection,
+  AdminSeparator,
   EntityAvatar,
 } from '@/components/admin/admin-ui'
 import SidePanel from '@/components/SidePanel'
@@ -26,6 +27,7 @@ import { UICheckbox } from '@/components/ui/primitives'
 import { useConfirmDialog } from '@/components/ui/confirm-dialog-provider'
 import { adminApi, clientApi, groupApi, groupAppApi } from '@/lib/api'
 import { isAdmin } from '@/lib/authz'
+import { formatDate } from '@/lib/date'
 import { useAuthStore } from '@/lib/store'
 
 interface Group {
@@ -411,12 +413,37 @@ export default function GroupsPage() {
         </AdminSection>
 
         <AdminSection className="flex min-h-[320px] items-center justify-center border-dashed">
-          <Card.Content className="p-10 text-center">
-            <p className="text-base font-medium text-foreground">选择一个用户组</p>
-            <p className="mt-2 text-sm text-default-500">
-              右侧将显示成员、默认组设置和应用权限。
-            </p>
-          </Card.Content>
+          {selectedGroup && panelOpen ? (
+            <Card.Content className="w-full p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-lg font-semibold text-foreground">{selectedGroup.name}</h3>
+                    {selectedGroup.is_default ? (
+                      <Chip color="accent" variant="soft" size="sm">默认</Chip>
+                    ) : null}
+                  </div>
+                  {selectedGroup.description ? (
+                    <p className="mt-1 text-sm text-default-500">{selectedGroup.description}</p>
+                  ) : null}
+                </div>
+                <Button variant="secondary" size="sm" onPress={() => setPanelOpen(true)}>
+                  编辑详情
+                </Button>
+              </div>
+              <div className="mt-4 flex gap-4 text-sm text-default-600">
+                <span>{selectedGroup.member_count || 0} 位成员</span>
+                <span>创建于 {formatDate(selectedGroup.created_at)}</span>
+              </div>
+            </Card.Content>
+          ) : (
+            <Card.Content className="p-10 text-center">
+              <p className="text-base font-medium text-foreground">选择一个用户组</p>
+              <p className="mt-2 text-sm text-default-500">
+                从左侧选择用户组，查看成员和权限详情。
+              </p>
+            </Card.Content>
+          )}
         </AdminSection>
       </div>
 
@@ -429,254 +456,249 @@ export default function GroupsPage() {
           <div className="space-y-6">
             {panelError ? <AdminNotice tone="danger" description={panelError} /> : null}
 
-            <AdminSection>
-              <Card.Header>
-                <div>
-                  <Card.Title>用户组信息</Card.Title>
-                  <Card.Description>修改名称、描述和默认组设置。</Card.Description>
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-sm font-medium text-foreground">用户组信息</h3>
+                <p className="text-xs text-default-500">修改名称、描述和默认组设置。</p>
+              </div>
+              <form onSubmit={handleUpdateMeta} className="space-y-4">
+                <AdminFormField label="组名称" isRequired>
+                  <Input
+                    required
+                    value={metaForm.name}
+                    onChange={(event) =>
+                      setMetaForm((previous) => ({
+                        ...previous,
+                        name: event.target.value,
+                      }))
+                    }
+                  />
+                </AdminFormField>
+
+                <AdminFormField label="描述">
+                  <Input
+                    value={metaForm.description}
+                    onChange={(event) =>
+                      setMetaForm((previous) => ({
+                        ...previous,
+                        description: event.target.value,
+                      }))
+                    }
+                  />
+                </AdminFormField>
+
+                <AdminFieldGroup label="默认组">
+                  <UICheckbox
+                    isSelected={metaForm.is_default}
+                    onChange={(isSelected) =>
+                      setMetaForm((previous) => ({
+                        ...previous,
+                        is_default: isSelected,
+                      }))
+                    }
+                  >
+                    新用户自动加入该用户组
+                  </UICheckbox>
+                </AdminFieldGroup>
+
+                <div className="flex justify-end">
+                  <Button
+                    type="submit"
+                    variant="primary"
+                    isPending={savingMeta}
+                    isDisabled={savingMeta}
+                  >
+                    保存信息
+                  </Button>
                 </div>
-              </Card.Header>
-              <Card.Content className="p-6 pt-0">
-                <form onSubmit={handleUpdateMeta} className="space-y-4">
-                  <AdminFormField label="组名称" isRequired>
-                    <Input
-                      required
-                      value={metaForm.name}
-                      onChange={(event) =>
-                        setMetaForm((previous) => ({
-                          ...previous,
-                          name: event.target.value,
-                        }))
-                      }
-                    />
-                  </AdminFormField>
+              </form>
+            </div>
 
-                  <AdminFormField label="描述">
-                    <Input
-                      value={metaForm.description}
-                      onChange={(event) =>
-                        setMetaForm((previous) => ({
-                          ...previous,
-                          description: event.target.value,
-                        }))
-                      }
-                    />
-                  </AdminFormField>
+            <AdminSeparator />
 
-                  <AdminFieldGroup label="默认组">
-                    <UICheckbox
-                      isSelected={metaForm.is_default}
-                      onChange={(isSelected) =>
-                        setMetaForm((previous) => ({
-                          ...previous,
-                          is_default: isSelected,
-                        }))
-                      }
-                    >
-                      新用户自动加入该用户组
-                    </UICheckbox>
-                  </AdminFieldGroup>
-
-                  <div className="flex justify-end">
-                    <Button
-                      type="submit"
-                      variant="primary"
-                      isPending={savingMeta}
-                      isDisabled={savingMeta}
-                    >
-                      保存信息
-                    </Button>
-                  </div>
-                </form>
-              </Card.Content>
-            </AdminSection>
-
-            <AdminSection>
-              <Card.Header className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
                 <div>
-                  <Card.Title>成员</Card.Title>
-                  <Card.Description>当前属于该用户组的用户。</Card.Description>
+                  <h3 className="text-sm font-medium text-foreground">成员</h3>
+                  <p className="text-xs text-default-500">当前属于该用户组的用户。</p>
                 </div>
                 <Chip variant="soft" size="sm">
                   {members.length} 人
                 </Chip>
-              </Card.Header>
-              <Card.Content className="p-0">
-                {members.length === 0 ? (
-                  <AdminEmptyState title="暂无成员" description="从下方选择用户加入该组。" />
-                ) : (
-                  <Table aria-label="用户组成员列表">
-                    <Table.ScrollContainer>
-                      <Table.Content>
-                        <Table.Header>
-                          <Table.Column>用户</Table.Column>
-                          <Table.Column>邮箱</Table.Column>
-                          <Table.Column>操作</Table.Column>
-                        </Table.Header>
-                        <Table.Body>
-                          {members.map((member) => (
-                            <Table.Row key={member.id} id={String(member.id)}>
-                              <Table.Cell>
-                                <div className="flex items-center gap-3">
-                                  <EntityAvatar
-                                    src={member.avatar}
-                                    name={member.username}
-                                    size="sm"
-                                    rounded="full"
-                                  />
-                                  <span className="font-medium text-foreground">
-                                    {member.username}
-                                  </span>
-                                </div>
-                              </Table.Cell>
-                              <Table.Cell>{member.email}</Table.Cell>
-                              <Table.Cell>
-                                <Button
-                                  variant="danger"
+              </div>
+              {members.length === 0 ? (
+                <AdminEmptyState title="暂无成员" description="从下方选择用户加入该组。" className="border-0 shadow-none" />
+              ) : (
+                <Table aria-label="用户组成员列表">
+                  <Table.ScrollContainer>
+                    <Table.Content>
+                      <Table.Header>
+                        <Table.Column>用户</Table.Column>
+                        <Table.Column>邮箱</Table.Column>
+                        <Table.Column>操作</Table.Column>
+                      </Table.Header>
+                      <Table.Body>
+                        {members.map((member) => (
+                          <Table.Row key={member.id} id={String(member.id)}>
+                            <Table.Cell>
+                              <div className="flex items-center gap-3">
+                                <EntityAvatar
+                                  src={member.avatar}
+                                  name={member.username}
                                   size="sm"
-                                  onPress={() => void handleRemoveMember(member.id)}
-                                >
-                                  移除
-                                </Button>
-                              </Table.Cell>
-                            </Table.Row>
-                          ))}
-                        </Table.Body>
-                      </Table.Content>
-                    </Table.ScrollContainer>
-                  </Table>
+                                  rounded="full"
+                                />
+                                <span className="font-medium text-foreground">
+                                  {member.username}
+                                </span>
+                              </div>
+                            </Table.Cell>
+                            <Table.Cell>{member.email}</Table.Cell>
+                            <Table.Cell>
+                              <Button
+                                variant="danger"
+                                size="sm"
+                                onPress={() => void handleRemoveMember(member.id)}
+                              >
+                                移除
+                              </Button>
+                            </Table.Cell>
+                          </Table.Row>
+                        ))}
+                      </Table.Body>
+                    </Table.Content>
+                  </Table.ScrollContainer>
+                </Table>
+              )}
+            </div>
+
+            <AdminSeparator />
+
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-sm font-medium text-foreground">添加成员</h3>
+                <p className="text-xs text-default-500">搜索并批量添加用户到当前用户组。</p>
+              </div>
+              <AdminFormField label="搜索用户">
+                <Input
+                  value={searchMembers}
+                  onChange={(event) => setSearchMembers(event.target.value)}
+                  placeholder="用户名或邮箱"
+                />
+              </AdminFormField>
+
+              <div className="max-h-64 space-y-2 overflow-y-auto rounded-xl border border-dashed border-default-200/70 p-3">
+                {filteredAvailableUsers.length === 0 ? (
+                  <p className="py-2 text-center text-sm text-default-500">没有可添加的用户</p>
+                ) : (
+                  filteredAvailableUsers.map((member) => (
+                    <UICheckbox
+                      key={member.id}
+                      className="m-0 max-w-full rounded-xl border border-default-200/70 px-3 py-3"
+                      isSelected={pendingAddIds.includes(member.id)}
+                      onChange={() => togglePendingAdd(member.id)}
+                    >
+                      <div className="min-w-0">
+                        <p className="font-medium text-foreground">{member.username}</p>
+                        <p className="mt-1 text-xs text-default-500">{member.email}</p>
+                      </div>
+                    </UICheckbox>
+                  ))
                 )}
-              </Card.Content>
-            </AdminSection>
+              </div>
 
-            <AdminSection>
-              <Card.Header>
+              <div className="flex justify-end">
+                <Button
+                  variant="primary"
+                  isPending={savingMembers}
+                  isDisabled={pendingAddIds.length === 0 || savingMembers}
+                  onPress={() => void handleAddMembers()}
+                >
+                  添加到用户组
+                </Button>
+              </div>
+            </div>
+
+            <AdminSeparator />
+
+            <div className="space-y-4">
+              <div className="flex items-end justify-between">
                 <div>
-                  <Card.Title>添加成员</Card.Title>
-                  <Card.Description>搜索并批量添加用户到当前用户组。</Card.Description>
-                </div>
-              </Card.Header>
-              <Card.Content className="space-y-4 p-6 pt-0">
-                <AdminFormField label="搜索用户">
-                  <Input
-                    value={searchMembers}
-                    onChange={(event) => setSearchMembers(event.target.value)}
-                    placeholder="用户名或邮箱"
-                  />
-                </AdminFormField>
-
-                <AdminSection className="border-dashed">
-                  <Card.Content className="max-h-64 space-y-2 overflow-y-auto p-4">
-                    {filteredAvailableUsers.length === 0 ? (
-                      <p className="text-sm text-default-500">没有可添加的用户</p>
-                    ) : (
-                      filteredAvailableUsers.map((member) => (
-                        <UICheckbox
-                          key={member.id}
-                          className="m-0 max-w-full rounded-2xl border border-default-200/70 px-3 py-3"
-                          isSelected={pendingAddIds.includes(member.id)}
-                          onChange={() => togglePendingAdd(member.id)}
-                        >
-                          <div className="min-w-0">
-                            <p className="font-medium text-foreground">{member.username}</p>
-                            <p className="mt-1 text-xs text-default-500">{member.email}</p>
-                          </div>
-                        </UICheckbox>
-                      ))
-                    )}
-                  </Card.Content>
-                </AdminSection>
-
-                <div className="flex justify-end">
-                  <Button
-                    variant="primary"
-                    isPending={savingMembers}
-                    isDisabled={pendingAddIds.length === 0 || savingMembers}
-                    onPress={() => void handleAddMembers()}
-                  >
-                    添加到用户组
-                  </Button>
-                </div>
-              </Card.Content>
-            </AdminSection>
-
-            <AdminSection>
-              <Card.Header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-                <div>
-                  <Card.Title>应用权限</Card.Title>
-                  <Card.Description>配置当前用户组对各应用的允许或拒绝策略。</Card.Description>
+                  <h3 className="text-sm font-medium text-foreground">应用权限</h3>
+                  <p className="text-xs text-default-500">配置当前用户组对各应用的允许或拒绝策略。</p>
                 </div>
                 <Button
                   variant="primary"
+                  size="sm"
                   isPending={savingApps}
                   isDisabled={savingApps}
                   onPress={() => void handleUpdateAppPermissions()}
                 >
                   保存权限
                 </Button>
-              </Card.Header>
-              <Card.Content className="space-y-4 p-6 pt-0">
-                <AdminNotice
-                  tone="accent"
-                  description="优先级：用户拒绝 > 用户允许 > 用户组拒绝 > 用户组允许 > 应用默认"
+              </div>
+              <AdminNotice
+                tone="accent"
+                description="优先级：用户拒绝 > 用户允许 > 用户组拒绝 > 用户组允许 > 应用默认"
+              />
+
+              <AdminFormField label="搜索应用">
+                <Input
+                  value={appSearch}
+                  onChange={(event) => setAppSearch(event.target.value)}
+                  placeholder="搜索应用名称"
                 />
+              </AdminFormField>
 
-                <AdminFormField label="搜索应用">
-                  <Input
-                    value={appSearch}
-                    onChange={(event) => setAppSearch(event.target.value)}
-                    placeholder="搜索应用名称"
-                  />
-                </AdminFormField>
-
-                {filteredApps.length === 0 ? (
-                  <AdminEmptyState title="暂无应用" description="当前没有可配置的应用。" />
-                ) : (
-                  <Table aria-label="用户组应用权限">
-                    <Table.ScrollContainer>
-                      <Table.Content>
-                        <Table.Header>
-                          <Table.Column>应用</Table.Column>
-                          <Table.Column>允许</Table.Column>
-                          <Table.Column>拒绝</Table.Column>
-                        </Table.Header>
-                        <Table.Body>
-                          {filteredApps.map((app) => (
-                            <Table.Row key={app.id} id={String(app.id)}>
-                              <Table.Cell>
-                                <div className="flex items-center gap-3">
-                                  <EntityAvatar src={app.logo} name={app.name} size="sm" />
-                                  <div className="min-w-0">
-                                    <p className="font-medium text-foreground">{app.name}</p>
-                                    <p className="text-xs text-default-500">{app.client_id}</p>
-                                  </div>
+              {filteredApps.length === 0 ? (
+                <p className="py-4 text-center text-sm text-default-500">暂无应用</p>
+              ) : (
+                <Table aria-label="用户组应用权限">
+                  <Table.ScrollContainer>
+                    <Table.Content>
+                      <Table.Header>
+                        <Table.Column>应用</Table.Column>
+                        <Table.Column>允许</Table.Column>
+                        <Table.Column>拒绝</Table.Column>
+                      </Table.Header>
+                      <Table.Body>
+                        {filteredApps.map((app) => (
+                          <Table.Row key={app.id} id={String(app.id)}>
+                            <Table.Cell>
+                              <div className="flex items-center gap-3">
+                                <EntityAvatar src={app.logo} name={app.name} size="sm" />
+                                <div className="min-w-0">
+                                  <p className="font-medium text-foreground">{app.name}</p>
+                                  <p className="text-xs text-default-500">{app.client_id}</p>
                                 </div>
-                              </Table.Cell>
-                              <Table.Cell>
-                                <UICheckbox
-                                  isSelected={selectedGroupAllowedApps.includes(app.id)}
-                                  onChange={() => toggleAllowedApp(app.id)}
-                                >
-                                  允许
-                                </UICheckbox>
-                              </Table.Cell>
-                              <Table.Cell>
-                                <UICheckbox
-                                  isSelected={selectedGroupDeniedApps.includes(app.id)}
-                                  onChange={() => toggleDeniedApp(app.id)}
-                                >
-                                  拒绝
-                                </UICheckbox>
-                              </Table.Cell>
-                            </Table.Row>
-                          ))}
-                        </Table.Body>
-                      </Table.Content>
-                    </Table.ScrollContainer>
-                  </Table>
-                )}
-              </Card.Content>
-            </AdminSection>
+                              </div>
+                            </Table.Cell>
+                            <Table.Cell>
+                              <UICheckbox
+                                isSelected={selectedGroupAllowedApps.includes(app.id)}
+                                onChange={() => toggleAllowedApp(app.id)}
+                              >
+                                允许
+                              </UICheckbox>
+                            </Table.Cell>
+                            <Table.Cell>
+                              <UICheckbox
+                                isSelected={selectedGroupDeniedApps.includes(app.id)}
+                                onChange={() => toggleDeniedApp(app.id)}
+                              >
+                                拒绝
+                              </UICheckbox>
+                            </Table.Cell>
+                          </Table.Row>
+                        ))}
+                      </Table.Body>
+                    </Table.Content>
+                  </Table.ScrollContainer>
+                </Table>
+              )}
+            </div>
+
+            <AdminSeparator />
 
             <div className="pt-2">
               <Button

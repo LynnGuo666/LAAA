@@ -8,6 +8,7 @@ import {
   FieldError,
   Label,
   Modal,
+  Separator,
   Spinner,
   TextField,
   cn,
@@ -25,6 +26,7 @@ type AdminPageHeaderProps = {
 type AdminSectionProps = {
   children: ReactNode
   className?: string
+  variant?: 'default' | 'transparent'
 }
 
 type AdminNoticeProps = {
@@ -109,14 +111,13 @@ export function AdminPageHeader({ title, description, actions }: AdminPageHeader
   )
 }
 
-export function AdminSection({ children, className }: AdminSectionProps) {
+export function AdminSection({ children, className, variant = 'default' }: AdminSectionProps) {
+  if (variant === 'transparent') {
+    return <div className={cn('space-y-4', className)}>{children}</div>
+  }
+
   return (
-    <Card
-      className={cn(
-        'border border-default-200/70 bg-white shadow-sm dark:bg-gray-900',
-        className,
-      )}
-    >
+    <Card className={className}>
       {children}
     </Card>
   )
@@ -155,16 +156,18 @@ export function AdminEmptyState({
   className,
 }: AdminEmptyStateProps) {
   return (
-    <AdminSection className={cn('p-10', className)}>
-      <Card.Content className="flex flex-col items-center justify-center gap-3 text-center">
-        <div className="space-y-1">
-          <p className="text-base font-medium text-foreground">{title}</p>
-          {description ? <p className="text-sm text-default-500">{description}</p> : null}
-        </div>
-        {action}
-      </Card.Content>
-    </AdminSection>
+    <div className={cn('flex flex-col items-center justify-center gap-3 p-10 text-center', className)}>
+      <div className="space-y-1">
+        <p className="text-base font-medium text-foreground">{title}</p>
+        {description ? <p className="text-sm text-default-500">{description}</p> : null}
+      </div>
+      {action}
+    </div>
   )
+}
+
+export function AdminSeparator({ className }: { className?: string }) {
+  return <Separator className={className} />
 }
 
 export function AdminFormField({

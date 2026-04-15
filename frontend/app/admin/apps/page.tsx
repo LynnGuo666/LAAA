@@ -707,7 +707,7 @@ export default function AppsPage() {
         </div>
       )}
 
-      <SidePanel
+<SidePanel
         title={selectedClient ? `访问控制：${selectedClient.name}` : '访问控制'}
         open={showAccessControl && !!selectedClient}
         onClose={closeAccessControl}
@@ -716,9 +716,7 @@ export default function AppsPage() {
           <AdminLoadingState label="正在加载访问控制..." className="border-0 p-0 shadow-none" />
         ) : (
           <div className="space-y-6">
-            {accessControlError ? (
-              <AdminNotice tone="danger" description={accessControlError} />
-            ) : null}
+            {accessControlError ? <AdminNotice tone="danger" description={accessControlError} /> : null}
 
             <AdminNotice
               tone="accent"
@@ -729,50 +727,46 @@ export default function AppsPage() {
               label="允许访问（白名单）"
               description="这些用户组的成员可以访问此应用。"
             >
-              <AdminSection className="border-dashed">
-                <Card.Content className="max-h-72 space-y-2 overflow-y-auto p-4">
-                  {groups.map((group) => (
-                    <UICheckbox
-                      key={group.id}
-                      className="m-0 max-w-full rounded-2xl border border-default-200/70 px-3 py-3"
-                      isSelected={accessControl.allowed_group_ids.includes(group.id)}
-                      onChange={() => toggleGroupInList(group.id, 'allowed')}
-                    >
-                      <div className="min-w-0">
-                        <p className="font-medium text-foreground">{group.name}</p>
-                        {group.description ? (
-                          <p className="mt-1 text-xs text-default-500">{group.description}</p>
-                        ) : null}
-                      </div>
-                    </UICheckbox>
-                  ))}
-                </Card.Content>
-              </AdminSection>
+              <div className="max-h-72 space-y-2 overflow-y-auto rounded-xl border border-dashed border-default-200/70 p-3">
+                {groups.map((group) => (
+                  <UICheckbox
+                    key={group.id}
+                    className="m-0 max-w-full rounded-xl border border-default-200/70 px-3 py-3"
+                    isSelected={accessControl.allowed_group_ids.includes(group.id)}
+                    onChange={() => toggleGroupInList(group.id, 'allowed')}
+                  >
+                    <div className="min-w-0">
+                      <p className="font-medium text-foreground">{group.name}</p>
+                      {group.description ? (
+                        <p className="mt-1 text-xs text-default-500">{group.description}</p>
+                      ) : null}
+                    </div>
+                  </UICheckbox>
+                ))}
+              </div>
             </AdminFieldGroup>
 
             <AdminFieldGroup
               label="禁止访问（黑名单）"
               description="这些用户组的成员会被拒绝访问。"
             >
-              <AdminSection className="border-dashed">
-                <Card.Content className="max-h-72 space-y-2 overflow-y-auto p-4">
-                  {groups.map((group) => (
-                    <UICheckbox
-                      key={group.id}
-                      className="m-0 max-w-full rounded-2xl border border-default-200/70 px-3 py-3"
-                      isSelected={accessControl.denied_group_ids.includes(group.id)}
-                      onChange={() => toggleGroupInList(group.id, 'denied')}
-                    >
-                      <div className="min-w-0">
-                        <p className="font-medium text-foreground">{group.name}</p>
-                        {group.description ? (
-                          <p className="mt-1 text-xs text-default-500">{group.description}</p>
-                        ) : null}
-                      </div>
-                    </UICheckbox>
-                  ))}
-                </Card.Content>
-              </AdminSection>
+              <div className="max-h-72 space-y-2 overflow-y-auto rounded-xl border border-dashed border-default-200/70 p-3">
+                {groups.map((group) => (
+                  <UICheckbox
+                    key={group.id}
+                    className="m-0 max-w-full rounded-xl border border-default-200/70 px-3 py-3"
+                    isSelected={accessControl.denied_group_ids.includes(group.id)}
+                    onChange={() => toggleGroupInList(group.id, 'denied')}
+                  >
+                    <div className="min-w-0">
+                      <p className="font-medium text-foreground">{group.name}</p>
+                      {group.description ? (
+                        <p className="mt-1 text-xs text-default-500">{group.description}</p>
+                      ) : null}
+                    </div>
+                  </UICheckbox>
+                ))}
+              </div>
             </AdminFieldGroup>
 
             <div className="flex gap-2 pt-2">

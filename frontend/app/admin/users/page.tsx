@@ -6,6 +6,11 @@ import {
   Button,
   Card,
   Chip,
+  DropdownItem,
+  DropdownMenu,
+  DropdownPopover,
+  DropdownRoot,
+  DropdownTrigger,
   Input,
   ListBox,
   ListBoxItem,
@@ -13,6 +18,7 @@ import {
   Select,
   Table,
 } from '@heroui/react'
+import { MoreHorizontal } from 'lucide-react'
 import {
   AdminEmptyState,
   AdminFormField,
@@ -26,6 +32,7 @@ import {
 import { UICheckbox } from '@/components/ui/primitives'
 import { useConfirmDialog } from '@/components/ui/confirm-dialog-provider'
 import { adminApi, groupApi } from '@/lib/api'
+import { renderStatusChip, renderStatusSelect } from '@/lib/admin-utils'
 import { isAdmin } from '@/lib/authz'
 import { formatDate } from '@/lib/date'
 import { useAuthStore } from '@/lib/store'
@@ -54,12 +61,6 @@ interface Role {
   description?: string
   level: number
 }
-
-const USER_STATUS_OPTIONS = [
-  { id: 'active', label: '激活' },
-  { id: 'inactive', label: '未激活' },
-  { id: 'suspended', label: '暂停' },
-]
 
 export default function UsersPage() {
   const confirmDialog = useConfirmDialog()
@@ -357,52 +358,6 @@ export default function UsersPage() {
 
   const totalPages = Math.ceil(total / limit)
 
-  const renderStatusChip = (status: string) => {
-    const colorMap: Record<string, 'success' | 'default' | 'danger'> = {
-      active: 'success',
-      inactive: 'default',
-      suspended: 'danger',
-    }
-
-    const labelMap: Record<string, string> = {
-      active: '激活',
-      inactive: '未激活',
-      suspended: '暂停',
-    }
-
-    return (
-      <Chip color={colorMap[status] ?? 'default'} variant="soft" size="sm">
-        {labelMap[status] ?? status}
-      </Chip>
-    )
-  }
-
-  const renderStatusSelect = (
-    value: string,
-    onChange: (nextValue: string) => void,
-    isDisabled = false,
-  ) => (
-    <Select
-      selectedKey={value}
-      onSelectionChange={(key) => onChange(String(key ?? 'active'))}
-      isDisabled={isDisabled}
-    >
-      <Select.Trigger>
-        <Select.Value />
-        <Select.Indicator />
-      </Select.Trigger>
-      <Select.Popover>
-        <ListBox>
-          {USER_STATUS_OPTIONS.map((option) => (
-            <ListBoxItem key={option.id} id={option.id}>
-              {option.label}
-            </ListBoxItem>
-          ))}
-        </ListBox>
-      </Select.Popover>
-    </Select>
-  )
-
   if (!canManageUsers) {
     return (
       <AdminNotice tone="danger" title="无权限" description="该页面仅管理员可访问。" />
@@ -509,47 +464,38 @@ export default function UsersPage() {
                           </div>
                         </Table.Cell>
                         <Table.Cell>
-                          <div className="flex flex-wrap gap-2">
+                          <div className="flex items-center gap-2">
                             <Button
                               size="sm"
-                              variant="primary"
+                              variant="secondary"
                               onPress={() => router.push(`/admin/users/detail?id=${item.id}`)}
                             >
                               详情
                             </Button>
-                            <Button size="sm" variant="secondary" onPress={() => openEditModal(item)}>
-                              编辑
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="secondary"
-                              onPress={() => openGroupsModal(item)}
-                            >
-                              用户组
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="secondary"
-                              onPress={() => openRolesModal(item)}
-                            >
-                              角色
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="secondary"
-                              onPress={() => router.push(`/admin/users/permissions?id=${item.id}`)}
-                            >
-                              应用权限
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="danger"
-                              isPending={deletingUserId === item.id}
-                              isDisabled={deletingUserId === item.id}
-                              onPress={() => void handleDeleteUser(item)}
-                            >
-                              删除
-                            </Button>
+                            <DropdownRoot>
+                              <DropdownTrigger>
+                                <Button variant="secondary" size="sm" isIconOnly>
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownTrigger>
+                              <DropdownPopover placement="bottom end">
+                                <DropdownMenu
+                                  onAction={(key) => {
+                                    if (key === 'edit') openEditModal(item)
+                                    else if (key === 'groups') openGroupsModal(item)
+                                    else if (key === 'roles') openRolesModal(item)
+                                    else if (key === 'permissions') router.push(`/admin/users/permissions?id=${item.id}`)
+                                    else if (key === 'delete') void handleDeleteUser(item)
+                                  }}
+                                >
+                                  <DropdownItem id="edit">编辑</DropdownItem>
+                                  <DropdownItem id="groups">用户组</DropdownItem>
+                                  <DropdownItem id="roles">角色</DropdownItem>
+                                  <DropdownItem id="permissions">应用权限</DropdownItem>
+                                  <DropdownItem id="delete" className="text-danger">删除</DropdownItem>
+                                </DropdownMenu>
+                              </DropdownPopover>
+                            </DropdownRoot>
                           </div>
                         </Table.Cell>
                       </Table.Row>

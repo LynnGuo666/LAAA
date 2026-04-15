@@ -27,6 +27,7 @@ import {
 import { UICheckbox } from '@/components/ui/primitives'
 import { useConfirmDialog } from '@/components/ui/confirm-dialog-provider'
 import { adminApi, groupApi } from '@/lib/api'
+import { renderStatusChip, renderStatusSelect } from '@/lib/admin-utils'
 import { isAdmin } from '@/lib/authz'
 import { formatDateTime } from '@/lib/date'
 import { useAuthStore } from '@/lib/store'
@@ -113,12 +114,6 @@ interface SecurityMethods {
 }
 
 type Tab = 'info' | 'logs' | 'sessions' | 'passkeys' | 'authorizations'
-
-const USER_STATUS_OPTIONS = [
-  { id: 'active', label: '激活' },
-  { id: 'inactive', label: '未激活' },
-  { id: 'suspended', label: '暂停' },
-]
 
 export default function UserDetailPage() {
   const confirmDialog = useConfirmDialog()
@@ -283,46 +278,6 @@ export default function UserDetailPage() {
     loadSessions,
     user,
   ])
-
-  const renderStatusChip = (status: string) => {
-    const colorMap: Record<string, 'success' | 'default' | 'danger'> = {
-      active: 'success',
-      inactive: 'default',
-      suspended: 'danger',
-    }
-    const labelMap: Record<string, string> = {
-      active: '激活',
-      inactive: '未激活',
-      suspended: '暂停',
-    }
-
-    return (
-      <Chip color={colorMap[status] ?? 'default'} variant="soft" size="sm">
-        {labelMap[status] ?? status}
-      </Chip>
-    )
-  }
-
-  const renderStatusSelect = (value: string, onChange: (nextValue: string) => void) => (
-    <Select
-      selectedKey={value}
-      onSelectionChange={(key) => onChange(String(key ?? 'active'))}
-    >
-      <Select.Trigger>
-        <Select.Value />
-        <Select.Indicator />
-      </Select.Trigger>
-      <Select.Popover>
-        <ListBox>
-          {USER_STATUS_OPTIONS.map((option) => (
-            <ListBoxItem key={option.id} id={option.id}>
-              {option.label}
-            </ListBoxItem>
-          ))}
-        </ListBox>
-      </Select.Popover>
-    </Select>
-  )
 
   const resetModalState = () => {
     setModalError(null)
@@ -553,7 +508,7 @@ export default function UserDetailPage() {
           </div>
 
           <div className="grid gap-4 lg:grid-cols-3">
-            <Card className="border border-default-200/70 bg-white shadow-none dark:bg-gray-900">
+            <AdminSection>
               <Card.Header>
                 <Card.Title>用户组</Card.Title>
               </Card.Header>
@@ -568,9 +523,9 @@ export default function UserDetailPage() {
                   ))
                 )}
               </Card.Content>
-            </Card>
+            </AdminSection>
 
-            <Card className="border border-default-200/70 bg-white shadow-none dark:bg-gray-900">
+            <AdminSection>
               <Card.Header>
                 <Card.Title>角色</Card.Title>
               </Card.Header>
@@ -585,9 +540,9 @@ export default function UserDetailPage() {
                   ))
                 )}
               </Card.Content>
-            </Card>
+            </AdminSection>
 
-            <Card className="border border-default-200/70 bg-white shadow-none dark:bg-gray-900">
+            <AdminSection>
               <Card.Header>
                 <Card.Title>安全验证方式</Card.Title>
               </Card.Header>
@@ -623,7 +578,7 @@ export default function UserDetailPage() {
                   </Chip>
                 </div>
               </Card.Content>
-            </Card>
+            </AdminSection>
           </div>
         </Card.Content>
       </AdminSection>
