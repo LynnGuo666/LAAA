@@ -1,11 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { AlertDialog, Button, toast } from '@heroui/react';
+import { AlertDialog, Button, Card, Chip, Table, toast } from '@heroui/react';
 import { userApi } from '@/lib/api';
 import { formatDateTime } from '@/lib/date';
 import { useConfirmDialog } from '@/components/ui/confirm-dialog-provider';
-import { AppWindow } from 'lucide-react';
+import { EntityAvatar } from '@/components/admin/admin-ui';
 
 interface Authorization {
   id: number;
@@ -70,52 +70,54 @@ export default function AuthorizationsPage() {
       <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-6 sm:mb-8">授权管理</h1>
 
       {authorizations.length === 0 ? (
-        <div className="surface text-center py-12">
-          <p className="text-default-500">暂无已授权应用</p>
-        </div>
+        <Card>
+          <div className="text-center py-12">
+            <p className="text-default-500">暂无已授权应用</p>
+          </div>
+        </Card>
       ) : (
-        <div className="surface overflow-hidden">
-          <ul className="list">
-            {authorizations.map((auth) => (
-              <li key={auth.id} className="list-item">
-                <div className="flex items-start justify-between gap-4">
-                    <div className="flex items-start gap-3 min-w-0">
-                    {auth.client_logo ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={auth.client_logo}
-                        alt={auth.client_name}
-                        className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl object-cover border border-default-200 shrink-0"
-                      />
-                  ) : (
-                    <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-default-100 flex items-center justify-center border border-default-200 shrink-0">
-                      <AppWindow className="h-5 w-5 sm:h-6 sm:w-6 text-default-500" aria-hidden />
-                    </div>
-                  )}
-
-                    <div className="min-w-0 flex-1">
-                      <h3 className="text-sm sm:text-base font-semibold text-foreground truncate">
-                        {auth.client_name}
-                      </h3>
-                      <p className="text-xs sm:text-sm text-default-600 mt-1 truncate">
-                        授权范围：{auth.scope || '-'}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2 shrink-0">
-                    <Button onPress={() => handleShowDetail(auth)} variant="tertiary" className="text-xs sm:text-sm">
-                      详情
-                    </Button>
-                    <Button onPress={() => handleRevoke(auth)} variant="danger" className="text-xs sm:text-sm">
-                      撤回
-                    </Button>
-                  </div>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </div>
+        <Card>
+          <Table aria-label="授权应用列表">
+            <Table.ScrollContainer>
+              <Table.Content>
+                <Table.Header>
+                  <Table.Column isRowHeader>应用</Table.Column>
+                  <Table.Column>授权范围</Table.Column>
+                  <Table.Column>首次授权</Table.Column>
+                  <Table.Column>最近使用</Table.Column>
+                  <Table.Column>操作</Table.Column>
+                </Table.Header>
+                <Table.Body>
+                  {authorizations.map((auth) => (
+                    <Table.Row key={auth.id} id={String(auth.id)}>
+                      <Table.Cell>
+                        <div className="flex items-center gap-3">
+                          <EntityAvatar src={auth.client_logo} name={auth.client_name} size="sm" />
+                          <span className="font-medium text-foreground">{auth.client_name}</span>
+                        </div>
+                      </Table.Cell>
+                      <Table.Cell>
+                        <div className="flex flex-wrap gap-1">
+                          {auth.scope ? auth.scope.split(' ').map((s) => (
+                            <Chip key={s} size="sm" variant="soft">{s}</Chip>
+                          )) : <span className="text-default-400">-</span>}
+                        </div>
+                      </Table.Cell>
+                      <Table.Cell className="text-default-600 text-sm">{formatDateTime(auth.created_at)}</Table.Cell>
+                      <Table.Cell className="text-default-600 text-sm">{formatDateTime(auth.last_used_at)}</Table.Cell>
+                      <Table.Cell>
+                        <div className="flex items-center gap-2">
+                          <Button onPress={() => handleShowDetail(auth)} variant="tertiary" size="sm">详情</Button>
+                          <Button onPress={() => handleRevoke(auth)} variant="danger" size="sm">撤回</Button>
+                        </div>
+                      </Table.Cell>
+                    </Table.Row>
+                  ))}
+                </Table.Body>
+              </Table.Content>
+            </Table.ScrollContainer>
+          </Table>
+        </Card>
       )}
 
       <AlertDialog>
