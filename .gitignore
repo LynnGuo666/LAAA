@@ -115,3 +115,4 @@ backend/data/ip2region.xdb
 .factory/
 .trae/
 skills-lock.json
+.mimocode/

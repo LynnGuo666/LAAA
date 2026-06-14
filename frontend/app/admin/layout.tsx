@@ -3,18 +3,8 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { Button, Description, Disclosure, Header, Label, ListBox, Separator, Surface, cn } from '@heroui/react'
-import {
-  LayoutDashboard,
-  AppWindow,
-  Users,
-  Group,
-  TicketCheck,
-  Settings2,
-  LogOut,
-  ArrowLeft,
-  ShieldCheck,
-} from 'lucide-react'
+import { Button, Tabs } from '@heroui/react'
+import { LogOut, ArrowLeft, ShieldCheck } from 'lucide-react'
 import { AdminLoadingState } from '@/components/admin/admin-ui'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { isAdmin } from '@/lib/authz'
@@ -24,12 +14,6 @@ import { useAuthStore } from '@/lib/store'
 type NavItem = {
   href: string
   label: string
-  icon: React.ElementType
-}
-
-type NavGroup = {
-  label: string
-  items: NavItem[]
 }
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -99,135 +83,102 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     return null
   }
 
-  const adminNavGroups: NavGroup[] = [
-    {
-      label: '总览',
-      items: [
-        { href: '/admin', label: '控制台', icon: LayoutDashboard },
-      ],
-    },
-    {
-      label: '应用',
-      items: [
-        { href: '/admin/apps', label: '应用管理', icon: AppWindow },
-      ],
-    },
-    {
-      label: '用户与权限',
-      items: [
-        { href: '/admin/users', label: '用户管理', icon: Users },
-        { href: '/admin/groups', label: '用户组', icon: Group },
-        { href: '/admin/invites', label: '邀请码', icon: TicketCheck },
-      ],
-    },
-    {
-      label: '系统',
-      items: [
-        { href: '/admin/settings', label: '站点设置', icon: Settings2 },
-      ],
-    },
+  const navLinks: NavItem[] = [
+    { href: '/admin', label: '控制台' },
+    { href: '/admin/apps', label: '应用管理' },
+    { href: '/admin/users', label: '用户管理' },
+    { href: '/admin/groups', label: '用户组' },
+    { href: '/admin/invites', label: '邀请码' },
+    { href: '/admin/settings', label: '站点设置' },
   ]
 
-  const isActiveHref = (href: string) => {
-    if (href === '/admin') return pathname === '/admin'
-    return pathname === href || pathname.startsWith(`${href}/`)
-  }
-
-  const activeKey = (() => {
-    for (const group of adminNavGroups) {
-      for (const item of group.items) {
-        if (isActiveHref(item.href)) return item.href
-      }
-    }
-    return ''
-  })()
-
-  const AdminNavContent = () => (
-    <ListBox
-      aria-label="管理导航"
-      selectionMode="single"
-      selectedKeys={new Set([activeKey])}
-      onSelectionChange={(keys) => {
-        const selected = keys instanceof Set ? keys.values().next().value : Array.from(keys)[0]
-        if (selected) router.push(String(selected))
-      }}
-      className="w-full"
-    >
-      {adminNavGroups.map((group, groupIndex) => (
-        <ListBox.Section key={group.label}>
-          <Header>{group.label}</Header>
-          {group.items.map((item) => {
-            const Icon = item.icon
-            return (
-              <ListBox.Item key={item.href} id={item.href} textValue={item.label}>
-                <Icon className="size-4 shrink-0 text-inherit" />
-                <Label>{item.label}</Label>
-              </ListBox.Item>
-            )
-          })}
-          {groupIndex < adminNavGroups.length - 1 ? <Separator /> : null}
-        </ListBox.Section>
-      ))}
-    </ListBox>
-  )
+  const activeKey = navLinks.find((link) => {
+    if (link.href === '/admin') return pathname === '/admin'
+    return pathname === link.href || pathname.startsWith(`${link.href}/`)
+  })?.href || navLinks[0].href
 
   return (
-    <div className="min-h-screen bg-surface-secondary">
-      <header className="sticky top-0 z-30 border-b border-default-200/70 bg-background/80 backdrop-blur-lg">
-        <div className="mx-auto flex h-14 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
-          <div className="min-w-0">
-            <Link href="/admin" className="flex items-center gap-2 text-base font-semibold text-foreground">
-              <ShieldCheck className="h-5 w-5 text-primary" />
-              {siteName}
-              <span className="hidden rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-primary sm:inline">
-                Admin
-              </span>
-            </Link>
-          </div>
+    <div className="min-h-screen bg-background">
+      <nav className="bg-background shadow-sm border-b border-default-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between h-16">
+            <div className="flex items-center min-w-0">
+              <Link href="/admin" className="flex items-center gap-2 px-2 py-2 text-xl font-bold whitespace-nowrap">
+                <ShieldCheck className="h-5 w-5 text-primary" />
+                {siteName}
+                <span className="hidden rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-primary sm:inline">
+                  Admin
+                </span>
+              </Link>
 
-          <div className="flex items-center gap-2 sm:gap-3">
-            <ThemeToggle />
-            <Link
-              href="/dashboard/my-apps"
-              className="hidden items-center gap-1.5 rounded-xl px-3 py-1.5 text-sm text-default-600 transition-colors hover:bg-default-100 sm:inline-flex"
-            >
-              <ArrowLeft className="h-3.5 w-3.5" />
-              用户面板
-            </Link>
-            <div className="hidden h-4 w-px bg-default-200 sm:block" />
-            <span className="hidden text-sm text-default-600 sm:inline">{user.username}</span>
-            <Button variant="secondary" size="sm" onPress={handleLogout}>
-              <LogOut className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">退出</span>
-            </Button>
+              <div className="hidden sm:ml-6 sm:flex sm:items-center">
+                <Tabs
+                  className="w-full"
+                  selectedKey={activeKey}
+                  variant="primary"
+                  onSelectionChange={(key) => {
+                    router.push(String(key));
+                  }}
+                >
+                  <Tabs.ListContainer>
+                    <Tabs.List aria-label="Admin Navigation" className="flex-nowrap">
+                      {navLinks.map((link) => (
+                        <Tabs.Tab key={link.href} id={link.href} className="whitespace-nowrap">
+                          {link.label}
+                          <Tabs.Indicator />
+                        </Tabs.Tab>
+                      ))}
+                    </Tabs.List>
+                  </Tabs.ListContainer>
+                </Tabs>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 sm:gap-3">
+              <ThemeToggle />
+              <Link
+                href="/dashboard/my-apps"
+                className="hidden items-center gap-1.5 rounded-xl px-3 py-1.5 text-sm text-default-600 transition-colors hover:bg-default-100 sm:inline-flex"
+              >
+                <ArrowLeft className="h-3.5 w-3.5" />
+                用户面板
+              </Link>
+              <div className="hidden h-4 w-px bg-default-200 sm:block" />
+              <span className="hidden text-sm text-default-600 sm:inline">{user.username}</span>
+              <Button variant="secondary" size="sm" onPress={handleLogout}>
+                <LogOut className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">退出</span>
+              </Button>
+            </div>
           </div>
         </div>
-      </header>
 
-      <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-        <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
-          <div className="lg:hidden">
-            <Disclosure>
-              <Disclosure.Heading>
-                <Disclosure.Trigger className="flex w-full items-center justify-between rounded-xl border border-default-200/70 bg-background px-4 py-3 text-left text-sm font-medium text-foreground transition-colors hover:bg-default-50">
-                  管理菜单
-                  <Disclosure.Indicator />
-                </Disclosure.Trigger>
-              </Disclosure.Heading>
-              <Disclosure.Content className="pt-4">
-                <AdminNavContent />
-              </Disclosure.Content>
-            </Disclosure>
+        <div className="sm:hidden border-t border-default-200">
+          <div className="flex overflow-x-auto px-4 py-2 gap-4">
+            {navLinks.map((link) => {
+              const isActive = link.href === '/admin'
+                ? pathname === '/admin'
+                : pathname === link.href || pathname.startsWith(`${link.href}/`);
+              return (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className={`text-sm whitespace-nowrap px-2 py-1 rounded ${
+                    isActive
+                      ? 'text-primary bg-primary/10'
+                      : 'text-default-600'
+                  }`}
+                >
+                  {link.label}
+                </Link>
+              );
+            })}
           </div>
-
-          <aside className="hidden w-60 shrink-0 lg:block lg:sticky lg:top-20">
-            <Surface className="rounded-2xl shadow-surface p-2">
-              <AdminNavContent />
-            </Surface>
-          </aside>
-
-          <div className="min-w-0 flex-1">{children}</div>
         </div>
+      </nav>
+
+      <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+        {children}
       </main>
     </div>
   )
