@@ -589,7 +589,7 @@ export default function UserDetailPage() {
                   <Table.ScrollContainer>
                     <Table.Content>
                       <Table.Header>
-                        <Table.Column>结果</Table.Column>
+                        <Table.Column isRowHeader>结果</Table.Column>
                         <Table.Column>来源</Table.Column>
                         <Table.Column>时间</Table.Column>
                       </Table.Header>
@@ -678,7 +678,7 @@ export default function UserDetailPage() {
                     <Table.ScrollContainer>
                       <Table.Content>
                         <Table.Header>
-                          <Table.Column>设备</Table.Column>
+                          <Table.Column isRowHeader>设备</Table.Column>
                           <Table.Column>活跃信息</Table.Column>
                           <Table.Column>操作</Table.Column>
                         </Table.Header>
@@ -736,7 +736,7 @@ export default function UserDetailPage() {
                   <Table.ScrollContainer>
                     <Table.Content>
                       <Table.Header>
-                        <Table.Column>名称</Table.Column>
+                        <Table.Column isRowHeader>名称</Table.Column>
                         <Table.Column>创建与使用</Table.Column>
                         <Table.Column>状态</Table.Column>
                       </Table.Header>
@@ -784,7 +784,7 @@ export default function UserDetailPage() {
                   <Table.ScrollContainer>
                     <Table.Content>
                       <Table.Header>
-                        <Table.Column>应用</Table.Column>
+                        <Table.Column isRowHeader>应用</Table.Column>
                         <Table.Column>权限范围</Table.Column>
                         <Table.Column>授权时间</Table.Column>
                       </Table.Header>

@@ -209,7 +209,7 @@ export default function UserPermissionsPage() {
               <Table.ScrollContainer>
                 <Table.Content>
                   <Table.Header>
-                    <Table.Column>应用</Table.Column>
+                    <Table.Column isRowHeader>应用</Table.Column>
                     <Table.Column>最终结果</Table.Column>
                     <Table.Column>权限来源</Table.Column>
                     <Table.Column>用户级设置</Table.Column>

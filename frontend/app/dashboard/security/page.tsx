@@ -604,7 +604,7 @@ export default function SecurityPage() {
             <Table.ScrollContainer>
               <Table.Content>
                 <Table.Header>
-                  <Table.Column>状态</Table.Column>
+                  <Table.Column isRowHeader>状态</Table.Column>
                   <Table.Column>设备</Table.Column>
                   <Table.Column>登录方式</Table.Column>
                   <Table.Column>IP / 地点</Table.Column>

@@ -323,7 +323,7 @@ export default function InvitesPage() {
               <Table.ScrollContainer>
                 <Table.Content>
                   <Table.Header>
-                    <Table.Column>邀请码</Table.Column>
+                    <Table.Column isRowHeader>邀请码</Table.Column>
                     <Table.Column>用户组</Table.Column>
                     <Table.Column>状态</Table.Column>
                     <Table.Column>使用情况</Table.Column>

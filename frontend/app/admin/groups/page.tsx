@@ -533,7 +533,7 @@ export default function GroupsPage() {
                   <Table.ScrollContainer>
                     <Table.Content>
                       <Table.Header>
-                        <Table.Column>用户</Table.Column>
+                        <Table.Column isRowHeader>用户</Table.Column>
                         <Table.Column>邮箱</Table.Column>
                         <Table.Column>操作</Table.Column>
                       </Table.Header>
@@ -657,7 +657,7 @@ export default function GroupsPage() {
                   <Table.ScrollContainer>
                     <Table.Content>
                       <Table.Header>
-                        <Table.Column>应用</Table.Column>
+                        <Table.Column isRowHeader>应用</Table.Column>
                         <Table.Column>允许</Table.Column>
                         <Table.Column>拒绝</Table.Column>
                       </Table.Header>

@@ -6,15 +6,11 @@ import {
   Button,
   Card,
   Chip,
-  DropdownItem,
-  DropdownMenu,
-  DropdownPopover,
-  DropdownRoot,
-  DropdownTrigger,
   Input,
   ListBox,
   ListBoxItem,
   Pagination,
+  Popover,
   Select,
   Table,
 } from '@heroui/react'
@@ -85,6 +81,7 @@ export default function UsersPage() {
   const [showGroupsModal, setShowGroupsModal] = useState(false)
   const [showRolesModal, setShowRolesModal] = useState(false)
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
+  const [openMenuId, setOpenMenuId] = useState<number | null>(null)
   const [selectedUserGroups, setSelectedUserGroups] = useState<number[]>([])
   const [selectedUserRoles, setSelectedUserRoles] = useState<number[]>([])
 
@@ -427,7 +424,7 @@ export default function UsersPage() {
               <Table.ScrollContainer>
                 <Table.Content>
                   <Table.Header>
-                    <Table.Column>用户</Table.Column>
+                    <Table.Column isRowHeader>用户</Table.Column>
                     <Table.Column>状态</Table.Column>
                     <Table.Column>用户组 / 角色</Table.Column>
                     <Table.Column>创建时间</Table.Column>
@@ -472,30 +469,33 @@ export default function UsersPage() {
                             >
                               详情
                             </Button>
-                            <DropdownRoot>
-                              <DropdownTrigger>
-                                <Button variant="secondary" size="sm" isIconOnly>
+                            <Popover isOpen={openMenuId === item.id} onOpenChange={(open) => setOpenMenuId(open ? item.id : null)}>
+                              <Popover.Trigger>
+                                <Button variant="secondary" size="sm" isIconOnly aria-label="更多操作">
                                   <MoreHorizontal className="h-4 w-4" />
                                 </Button>
-                              </DropdownTrigger>
-                              <DropdownPopover placement="bottom end">
-                                <DropdownMenu
+                              </Popover.Trigger>
+                              <Popover.Content className="w-36 p-1">
+                                <ListBox
+                                  aria-label="用户操作"
                                   onAction={(key) => {
-                                    if (key === 'edit') openEditModal(item)
-                                    else if (key === 'groups') openGroupsModal(item)
-                                    else if (key === 'roles') openRolesModal(item)
-                                    else if (key === 'permissions') router.push(`/admin/users/permissions?id=${item.id}`)
-                                    else if (key === 'delete') void handleDeleteUser(item)
+                                    setOpenMenuId(null)
+                                    const action = String(key)
+                                    if (action === 'edit') openEditModal(item)
+                                    else if (action === 'groups') openGroupsModal(item)
+                                    else if (action === 'roles') openRolesModal(item)
+                                    else if (action === 'permissions') router.push(`/admin/users/permissions?id=${item.id}`)
+                                    else if (action === 'delete') void handleDeleteUser(item)
                                   }}
                                 >
-                                  <DropdownItem id="edit">编辑</DropdownItem>
-                                  <DropdownItem id="groups">用户组</DropdownItem>
-                                  <DropdownItem id="roles">角色</DropdownItem>
-                                  <DropdownItem id="permissions">应用权限</DropdownItem>
-                                  <DropdownItem id="delete" className="text-danger">删除</DropdownItem>
-                                </DropdownMenu>
-                              </DropdownPopover>
-                            </DropdownRoot>
+                                  <ListBoxItem id="edit">编辑</ListBoxItem>
+                                  <ListBoxItem id="groups">用户组</ListBoxItem>
+                                  <ListBoxItem id="roles">角色</ListBoxItem>
+                                  <ListBoxItem id="permissions">应用权限</ListBoxItem>
+                                  <ListBoxItem id="delete" className="text-danger">删除</ListBoxItem>
+                                </ListBox>
+                              </Popover.Content>
+                            </Popover>
                           </div>
                         </Table.Cell>
                       </Table.Row>
