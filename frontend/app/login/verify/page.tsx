@@ -1,65 +1,37 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Alert, Button, Card, Input, InputOTP, ProgressBar, Spinner, toast } from '@heroui/react';
+import { Alert, Button, Card, Chip, Input, InputOTP, ProgressBar, toast } from '@heroui/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useConfirmDialog } from '@/components/ui/confirm-dialog-provider';
 import { verificationApi, authApi } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
-import { Mail, ShieldCheck, KeyRound, ChevronRight } from 'lucide-react';
+import { Mail, ShieldCheck, KeyRound, ChevronRight, ArrowLeft, Check } from 'lucide-react';
 import {
   isWebAuthnSupported,
   parseAuthenticationOptions,
   getPasskeyCredential,
   serializeAuthenticationCredential,
 } from '@/lib/webauthn';
+import { PageLoadingState } from '@/components/ui/loading';
 
-interface VerificationMethod {
-  method: string;
-  strength: string;
-  available: boolean;
-}
-
-interface Anomaly {
-  type: string;
-  score: number;
-  message: string;
-}
-
+interface VerificationMethod { method: string; strength: string; available: boolean }
+interface Anomaly { type: string; score: number; message: string }
 interface VerificationSession {
-  requires_verification: boolean;
-  session_token: string;
-  risk_level: string;
-  risk_score: number;
-  required_verifications: number;
-  completed_verifications: number;
-  email_masked: string;
-  available_methods: VerificationMethod[];
-  anomalies: Anomaly[];
-  redirect: string;
+  requires_verification: boolean; session_token: string; risk_level: string; risk_score: number;
+  required_verifications: number; completed_verifications: number; email_masked: string;
+  available_methods: VerificationMethod[]; anomalies: Anomaly[]; redirect: string;
 }
 
 type VerificationStep = 'select' | 'email_code' | 'totp' | 'passkey' | 'backup_code';
 
-const METHOD_NAMES: Record<string, string> = {
-  email_code: '邮件验证码',
-  totp: '身份验证器',
-  passkey: '通行密钥',
-};
-
+const METHOD_NAMES: Record<string, string> = { email_code: '邮件验证码', totp: '身份验证器', passkey: '通行密钥' };
 const ALL_METHODS: Array<'email_code' | 'totp' | 'passkey'> = ['email_code', 'totp', 'passkey'];
-
-const RISK_LEVEL_NAMES: Record<string, string> = {
-  low: '低风险',
-  medium: '中风险',
-  high: '高风险',
-};
-
-const RISK_LEVEL_STATUS: Record<string, 'accent' | 'warning' | 'danger'> = {
-  low: 'accent',
-  medium: 'warning',
-  high: 'danger',
+const METHOD_META: Record<string, { icon: React.ReactNode; desc: string; color: string }> = {
+  email_code: { icon: <Mail className="w-5 h-5" />, desc: '发送验证码到您的邮箱', color: 'bg-primary/10 text-primary' },
+  totp: { icon: <ShieldCheck className="w-5 h-5" />, desc: '使用身份验证器应用', color: 'bg-success/10 text-success' },
+  passkey: { icon: <KeyRound className="w-5 h-5" />, desc: '使用指纹、面容或安全密钥', color: 'bg-warning/10 text-warning' },
 };
 
 export default function VerifyPage() {
@@ -68,486 +40,217 @@ export default function VerifyPage() {
   const setAuth = useAuthStore((state) => state.setAuth);
 
   const [session, setSession] = useState<VerificationSession | null>(null);
-  const [currentStep, setCurrentStep] = useState<VerificationStep>('select');
+  const [step, setStep] = useState<VerificationStep>('select');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-
-  // Email code state
   const [emailCode, setEmailCode] = useState('');
   const [emailCodeSent, setEmailCodeSent] = useState(false);
   const [emailCooldown, setEmailCooldown] = useState(0);
-
-  // TOTP state
   const [totpCode, setTotpCode] = useState('');
   const [showBackupCode, setShowBackupCode] = useState(false);
   const [backupCode, setBackupCode] = useState('');
-
-  // WebAuthn support
   const [webAuthnSupported, setWebAuthnSupported] = useState(false);
-
-  // Completed methods (to show which methods are done)
   const [completedMethods, setCompletedMethods] = useState<string[]>([]);
-
-  // Skip verification state
   const [skipping, setSkipping] = useState(false);
 
   useEffect(() => {
-    // Load session from sessionStorage
     const stored = sessionStorage.getItem('verification_session');
-    if (!stored) {
-      router.push('/login');
-      return;
-    }
-
+    if (!stored) { router.push('/login'); return; }
     try {
       const data = JSON.parse(stored) as VerificationSession;
       setSession(data);
-
-      // Check if already completed
-      if (data.completed_verifications >= data.required_verifications) {
-        router.push(data.redirect || '/dashboard');
-      }
-    } catch {
-      router.push('/login');
-    }
-
+      if (data.completed_verifications >= data.required_verifications) router.push(data.redirect || '/dashboard');
+    } catch { router.push('/login'); }
     setWebAuthnSupported(isWebAuthnSupported());
   }, [router]);
 
-  // Email cooldown timer
   useEffect(() => {
-    if (emailCooldown > 0) {
-      const timer = setTimeout(() => setEmailCooldown(emailCooldown - 1), 1000);
-      return () => clearTimeout(timer);
-    }
+    if (emailCooldown > 0) { const t = setTimeout(() => setEmailCooldown(emailCooldown - 1), 1000); return () => clearTimeout(t); }
   }, [emailCooldown]);
 
-  const handleSelectMethod = (method: string) => {
-    setError('');
-    setSuccess('');
-    if (method === 'email_code') {
-      setCurrentStep('email_code');
-    } else if (method === 'totp') {
-      setCurrentStep('totp');
-    } else if (method === 'passkey') {
-      setCurrentStep('passkey');
-    }
+  const verify = async (fn: () => Promise<any>, method: string) => {
+    setLoading(true); setError('');
+    try {
+      const res = await fn();
+      if (res.data.verification_complete && res.data.access_token) {
+        localStorage.setItem('access_token', res.data.access_token);
+        localStorage.setItem('refresh_token', res.data.refresh_token);
+        document.cookie = `session_token=${res.data.access_token}; path=/; max-age=${60*60*24*7}; SameSite=Lax`;
+        const userRes = await authApi.getMe(res.data.access_token);
+        setAuth(userRes.data, res.data.access_token, res.data.refresh_token);
+        sessionStorage.removeItem('verification_session');
+        router.push(session?.redirect || '/dashboard');
+      } else {
+        setCompletedMethods([...completedMethods, method]);
+        const updated = { ...session!, completed_verifications: res.data.completed_verifications, completed_methods: res.data.completed_methods, available_methods: res.data.remaining_methods || session!.available_methods.filter(m => m.method !== method) };
+        setSession(updated); sessionStorage.setItem('verification_session', JSON.stringify(updated));
+        setStep('select'); setSuccess(`${METHOD_NAMES[method]} 验证成功，请继续完成下一步验证`);
+        setEmailCode(''); setTotpCode(''); setBackupCode(''); setEmailCodeSent(false);
+      }
+    } catch (err: any) { setError(err.response?.data?.detail || '验证失败'); } finally { setLoading(false); }
   };
 
   const handleSendEmailCode = async () => {
+    if (!session) return; setLoading(true); setError('');
+    try { await verificationApi.sendEmailCode(session.session_token); setEmailCodeSent(true); setEmailCooldown(60); setSuccess('验证码已发送到您的邮箱'); }
+    catch (err: any) { setError(err.response?.data?.detail || '发送失败'); }
+    finally { setLoading(false); }
+  };
+
+  const handleSkip = async () => {
     if (!session) return;
-    setLoading(true);
-    setError('');
-
+    if (!(await confirmDialog({ title: '确认跳过验证', description: '跳过验证后，您需要先完成邮箱验证和设置二次验证方式才能正常使用系统。', confirmText: '继续跳过', cancelText: '取消', status: 'warning', confirmVariant: 'primary' }))) return;
+    setSkipping(true); setError('');
     try {
-      await verificationApi.sendEmailCode(session.session_token);
-      setEmailCodeSent(true);
-      setEmailCooldown(60);
-      setSuccess('验证码已发送到您的邮箱');
-    } catch (err: any) {
-      const message = err.response?.data?.detail || '发送验证码失败';
-      setError(message);
-      toast.danger(message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleVerifyEmailCode = async () => {
-    if (!session || !emailCode) return;
-    setLoading(true);
-    setError('');
-
-    try {
-      const response = await verificationApi.verifyEmailCode(session.session_token, emailCode);
-      await handleVerificationResponse(response.data, 'email_code');
-    } catch (err: any) {
-      const message = err.response?.data?.detail || '验证失败';
-      setError(message);
-      toast.danger(message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleVerifyTOTP = async () => {
-    if (!session || !totpCode) return;
-    setLoading(true);
-    setError('');
-
-    try {
-      const response = await verificationApi.verifyTOTP(session.session_token, totpCode);
-      await handleVerificationResponse(response.data, 'totp');
-    } catch (err: any) {
-      const message = err.response?.data?.detail || '验证失败';
-      setError(message);
-      toast.danger(message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleVerifyBackupCode = async () => {
-    if (!session || !backupCode) return;
-    setLoading(true);
-    setError('');
-
-    try {
-      const response = await verificationApi.verifyBackupCode(session.session_token, backupCode);
-      await handleVerificationResponse(response.data, 'totp');
-    } catch (err: any) {
-      const message = err.response?.data?.detail || '验证失败';
-      setError(message);
-      toast.danger(message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handlePasskeyVerify = async () => {
-    if (!session || !webAuthnSupported) return;
-    setLoading(true);
-    setError('');
-
-    try {
-      // Get authentication options
-      const optionsResponse = await verificationApi.startPasskeyVerification(session.session_token);
-      const options = parseAuthenticationOptions(optionsResponse.data.options);
-
-      // Get credential
-      const credential = await getPasskeyCredential(options);
-      const serialized = serializeAuthenticationCredential(credential);
-
-      // Verify
-      const response = await verificationApi.completePasskeyVerification(
-        session.session_token,
-        serialized
-      );
-      await handleVerificationResponse(response.data, 'passkey');
-    } catch (err: any) {
-      if (err.name === 'NotAllowedError') {
-        setError('用户取消了操作');
-        toast.warning('用户取消了操作');
-      } else {
-        const message = err.response?.data?.detail || '通行密钥验证失败';
-        setError(message);
-        toast.danger(message);
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleVerificationResponse = async (data: any, method: string) => {
-    // Check if login is complete
-    if (data.verification_complete && data.access_token) {
-      // Save tokens
-      localStorage.setItem('access_token', data.access_token);
-      localStorage.setItem('refresh_token', data.refresh_token);
-
-      // Also set session cookie for OAuth authorize endpoint
-      const maxAge = 60 * 60 * 24 * 7; // 7 days
-      document.cookie = `session_token=${data.access_token}; path=/; max-age=${maxAge}; SameSite=Lax`;
-
-      // Get user info
-      const userResponse = await authApi.getMe(data.access_token);
-      const user = userResponse.data;
-
-      // Set auth state
-      setAuth(user, data.access_token, data.refresh_token);
-
-      // Clear session storage
+      const res = await verificationApi.skipVerification(session.session_token);
+      const { access_token, refresh_token } = res.data;
+      localStorage.setItem('access_token', access_token); localStorage.setItem('refresh_token', refresh_token);
+      document.cookie = `session_token=${access_token}; path=/; max-age=${60*60*24*7}; SameSite=Lax`;
+      const userRes = await authApi.getMe(access_token);
+      setAuth(userRes.data, access_token, refresh_token);
       sessionStorage.removeItem('verification_session');
-
-      // Redirect
-      router.push(session?.redirect || '/dashboard');
-    } else {
-      // Update session with new status
-      setCompletedMethods([...completedMethods, method]);
-
-      // Update session data
-      const updatedSession = {
-        ...session!,
-        completed_verifications: data.completed_verifications,
-        completed_methods: data.completed_methods,
-        available_methods: data.remaining_methods || session!.available_methods.filter(m => m.method !== method),
-      };
-      setSession(updatedSession);
-      sessionStorage.setItem('verification_session', JSON.stringify(updatedSession));
-
-      // Go back to method selection
-      setCurrentStep('select');
-      setSuccess(`${METHOD_NAMES[method]} 验证成功，请继续完成下一步验证`);
-
-      // Reset states
-      setEmailCode('');
-      setTotpCode('');
-      setBackupCode('');
-      setEmailCodeSent(false);
-    }
-  };
-
-  const handleSkipVerification = async () => {
-    if (!session) return;
-
-    const shouldSkip = await confirmDialog({
-      title: '确认跳过验证',
-      description: '跳过验证后，您需要先完成邮箱验证和设置二次验证方式才能正常使用系统。确定要继续吗？',
-      confirmText: '继续跳过',
-      cancelText: '取消',
-      status: 'warning',
-      confirmVariant: 'primary',
-    });
-    if (!shouldSkip) {
-      return;
-    }
-
-    setSkipping(true);
-    setError('');
-
-    try {
-      const response = await verificationApi.skipVerification(session.session_token);
-      const { access_token, refresh_token } = response.data;
-
-      // Save tokens
-      localStorage.setItem('access_token', access_token);
-      localStorage.setItem('refresh_token', refresh_token);
-
-      // Also set session cookie for OAuth authorize endpoint
-      const maxAge = 60 * 60 * 24 * 7; // 7 days
-      document.cookie = `session_token=${access_token}; path=/; max-age=${maxAge}; SameSite=Lax`;
-
-      // Get user info
-      const userResponse = await authApi.getMe(access_token);
-      const user = userResponse.data;
-
-      // Set auth state
-      setAuth(user, access_token, refresh_token);
-
-      // Clear session storage
-      sessionStorage.removeItem('verification_session');
-
-      // Redirect to original destination (user will see restricted mode overlay in dashboard)
       router.push(session.redirect || '/dashboard');
-    } catch (err: any) {
-      const message = err.response?.data?.detail || '跳过验证失败';
-      setError(message);
-      toast.danger(message);
-    } finally {
-      setSkipping(false);
-    }
+    } catch (err: any) { setError(err.response?.data?.detail || '跳过失败'); } finally { setSkipping(false); }
   };
 
-  if (!session) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Spinner size="lg" />
+  if (!session) return <PageLoadingState />;
+
+  const remaining = session.required_verifications - session.completed_verifications;
+  const availableMethods = session.available_methods.filter(m => m.available && !completedMethods.includes(m.method));
+  const methodMap = new Map(session.available_methods.map(m => [m.method, m]));
+
+  const renderStep = () => {
+    if (step === 'email_code') return (
+      <div className="space-y-4">
+        <div className="text-center">
+          <div className="mx-auto mb-3 w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center"><Mail className="w-6 h-6 text-primary" /></div>
+          <h2 className="text-lg font-semibold text-foreground">邮件验证码</h2>
+          <p className="text-sm text-default-500 mt-1">验证码将发送到 <strong>{session.email_masked}</strong></p>
+        </div>
+        {!emailCodeSent ? (
+          <Button onPress={handleSendEmailCode} isDisabled={loading} variant="primary" className="w-full" isPending={loading}>发送验证码</Button>
+        ) : (
+          <>
+            <Input type="text" value={emailCode} onChange={e => setEmailCode(e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="输入6位验证码" className="text-center tracking-widest" maxLength={6} />
+            <Button onPress={() => verify(() => verificationApi.verifyEmailCode(session.session_token, emailCode), 'email_code')} isDisabled={loading || emailCode.length !== 6} variant="primary" className="w-full" isPending={loading}>验证</Button>
+            <Button onPress={handleSendEmailCode} isDisabled={loading || emailCooldown > 0} variant="ghost" className="w-full text-sm">{emailCooldown > 0 ? `重新发送 (${emailCooldown}s)` : '重新发送'}</Button>
+          </>
+        )}
+        <Button onPress={() => setStep('select')} variant="secondary" className="w-full"><ArrowLeft className="w-4 h-4" /> 选择其他方式</Button>
       </div>
     );
-  }
 
-  const availableMethods = session.available_methods.filter(
-    m => m.available && !completedMethods.includes(m.method)
-  );
-  const methodMap = new Map(session.available_methods.map((m) => [m.method, m]));
+    if (step === 'totp') return (
+      <div className="space-y-4">
+        {!showBackupCode ? (
+          <>
+            <div className="text-center">
+              <div className="mx-auto mb-3 w-12 h-12 bg-success/10 rounded-xl flex items-center justify-center"><ShieldCheck className="w-6 h-6 text-success" /></div>
+              <h2 className="text-lg font-semibold text-foreground">身份验证器</h2>
+              <p className="text-sm text-default-500 mt-1">输入验证器应用中的6位验证码</p>
+            </div>
+            <div className="flex justify-center py-2">
+              <InputOTP value={totpCode} onChange={v => setTotpCode(v.replace(/\D/g, '').slice(0, 6))} maxLength={6} inputMode="numeric">
+                <InputOTP.Group><InputOTP.Slot index={0} /><InputOTP.Slot index={1} /><InputOTP.Slot index={2} /><InputOTP.Slot index={3} /><InputOTP.Slot index={4} /><InputOTP.Slot index={5} /></InputOTP.Group>
+              </InputOTP>
+            </div>
+            <Button onPress={() => verify(() => verificationApi.verifyTOTP(session.session_token, totpCode), 'totp')} isDisabled={loading || totpCode.length !== 6} variant="primary" className="w-full" isPending={loading}>验证</Button>
+            <Button onPress={() => setShowBackupCode(true)} variant="ghost" className="w-full text-sm">使用备用码</Button>
+          </>
+        ) : (
+          <>
+            <div className="text-center">
+              <h2 className="text-lg font-semibold text-foreground">备用码</h2>
+              <p className="text-sm text-default-500 mt-1">输入8位备用码</p>
+            </div>
+            <Input type="text" value={backupCode} onChange={e => setBackupCode(e.target.value.toUpperCase().slice(0, 8))} placeholder="XXXXXXXX" className="text-center tracking-widest" maxLength={8} />
+            <Button onPress={() => verify(() => verificationApi.verifyBackupCode(session.session_token, backupCode), 'totp')} isDisabled={loading || backupCode.length !== 8} variant="primary" className="w-full" isPending={loading}>验证</Button>
+            <Button onPress={() => setShowBackupCode(false)} variant="ghost" className="w-full text-sm">使用身份验证器</Button>
+          </>
+        )}
+        <Button onPress={() => setStep('select')} variant="secondary" className="w-full"><ArrowLeft className="w-4 h-4" /> 选择其他方式</Button>
+      </div>
+    );
+
+    if (step === 'passkey') return (
+      <div className="space-y-4">
+        <div className="text-center">
+          <div className="mx-auto mb-3 w-12 h-12 bg-warning/10 rounded-xl flex items-center justify-center"><KeyRound className="w-6 h-6 text-warning" /></div>
+          <h2 className="text-lg font-semibold text-foreground">通行密钥</h2>
+          <p className="text-sm text-default-500 mt-1">使用已注册的通行密钥验证身份</p>
+        </div>
+        <Button onPress={() => verify(async () => {
+          const opts = await verificationApi.startPasskeyVerification(session.session_token);
+          const cred = await getPasskeyCredential(parseAuthenticationOptions(opts.data.options));
+          return verificationApi.completePasskeyVerification(session.session_token, serializeAuthenticationCredential(cred));
+        }, 'passkey')} isDisabled={loading || !webAuthnSupported} variant="primary" className="w-full" isPending={loading}>使用通行密钥验证</Button>
+        <Button onPress={() => setStep('select')} variant="secondary" className="w-full"><ArrowLeft className="w-4 h-4" /> 选择其他方式</Button>
+      </div>
+    );
+
+    return (
+      <div className="space-y-4">
+        <div className="text-center">
+          <div className="mx-auto mb-3 w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center"><ShieldCheck className="w-6 h-6 text-primary" /></div>
+          <h2 className="text-lg font-semibold text-foreground">安全验证</h2>
+          <p className="text-sm text-default-500 mt-1">还需完成 <strong className="text-foreground">{remaining}</strong> 次验证</p>
+        </div>
+
+        {session.anomalies.length > 0 && (
+          <Alert status={session.risk_level === 'high' ? 'danger' : session.risk_level === 'medium' ? 'warning' : 'accent'}>
+            <Alert.Indicator />
+            <Alert.Content>
+              <Alert.Description>
+                <ul className="space-y-0.5">{session.anomalies.map((a, i) => <li key={i}>{a.message}</li>)}</ul>
+              </Alert.Description>
+            </Alert.Content>
+          </Alert>
+        )}
+
+        <div className="space-y-2">
+          {ALL_METHODS.map(key => {
+            const method = methodMap.get(key);
+            const done = completedMethods.includes(key);
+            const disabled = !method?.available || done;
+            const meta = METHOD_META[key];
+            return (
+              <div
+                key={key}
+                role={disabled ? undefined : 'button'}
+                tabIndex={disabled ? -1 : 0}
+                onClick={() => !disabled && (setStep(key as VerificationStep), setError(''), setSuccess(''))}
+                className={`flex items-center gap-4 rounded-xl border border-default-200/70 px-4 py-3 transition-all ${done ? 'opacity-60 bg-default-50' : disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer hover:border-primary/50 hover:bg-primary/5'}`}
+              >
+                <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${meta.color}`}>{meta.icon}</div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-sm text-foreground">{METHOD_NAMES[key]}</p>
+                  <p className="text-xs text-default-500">{meta.desc}</p>
+                </div>
+                {done ? <Chip color="success" variant="soft" size="sm">已完成</Chip> : !disabled ? <ChevronRight className="w-4 h-4 text-default-400 shrink-0" /> : null}
+              </div>
+            );
+          })}
+        </div>
+
+        {availableMethods.length === 0 && <p className="text-center text-sm text-default-500">没有可用的验证方式</p>}
+
+        <div className="pt-1">
+          <ProgressBar value={(session.completed_verifications / session.required_verifications) * 100} color="accent" className="mb-3" />
+          <Button onPress={handleSkip} isDisabled={skipping} variant="ghost" size="sm" className="w-full text-default-400">{skipping ? '处理中...' : '跳过验证，进入受限模式'}</Button>
+        </div>
+      </div>
+    );
+  };
 
   return (
-    <div className="min-h-screen bg-background sm:p-0">
-      <div className="w-full min-h-screen surface overflow-hidden animate-fade-in">
-        <div className="grid grid-cols-1 sm:grid-cols-[5fr_7fr] min-h-screen">
-
-          {/* ── 左栏：安全上下文 ── */}
-          <div className="p-6 sm:p-12 flex flex-col gap-6 border-b sm:border-b-0 sm:border-r border-default-200 bg-default-50">
-            {/* Icon + title */}
-            <div className="flex flex-row sm:flex-col items-center sm:items-start gap-4">
-              <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center shrink-0">
-                <ShieldCheck className="w-9 h-9 text-primary" />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold text-foreground">安全验证</h1>
-                <p className="text-sm text-default-500 mt-1">检测到可疑登录活动，请完成身份验证</p>
-              </div>
-            </div>
-
-            {/* Risk Alert */}
-            <Alert status={RISK_LEVEL_STATUS[session.risk_level]}>
-              <Alert.Indicator />
-              <Alert.Content>
-                <Alert.Title>风险等级：{RISK_LEVEL_NAMES[session.risk_level]}</Alert.Title>
-                {session.anomalies.length > 0 && (
-                  <Alert.Description>
-                    <ul className="mt-1 space-y-0.5">
-                      {session.anomalies.map((a, i) => (
-                        <li key={i}>• {a.message}</li>
-                      ))}
-                    </ul>
-                  </Alert.Description>
-                )}
-              </Alert.Content>
-            </Alert>
-
-            {/* Progress */}
-            <div>
-              <div className="flex justify-between text-xs text-default-500 mb-1.5">
-                <span>验证进度</span>
-                <span>{session.completed_verifications} / {session.required_verifications}</span>
-              </div>
-              <ProgressBar
-                value={(session.completed_verifications / session.required_verifications) * 100}
-                color="accent"
-                aria-label="验证进度"
-              />
-            </div>
-
-            <Link href="/login" className="text-xs text-default-500 hover:text-default-600 mt-auto">
-              ← 返回登录
-            </Link>
-          </div>
-
-          {/* ── 右栏：验证操作 ── */}
-          <div className="p-6 sm:p-12 flex flex-col justify-center max-w-md sm:mx-auto w-full">
-            {/* Error / Success feedback */}
-            {error && (
-              <Alert status="danger" className="mb-4">
-                <Alert.Indicator />
-                <Alert.Content><Alert.Description>{error}</Alert.Description></Alert.Content>
-              </Alert>
-            )}
-            {success && (
-              <Alert status="success" className="mb-4">
-                <Alert.Indicator />
-                <Alert.Content><Alert.Description>{success}</Alert.Description></Alert.Content>
-              </Alert>
-            )}
-
-            {/* Method Selection */}
-            {currentStep === 'select' && (
-              <div className="space-y-6">
-                <div>
-                  <h2 className="text-base font-semibold text-foreground">选择验证方式</h2>
-                  <p className="text-sm text-default-500 mt-0.5">还需完成 {session.required_verifications - session.completed_verifications} 次验证</p>
-                </div>
-                <div className="space-y-3">
-                  {ALL_METHODS.map((methodKey) => {
-                    const method = methodMap.get(methodKey);
-                    const isCompleted = completedMethods.includes(methodKey);
-                    const isDisabled = !method?.available || isCompleted;
-                    const META: Record<string, { icon: React.ReactNode; desc: string; color: string }> = {
-                      email_code: { icon: <Mail className="w-5 h-5" />, desc: '发送验证码到您的邮箱', color: 'bg-primary/10 text-primary' },
-                      totp: { icon: <ShieldCheck className="w-5 h-5" />, desc: '使用身份验证器应用', color: 'bg-success/10 text-success' },
-                      passkey: { icon: <KeyRound className="w-5 h-5" />, desc: '使用指纹、面容或安全密钥', color: 'bg-warning/10 text-warning' },
-                    };
-                    const meta = META[methodKey];
-                    return (
-                      <Card
-                        key={methodKey}
-                        role={isDisabled ? undefined : 'button'}
-                        tabIndex={isDisabled ? -1 : 0}
-                        onClick={() => !isDisabled && handleSelectMethod(methodKey)}
-                        onKeyDown={(e) => !isDisabled && (e.key === 'Enter' || e.key === ' ') && handleSelectMethod(methodKey)}
-                        className={[
-                          'flex-row items-center gap-4 transition-all w-full',
-                          isCompleted ? 'opacity-70 cursor-default' : isDisabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer hover:shadow-md',
-                        ].join(' ')}
-                      >
-                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${meta?.color}`}>
-                          {meta?.icon}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="font-medium text-sm text-foreground">{METHOD_NAMES[methodKey]}</div>
-                          <div className="text-xs text-default-500 mt-0.5">{meta?.desc}</div>
-                        </div>
-                        {isCompleted ? (
-                          <span className="text-xs text-success font-medium shrink-0">已完成</span>
-                        ) : !isDisabled ? (
-                          <ChevronRight className="w-4 h-4 text-default-400 shrink-0" />
-                        ) : null}
-                      </Card>
-                    );
-                  })}
-                </div>
-                {availableMethods.length === 0 && (
-                  <p className="text-center text-sm text-default-500 py-4">没有可用的验证方式，请联系管理员</p>
-                )}
-                <div className="pt-2 text-center">
-                  <Button onPress={handleSkipVerification} isDisabled={skipping} variant="ghost" className="text-xs text-default-400 hover:text-default-600">
-                    {skipping ? '处理中...' : '跳过验证，进入受限模式'}
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            {/* Email Code */}
-            {currentStep === 'email_code' && (
-              <div className="space-y-4">
-                <div>
-                    <p className="text-sm font-medium text-default-600 mb-1">邮件验证码</p>
-                    <p className="text-xs text-default-500">验证码将发送到 <strong>{session.email_masked}</strong></p>
-                </div>
-                {!emailCodeSent ? (
-                  <Button onPress={handleSendEmailCode} isDisabled={loading} variant="primary" className="w-full" isPending={loading}>{loading ? '发送中...' : '发送验证码'}</Button>
-                ) : (
-                  <>
-                    <Input type="text" value={emailCode} onChange={(e) => setEmailCode(e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="输入6位验证码" className="text-center tracking-widest" maxLength={6} />
-                    <Button onPress={handleVerifyEmailCode} isDisabled={loading || emailCode.length !== 6} variant="primary" className="w-full" isPending={loading}>{loading ? '验证中...' : '验证'}</Button>
-                    <Button onPress={handleSendEmailCode} isDisabled={loading || emailCooldown > 0} variant="ghost" className="w-full text-sm">{emailCooldown > 0 ? `重新发送 (${emailCooldown}s)` : '重新发送'}</Button>
-                  </>
-                )}
-                <Button onPress={() => setCurrentStep('select')} variant="secondary" className="w-full text-sm">← 选择其他方式</Button>
-              </div>
-            )}
-
-            {/* TOTP */}
-            {currentStep === 'totp' && (
-              <div className="space-y-4">
-                {!showBackupCode ? (
-                  <>
-                    <div>
-                      <p className="text-sm font-medium text-default-600 mb-1">身份验证器</p>
-                      <p className="text-xs text-default-500">输入验证器应用中的6位验证码</p>
-                    </div>
-                    <div className="flex justify-center">
-                      <InputOTP value={totpCode} onChange={(value) => setTotpCode(value.replace(/\D/g, '').slice(0, 6))} maxLength={6} inputMode="numeric" pattern="^\d+$">
-                        <InputOTP.Group>
-                          <InputOTP.Slot index={0} /><InputOTP.Slot index={1} /><InputOTP.Slot index={2} />
-                          <InputOTP.Slot index={3} /><InputOTP.Slot index={4} /><InputOTP.Slot index={5} />
-                        </InputOTP.Group>
-                      </InputOTP>
-                    </div>
-                    <Button onPress={handleVerifyTOTP} isDisabled={loading || totpCode.length !== 6} variant="primary" className="w-full" isPending={loading}>{loading ? '验证中...' : '验证'}</Button>
-                    <Button onPress={() => setShowBackupCode(true)} variant="ghost" className="w-full text-sm">使用备用码</Button>
-                  </>
-                ) : (
-                  <>
-                    <div>
-                      <p className="text-sm font-medium text-default-600 mb-1">备用码</p>
-                      <p className="text-xs text-default-500">输入8位备用码</p>
-                    </div>
-                    <Input type="text" value={backupCode} onChange={(e) => setBackupCode(e.target.value.toUpperCase().slice(0, 8))} placeholder="XXXXXXXX" className="text-center tracking-widest" maxLength={8} />
-                    <Button onPress={handleVerifyBackupCode} isDisabled={loading || backupCode.length !== 8} variant="primary" className="w-full" isPending={loading}>{loading ? '验证中...' : '验证'}</Button>
-                    <Button onPress={() => setShowBackupCode(false)} variant="ghost" className="w-full text-sm">使用身份验证器</Button>
-                  </>
-                )}
-                <Button onPress={() => setCurrentStep('select')} variant="secondary" className="w-full text-sm">← 选择其他方式</Button>
-              </div>
-            )}
-
-            {/* Passkey */}
-            {currentStep === 'passkey' && (
-              <div className="space-y-4 text-center">
-                <div>
-                  <p className="text-sm font-medium text-default-600 mb-1">通行密钥</p>
-                  <p className="text-xs text-default-500">使用已注册的通行密钥验证身份</p>
-                </div>
-                <div className="py-6">
-                  <KeyRound className="w-14 h-14 text-warning mx-auto" />
-                </div>
-                <Button onPress={handlePasskeyVerify} isDisabled={loading || !webAuthnSupported} variant="primary" className="w-full" isPending={loading}>{loading ? '验证中...' : '使用通行密钥验证'}</Button>
-                <Button onPress={() => setCurrentStep('select')} variant="secondary" className="w-full text-sm">← 选择其他方式</Button>
-              </div>
-            )}
-          </div>
+    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+      <div className="max-w-md w-full surface p-6 sm:p-8 animate-fade-in">
+        {error && <Alert status="danger" className="mb-4"><Alert.Indicator /><Alert.Content><Alert.Description>{error}</Alert.Description></Alert.Content></Alert>}
+        {success && <Alert status="success" className="mb-4"><Alert.Indicator /><Alert.Content><Alert.Description>{success}</Alert.Description></Alert.Content></Alert>}
+        {renderStep()}
+        <div className="mt-6 text-center">
+          <Link href="/login" className="text-xs text-default-400 hover:text-default-600">返回登录</Link>
         </div>
       </div>
     </div>
