@@ -891,7 +891,7 @@ export default function UserDetailPage() {
             {groups.map((group) => (
               <UICheckbox
                 key={group.id}
-                className="m-0 max-w-full rounded-2xl border border-default-200/70 px-3 py-3"
+                className="m-0 max-w-full border-b border-default-200/70 py-3 last:border-b-0"
                 isSelected={selectedGroups.includes(group.id)}
                 onChange={() =>
                   setSelectedGroups((previous) =>
@@ -934,7 +934,7 @@ export default function UserDetailPage() {
             {roles.map((role) => (
               <UICheckbox
                 key={role.id}
-                className="m-0 max-w-full rounded-2xl border border-default-200/70 px-3 py-3"
+                className="m-0 max-w-full border-b border-default-200/70 py-3 last:border-b-0"
                 isSelected={selectedRoles.includes(role.id)}
                 onChange={() =>
                   setSelectedRoles((previous) =>

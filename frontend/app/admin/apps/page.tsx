@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import {
   Button,
   Card,
@@ -60,6 +61,7 @@ const AVAILABLE_SCOPES = [
 
 export default function AppsPage() {
   const confirmDialog = useConfirmDialog()
+  const router = useRouter()
   const user = useAuthStore((state) => state.user)
   const canManageClients = isAdmin(user)
 
@@ -69,15 +71,12 @@ export default function AppsPage() {
   const [pageError, setPageError] = useState<string | null>(null)
 
   const [creating, setCreating] = useState(false)
-  const [updating, setUpdating] = useState(false)
   const [resettingClientId, setResettingClientId] = useState<number | null>(null)
   const [deletingClientId, setDeletingClientId] = useState<number | null>(null)
   const [accessControlLoading, setAccessControlLoading] = useState(false)
   const [accessControlSaving, setAccessControlSaving] = useState(false)
 
   const [showCreateModal, setShowCreateModal] = useState(false)
-  const [showEditModal, setShowEditModal] = useState(false)
-  const [editingClient, setEditingClient] = useState<Client | null>(null)
   const [showAccessControl, setShowAccessControl] = useState(false)
   const [selectedClient, setSelectedClient] = useState<Client | null>(null)
 
@@ -151,12 +150,6 @@ export default function AppsPage() {
     resetForm()
   }
 
-  const closeEditModal = () => {
-    setShowEditModal(false)
-    setEditingClient(null)
-    resetForm()
-  }
-
   const copyToClipboard = async (text: string, label: string) => {
     try {
       await navigator.clipboard.writeText(text)
@@ -217,55 +210,6 @@ export default function AppsPage() {
       setFormError(err.response?.data?.detail || '创建应用失败')
     } finally {
       setCreating(false)
-    }
-  }
-
-  const openEditForm = (client: Client) => {
-    setEditingClient(client)
-    setFormError(null)
-    setFormData({
-      name: client.name,
-      description: client.description || '',
-      logo: client.logo || '',
-      website_url: client.website_url || '',
-      redirect_uris: client.redirect_uris.join('\n'),
-      allowed_scopes: client.allowed_scopes,
-      trusted: client.trusted,
-      default_access: client.default_access,
-    })
-    setShowEditModal(true)
-  }
-
-  const handleUpdate = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    if (!editingClient) return
-
-    const validationError = validateForm()
-    if (validationError) {
-      setFormError(validationError)
-      return
-    }
-
-    try {
-      setUpdating(true)
-      setFormError(null)
-      await clientApi.update(editingClient.id, {
-        name: formData.name.trim(),
-        description: formData.description || undefined,
-        logo: formData.logo || undefined,
-        website_url: formData.website_url || undefined,
-        redirect_uris: formData.redirect_uris.split('\n').filter((item) => item.trim()),
-        allowed_scopes: formData.allowed_scopes,
-        trusted: formData.trusted,
-        default_access: formData.default_access,
-      })
-      closeEditModal()
-      await loadClients()
-      toast('应用已更新')
-    } catch (err: any) {
-      setFormError(err.response?.data?.detail || '更新应用失败')
-    } finally {
-      setUpdating(false)
     }
   }
 
@@ -467,30 +411,33 @@ export default function AppsPage() {
         label="权限范围"
         description={`已选择 ${formData.allowed_scopes.length} 项权限。`}
       >
-        <CheckboxGroup
-          aria-label="权限范围"
-          value={formData.allowed_scopes}
-          onChange={(value) =>
-            setFormData((previous) => ({
-              ...previous,
-              allowed_scopes: Array.isArray(value) ? value.map(String) : [],
-            }))
-          }
-          className="space-y-2"
-        >
-          {AVAILABLE_SCOPES.map((scope) => (
-            <UICheckbox
-              key={scope.value}
-              value={scope.value}
-              className="m-0 max-w-full rounded-2xl border border-default-200/70 px-3 py-3"
+        <Card>
+          <Card.Content className="px-4 py-2">
+            <CheckboxGroup
+              aria-label="权限范围"
+              value={formData.allowed_scopes}
+              onChange={(value) =>
+                setFormData((previous) => ({
+                  ...previous,
+                  allowed_scopes: Array.isArray(value) ? value.map(String) : [],
+                }))
+              }
             >
-              <div className="min-w-0">
-                <p className="font-medium text-foreground">{scope.label}</p>
-                <p className="mt-1 text-xs text-default-500">{scope.description}</p>
-              </div>
-            </UICheckbox>
-          ))}
-        </CheckboxGroup>
+              {AVAILABLE_SCOPES.map((scope) => (
+                <UICheckbox
+                  key={scope.value}
+                  value={scope.value}
+                  className="m-0 max-w-full border-b border-default-200/70 py-3 last:border-b-0"
+                >
+                  <div className="min-w-0">
+                    <p className="font-medium text-foreground">{scope.label}</p>
+                    <p className="text-xs text-default-500">{scope.description}</p>
+                  </div>
+                </UICheckbox>
+              ))}
+            </CheckboxGroup>
+          </Card.Content>
+        </Card>
       </AdminFieldGroup>
 
       <AdminFieldGroup label="信任应用">
@@ -671,7 +618,7 @@ export default function AppsPage() {
               </Card.Content>
 
               <Card.Footer className="flex flex-wrap gap-2">
-                <Button variant="primary" size="sm" onPress={() => openEditForm(client)}>
+                <Button variant="primary" size="sm" onPress={() => router.push(`/admin/apps/edit?id=${client.id}`)}>
                   编辑
                 </Button>
                 <Button
@@ -727,46 +674,50 @@ export default function AppsPage() {
               label="允许访问（白名单）"
               description="这些用户组的成员可以访问此应用。"
             >
-              <div className="max-h-72 space-y-2 overflow-y-auto rounded-xl border border-dashed border-default-200/70 p-3">
-                {groups.map((group) => (
-                  <UICheckbox
-                    key={group.id}
-                    className="m-0 max-w-full rounded-xl border border-default-200/70 px-3 py-3"
-                    isSelected={accessControl.allowed_group_ids.includes(group.id)}
-                    onChange={() => toggleGroupInList(group.id, 'allowed')}
-                  >
-                    <div className="min-w-0">
-                      <p className="font-medium text-foreground">{group.name}</p>
-                      {group.description ? (
-                        <p className="mt-1 text-xs text-default-500">{group.description}</p>
-                      ) : null}
-                    </div>
-                  </UICheckbox>
-                ))}
-              </div>
+              <Card>
+                <Card.Content className="max-h-72 space-y-2 overflow-y-auto px-4 py-2">
+                  {groups.map((group) => (
+                    <UICheckbox
+                      key={group.id}
+                      className="m-0 max-w-full border-b border-default-200/70 py-3 last:border-b-0"
+                      isSelected={accessControl.allowed_group_ids.includes(group.id)}
+                      onChange={() => toggleGroupInList(group.id, 'allowed')}
+                    >
+                      <div className="min-w-0">
+                        <p className="font-medium text-foreground">{group.name}</p>
+                        {group.description ? (
+                          <p className="mt-1 text-xs text-default-500">{group.description}</p>
+                        ) : null}
+                      </div>
+                    </UICheckbox>
+                  ))}
+                </Card.Content>
+              </Card>
             </AdminFieldGroup>
 
             <AdminFieldGroup
               label="禁止访问（黑名单）"
               description="这些用户组的成员会被拒绝访问。"
             >
-              <div className="max-h-72 space-y-2 overflow-y-auto rounded-xl border border-dashed border-default-200/70 p-3">
-                {groups.map((group) => (
-                  <UICheckbox
-                    key={group.id}
-                    className="m-0 max-w-full rounded-xl border border-default-200/70 px-3 py-3"
-                    isSelected={accessControl.denied_group_ids.includes(group.id)}
-                    onChange={() => toggleGroupInList(group.id, 'denied')}
-                  >
-                    <div className="min-w-0">
-                      <p className="font-medium text-foreground">{group.name}</p>
-                      {group.description ? (
-                        <p className="mt-1 text-xs text-default-500">{group.description}</p>
-                      ) : null}
-                    </div>
-                  </UICheckbox>
-                ))}
-              </div>
+              <Card>
+                <Card.Content className="max-h-72 space-y-2 overflow-y-auto px-4 py-2">
+                  {groups.map((group) => (
+                    <UICheckbox
+                      key={group.id}
+                      className="m-0 max-w-full border-b border-default-200/70 py-3 last:border-b-0"
+                      isSelected={accessControl.denied_group_ids.includes(group.id)}
+                      onChange={() => toggleGroupInList(group.id, 'denied')}
+                    >
+                      <div className="min-w-0">
+                        <p className="font-medium text-foreground">{group.name}</p>
+                        {group.description ? (
+                          <p className="mt-1 text-xs text-default-500">{group.description}</p>
+                        ) : null}
+                      </div>
+                    </UICheckbox>
+                  ))}
+                </Card.Content>
+              </Card>
             </AdminFieldGroup>
 
             <div className="flex gap-2 pt-2">
@@ -803,20 +754,6 @@ export default function AppsPage() {
         onSubmit={handleCreate}
         primaryActionLabel="创建应用"
         isPending={creating}
-      >
-        {renderAppFormFields()}
-      </AdminModalForm>
-
-      <AdminModalForm
-        title={editingClient ? `编辑应用：${editingClient.name}` : '编辑应用'}
-        isOpen={showEditModal && !!editingClient}
-        onOpenChange={(isOpen) => {
-          if (!isOpen) closeEditModal()
-          else setShowEditModal(true)
-        }}
-        onSubmit={handleUpdate}
-        primaryActionLabel="保存"
-        isPending={updating}
       >
         {renderAppFormFields()}
       </AdminModalForm>
