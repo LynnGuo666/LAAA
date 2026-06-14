@@ -674,8 +674,7 @@ export default function AppsPage() {
               label="允许访问（白名单）"
               description="这些用户组的成员可以访问此应用。"
             >
-              <Card>
-                <Card.Content className="max-h-72 space-y-2 overflow-y-auto px-4 py-2">
+              <div className="max-h-72 space-y-2 overflow-y-auto rounded-xl border border-default-200/70 p-3">
                   {groups.map((group) => (
                     <UICheckbox
                       key={group.id}
@@ -691,16 +690,14 @@ export default function AppsPage() {
                       </div>
                     </UICheckbox>
                   ))}
-                </Card.Content>
-              </Card>
+                </div>
             </AdminFieldGroup>
 
             <AdminFieldGroup
               label="禁止访问（黑名单）"
               description="这些用户组的成员会被拒绝访问。"
             >
-              <Card>
-                <Card.Content className="max-h-72 space-y-2 overflow-y-auto px-4 py-2">
+              <div className="max-h-72 space-y-2 overflow-y-auto rounded-xl border border-default-200/70 p-3">
                   {groups.map((group) => (
                     <UICheckbox
                       key={group.id}
@@ -716,8 +713,7 @@ export default function AppsPage() {
                       </div>
                     </UICheckbox>
                   ))}
-                </Card.Content>
-              </Card>
+                </div>
             </AdminFieldGroup>
 
             <div className="flex gap-2 pt-2">

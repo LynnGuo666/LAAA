@@ -590,27 +590,25 @@ export default function GroupsPage() {
         size="lg"
       >
         <Input value={searchMembers} onChange={(e) => setSearchMembers(e.target.value)} placeholder="搜索用户名或邮箱" />
-        <Card>
-          <Card.Content className="max-h-80 space-y-1 overflow-y-auto px-4 py-2">
-            {filteredAvailableUsers.length === 0 ? (
-              <p className="py-6 text-center text-sm text-default-500">没有可添加的用户</p>
-            ) : (
-              filteredAvailableUsers.map((member) => (
-                <UICheckbox
-                  key={member.id}
-                  className="m-0 max-w-full border-b border-default-200/70 py-2 last:border-b-0"
-                  isSelected={pendingAddIds.includes(member.id)}
-                  onChange={() => togglePendingAdd(member.id)}
-                >
-                  <div className="min-w-0">
-                    <p className="font-medium text-foreground">{member.username}</p>
-                    <p className="text-xs text-default-500">{member.email}</p>
-                  </div>
-                </UICheckbox>
-              ))
-            )}
-          </Card.Content>
-        </Card>
+        <div className="max-h-80 space-y-1 overflow-y-auto rounded-xl border border-default-200/70 p-3">
+          {filteredAvailableUsers.length === 0 ? (
+            <p className="py-6 text-center text-sm text-default-500">没有可添加的用户</p>
+          ) : (
+            filteredAvailableUsers.map((member) => (
+              <UICheckbox
+                key={member.id}
+                className="m-0 max-w-full border-b border-default-200/70 py-2 last:border-b-0"
+                isSelected={pendingAddIds.includes(member.id)}
+                onChange={() => togglePendingAdd(member.id)}
+              >
+                <div className="min-w-0">
+                  <p className="font-medium text-foreground">{member.username}</p>
+                  <p className="text-xs text-default-500">{member.email}</p>
+                </div>
+              </UICheckbox>
+            ))
+          )}
+        </div>
       </AdminModalForm>
     </div>
   )

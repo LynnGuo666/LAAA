@@ -886,31 +886,29 @@ export default function UserDetailPage() {
         isPending={savingGroups}
       >
         {modalError ? <AdminNotice tone="danger" description={modalError} /> : null}
-        <AdminSection className="border-dashed">
-          <Card.Content className="max-h-96 space-y-2 overflow-y-auto p-4">
-            {groups.map((group) => (
-              <UICheckbox
-                key={group.id}
-                className="m-0 max-w-full border-b border-default-200/70 py-3 last:border-b-0"
-                isSelected={selectedGroups.includes(group.id)}
-                onChange={() =>
-                  setSelectedGroups((previous) =>
-                    previous.includes(group.id)
-                      ? previous.filter((id) => id !== group.id)
-                      : [...previous, group.id],
-                  )
-                }
-              >
-                <div className="min-w-0">
-                  <p className="font-medium text-foreground">{group.name}</p>
-                  {group.description ? (
-                    <p className="mt-1 text-xs text-default-500">{group.description}</p>
-                  ) : null}
-                </div>
-              </UICheckbox>
-            ))}
-          </Card.Content>
-        </AdminSection>
+        <div className="max-h-96 space-y-2 overflow-y-auto rounded-xl border border-default-200/70 p-3">
+          {groups.map((group) => (
+            <UICheckbox
+              key={group.id}
+              className="m-0 max-w-full border-b border-default-200/70 py-3 last:border-b-0"
+              isSelected={selectedGroups.includes(group.id)}
+              onChange={() =>
+                setSelectedGroups((previous) =>
+                  previous.includes(group.id)
+                    ? previous.filter((id) => id !== group.id)
+                    : [...previous, group.id],
+                )
+              }
+            >
+              <div className="min-w-0">
+                <p className="font-medium text-foreground">{group.name}</p>
+                {group.description ? (
+                  <p className="mt-1 text-xs text-default-500">{group.description}</p>
+                ) : null}
+              </div>
+            </UICheckbox>
+          ))}
+        </div>
       </AdminModalForm>
 
       <AdminModalForm
@@ -929,32 +927,30 @@ export default function UserDetailPage() {
         isPending={savingRoles}
       >
         {modalError ? <AdminNotice tone="danger" description={modalError} /> : null}
-        <AdminSection className="border-dashed">
-          <Card.Content className="max-h-96 space-y-2 overflow-y-auto p-4">
-            {roles.map((role) => (
-              <UICheckbox
-                key={role.id}
-                className="m-0 max-w-full border-b border-default-200/70 py-3 last:border-b-0"
-                isSelected={selectedRoles.includes(role.id)}
-                onChange={() =>
-                  setSelectedRoles((previous) =>
-                    previous.includes(role.id)
-                      ? previous.filter((id) => id !== role.id)
-                      : [...previous, role.id],
-                  )
-                }
-              >
-                <div className="min-w-0">
-                  <p className="font-medium text-foreground">{role.name}</p>
-                  {role.description ? (
-                    <p className="mt-1 text-xs text-default-500">{role.description}</p>
-                  ) : null}
-                  <p className="mt-1 text-xs text-default-400">等级：{role.level}</p>
-                </div>
-              </UICheckbox>
-            ))}
-          </Card.Content>
-        </AdminSection>
+        <div className="max-h-96 space-y-2 overflow-y-auto rounded-xl border border-default-200/70 p-3">
+          {roles.map((role) => (
+            <UICheckbox
+              key={role.id}
+              className="m-0 max-w-full border-b border-default-200/70 py-3 last:border-b-0"
+              isSelected={selectedRoles.includes(role.id)}
+              onChange={() =>
+                setSelectedRoles((previous) =>
+                  previous.includes(role.id)
+                    ? previous.filter((id) => id !== role.id)
+                    : [...previous, role.id],
+                )
+              }
+            >
+              <div className="min-w-0">
+                <p className="font-medium text-foreground">{role.name}</p>
+                {role.description ? (
+                  <p className="mt-1 text-xs text-default-500">{role.description}</p>
+                ) : null}
+                <p className="mt-1 text-xs text-default-400">等级：{role.level}</p>
+              </div>
+            </UICheckbox>
+          ))}
+        </div>
       </AdminModalForm>
     </div>
   )
