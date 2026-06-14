@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Button, Input } from '@heroui/react';
+import { Alert, Button, Input, Label, Spinner } from '@heroui/react';
 import { authApi, totpApi, passkeyApi } from '@/lib/api';
 import { User } from '@/lib/store';
 import {
@@ -11,9 +11,9 @@ import {
   ShieldCheck,
   KeyRound,
   Check,
-  Loader2,
   LogOut,
   ChevronRight,
+  ChevronLeft,
   Edit2,
 } from 'lucide-react';
 import {
@@ -240,7 +240,7 @@ export default function RestrictedModeOverlay({ user, onComplete }: RestrictedMo
   return (
     <div className="min-h-screen bg-background">
       {/* Simple header */}
-      <nav className="bg-surface shadow-sm border-b border-transparent dark:border-gray-800">
+      <nav className="bg-surface shadow-sm border-b border-default-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
             <div className="flex items-center">
@@ -249,7 +249,7 @@ export default function RestrictedModeOverlay({ user, onComplete }: RestrictedMo
               </span>
             </div>
             <div className="flex items-center gap-3">
-              <span className="text-sm text-foreground/80">
+              <span className="text-sm text-default-600">
                 {user.username}
               </span>
               <Button onPress={handleLogout} variant="tertiary" className="text-sm inline-flex items-center gap-1"><LogOut className="w-4 h-4" />
@@ -263,46 +263,42 @@ export default function RestrictedModeOverlay({ user, onComplete }: RestrictedMo
       {/* Main content */}
       <main className="max-w-2xl mx-auto py-8 px-4">
         {/* Warning card */}
-        <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-6 mb-6">
-          <div className="flex items-start gap-4">
-            <AlertTriangle className="w-6 h-6 text-yellow-600 dark:text-yellow-500 flex-shrink-0 mt-0.5" />
-            <div>
-              <h2 className="text-lg font-semibold text-yellow-800 dark:text-yellow-200 mb-2">
-                您的账户处于受限模式
-              </h2>
-              <p className="text-sm text-yellow-700 dark:text-yellow-300">
-                为了保护您的账户安全，请完成以下设置后才能正常使用系统功能。
-              </p>
-            </div>
-          </div>
-        </div>
+        <Alert status="warning" className="mb-6">
+          <Alert.Indicator />
+          <Alert.Content>
+            <Alert.Title>您的账户处于受限模式</Alert.Title>
+            <Alert.Description>
+              为了保护您的账户安全，请完成以下设置后才能正常使用系统功能。
+            </Alert.Description>
+          </Alert.Content>
+        </Alert>
 
         {/* Progress indicator */}
         <div className="flex items-center justify-center gap-4 mb-8">
           <div className="flex items-center gap-2">
             <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
               emailVerified
-                ? 'bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-400'
-                : 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400'
+                ? 'bg-success/10 text-success'
+                : 'bg-primary/10 text-primary'
             }`}>
               {emailVerified ? <Check className="w-5 h-5" /> : '1'}
             </div>
-            <span className={`text-sm ${emailVerified ? 'text-green-600 dark:text-green-400' : 'text-foreground'}`}>
+            <span className={`text-sm ${emailVerified ? 'text-success' : 'text-foreground'}`}>
               验证邮箱
             </span>
           </div>
-          <ChevronRight className="w-5 h-5 text-gray-400" />
+          <ChevronRight className="w-5 h-5 text-default-400" />
           <div className="flex items-center gap-2">
             <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
               hasSecondFactor
-                ? 'bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-400'
+                ? 'bg-success/10 text-success'
                 : emailVerified
-                  ? 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400'
-                  : 'bg-default-100 text-gray-400'
+                  ? 'bg-primary/10 text-primary'
+                  : 'bg-default-100 text-default-400'
             }`}>
               {hasSecondFactor ? <Check className="w-5 h-5" /> : '2'}
             </div>
-            <span className={`text-sm ${hasSecondFactor ? 'text-green-600 dark:text-green-400' : 'text-default-500'}`}>
+            <span className={`text-sm ${hasSecondFactor ? 'text-success' : 'text-default-500'}`}>
               设置二次验证
             </span>
           </div>
@@ -310,14 +306,16 @@ export default function RestrictedModeOverlay({ user, onComplete }: RestrictedMo
 
         {/* Error/Success messages */}
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4 text-sm dark:bg-red-950 dark:border-red-900 dark:text-red-200">
-            {error}
-          </div>
+          <Alert status="danger" className="mb-4">
+            <Alert.Indicator />
+            <Alert.Content><Alert.Description>{error}</Alert.Description></Alert.Content>
+          </Alert>
         )}
         {success && (
-          <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-4 text-sm dark:bg-green-950 dark:border-green-900 dark:text-green-200">
-            {success}
-          </div>
+          <Alert status="success" className="mb-4">
+            <Alert.Indicator />
+            <Alert.Content><Alert.Description>{success}</Alert.Description></Alert.Content>
+          </Alert>
         )}
 
         {/* Overview / Step selection */}
@@ -328,13 +326,13 @@ export default function RestrictedModeOverlay({ user, onComplete }: RestrictedMo
               <div className="flex items-start gap-4">
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
                   emailVerified
-                    ? 'bg-green-100 dark:bg-green-900'
-                    : 'bg-blue-100 dark:bg-blue-900'
+                    ? 'bg-success/10'
+                    : 'bg-primary/10'
                 }`}>
                   {emailVerified ? (
-                    <Check className="w-5 h-5 text-green-600 dark:text-green-400" />
+                    <Check className="w-5 h-5 text-success" />
                   ) : (
-                    <Mail className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                    <Mail className="w-5 h-5 text-primary" />
                   )}
                 </div>
                 <div className="flex-1">
@@ -346,7 +344,7 @@ export default function RestrictedModeOverlay({ user, onComplete }: RestrictedMo
                   </p>
 
                   {emailVerified ? (
-                    <span className="inline-flex items-center gap-1 text-sm text-green-600 dark:text-green-400">
+                    <span className="inline-flex items-center gap-1 text-sm text-success">
                       <Check className="w-4 h-4" />
                       已验证
                     </span>
@@ -372,7 +370,7 @@ export default function RestrictedModeOverlay({ user, onComplete }: RestrictedMo
                   ) : (
                     <div className="flex flex-wrap gap-2">
                       <Button onPress={handleSendVerificationEmail} isDisabled={loading || emailCooldown > 0} variant="primary" className="text-sm inline-flex items-center gap-1">{loading ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <Spinner size="sm" />
                       ) : (
                         <Mail className="w-4 h-4" />
                       )}
@@ -391,13 +389,13 @@ export default function RestrictedModeOverlay({ user, onComplete }: RestrictedMo
               <div className="flex items-start gap-4">
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
                   hasSecondFactor
-                    ? 'bg-green-100 dark:bg-green-900'
+                    ? 'bg-success/10'
                     : 'bg-default-100'
                 }`}>
                   {hasSecondFactor ? (
-                    <Check className="w-5 h-5 text-green-600 dark:text-green-400" />
+                    <Check className="w-5 h-5 text-success" />
                   ) : (
-                    <ShieldCheck className="w-5 h-5 text-gray-400" />
+                    <ShieldCheck className="w-5 h-5 text-default-400" />
                   )}
                 </div>
                 <div className="flex-1">
@@ -411,13 +409,13 @@ export default function RestrictedModeOverlay({ user, onComplete }: RestrictedMo
                   {hasSecondFactor ? (
                     <div className="space-y-2">
                       {totpEnabled && (
-                        <span className="inline-flex items-center gap-1 text-sm text-green-600 dark:text-green-400">
+                        <span className="inline-flex items-center gap-1 text-sm text-success">
                           <Check className="w-4 h-4" />
                           身份验证器已启用
                         </span>
                       )}
                       {passkeyCount > 0 && (
-                        <span className="inline-flex items-center gap-1 text-sm text-green-600 dark:text-green-400">
+                        <span className="inline-flex items-center gap-1 text-sm text-success">
                           <Check className="w-4 h-4" />
                           已绑定 {passkeyCount} 个通行密钥
                         </span>
@@ -427,12 +425,12 @@ export default function RestrictedModeOverlay({ user, onComplete }: RestrictedMo
                     <div className="grid gap-3 sm:grid-cols-2">
                       {/* TOTP option */}
                       <Button onPress={handleStartTOTPSetup} isDisabled={loading || !emailVerified} variant="ghost"
-                      className="flex items-center gap-3 p-4 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-left h-auto"><ShieldCheck className="w-8 h-8 text-green-500" />
+                      className="flex items-center gap-3 p-4 border border-default-200 rounded-lg hover:bg-default-100 transition-colors text-left h-auto"><ShieldCheck className="w-8 h-8 text-success" />
                       <div>
                         <div className="font-medium text-foreground">
                           身份验证器
                         </div>
-                        <div className="text-xs text-gray-500">
+                        <div className="text-xs text-default-500">
                           使用 TOTP 应用
                         </div>
                       </div></Button>
@@ -440,12 +438,12 @@ export default function RestrictedModeOverlay({ user, onComplete }: RestrictedMo
                       {/* Passkey option */}
                       {webAuthnSupported && (
                         <Button onPress={handleStartPasskeySetup} isDisabled={loading || !emailVerified} variant="ghost"
-                        className="flex items-center gap-3 p-4 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-left h-auto"><KeyRound className="w-8 h-8 text-orange-500" />
+                        className="flex items-center gap-3 p-4 border border-default-200 rounded-lg hover:bg-default-100 transition-colors text-left h-auto"><KeyRound className="w-8 h-8 text-warning" />
                         <div>
                           <div className="font-medium text-foreground">
                             通行密钥
                           </div>
-                          <div className="text-xs text-gray-500">
+                          <div className="text-xs text-default-500">
                             使用设备生物识别
                           </div>
                         </div></Button>
@@ -469,10 +467,10 @@ export default function RestrictedModeOverlay({ user, onComplete }: RestrictedMo
                 <p className="text-sm text-default-600 mb-4">
                   如果您无法访问身份验证器应用，可以使用这些备用码登录。每个备用码只能使用一次。
                 </p>
-                <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 mb-4">
+                <div className="bg-default-100 rounded-lg p-4 mb-4">
                   <div className="grid grid-cols-2 gap-2">
                     {backupCodes.map((code, i) => (
-                      <div key={i} className="font-mono text-sm text-center py-1 bg-white dark:bg-gray-700 rounded">
+                      <div key={i} className="font-mono text-sm text-center py-1 bg-background rounded">
                         {code}
                       </div>
                     ))}
@@ -489,9 +487,7 @@ export default function RestrictedModeOverlay({ user, onComplete }: RestrictedMo
                     setCurrentStep('overview');
                     setTotpSetupData(null);
                   }} variant="ghost"
-                  className="text-gray-500 hover:text-gray-700 p-1 h-auto w-auto"><svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                  </svg></Button>
+                  className="text-default-500 hover:text-default-600 p-1 h-auto w-auto"><ChevronLeft className="w-5 h-5" /></Button>
                   <h3 className="text-lg font-semibold text-foreground">
                     设置身份验证器
                   </h3>
@@ -502,7 +498,7 @@ export default function RestrictedModeOverlay({ user, onComplete }: RestrictedMo
                     使用 Google Authenticator 或其他 TOTP 应用扫描下方二维码
                   </p>
                   <div className="flex justify-center mb-4">
-                    <div className="bg-white p-4 rounded-lg inline-block">
+                    <div className="bg-background p-4 rounded-lg inline-block">
                       <img
                         src={`data:image/png;base64,${totpSetupData.qr_code}`}
                         alt="TOTP QR Code"
@@ -511,7 +507,7 @@ export default function RestrictedModeOverlay({ user, onComplete }: RestrictedMo
                     </div>
                   </div>
                   <div className="text-center">
-                    <p className="text-sm text-gray-500 mb-2">手动输入密钥：</p>
+                    <p className="text-sm text-default-500 mb-2">手动输入密钥：</p>
                     <code className="inline-block px-3 py-2 bg-default-100 rounded font-mono text-sm select-all">
                       {totpSetupData.secret}
                     </code>
@@ -537,8 +533,8 @@ export default function RestrictedModeOverlay({ user, onComplete }: RestrictedMo
               </div>
             ) : (
               <div className="text-center py-8">
-                <Loader2 className="w-8 h-8 animate-spin mx-auto text-blue-600" />
-                <p className="mt-2 text-gray-600">加载中...</p>
+                <Spinner size="lg" />
+                <p className="mt-2 text-default-600">加载中...</p>
               </div>
             )}
           </div>
@@ -549,9 +545,7 @@ export default function RestrictedModeOverlay({ user, onComplete }: RestrictedMo
           <div className="surface p-6">
             <div className="flex items-center gap-2 mb-4">
               <Button  onPress={() => setCurrentStep('overview')} variant="ghost"
-              className="text-gray-500 hover:text-gray-700 p-1 h-auto w-auto"><svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg></Button>
+              className="text-default-500 hover:text-default-600 p-1 h-auto w-auto"><ChevronLeft className="w-5 h-5" /></Button>
               <h3 className="text-lg font-semibold text-foreground">
                 绑定通行密钥
               </h3>
@@ -562,9 +556,9 @@ export default function RestrictedModeOverlay({ user, onComplete }: RestrictedMo
             </p>
 
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <Label className="block text-sm font-medium text-default-600 mb-1">
                 通行密钥名称
-              </label>
+              </Label>
               <Input
                 type="text"
                 value={passkeyName}
@@ -576,7 +570,7 @@ export default function RestrictedModeOverlay({ user, onComplete }: RestrictedMo
 
             <Button onPress={handleRegisterPasskey} isDisabled={passkeyRegistering || !passkeyName.trim()} variant="primary" className="inline-flex items-center gap-2">{passkeyRegistering ? (
               <>
-                <Loader2 className="w-4 h-4 animate-spin" />
+                <Spinner size="sm" />
                 注册中...
               </>
             ) : (

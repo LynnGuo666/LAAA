@@ -4,7 +4,7 @@ import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { authApi } from '@/lib/api';
-import { Button, Description, Input, Label, Spinner, TextField } from '@heroui/react';
+import { Alert, Button, Description, Input, Label, Spinner, TextField } from '@heroui/react';
 
 function RegisterContent() {
   const router = useRouter();
@@ -72,18 +72,19 @@ function RegisterContent() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-background px-4">
       <div className="max-w-md w-full space-y-8 animate-fade-in">
         <div className="text-center">
-          <h2 className="text-3xl font-bold text-gray-900 dark:text-gray-100">创建账号</h2>
-          <p className="mt-2 text-gray-600 dark:text-gray-300">开始使用本站服务</p>
+          <h2 className="text-3xl font-bold text-foreground">创建账号</h2>
+          <p className="mt-2 text-default-600">开始使用本站服务</p>
         </div>
 
         <form onSubmit={handleSubmit} className="surface p-6 space-y-6">
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-              {error}
-            </div>
+            <Alert status="danger">
+              <Alert.Indicator />
+              <Alert.Content><Alert.Description>{error}</Alert.Description></Alert.Content>
+            </Alert>
           )}
 
           <div>
@@ -128,8 +129,8 @@ function RegisterContent() {
           variant="primary" className="w-full" isPending={loading} >{loading ? '创建中...' : '创建账号'}</Button>
 
           <div className="text-center text-sm">
-            <span className="text-gray-600">已有账号？ </span>
-            <Link href="/login" className="text-blue-600 hover:text-blue-700 font-medium">
+            <span className="text-default-600">已有账号？ </span>
+            <Link href="/login" className="text-primary hover:text-primary font-medium">
               登录
             </Link>
           </div>
@@ -143,7 +144,7 @@ export default function RegisterPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950 px-4">
+        <div className="min-h-screen flex items-center justify-center bg-background px-4">
           <div className="flex flex-col items-center gap-3">
             <Spinner size="lg" />
             <p className="text-sm text-default-500">加载中...</p>

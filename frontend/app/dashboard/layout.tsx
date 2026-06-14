@@ -111,9 +111,9 @@ export default function DashboardLayout({
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
+    <div className="min-h-screen bg-background">
       {/* Navigation */}
-      <nav className="bg-white dark:bg-gray-900 shadow-sm border-b border-transparent dark:border-gray-800">
+      <nav className="bg-background shadow-sm border-b border-default-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
             <div className="flex">
@@ -161,7 +161,7 @@ export default function DashboardLayout({
                           {user.username.charAt(0).toUpperCase()}
                         </div>
                       )}
-                      <span className="hidden sm:inline text-sm text-gray-700 dark:text-gray-200 truncate">{user.username}</span>
+                      <span className="hidden sm:inline text-sm text-default-600 truncate">{user.username}</span>
                     </div>
                   </Button>
                 </Popover.Trigger>
@@ -191,7 +191,7 @@ export default function DashboardLayout({
         </div>
 
         {/* Mobile navigation */}
-        <div className="sm:hidden border-t border-gray-200 dark:border-gray-800">
+        <div className="sm:hidden border-t border-default-200">
           <div className="flex overflow-x-auto px-4 py-2 gap-4">
                {navLinks.map((link) => {
                const isActive = normalizedPathname === link.href || normalizedPathname.startsWith(`${link.href}/`);
@@ -201,8 +201,8 @@ export default function DashboardLayout({
                   href={link.href}
                   className={`text-sm whitespace-nowrap px-2 py-1 rounded ${
                     isActive
-                      ? 'text-blue-600 bg-blue-50 dark:bg-blue-950'
-                      : 'text-gray-600 dark:text-gray-300'
+                      ? 'text-primary bg-primary/10'
+                      : 'text-default-600'
                   }`}
                 >
                   {link.label}

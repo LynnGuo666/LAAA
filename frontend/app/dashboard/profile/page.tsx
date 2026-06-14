@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useAuthStore } from '@/lib/store';
 import { userApi } from '@/lib/api';
 import { formatDate } from '@/lib/date';
-import { Button, Card, Description, Input, Label, TextField } from '@heroui/react';
+import { Alert, Button, Card, Description, Input, Label, TextField } from '@heroui/react';
 
 export default function ProfilePage() {
   const { user, setUser } = useAuthStore();
@@ -36,8 +36,8 @@ export default function ProfilePage() {
   return (
     <div className="px-4 sm:px-0 animate-fade-in">
       <div className="mb-6 sm:mb-8">
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">个人资料</h1>
-        <p className="text-gray-600 dark:text-gray-300 mt-1 text-sm sm:text-base">
+        <h1 className="text-2xl sm:text-3xl font-bold text-foreground">个人资料</h1>
+        <p className="text-default-600 mt-1 text-sm sm:text-base">
           管理您的账号资料和基本信息。
         </p>
       </div>
@@ -45,9 +45,10 @@ export default function ProfilePage() {
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)] gap-6">
         <form onSubmit={handleSubmit} className="surface p-5 sm:p-6 space-y-5">
           {message && (
-            <div className={`p-4 rounded-lg ${message.startsWith('Error') ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
-              {message}
-            </div>
+            <Alert status={message.startsWith('Error') ? 'danger' : 'success'}>
+              <Alert.Indicator />
+              <Alert.Content><Alert.Description>{message}</Alert.Description></Alert.Content>
+            </Alert>
           )}
 
           <div>
@@ -78,26 +79,26 @@ export default function ProfilePage() {
         </form>
 
         <Card className="border border-default-200 bg-content2 overflow-hidden">
-          <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-800">
-            <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">账号信息</h2>
+          <div className="px-4 py-3 border-b border-default-200">
+            <h2 className="text-base font-semibold text-foreground">账号信息</h2>
           </div>
           <ul className="list">
             <li className="list-item">
               <div className="flex items-center justify-between gap-4">
-                <span className="text-sm text-gray-600 dark:text-gray-300">用户 ID</span>
-                <span className="text-sm text-gray-900 dark:text-gray-100">{user.id}</span>
+                <span className="text-sm text-default-600">用户 ID</span>
+                <span className="text-sm text-foreground">{user.id}</span>
               </div>
             </li>
             <li className="list-item">
               <div className="flex items-center justify-between gap-4">
-                <span className="text-sm text-gray-600 dark:text-gray-300">状态</span>
-                <span className="text-sm text-gray-900 dark:text-gray-100">{user.status}</span>
+                <span className="text-sm text-default-600">状态</span>
+                <span className="text-sm text-foreground">{user.status}</span>
               </div>
             </li>
             <li className="list-item">
               <div className="flex items-center justify-between gap-4">
-                <span className="text-sm text-gray-600 dark:text-gray-300">注册时间</span>
-                <span className="text-sm text-gray-900 dark:text-gray-100">
+                <span className="text-sm text-default-600">注册时间</span>
+                <span className="text-sm text-foreground">
                   {formatDate(user.created_at)}
                 </span>
               </div>

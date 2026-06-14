@@ -33,32 +33,32 @@ const quickActions = [
     title: '应用管理',
     description: '创建、编辑 OAuth 应用，并配置访问控制。',
     icon: AppWindow,
-    color: 'text-blue-600 dark:text-blue-400',
-    bg: 'bg-blue-50 dark:bg-blue-950/40',
+    color: 'text-primary',
+    bg: 'bg-primary/10',
   },
   {
     href: '/admin/users',
     title: '用户管理',
     description: '查看用户详情、角色、用户组和应用权限。',
     icon: Users,
-    color: 'text-emerald-600 dark:text-emerald-400',
-    bg: 'bg-emerald-50 dark:bg-emerald-950/40',
+    color: 'text-success',
+    bg: 'bg-success/10',
   },
   {
     href: '/admin/invites',
     title: '邀请码',
     description: '生成邀请码并查看使用情况。',
     icon: TicketCheck,
-    color: 'text-amber-600 dark:text-amber-400',
-    bg: 'bg-amber-50 dark:bg-amber-950/40',
+    color: 'text-warning',
+    bg: 'bg-warning/10',
   },
   {
     href: '/admin/settings',
     title: '站点设置',
     description: '修改站点名称等管理后台基础配置。',
     icon: Settings2,
-    color: 'text-purple-600 dark:text-purple-400',
-    bg: 'bg-purple-50 dark:bg-purple-950/40',
+    color: 'text-secondary',
+    bg: 'bg-secondary/10',
   },
 ]
 
@@ -126,8 +126,8 @@ export default function AdminDashboardPage() {
           <div className="rounded-xl border border-default-200/70 bg-background p-5 shadow-sm transition-shadow group-hover:shadow-md">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-950/40">
-                  <AppWindow className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+                  <AppWindow className="h-5 w-5 text-primary" />
                 </div>
                 <div>
                   <p className="text-sm font-medium text-default-600">应用总数</p>
@@ -143,8 +143,8 @@ export default function AdminDashboardPage() {
           <div className="rounded-xl border border-default-200/70 bg-background p-5 shadow-sm transition-shadow group-hover:shadow-md">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-50 dark:bg-emerald-950/40">
-                  <Users className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-success/10">
+                  <Users className="h-5 w-5 text-success" />
                 </div>
                 <div>
                   <p className="text-sm font-medium text-default-600">用户总数</p>

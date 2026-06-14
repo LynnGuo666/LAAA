@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Button, Chip, Description, Input, Label, Spinner, TextField, toast } from '@heroui/react';
+import { Alert, Button, Chip, Description, Input, Label, Spinner, TextField, toast } from '@heroui/react';
 import Link from 'next/link';
 import { authApi, passkeyApi, API_URL, verificationApi } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
@@ -14,6 +14,7 @@ import {
   serializeAuthenticationCredential,
 } from '@/lib/webauthn';
 import { UICheckbox } from '@/components/ui/primitives';
+import { KeyRound } from 'lucide-react';
 
 interface ClientInfo {
   name: string;
@@ -297,7 +298,7 @@ function LoginContent() {
 
   if (loadingClient) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950">
+      <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-3">
           <Spinner size="lg" />
           <p className="text-sm text-default-500">加载中...</p>
@@ -307,7 +308,7 @@ function LoginContent() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="max-w-md w-full surface p-6 sm:p-8 animate-fade-in">
         {/* 应用信息展示 */}
         <div className="text-center mb-6">
@@ -318,22 +319,22 @@ function LoginContent() {
               className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-3 rounded"
             />
           )}
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100 mb-1">
+          <h1 className="text-xl sm:text-2xl font-bold text-foreground mb-1">
             登录
           </h1>
-          <p className="text-sm sm:text-base text-gray-600 dark:text-gray-300">
+          <p className="text-sm sm:text-base text-default-600">
             {clientInfo ? (
               <>
-                您正在登录到 <strong className="text-gray-900 dark:text-gray-100">{clientInfo.name}</strong>
+                您正在登录到 <strong className="text-foreground">{clientInfo.name}</strong>
               </>
             ) : (
               <>
-                您正在登录到 <strong className="text-gray-900 dark:text-gray-100">LAAA</strong>
+                您正在登录到 <strong className="text-foreground">LAAA</strong>
               </>
             )}
           </p>
           {clientInfo?.description && (
-            <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-1">{clientInfo.description}</p>
+            <p className="text-xs sm:text-sm text-default-500 mt-1">{clientInfo.description}</p>
           )}
         </div>
 
@@ -343,20 +344,16 @@ function LoginContent() {
           {securityInfo && (
             <div className="space-y-2">
               {securityInfo.kicked_session && (
-                <div className="bg-blue-50 border border-blue-200 text-blue-700 px-3 py-2 rounded-lg text-sm">
-                  <span className="font-medium">会话提醒：</span>
-                  您的设备 "{securityInfo.kicked_session.device_name || '未知设备'}" 已被登出，因为达到了最大会话数限制。
-                </div>
+                <Alert status="accent" className="text-sm">
+                  <Alert.Indicator />
+                  <Alert.Content><Alert.Description><span className="font-medium">会话提醒：</span>您的设备 "{securityInfo.kicked_session.device_name || '未知设备'}" 已被登出，因为达到了最大会话数限制。</Alert.Description></Alert.Content>
+                </Alert>
               )}
               {securityInfo.is_suspicious && securityInfo.anomalies.filter(a => a.severity !== 'low').length > 0 && (
-                <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-3 py-2 rounded-lg text-sm">
-                  <span className="font-medium">安全提醒：</span>
-                  <ul className="mt-1 list-disc list-inside">
-                    {securityInfo.anomalies.filter(a => a.severity !== 'low').map((a, i) => (
-                      <li key={i}>{a.message}</li>
-                    ))}
-                  </ul>
-                </div>
+                <Alert status="warning" className="text-sm">
+                  <Alert.Indicator />
+                  <Alert.Content><Alert.Description><span className="font-medium">安全提醒：</span><ul className="mt-1 list-disc list-inside">{securityInfo.anomalies.filter(a => a.severity !== 'low').map((a, i) => (<li key={i}>{a.message}</li>))}</ul></Alert.Description></Alert.Content>
+                </Alert>
               )}
             </div>
           )}
@@ -396,18 +393,15 @@ function LoginContent() {
               </div>
 
               <Button type="button" onPress={handlePasskeyLogin} isDisabled={loading || passkeyLoading} variant="secondary" className="w-full text-default-foreground" isPending={passkeyLoading}>{!passkeyLoading && (
-                <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M12 2C9.24 2 7 4.24 7 7C7 9.76 9.24 12 12 12C14.76 12 17 9.76 17 7C17 4.24 14.76 2 12 2ZM12 10C10.34 10 9 8.66 9 7C9 5.34 10.34 4 12 4C13.66 4 15 5.34 15 7C15 8.66 13.66 10 12 10Z" fill="currentColor"/>
-                  <path d="M12 14C7.58 14 4 16.58 4 20V22H20V20C20 16.58 16.42 14 12 14ZM18 20H6V20C6 17.79 8.69 16 12 16C15.31 16 18 17.79 18 20Z" fill="currentColor"/>
-                </svg>
+                <KeyRound className="w-4 h-4 mr-2" />
               )}
               {passkeyLoading ? '验证中...' : '使用通行密钥登录'}</Button>
             </>
           )}
 
           <div className="text-center text-sm pt-1">
-            <span className="text-gray-600">还没有账号？ </span>
-            <Link href="/register" className="text-blue-600 hover:text-blue-700 font-medium">
+            <span className="text-default-600">还没有账号？ </span>
+            <Link href="/register" className="text-primary hover:text-primary font-medium">
               注册
             </Link>
           </div>
@@ -420,7 +414,7 @@ function LoginContent() {
 export default function LoginPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950">
+      <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-3">
           <Spinner size="lg" />
           <p className="text-sm text-default-500">加载中...</p>

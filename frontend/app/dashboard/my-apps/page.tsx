@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { userApi } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { isAdmin } from '@/lib/authz';
-import { Button, Card } from '@heroui/react';
+import { Alert, Button, Card } from '@heroui/react';
 import { ExternalLink } from 'lucide-react';
 
 interface AppItem {
@@ -52,7 +52,7 @@ export default function MyAppsPage() {
       <div>
         <div className="flex items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">
+            <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
               {adminView ? '应用列表' : '我的应用'}
             </h1>
           </div>
@@ -63,16 +63,19 @@ export default function MyAppsPage() {
       </div>
 
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-          {error}
-        </div>
+        <Alert status="danger">
+          <Alert.Indicator />
+          <Alert.Content>
+            <Alert.Description>{error}</Alert.Description>
+          </Alert.Content>
+        </Alert>
       )}
 
       <div>
         {loading ? (
-          <div className="p-6 text-gray-600 dark:text-gray-300">加载中...</div>
+          <div className="p-6 text-default-600">加载中...</div>
         ) : apps.length === 0 ? (
-          <div className="p-6 text-gray-600 dark:text-gray-300">暂无可访问应用</div>
+          <div className="p-6 text-default-600">暂无可访问应用</div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {apps.map((app) => (

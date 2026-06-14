@@ -2,10 +2,11 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Spinner, toast } from '@heroui/react';
+import { Alert, Button, Spinner, toast } from '@heroui/react';
 import Link from 'next/link';
 import { verificationApi, authApi } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
+import { CheckCircle, AlertTriangle, XCircle } from 'lucide-react';
 
 function MagicLinkContent() {
   const router = useRouter();
@@ -155,7 +156,7 @@ function MagicLinkContent() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="max-w-md w-full surface p-6 sm:p-8 animate-fade-in text-center">
         {/* Verifying */}
         {status === 'verifying' && (
@@ -163,10 +164,10 @@ function MagicLinkContent() {
             <div className="w-16 h-16 mx-auto mb-6 bg-primary/10 rounded-full flex items-center justify-center">
               <Spinner size="md" />
             </div>
-            <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">
+            <h1 className="text-xl sm:text-2xl font-bold text-foreground mb-2">
               正在验证
             </h1>
-            <p className="text-gray-600 dark:text-gray-400">
+            <p className="text-default-600">
               请稍候，我们正在验证您的链接...
             </p>
           </>
@@ -175,20 +176,18 @@ function MagicLinkContent() {
         {/* Success */}
         {status === 'success' && (
           <>
-            <div className="w-16 h-16 mx-auto mb-6 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center">
-              <svg className="w-8 h-8 text-green-600 dark:text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
+            <div className="w-16 h-16 mx-auto mb-6 bg-success/10 rounded-full flex items-center justify-center">
+              <CheckCircle className="w-8 h-8 text-success" />
             </div>
-            <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">
+            <h1 className="text-xl sm:text-2xl font-bold text-foreground mb-2">
               验证成功
             </h1>
-            <p className="text-gray-600 dark:text-gray-400 mb-4">
+            <p className="text-default-600 mb-4">
               您已成功登录，{countdown} 秒后自动跳转...
             </p>
             <Link
               href="/dashboard"
-              className="text-blue-600 hover:text-blue-700 font-medium"
+              className="text-primary hover:text-primary font-medium"
             >
               立即跳转
             </Link>
@@ -198,31 +197,32 @@ function MagicLinkContent() {
         {/* Device Mismatch */}
         {status === 'device_mismatch' && (
           <>
-            <div className="w-16 h-16 mx-auto mb-6 bg-yellow-100 dark:bg-yellow-900 rounded-full flex items-center justify-center">
-              <svg className="w-8 h-8 text-yellow-600 dark:text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-              </svg>
+            <div className="w-16 h-16 mx-auto mb-6 bg-warning/10 rounded-full flex items-center justify-center">
+              <AlertTriangle className="w-8 h-8 text-warning" />
             </div>
-            <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">
+            <h1 className="text-xl sm:text-2xl font-bold text-foreground mb-2">
               设备不匹配
             </h1>
-            <p className="text-gray-600 dark:text-gray-400 mb-6">
+            <p className="text-default-600 mb-6">
               {error}
             </p>
-            <div className="bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 text-left">
-              <p className="text-sm text-yellow-700 dark:text-yellow-300">
-                <strong>安全提示：</strong>为了保护您的账户安全，Magic Link 必须在请求它的同一浏览器中打开。
-              </p>
-              <ul className="mt-2 text-sm text-yellow-600 dark:text-yellow-400 list-disc list-inside space-y-1">
-                <li>请在原设备的浏览器中点击邮件中的链接</li>
-                <li>确保没有使用不同的浏览器或无痕模式</li>
-                <li>如果无法访问原设备，请重新登录并请求新链接</li>
-              </ul>
-            </div>
+            <Alert status="warning" className="text-left">
+              <Alert.Indicator />
+              <Alert.Content>
+                <Alert.Description>
+                  <p><strong>安全提示：</strong>为了保护您的账户安全，Magic Link 必须在请求它的同一浏览器中打开。</p>
+                  <ul className="mt-2 list-disc list-inside space-y-1">
+                    <li>请在原设备的浏览器中点击邮件中的链接</li>
+                    <li>确保没有使用不同的浏览器或无痕模式</li>
+                    <li>如果无法访问原设备，请重新登录并请求新链接</li>
+                  </ul>
+                </Alert.Description>
+              </Alert.Content>
+            </Alert>
             <div className="mt-6">
               <Link
                 href="/login"
-                className="text-blue-600 hover:text-blue-700 font-medium"
+                className="text-primary hover:text-primary font-medium"
               >
                 ← 返回登录
               </Link>
@@ -233,23 +233,18 @@ function MagicLinkContent() {
         {/* Error */}
         {status === 'error' && (
           <>
-            <div className="w-16 h-16 mx-auto mb-6 bg-red-100 dark:bg-red-900 rounded-full flex items-center justify-center">
-              <svg className="w-8 h-8 text-red-600 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
+            <div className="w-16 h-16 mx-auto mb-6 bg-danger/10 rounded-full flex items-center justify-center">
+              <XCircle className="w-8 h-8 text-danger" />
             </div>
-            <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">
+            <h1 className="text-xl sm:text-2xl font-bold text-foreground mb-2">
               验证失败
             </h1>
-            <p className="text-gray-600 dark:text-gray-400 mb-6">
+            <p className="text-default-600 mb-6">
               {error}
             </p>
-            <Link
-              href="/login"
-              className="inline-flex items-center justify-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors"
-            >
-              返回登录
-            </Link>
+            <Button variant="primary" className="w-full">
+              <Link href="/login">返回登录</Link>
+            </Button>
           </>
         )}
       </div>
@@ -260,7 +255,7 @@ function MagicLinkContent() {
 export default function MagicLinkPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950">
+      <div className="min-h-screen flex items-center justify-center bg-background p-4">
         <div className="flex flex-col items-center gap-3">
           <Spinner size="lg" />
           <p className="text-sm text-default-500">加载中...</p>

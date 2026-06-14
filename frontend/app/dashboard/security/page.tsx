@@ -1,13 +1,13 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { AlertDialog, Button, Card, Input, Label, Tabs, TextField, toast } from '@heroui/react';
+import { AlertDialog, Alert, Button, Card, Chip, Input, Label, Table, Tabs, TextField, toast } from '@heroui/react';
 import { userApi, totpApi, passkeyApi } from '@/lib/api';
 import { formatDateTime } from '@/lib/date';
 import { useAuthStore } from '@/lib/store';
 import { useConfirmDialog } from '@/components/ui/confirm-dialog-provider';
 import { TotpManageModal } from '@/components/security/TotpManageModal';
-import { Check, AlertTriangle } from 'lucide-react';
+import { Check, AlertTriangle, Smartphone, Tablet, Monitor, ShieldCheck } from 'lucide-react';
 import {
   isWebAuthnSupported,
   isPlatformAuthenticatorAvailable,
@@ -381,24 +381,12 @@ export default function SecurityPage() {
 
   const getStatusBadge = (log: LoginLog) => {
     if (!log.success) {
-      return (
-        <span className="text-xs px-2 py-0.5 rounded-full bg-red-50 text-red-700 border border-red-200 dark:bg-red-950 dark:text-red-200 dark:border-red-900">
-          失败
-        </span>
-      );
+      return <Chip color="danger" variant="soft" size="sm">失败</Chip>;
     }
     if (log.is_suspicious) {
-      return (
-        <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-50 text-yellow-700 border border-yellow-200 dark:bg-yellow-950 dark:text-yellow-200 dark:border-yellow-900">
-          可疑
-        </span>
-      );
+      return <Chip color="warning" variant="soft" size="sm">可疑</Chip>;
     }
-    return (
-      <span className="text-xs px-2 py-0.5 rounded-full bg-green-50 text-green-700 border border-green-200 dark:bg-green-950 dark:text-green-200 dark:border-green-900">
-        成功
-      </span>
-    );
+    return <Chip color="success" variant="soft" size="sm">成功</Chip>;
   };
 
   const getLoginMethodText = (method: string) => {
@@ -411,24 +399,12 @@ export default function SecurityPage() {
 
   const getDeviceIcon = (deviceType?: string) => {
     if (deviceType === 'mobile') {
-      return (
-        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
-        </svg>
-      );
+      return <Smartphone className="w-5 h-5" />;
     }
     if (deviceType === 'tablet') {
-      return (
-        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-        </svg>
-      );
+      return <Tablet className="w-5 h-5" />;
     }
-    return (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-      </svg>
-    );
+    return <Monitor className="w-5 h-5" />;
   };
 
   if (loading) {
@@ -467,21 +443,19 @@ export default function SecurityPage() {
             <p className="text-sm text-default-500 mb-4">
               启用两步验证后，当检测到可疑登录时，需要额外的验证步骤才能登录。
             </p>
-            <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+            <div className="border border-default-200 rounded-lg p-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
                     totpStatus?.enabled
-                      ? 'bg-green-100 dark:bg-green-900'
+                      ? 'bg-success/10'
                       : 'bg-default-100'
                   }`}>
-                    <svg className={`w-5 h-5 ${
+                    <ShieldCheck className={`w-5 h-5 ${
                       totpStatus?.enabled
-                        ? 'text-green-600 dark:text-green-400'
+                        ? 'text-success'
                         : 'text-default-400'
-                    }`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                    </svg>
+                    }`} />
                   </div>
                   <div>
                     <h3 className="font-medium text-foreground">身份验证器 (TOTP)</h3>
@@ -514,7 +488,7 @@ export default function SecurityPage() {
         </div>
         {sessions.length === 0 ? (
           <div className="text-center py-12">
-            <p className="text-gray-500">暂无活跃会话</p>
+            <p className="text-default-500">暂无活跃会话</p>
           </div>
         ) : (
           <div className="overflow-hidden">
@@ -523,7 +497,7 @@ export default function SecurityPage() {
               <li key={session.id} className="list-item">
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                   <div className="flex items-start gap-3 min-w-0">
-                    <div className="p-2 bg-gray-100 dark:bg-gray-700 rounded-lg text-default-600 shrink-0">
+                    <div className="p-2 bg-default-100 rounded-lg text-default-600 shrink-0">
                       {getDeviceIcon(session.device_type)}
                     </div>
                     <div className="min-w-0 flex-1">
@@ -532,21 +506,17 @@ export default function SecurityPage() {
                           {session.device_name || '未知设备'}
                         </h3>
                         {session.is_current && (
-                          <span className="text-xs px-2 py-0.5 rounded-full bg-green-50 text-green-700 border border-green-200 dark:bg-green-950 dark:text-green-200 dark:border-green-900 shrink-0">
-                            当前
-                          </span>
+                          <Chip color="success" variant="soft" size="sm">当前</Chip>
                         )}
                         {session.is_trusted && (
-                          <span className="text-xs px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950 dark:text-blue-200 dark:border-blue-900 shrink-0">
-                            可信
-                          </span>
+                          <Chip color="accent" variant="soft" size="sm">可信</Chip>
                         )}
                       </div>
                       <div className="mt-1 text-xs sm:text-sm text-default-600 flex items-center gap-1 sm:gap-2 flex-wrap">
                         <span>
                           {session.device_type === 'mobile' ? '手机' : session.device_type === 'tablet' ? '平板' : '电脑'}
                         </span>
-                        <span className="text-gray-400">·</span>
+                        <span className="text-default-400">·</span>
                         <span>点击详情查看完整信息</span>
                       </div>
                     </div>
@@ -577,14 +547,16 @@ export default function SecurityPage() {
         <h2 className="text-lg sm:text-xl font-semibold text-foreground mb-4">密码安全</h2>
         <form onSubmit={handleChangePassword} className="space-y-4 max-w-md">
           {passwordError && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-lg dark:bg-red-950 dark:border-red-900">
-              <p className="text-sm text-red-600 dark:text-red-200">{passwordError}</p>
-            </div>
+            <Alert status="danger">
+              <Alert.Indicator />
+              <Alert.Content><Alert.Description>{passwordError}</Alert.Description></Alert.Content>
+            </Alert>
           )}
           {passwordSuccess && (
-            <div className="p-3 bg-green-50 border border-green-200 rounded-lg dark:bg-green-950 dark:border-green-900">
-              <p className="text-sm text-green-600 dark:text-green-200">{passwordSuccess}</p>
-            </div>
+            <Alert status="success">
+              <Alert.Indicator />
+              <Alert.Content><Alert.Description>{passwordSuccess}</Alert.Description></Alert.Content>
+            </Alert>
           )}
 
           <div>
@@ -625,50 +597,50 @@ export default function SecurityPage() {
 
         {loginHistory.length === 0 ? (
           <div className="text-center py-12">
-            <p className="text-gray-500">暂无登录记录</p>
+            <p className="text-default-500">暂无登录记录</p>
           </div>
         ) : (
-          <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
-            <table className="min-w-full text-sm">
-              <thead>
-                <tr className="border-b border-gray-200 dark:border-gray-700 text-left text-xs text-default-500">
-                  <th className="px-4 sm:px-6 py-3 font-medium">状态</th>
-                  <th className="px-4 sm:px-6 py-3 font-medium">设备</th>
-                  <th className="px-4 sm:px-6 py-3 font-medium">登录方式</th>
-                  <th className="px-4 sm:px-6 py-3 font-medium">IP / 地点</th>
-                  <th className="px-4 sm:px-6 py-3 font-medium">时间</th>
-                </tr>
-              </thead>
-              <tbody>
-                {loginHistory.map((log) => (
-                  <tr key={log.id} className="border-b border-gray-100 dark:border-gray-800 align-top">
-                    <td className="px-4 sm:px-6 py-3">{getStatusBadge(log)}</td>
-                    <td className="px-4 sm:px-6 py-3">
-                      <div className="text-sm font-medium text-foreground">{log.device_name || '未知设备'}</div>
-                      {!log.success && log.failure_reason && (
-                        <div className="mt-1 text-xs text-red-600 dark:text-red-400">
-                          失败原因：{log.failure_reason === 'invalid_password' ? '密码错误' :
-                            log.failure_reason === 'user_not_found' ? '用户不存在' :
-                            log.failure_reason === 'account_suspended' ? '账户已停用' :
-                            log.failure_reason}
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-4 sm:px-6 py-3 text-default-600">{getLoginMethodText(log.login_method)}</td>
-                    <td className="px-4 sm:px-6 py-3 text-default-600">
-                      <div className="break-all">{log.ip_address || '-'}</div>
-                      {(log.city || log.country) && (
-                        <div className="text-xs text-default-500 mt-1">
-                          {[log.city, log.country].filter(Boolean).join(', ')}
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-4 sm:px-6 py-3 text-xs sm:text-sm text-default-500 whitespace-nowrap">{formatDateTime(log.created_at)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <Table aria-label="登录记录">
+            <Table.ScrollContainer>
+              <Table.Content>
+                <Table.Header>
+                  <Table.Column>状态</Table.Column>
+                  <Table.Column>设备</Table.Column>
+                  <Table.Column>登录方式</Table.Column>
+                  <Table.Column>IP / 地点</Table.Column>
+                  <Table.Column>时间</Table.Column>
+                </Table.Header>
+                <Table.Body>
+                  {loginHistory.map((log) => (
+                    <Table.Row key={log.id} id={String(log.id)}>
+                      <Table.Cell>{getStatusBadge(log)}</Table.Cell>
+                      <Table.Cell>
+                        <div className="text-sm font-medium text-foreground">{log.device_name || '未知设备'}</div>
+                        {!log.success && log.failure_reason && (
+                          <div className="mt-1 text-xs text-danger">
+                            失败原因：{log.failure_reason === 'invalid_password' ? '密码错误' :
+                              log.failure_reason === 'user_not_found' ? '用户不存在' :
+                              log.failure_reason === 'account_suspended' ? '账户已停用' :
+                              log.failure_reason}
+                          </div>
+                        )}
+                      </Table.Cell>
+                      <Table.Cell className="text-default-600">{getLoginMethodText(log.login_method)}</Table.Cell>
+                      <Table.Cell className="text-default-600">
+                        <div className="break-all">{log.ip_address || '-'}</div>
+                        {(log.city || log.country) && (
+                          <div className="text-xs text-default-500 mt-1">
+                            {[log.city, log.country].filter(Boolean).join(', ')}
+                          </div>
+                        )}
+                      </Table.Cell>
+                      <Table.Cell className="text-xs sm:text-sm text-default-500 whitespace-nowrap">{formatDateTime(log.created_at)}</Table.Cell>
+                    </Table.Row>
+                  ))}
+                </Table.Body>
+              </Table.Content>
+            </Table.ScrollContainer>
+          </Table>
         )}
       </div>
           </Tabs.Panel>
@@ -680,28 +652,24 @@ export default function SecurityPage() {
         </p>
 
         {passkeyError && (
-          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-4">
-            <p className="text-red-800 dark:text-red-200">{passkeyError}</p>
-          </div>
+          <Alert status="danger" className="mb-4">
+            <Alert.Indicator />
+            <Alert.Content><Alert.Description>{passkeyError}</Alert.Description></Alert.Content>
+          </Alert>
         )}
 
         {!webAuthnSupported && (
-          <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 mb-4">
-            <p className="text-yellow-800 dark:text-yellow-200">
-              您的浏览器不支持通行密钥功能。请使用支持 WebAuthn 的现代浏览器。
-            </p>
-          </div>
+          <Alert status="warning" className="mb-4">
+            <Alert.Indicator />
+            <Alert.Content><Alert.Description>您的浏览器不支持通行密钥功能。请使用支持 WebAuthn 的现代浏览器。</Alert.Description></Alert.Content>
+          </Alert>
         )}
 
         {user && !user.email_verified && (
-          <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 mb-4">
-            <div className="flex items-center gap-3">
-              <AlertTriangle className="w-5 h-5 text-yellow-600 dark:text-yellow-500 flex-shrink-0" />
-              <p className="text-yellow-800 dark:text-yellow-200">
-                绑定通行密钥需要先验证邮箱。
-              </p>
-            </div>
-          </div>
+          <Alert status="warning" className="mb-4">
+            <Alert.Indicator />
+            <Alert.Content><Alert.Description>绑定通行密钥需要先验证邮箱。</Alert.Description></Alert.Content>
+          </Alert>
         )}
 
         <div className="mb-4">
@@ -709,7 +677,7 @@ export default function SecurityPage() {
             {registeringPasskey ? '正在注册...' : '添加通行密钥'}
           </Button>
           {platformAvailable && (
-            <span className="ml-3 text-sm text-green-600 dark:text-green-400 inline-flex items-center gap-1">
+            <span className="ml-3 text-sm text-success inline-flex items-center gap-1">
               <Check className="w-4 h-4" /> 检测到平台认证器
             </span>
           )}
@@ -727,9 +695,7 @@ export default function SecurityPage() {
                         <div className="flex items-center gap-2 flex-wrap">
                           <h3 className="text-sm sm:text-base font-semibold text-foreground truncate">{passkey.name}</h3>
                           {passkey.backup_eligible && (
-                            <span className="text-xs px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950 dark:text-blue-200 dark:border-blue-900 shrink-0">
-                              可同步
-                            </span>
+                            <Chip color="accent" variant="soft" size="sm">可同步</Chip>
                           )}
                         </div>
                       </div>
@@ -807,7 +773,7 @@ export default function SecurityPage() {
               </AlertDialog.Header>
               <AlertDialog.Body>
                 {selectedPasskey && (
-                  <div className="space-y-3 text-sm text-gray-700 dark:text-gray-300">
+                  <div className="space-y-3 text-sm text-default-600">
                     <div>
                       <span className="text-default-500">名称：</span>
                       <Input
@@ -858,7 +824,7 @@ export default function SecurityPage() {
               </AlertDialog.Header>
               <AlertDialog.Body>
                 {selectedSession && (
-                  <div className="space-y-2 text-sm text-gray-700 dark:text-gray-300">
+                  <div className="space-y-2 text-sm text-default-600">
                     <div><span className="text-default-500">设备名称：</span>{selectedSession.device_name || '未知设备'}</div>
                     <div><span className="text-default-500">设备类型：</span>{selectedSession.device_type === 'mobile' ? '手机' : selectedSession.device_type === 'tablet' ? '平板' : '电脑'}</div>
                     <div><span className="text-default-500">状态：</span>{selectedSession.is_current ? '当前会话' : '历史会话'}{selectedSession.is_trusted ? ' · 已信任' : ''}</div>

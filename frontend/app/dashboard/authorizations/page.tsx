@@ -67,11 +67,11 @@ export default function AuthorizationsPage() {
 
   return (
     <div className="px-4 sm:px-0 animate-fade-in">
-      <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100 mb-6 sm:mb-8">授权管理</h1>
+      <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-6 sm:mb-8">授权管理</h1>
 
       {authorizations.length === 0 ? (
         <div className="surface text-center py-12">
-          <p className="text-gray-500">暂无已授权应用</p>
+          <p className="text-default-500">暂无已授权应用</p>
         </div>
       ) : (
         <div className="surface overflow-hidden">
@@ -85,19 +85,19 @@ export default function AuthorizationsPage() {
                       <img
                         src={auth.client_logo}
                         alt={auth.client_name}
-                        className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl object-cover border border-gray-200 dark:border-gray-800 shrink-0"
+                        className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl object-cover border border-default-200 shrink-0"
                       />
                   ) : (
-                    <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center border border-gray-200 dark:border-gray-800 shrink-0">
-                      <AppWindow className="h-5 w-5 sm:h-6 sm:w-6 text-gray-500 dark:text-gray-300" aria-hidden />
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-default-100 flex items-center justify-center border border-default-200 shrink-0">
+                      <AppWindow className="h-5 w-5 sm:h-6 sm:w-6 text-default-500" aria-hidden />
                     </div>
                   )}
 
                     <div className="min-w-0 flex-1">
-                      <h3 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-gray-100 truncate">
+                      <h3 className="text-sm sm:text-base font-semibold text-foreground truncate">
                         {auth.client_name}
                       </h3>
-                      <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 mt-1 truncate">
+                      <p className="text-xs sm:text-sm text-default-600 mt-1 truncate">
                         授权范围：{auth.scope || '-'}
                       </p>
                     </div>
@@ -127,11 +127,11 @@ export default function AuthorizationsPage() {
               </AlertDialog.Header>
               <AlertDialog.Body>
                 {selectedAuthorization && (
-                  <div className="space-y-2 text-sm text-gray-700 dark:text-gray-300">
-                    <div><span className="text-gray-500 dark:text-gray-400">应用：</span>{selectedAuthorization.client_name}</div>
-                    <div><span className="text-gray-500 dark:text-gray-400">授权范围：</span>{selectedAuthorization.scope || '-'}</div>
-                    <div><span className="text-gray-500 dark:text-gray-400">首次授权：</span>{formatDateTime(selectedAuthorization.created_at)}</div>
-                    <div><span className="text-gray-500 dark:text-gray-400">最近使用：</span>{formatDateTime(selectedAuthorization.last_used_at)}</div>
+                  <div className="space-y-2 text-sm text-default-600">
+                    <div><span className="text-default-500">应用：</span>{selectedAuthorization.client_name}</div>
+                    <div><span className="text-default-500">授权范围：</span>{selectedAuthorization.scope || '-'}</div>
+                    <div><span className="text-default-500">首次授权：</span>{formatDateTime(selectedAuthorization.created_at)}</div>
+                    <div><span className="text-default-500">最近使用：</span>{formatDateTime(selectedAuthorization.last_used_at)}</div>
                   </div>
                 )}
               </AlertDialog.Body>
