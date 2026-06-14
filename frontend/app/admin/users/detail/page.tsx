@@ -477,23 +477,18 @@ export default function UserDetailPage() {
 
       {error ? <AdminNotice tone="danger" description={error} /> : null}
 
-      <AdminSection>
-        <Card.Content className="space-y-6 p-6">
-          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-            <div className="flex items-start gap-4">
+      <AdminSection variant="transparent">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div className="flex items-center gap-4">
               <EntityAvatar src={user.avatar} name={user.username} size="lg" rounded="full" />
-              <div className="space-y-2">
+              <div>
                 <div className="flex items-center gap-2">
                   <h2 className="text-xl font-semibold text-foreground">{user.username}</h2>
                   {renderStatusChip(user.status)}
                 </div>
                 <p className="text-default-600">{user.email}</p>
-                <p className="text-sm text-default-500">
-                  更新时间：{formatDateTime(user.updated_at)}
-                </p>
               </div>
             </div>
-
             <div className="flex flex-wrap gap-2">
               <Button variant="primary" onPress={() => setShowEditModal(true)}>
                 编辑信息
@@ -506,106 +501,80 @@ export default function UserDetailPage() {
               </Button>
             </div>
           </div>
-
-          <div className="grid gap-4 lg:grid-cols-3">
-            <AdminSection>
-              <Card.Header>
-                <Card.Title>用户组</Card.Title>
-              </Card.Header>
-              <Card.Content className="flex flex-wrap gap-2 px-6 pb-6">
-                {user.groups.length === 0 ? (
-                  <p className="text-sm text-default-500">无</p>
-                ) : (
-                  user.groups.map((group) => (
-                    <Chip key={group} variant="soft" size="sm">
-                      {group}
-                    </Chip>
-                  ))
-                )}
-              </Card.Content>
-            </AdminSection>
-
-            <AdminSection>
-              <Card.Header>
-                <Card.Title>角色</Card.Title>
-              </Card.Header>
-              <Card.Content className="flex flex-wrap gap-2 px-6 pb-6">
-                {user.roles.length === 0 ? (
-                  <p className="text-sm text-default-500">无</p>
-                ) : (
-                  user.roles.map((role) => (
-                    <Chip key={role} variant="soft" size="sm" color="accent">
-                      {role}
-                    </Chip>
-                  ))
-                )}
-              </Card.Content>
-            </AdminSection>
-
-            <AdminSection>
-              <Card.Header>
-                <Card.Title>安全验证方式</Card.Title>
-              </Card.Header>
-              <Card.Content className="space-y-3 px-6 pb-6 text-sm">
-                <div className="flex items-center justify-between">
-                  <span>邮箱验证</span>
-                  <Chip
-                    size="sm"
-                    variant="soft"
-                    color={securityMethods?.email_verified ? 'success' : 'default'}
-                  >
-                    {securityMethods?.email_verified ? '已验证' : '未验证'}
-                  </Chip>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span>身份验证器</span>
-                  <Chip
-                    size="sm"
-                    variant="soft"
-                    color={securityMethods?.totp_enabled ? 'success' : 'default'}
-                  >
-                    {securityMethods?.totp_enabled ? '已启用' : '未启用'}
-                  </Chip>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span>通行密钥</span>
-                  <Chip
-                    size="sm"
-                    variant="soft"
-                    color={securityMethods?.passkey_count ? 'accent' : 'default'}
-                  >
-                    {securityMethods?.passkey_count || 0} 个
-                  </Chip>
-                </div>
-              </Card.Content>
-            </AdminSection>
-          </div>
-        </Card.Content>
       </AdminSection>
 
-      <AdminSection>
-        <Card.Content className="p-6">
+      <AdminSection variant="transparent">
           <Tabs
             aria-label="用户详情标签"
             selectedKey={activeTab}
             onSelectionChange={(key) => setActiveTab(String(key) as Tab)}
             variant="primary"
           >
-            <Tabs.List>
-              {tabs.map((tab) => (
-                <Tabs.Tab key={tab.key} id={tab.key}>
-                  {tab.label}
-                </Tabs.Tab>
-              ))}
-            </Tabs.List>
+            <Tabs.ListContainer>
+              <Tabs.List>
+                {tabs.map((tab) => (
+                  <Tabs.Tab key={tab.key} id={tab.key}>
+                    {tab.label}
+                    <Tabs.Indicator />
+                  </Tabs.Tab>
+                ))}
+              </Tabs.List>
+            </Tabs.ListContainer>
           </Tabs>
 
           <div className="mt-6">
             {activeTab === 'info' ? (
-              <AdminNotice
-                tone="accent"
-                description="从上方按钮可以继续修改用户资料、用户组和角色。"
-              />
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-4">
+                  <Card>
+                    <Card.Header><Card.Title>基本信息</Card.Title></Card.Header>
+                    <Card.Content className="space-y-3 px-6 pb-6 text-sm">
+                      <div className="flex justify-between"><span className="text-default-500">用户名</span><span className="text-foreground">{user.username}</span></div>
+                      <div className="flex justify-between"><span className="text-default-500">邮箱</span><span className="text-foreground">{user.email}</span></div>
+                      <div className="flex justify-between"><span className="text-default-500">状态</span>{renderStatusChip(user.status)}</div>
+                      <div className="flex justify-between"><span className="text-default-500">创建时间</span><span className="text-foreground">{formatDateTime(user.created_at)}</span></div>
+                      <div className="flex justify-between"><span className="text-default-500">更新时间</span><span className="text-foreground">{formatDateTime(user.updated_at)}</span></div>
+                    </Card.Content>
+                  </Card>
+
+                  <Card>
+                    <Card.Header><Card.Title>安全验证方式</Card.Title></Card.Header>
+                    <Card.Content className="space-y-3 px-6 pb-6 text-sm">
+                      <div className="flex items-center justify-between"><span className="text-default-500">邮箱验证</span><Chip size="sm" variant="soft" color={securityMethods?.email_verified ? 'success' : 'default'}>{securityMethods?.email_verified ? '已验证' : '未验证'}</Chip></div>
+                      <div className="flex items-center justify-between"><span className="text-default-500">身份验证器</span><Chip size="sm" variant="soft" color={securityMethods?.totp_enabled ? 'success' : 'default'}>{securityMethods?.totp_enabled ? '已启用' : '未启用'}</Chip></div>
+                      <div className="flex items-center justify-between"><span className="text-default-500">通行密钥</span><Chip size="sm" variant="soft" color={securityMethods?.passkey_count ? 'accent' : 'default'}>{securityMethods?.passkey_count || 0} 个</Chip></div>
+                    </Card.Content>
+                  </Card>
+                </div>
+
+                <div className="space-y-4">
+                  <Card>
+                    <Card.Header><Card.Title>用户组</Card.Title></Card.Header>
+                    <Card.Content className="px-6 pb-6">
+                      <div className="flex flex-wrap gap-2">
+                        {user.groups.length === 0 ? (
+                          <p className="text-sm text-default-400">无</p>
+                        ) : (
+                          user.groups.map((group) => <Chip key={group} variant="soft" size="sm">{group}</Chip>)
+                        )}
+                      </div>
+                    </Card.Content>
+                  </Card>
+
+                  <Card>
+                    <Card.Header><Card.Title>角色</Card.Title></Card.Header>
+                    <Card.Content className="px-6 pb-6">
+                      <div className="flex flex-wrap gap-2">
+                        {user.roles.length === 0 ? (
+                          <p className="text-sm text-default-400">无</p>
+                        ) : (
+                          user.roles.map((role) => <Chip key={role} variant="soft" size="sm" color="accent">{role}</Chip>)
+                        )}
+                      </div>
+                    </Card.Content>
+                  </Card>
+                </div>
+              </div>
             ) : null}
 
             {tabLoading ? (
@@ -848,7 +817,6 @@ export default function UserDetailPage() {
               )
             ) : null}
           </div>
-        </Card.Content>
       </AdminSection>
 
       <AdminModalForm
