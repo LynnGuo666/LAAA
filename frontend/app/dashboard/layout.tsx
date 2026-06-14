@@ -3,12 +3,13 @@
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { Button, ListBox, ListBoxItem, Popover, Spinner, Tabs } from '@heroui/react';
+import { Button, ListBox, ListBoxItem, Popover, Tabs } from '@heroui/react';
 import { useAuthStore } from '@/lib/store';
 import { authApi, siteApi } from '@/lib/api';
 import { isAdmin } from '@/lib/authz';
 import RestrictedModeOverlay from '@/components/RestrictedModeOverlay';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { PageLoadingState } from '@/components/ui/loading';
 
 type NavItem = { href: string; label: string };
 
@@ -76,14 +77,7 @@ export default function DashboardLayout({
   };
 
   if (!user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <Spinner size="lg" />
-          <p className="text-sm text-default-500">加载中...</p>
-        </div>
-      </div>
-    );
+    return <PageLoadingState />;
   }
 
   const navLinks: NavItem[] = [

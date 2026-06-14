@@ -2,10 +2,11 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Alert, Button, Chip, Description, Input, Label, Spinner, TextField, toast } from '@heroui/react';
+import { Alert, Button, Chip, Description, Input, Label, TextField, toast } from '@heroui/react';
 import Link from 'next/link';
 import { authApi, passkeyApi, API_URL, verificationApi } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
+import { PageLoadingState } from '@/components/ui/loading';
 import axios from 'axios';
 import {
   isWebAuthnSupported,
@@ -297,14 +298,7 @@ function LoginContent() {
   };
 
   if (loadingClient) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="flex flex-col items-center gap-3">
-          <Spinner size="lg" />
-          <p className="text-sm text-default-500">加载中...</p>
-        </div>
-      </div>
-    );
+    return <PageLoadingState />;
   }
 
   return (
@@ -413,14 +407,7 @@ function LoginContent() {
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="flex flex-col items-center gap-3">
-          <Spinner size="lg" />
-          <p className="text-sm text-default-500">加载中...</p>
-        </div>
-      </div>
-    }>
+    <Suspense fallback={<PageLoadingState />}>
       <LoginContent />
     </Suspense>
   );

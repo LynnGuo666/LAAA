@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { Button, Tabs } from '@heroui/react'
 import { LogOut, ArrowLeft, ShieldCheck } from 'lucide-react'
-import { AdminLoadingState } from '@/components/admin/admin-ui'
+import { PageLoadingState } from '@/components/ui/loading'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { isAdmin } from '@/lib/authz'
 import { authApi, siteApi } from '@/lib/api'
@@ -72,11 +72,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }
 
   if (!user) {
-    return (
-      <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-        <AdminLoadingState />
-      </div>
-    )
+    return <PageLoadingState />
   }
 
   if (!isAdmin(user)) {

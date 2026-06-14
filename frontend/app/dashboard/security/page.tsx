@@ -7,6 +7,7 @@ import { formatDateTime } from '@/lib/date';
 import { useAuthStore } from '@/lib/store';
 import { useConfirmDialog } from '@/components/ui/confirm-dialog-provider';
 import { TotpManageModal } from '@/components/security/TotpManageModal';
+import { PageLoadingState } from '@/components/ui/loading';
 import { Check, AlertTriangle, Smartphone, Tablet, Monitor, ShieldCheck } from 'lucide-react';
 import {
   isWebAuthnSupported,
@@ -408,7 +409,7 @@ export default function SecurityPage() {
   };
 
   if (loading) {
-    return <div className="text-center py-12">加载中...</div>;
+    return <PageLoadingState />;
   }
 
   const otherSessionsCount = sessions.filter((session) => !session.is_current).length;

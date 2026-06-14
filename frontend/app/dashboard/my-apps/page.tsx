@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { userApi } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { isAdmin } from '@/lib/authz';
-import { Alert, Button, Card } from '@heroui/react';
+import { Alert, Button, Card, Spinner } from '@heroui/react';
 import { ExternalLink } from 'lucide-react';
 
 interface AppItem {
@@ -73,7 +73,9 @@ export default function MyAppsPage() {
 
       <div>
         {loading ? (
-          <div className="p-6 text-default-600">加载中...</div>
+          <div className="flex items-center justify-center py-12">
+            <Spinner size="md" />
+          </div>
         ) : apps.length === 0 ? (
           <div className="p-6 text-default-600">暂无可访问应用</div>
         ) : (

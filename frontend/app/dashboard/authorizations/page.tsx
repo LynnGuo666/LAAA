@@ -6,6 +6,7 @@ import { userApi } from '@/lib/api';
 import { formatDateTime } from '@/lib/date';
 import { useConfirmDialog } from '@/components/ui/confirm-dialog-provider';
 import { EntityAvatar } from '@/components/admin/admin-ui';
+import { PageLoadingState } from '@/components/ui/loading';
 
 interface Authorization {
   id: number;
@@ -62,7 +63,7 @@ export default function AuthorizationsPage() {
   };
 
   if (loading) {
-    return <div className="text-center py-12">加载中...</div>;
+    return <PageLoadingState />;
   }
 
   return (
