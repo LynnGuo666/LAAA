@@ -1,9 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { AlertDialog, Button, Card, Chip, Table, toast } from '@heroui/react';
 import { userApi } from '@/lib/api';
 import { formatDateTime } from '@/lib/date';
-import { AppWindow } from 'lucide-react';
+import { useConfirmDialog } from '@/components/ui/confirm-dialog-provider';
+import { EntityAvatar } from '@/components/admin/admin-ui';
+import { PageLoadingState } from '@/components/ui/loading';
 
 interface Authorization {
   id: number;
@@ -15,8 +18,11 @@ interface Authorization {
 }
 
 export default function AuthorizationsPage() {
+  const confirmDialog = useConfirmDialog();
   const [authorizations, setAuthorizations] = useState<Authorization[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedAuthorization, setSelectedAuthorization] = useState<Authorization | null>(null);
+  const [showDetailModal, setShowDetailModal] = useState(false);
 
   useEffect(() => {
     loadAuthorizations();
@@ -34,76 +40,113 @@ export default function AuthorizationsPage() {
   };
 
   const handleRevoke = async (auth: Authorization) => {
-    if (!confirm(`确定要撤销对 "${auth.client_name}" 的授权吗？`)) return;
+    const shouldRevoke = await confirmDialog({
+      title: '确认撤销授权',
+      description: `确定要撤销对 "${auth.client_name}" 的授权吗？`,
+      confirmText: '撤销授权',
+      cancelText: '取消',
+      status: 'danger',
+      confirmVariant: 'danger',
+    });
+    if (!shouldRevoke) return;
     try {
       await userApi.revokeAuthorization(auth.id);
       loadAuthorizations();
     } catch (err) {
-      alert('撤销授权失败');
+      toast('撤销授权失败');
     }
   };
 
+  const handleShowDetail = (auth: Authorization) => {
+    setSelectedAuthorization(auth);
+    setShowDetailModal(true);
+  };
+
   if (loading) {
-    return <div className="text-center py-12">加载中...</div>;
+    return <PageLoadingState />;
   }
 
   return (
     <div className="px-4 sm:px-0 animate-fade-in">
-      <h1 className="text-2xl sm:text-3xl font-bold mb-2 sm:mb-4">授权管理</h1>
-      <p className="text-gray-600 mb-6 sm:mb-8 text-sm sm:text-base">
-        这里列出你已授权过的应用，你可以随时撤回授权。
-      </p>
+      <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-6 sm:mb-8">授权管理</h1>
 
       {authorizations.length === 0 ? (
-        <div className="surface text-center py-12">
-          <p className="text-gray-500">暂无已授权应用</p>
-        </div>
+        <Card>
+          <div className="text-center py-12">
+            <p className="text-default-500">暂无已授权应用</p>
+          </div>
+        </Card>
       ) : (
-        <div className="surface overflow-hidden">
-          <ul className="list">
-            {authorizations.map((auth) => (
-              <li key={auth.id} className="list-item">
-                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-                  <div className="flex items-start gap-3 min-w-0">
-                    {auth.client_logo ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={auth.client_logo}
-                        alt={auth.client_name}
-                        className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl object-cover border border-gray-200 dark:border-gray-800 shrink-0"
-                      />
-                  ) : (
-                    <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center border border-gray-200 dark:border-gray-800 shrink-0">
-                      <AppWindow className="h-5 w-5 sm:h-6 sm:w-6 text-gray-500 dark:text-gray-300" aria-hidden />
-                    </div>
-                  )}
-
-                    <div className="min-w-0 flex-1">
-                      <h3 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-gray-100 truncate">
-                        {auth.client_name}
-                      </h3>
-                      <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 mt-1 truncate">
-                        授权范围：{auth.scope || '-'}
-                      </p>
-                      <div className="mt-2 space-y-0.5 text-xs text-gray-500 dark:text-gray-400">
-                        <p>首次授权：{formatDateTime(auth.created_at)}</p>
-                        <p>最近使用：{formatDateTime(auth.last_used_at)}</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={() => handleRevoke(auth)}
-                    className="btn btn-danger text-xs sm:text-sm shrink-0 ml-13 sm:ml-0"
-                  >
-                    撤回
-                  </button>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </div>
+        <Card>
+          <Table aria-label="授权应用列表">
+            <Table.ScrollContainer>
+              <Table.Content>
+                <Table.Header>
+                  <Table.Column isRowHeader>应用</Table.Column>
+                  <Table.Column>授权范围</Table.Column>
+                  <Table.Column>首次授权</Table.Column>
+                  <Table.Column>最近使用</Table.Column>
+                  <Table.Column>操作</Table.Column>
+                </Table.Header>
+                <Table.Body>
+                  {authorizations.map((auth) => (
+                    <Table.Row key={auth.id} id={String(auth.id)}>
+                      <Table.Cell>
+                        <div className="flex items-center gap-3">
+                          <EntityAvatar src={auth.client_logo} name={auth.client_name} size="sm" />
+                          <span className="font-medium text-foreground">{auth.client_name}</span>
+                        </div>
+                      </Table.Cell>
+                      <Table.Cell>
+                        <div className="flex flex-wrap gap-1">
+                          {auth.scope ? auth.scope.split(' ').map((s) => (
+                            <Chip key={s} size="sm" variant="soft">{s}</Chip>
+                          )) : <span className="text-default-400">-</span>}
+                        </div>
+                      </Table.Cell>
+                      <Table.Cell className="text-default-600 text-sm">{formatDateTime(auth.created_at)}</Table.Cell>
+                      <Table.Cell className="text-default-600 text-sm">{formatDateTime(auth.last_used_at)}</Table.Cell>
+                      <Table.Cell>
+                        <div className="flex items-center gap-2">
+                          <Button onPress={() => handleShowDetail(auth)} variant="tertiary" size="sm">详情</Button>
+                          <Button onPress={() => handleRevoke(auth)} variant="danger" size="sm">撤回</Button>
+                        </div>
+                      </Table.Cell>
+                    </Table.Row>
+                  ))}
+                </Table.Body>
+              </Table.Content>
+            </Table.ScrollContainer>
+          </Table>
+        </Card>
       )}
+
+      <AlertDialog>
+        <AlertDialog.Backdrop isOpen={showDetailModal} onOpenChange={setShowDetailModal}>
+          <AlertDialog.Container>
+            <AlertDialog.Dialog>
+              <AlertDialog.Header>
+                <AlertDialog.Heading>授权详情</AlertDialog.Heading>
+              </AlertDialog.Header>
+              <AlertDialog.Body>
+                {selectedAuthorization && (
+                  <div className="space-y-2 text-sm text-default-600">
+                    <div><span className="text-default-500">应用：</span>{selectedAuthorization.client_name}</div>
+                    <div><span className="text-default-500">授权范围：</span>{selectedAuthorization.scope || '-'}</div>
+                    <div><span className="text-default-500">首次授权：</span>{formatDateTime(selectedAuthorization.created_at)}</div>
+                    <div><span className="text-default-500">最近使用：</span>{formatDateTime(selectedAuthorization.last_used_at)}</div>
+                  </div>
+                )}
+              </AlertDialog.Body>
+              <AlertDialog.Footer>
+                <Button onPress={() => setShowDetailModal(false)} variant="primary">
+                  知道了
+                </Button>
+              </AlertDialog.Footer>
+            </AlertDialog.Dialog>
+          </AlertDialog.Container>
+        </AlertDialog.Backdrop>
+      </AlertDialog>
     </div>
   );
 }

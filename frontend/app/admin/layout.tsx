@@ -1,217 +1,181 @@
-'use client';
+'use client'
 
-import { useEffect, useState } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
-import Link from 'next/link';
-import { useAuthStore } from '@/lib/store';
-import { authApi, siteApi } from '@/lib/api';
-import { isAdmin } from '@/lib/authz';
+import { useEffect, useState } from 'react'
+import Link from 'next/link'
+import { usePathname, useRouter } from 'next/navigation'
+import { Button, Tabs } from '@heroui/react'
+import { LogOut, ArrowLeft, ShieldCheck } from 'lucide-react'
+import { PageLoadingState } from '@/components/ui/loading'
+import { ThemeToggle } from '@/components/ThemeToggle'
+import { isAdmin } from '@/lib/authz'
+import { authApi, siteApi } from '@/lib/api'
+import { useAuthStore } from '@/lib/store'
 
-type NavItem = { href: string; label: string };
-type NavGroup = { label: string; items: NavItem[] };
+type NavItem = {
+  href: string
+  label: string
+}
 
-export default function AdminLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const { user, setUser, logout } = useAuthStore();
-  const [siteName, setSiteName] = useState('OAuth 服务器');
+export default function AdminLayout({ children }: { children: React.ReactNode }) {
+  const router = useRouter()
+  const pathname = usePathname()
+  const { user, setUser, logout } = useAuthStore()
+  const [siteName, setSiteName] = useState('OAuth 服务器')
 
   useEffect(() => {
-    // Check if user is authenticated
-    const token = localStorage.getItem('access_token');
+    const token = localStorage.getItem('access_token')
     if (!token) {
-      router.push('/login');
-      return;
+      router.push('/login')
+      return
     }
 
-    // Load user if not already loaded
     if (!user) {
-      authApi.getMe()
+      authApi
+        .getMe()
         .then((response) => {
-          setUser(response.data);
+          setUser(response.data)
         })
         .catch(() => {
-          router.push('/login');
-        });
+          router.push('/login')
+        })
     }
-  }, [user, setUser, router]);
+  }, [router, setUser, user])
 
   useEffect(() => {
-    siteApi.get()
-      .then((res) => setSiteName(res.data?.site_name || 'OAuth 服务器'))
+    siteApi
+      .get()
+      .then((response) => {
+        setSiteName(response.data?.site_name || 'OAuth 服务器')
+      })
       .catch(() => {
         // ignore
-      });
-  }, []);
+      })
+  }, [])
 
-  // Admin permission check
   useEffect(() => {
-    if (!user) return;
-
-    if (!isAdmin(user)) {
-      router.replace('/dashboard');
+    if (user && !isAdmin(user)) {
+      router.replace('/dashboard')
     }
-  }, [user, router]);
+  }, [router, user])
 
   const handleLogout = async () => {
-    const refreshToken = localStorage.getItem('refresh_token');
+    const refreshToken = localStorage.getItem('refresh_token')
     if (refreshToken) {
       try {
-        await authApi.logout(refreshToken);
-      } catch (err) {
-        // Ignore errors
+        await authApi.logout(refreshToken)
+      } catch {
+        // ignore
       }
     }
-    logout();
-    router.push('/login');
-  };
+    logout()
+    router.push('/login')
+  }
 
   if (!user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">加载中...</p>
-        </div>
-      </div>
-    );
+    return <PageLoadingState />
   }
 
-  // Non-admin users should not see admin panel
   if (!isAdmin(user)) {
-    return null;
+    return null
   }
 
-  const adminNavGroups: NavGroup[] = [
-    { label: '总览', items: [{ href: '/admin', label: '控制台' }] },
-    {
-      label: '应用',
-      items: [
-        { href: '/admin/apps', label: '应用管理' },
-      ],
-    },
-    {
-      label: '用户与权限',
-      items: [
-        { href: '/admin/users', label: '用户管理' },
-        { href: '/admin/groups', label: '用户组' },
-        { href: '/admin/invites', label: '邀请码' },
-      ],
-    },
-    {
-      label: '系统',
-      items: [
-        { href: '/admin/settings', label: '站点设置' },
-      ],
-    },
-  ];
+  const navLinks: NavItem[] = [
+    { href: '/admin', label: '控制台' },
+    { href: '/admin/apps', label: '应用管理' },
+    { href: '/admin/users', label: '用户管理' },
+    { href: '/admin/groups', label: '用户组' },
+    { href: '/admin/invites', label: '邀请码' },
+    { href: '/admin/settings', label: '站点设置' },
+  ]
 
-  const isActiveHref = (href: string) => {
-    if (href === '/admin') return pathname === '/admin';
-    return pathname === href || pathname.startsWith(`${href}/`);
-  };
+  const activeKey = navLinks.find((link) => {
+    if (link.href === '/admin') return pathname === '/admin'
+    return pathname === link.href || pathname.startsWith(`${link.href}/`)
+  })?.href || navLinks[0].href
 
-  const AdminNavContent = () => (
-    <div className="space-y-3">
-      {adminNavGroups.map((group) => (
-        <div key={group.label}>
-          <div className="px-3 py-2 text-xs font-semibold tracking-wide text-gray-500 dark:text-gray-400">
-            {group.label}
+  return (
+    <div className="min-h-screen bg-background">
+      <nav className="bg-background shadow-sm border-b border-default-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between h-16">
+            <div className="flex items-center min-w-0">
+              <Link href="/admin" className="flex items-center gap-2 px-2 py-2 text-xl font-bold whitespace-nowrap">
+                <ShieldCheck className="h-5 w-5 text-primary" />
+                {siteName}
+                <span className="hidden rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-primary sm:inline">
+                  Admin
+                </span>
+              </Link>
+
+              <div className="hidden sm:ml-6 sm:flex sm:items-center">
+                <Tabs
+                  className="w-full"
+                  selectedKey={activeKey}
+                  variant="primary"
+                  onSelectionChange={(key) => {
+                    router.push(String(key));
+                  }}
+                >
+                  <Tabs.ListContainer>
+                    <Tabs.List aria-label="Admin Navigation" className="flex-nowrap">
+                      {navLinks.map((link) => (
+                        <Tabs.Tab key={link.href} id={link.href} className="whitespace-nowrap">
+                          {link.label}
+                          <Tabs.Indicator />
+                        </Tabs.Tab>
+                      ))}
+                    </Tabs.List>
+                  </Tabs.ListContainer>
+                </Tabs>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 sm:gap-3">
+              <ThemeToggle />
+              <Link
+                href="/dashboard/my-apps"
+                className="hidden items-center gap-1.5 rounded-xl px-3 py-1.5 text-sm text-default-600 transition-colors hover:bg-default-100 sm:inline-flex"
+              >
+                <ArrowLeft className="h-3.5 w-3.5" />
+                用户面板
+              </Link>
+              <div className="hidden h-4 w-px bg-default-200 sm:block" />
+              <span className="hidden text-sm text-default-600 sm:inline">{user.username}</span>
+              <Button variant="secondary" size="sm" onPress={handleLogout}>
+                <LogOut className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">退出</span>
+              </Button>
+            </div>
           </div>
-          <div className="space-y-1">
-            {group.items.map((item) => {
-              const active = isActiveHref(item.href);
+        </div>
+
+        <div className="sm:hidden border-t border-default-200">
+          <div className="flex overflow-x-auto px-4 py-2 gap-4">
+            {navLinks.map((link) => {
+              const isActive = link.href === '/admin'
+                ? pathname === '/admin'
+                : pathname === link.href || pathname.startsWith(`${link.href}/`);
               return (
                 <Link
-                  key={item.href}
-                  href={item.href}
-                  className={`block px-3 py-2 rounded-lg text-sm ${
-                    active
-                      ? 'bg-blue-600/10 text-blue-700 dark:text-blue-300'
-                      : 'text-gray-700 dark:text-gray-200 hover:bg-black/[0.03] dark:hover:bg-white/[0.04]'
+                  key={link.href}
+                  href={link.href}
+                  className={`text-sm whitespace-nowrap px-2 py-1 rounded ${
+                    isActive
+                      ? 'text-primary bg-primary/10'
+                      : 'text-default-600'
                   }`}
                 >
-                  {item.label}
+                  {link.label}
                 </Link>
               );
             })}
           </div>
         </div>
-      ))}
-    </div>
-  );
-
-  const AdminSideNav = ({ className = '' }: { className?: string }) => (
-    <aside className={className}>
-      <div className="surface p-3">
-        <AdminNavContent />
-      </div>
-    </aside>
-  );
-
-  return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
-      {/* Navigation */}
-      <nav className="bg-white dark:bg-gray-900 shadow-sm border-b border-transparent dark:border-gray-800">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16">
-            <div className="flex">
-              <Link
-                href="/admin"
-                className="flex items-center px-2 py-2 text-xl font-bold"
-              >
-                {siteName}
-                <span className="ml-2 text-xs font-normal text-gray-500 dark:text-gray-400">管理</span>
-              </Link>
-            </div>
-
-            <div className="flex items-center gap-2 sm:gap-3">
-              <Link
-                href="/dashboard/my-apps"
-                className="btn btn-secondary text-xs sm:text-sm px-2 sm:px-3"
-              >
-                <span className="hidden sm:inline">返回用户面板</span>
-                <span className="sm:hidden">用户面板</span>
-              </Link>
-              <span className="hidden sm:inline text-sm text-gray-700 dark:text-gray-200">
-                {user.username}
-              </span>
-              <button
-                onClick={handleLogout}
-                className="btn btn-secondary text-xs sm:text-sm px-2 sm:px-3"
-              >
-                <span className="hidden sm:inline">退出登录</span>
-                <span className="sm:hidden">退出</span>
-              </button>
-            </div>
-          </div>
-        </div>
       </nav>
 
-      {/* Main content */}
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div className="flex flex-col gap-6 md:flex-row md:items-start">
-          {/* Mobile menu */}
-          <div className="md:hidden">
-            <details className="surface p-3">
-              <summary className="cursor-pointer select-none text-sm font-medium text-gray-700 dark:text-gray-200 px-2 py-1">
-                菜单
-              </summary>
-              <div className="mt-3 px-1">
-                <AdminNavContent />
-              </div>
-            </details>
-          </div>
-          {/* Desktop sidebar */}
-          <AdminSideNav className="hidden md:block w-full md:w-64 shrink-0" />
-          {/* Content */}
-          <div className="min-w-0 flex-1">{children}</div>
-        </div>
+      <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+        {children}
       </main>
     </div>
-  );
+  )
 }

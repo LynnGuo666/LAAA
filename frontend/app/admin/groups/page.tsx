@@ -1,664 +1,615 @@
-'use client';
+'use client'
 
-import { useEffect, useState } from 'react';
-import { adminApi, groupApi, clientApi, groupAppApi } from '@/lib/api';
-import SidePanel from '@/components/SidePanel';
-import { useAuthStore } from '@/lib/store';
-import { isAdmin } from '@/lib/authz';
+import { useEffect, useMemo, useState } from 'react'
+import {
+  Button,
+  Card,
+  Chip,
+  Input,
+  ListBox,
+  ListBoxItem,
+  Select,
+  Table,
+  Tabs,
+  toast,
+} from '@heroui/react'
+import {
+  AdminFieldGroup,
+  AdminFormField,
+  AdminLoadingState,
+  AdminModalForm,
+  AdminNotice,
+  AdminSection,
+  EntityAvatar,
+} from '@/components/admin/admin-ui'
+import { UICheckbox } from '@/components/ui/primitives'
+import { useConfirmDialog } from '@/components/ui/confirm-dialog-provider'
+import { adminApi, clientApi, groupApi, groupAppApi } from '@/lib/api'
+import { isAdmin } from '@/lib/authz'
+import { useAuthStore } from '@/lib/store'
 
 interface Group {
-  id: number;
-  name: string;
-  description?: string;
-  is_default: boolean;
-  member_count?: number;
-  created_at: string;
-  updated_at: string;
+  id: number
+  name: string
+  description?: string
+  is_default: boolean
+  member_count?: number
+  created_at: string
+  updated_at: string
 }
 
 interface User {
-  id: number;
-  username: string;
-  email: string;
-  avatar?: string;
-  status: string;
-  groups: string[];
+  id: number
+  username: string
+  email: string
+  avatar?: string
+  status: string
+  groups: string[]
 }
 
 interface AppItem {
-  id: number;
-  client_id: string;
-  name: string;
-  logo?: string;
+  id: number
+  client_id: string
+  name: string
+  logo?: string
 }
 
 export default function GroupsPage() {
-  const user = useAuthStore((s) => s.user);
-  const canManageGroups = isAdmin(user);
-  const [groups, setGroups] = useState<Group[]>([]);
-  const [users, setUsers] = useState<User[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [showCreateForm, setShowCreateForm] = useState(false);
-  const [selectedGroup, setSelectedGroup] = useState<Group | null>(null);
-  const [panelOpen, setPanelOpen] = useState(false);
-  const [panelError, setPanelError] = useState<string | null>(null);
-  const [search, setSearch] = useState('');
-  const [pendingAddIds, setPendingAddIds] = useState<number[]>([]);
-  const [editingMeta, setEditingMeta] = useState(false);
-  const [metaForm, setMetaForm] = useState({ name: '', description: '' });
-  const [formData, setFormData] = useState({
+  const confirmDialog = useConfirmDialog()
+  const user = useAuthStore((state) => state.user)
+  const canManageGroups = isAdmin(user)
+
+  const [groups, setGroups] = useState<Group[]>([])
+  const [users, setUsers] = useState<User[]>([])
+  const [apps, setApps] = useState<AppItem[]>([])
+  const [loading, setLoading] = useState(true)
+  const [pageError, setPageError] = useState<string | null>(null)
+
+  const [showCreateModal, setShowCreateModal] = useState(false)
+  const [selectedGroup, setSelectedGroup] = useState<Group | null>(null)
+  const [panelError, setPanelError] = useState<string | null>(null)
+
+  const [searchMembers, setSearchMembers] = useState('')
+  const [appSearch, setAppSearch] = useState('')
+  const [pendingAddIds, setPendingAddIds] = useState<number[]>([])
+  const [creatingGroup, setCreatingGroup] = useState(false)
+  const [savingMeta, setSavingMeta] = useState(false)
+  const [savingMembers, setSavingMembers] = useState(false)
+  const [savingApps, setSavingApps] = useState(false)
+  const [deletingGroup, setDeletingGroup] = useState(false)
+  const [activeTab, setActiveTab] = useState('info')
+  const [showAddMemberModal, setShowAddMemberModal] = useState(false)
+
+  const [createForm, setCreateForm] = useState({
     name: '',
     description: '',
     is_default: false,
-  });
-  const [apps, setApps] = useState<AppItem[]>([]);
-  const [selectedGroupAllowedApps, setSelectedGroupAllowedApps] = useState<number[]>([]);
-  const [selectedGroupDeniedApps, setSelectedGroupDeniedApps] = useState<number[]>([]);
-  const [appPermissionsLoading, setAppPermissionsLoading] = useState(false);
-  const [appSearch, setAppSearch] = useState('');
-
-  useEffect(() => {
-    if (!canManageGroups) return;
-    void Promise.all([loadGroups(), loadUsers(), loadApps()]);
-  }, [canManageGroups]);
-
-  if (!canManageGroups) {
-    return (
-      <div className="card">
-        <h1 className="text-xl font-semibold mb-2">无权限</h1>
-        <p className="text-gray-600">该页面仅管理员可访问。</p>
-      </div>
-    );
-  }
+  })
+  const [metaForm, setMetaForm] = useState({
+    name: '',
+    description: '',
+    is_default: false,
+  })
+  const [selectedGroupAllowedApps, setSelectedGroupAllowedApps] = useState<number[]>([])
+  const [selectedGroupDeniedApps, setSelectedGroupDeniedApps] = useState<number[]>([])
 
   const loadGroups = async () => {
     try {
-      const response = await groupApi.list();
-      if (Array.isArray(response.data)) {
-        setGroups(response.data);
-      } else {
-        setGroups([]);
-      }
-    } catch (err) {
-      console.error('加载用户组失败', err);
-      setGroups([]);
+      const response = await groupApi.list()
+      setGroups(Array.isArray(response.data) ? response.data : [])
+    } catch (err: any) {
+      setPageError(err.response?.data?.detail || '加载用户组失败')
+      setGroups([])
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   const loadUsers = async () => {
     try {
-      const response = await adminApi.listUsers({ limit: 1000 });
-      if (Array.isArray(response.data.items)) {
-        setUsers(response.data.items);
-      } else {
-        setUsers([]);
-      }
+      const response = await adminApi.listUsers({ limit: 1000 })
+      setUsers(Array.isArray(response.data.items) ? response.data.items : [])
     } catch {
-      // 非管理员可能 403
-      setUsers([]);
+      setUsers([])
     }
-  };
+  }
 
   const loadApps = async () => {
     try {
-      const response = await clientApi.list();
-      if (Array.isArray(response.data)) {
-        setApps(response.data);
-      } else {
-        setApps([]);
-      }
+      const response = await clientApi.list()
+      setApps(Array.isArray(response.data) ? response.data : [])
     } catch {
-      setApps([]);
+      setApps([])
     }
-  };
+  }
 
-  const handleCreate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setPanelError(null);
-    try {
-      await groupApi.create(formData);
-      setShowCreateForm(false);
-      setFormData({ name: '', description: '', is_default: false });
-      await loadGroups();
-      await loadUsers();
-    } catch (err: any) {
-      setPanelError(err.response?.data?.detail || '创建用户组失败');
-    }
-  };
-
-  const handleDelete = async (id: number) => {
-    setPanelError(null);
-    try {
-      await groupApi.delete(id);
-      setPanelOpen(false);
-      setSelectedGroup(null);
-      await loadGroups();
-      await loadUsers();
-    } catch {
-      setPanelError('删除用户组失败（可能需要管理员权限）');
-    }
-  };
-
-  const toggleDefault = async (id: number, currentValue: boolean) => {
-    setPanelError(null);
-    try {
-      await groupApi.update(id, { is_default: !currentValue });
-      await loadGroups();
-    } catch {
-      setPanelError('更新失败（可能需要管理员权限）');
-    }
-  };
+  useEffect(() => {
+    if (!canManageGroups) return
+    setPageError(null)
+    void Promise.all([loadGroups(), loadUsers(), loadApps()])
+  }, [canManageGroups])
 
   const openPanel = async (group: Group) => {
-    setSelectedGroup(group);
-    setPanelOpen(true);
-    setPanelError(null);
-    setPendingAddIds([]);
-    setSearch('');
-    setEditingMeta(false);
-    setMetaForm({ name: group.name, description: group.description || '' });
+    setSelectedGroup(group)
+    setPanelError(null)
+    setSearchMembers('')
+    setPendingAddIds([])
+    setAppSearch('')
+    setMetaForm({
+      name: group.name,
+      description: group.description || '',
+      is_default: group.is_default,
+    })
 
-    // 加载用户组的应用权限
-    setAppPermissionsLoading(true);
     try {
-      const response = await groupAppApi.getAppPermissions(group.id);
-      setSelectedGroupAllowedApps(response.data.allowed_apps.map((app: AppItem) => app.id));
-      setSelectedGroupDeniedApps(response.data.denied_apps.map((app: AppItem) => app.id));
+      const response = await groupAppApi.getAppPermissions(group.id)
+      setSelectedGroupAllowedApps(response.data.allowed_apps.map((app: AppItem) => app.id))
+      setSelectedGroupDeniedApps(response.data.denied_apps.map((app: AppItem) => app.id))
     } catch {
-      setSelectedGroupAllowedApps([]);
-      setSelectedGroupDeniedApps([]);
-    } finally {
-      setAppPermissionsLoading(false);
+      setSelectedGroupAllowedApps([])
+      setSelectedGroupDeniedApps([])
     }
-  };
+  }
 
-  const handleUpdateMeta = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedGroup) return;
-    setPanelError(null);
+  const handleCreate = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    setPageError(null)
+    setCreatingGroup(true)
 
+    try {
+      await groupApi.create({
+        name: createForm.name.trim(),
+        description: createForm.description.trim() || undefined,
+        is_default: createForm.is_default,
+      })
+      setShowCreateModal(false)
+      setCreateForm({ name: '', description: '', is_default: false })
+      await Promise.all([loadGroups(), loadUsers()])
+      toast('用户组已创建')
+    } catch (err: any) {
+      setPageError(err.response?.data?.detail || '创建用户组失败')
+    } finally {
+      setCreatingGroup(false)
+    }
+  }
+
+  const handleUpdateMeta = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (!selectedGroup) return
+
+    setPanelError(null)
+    setSavingMeta(true)
     try {
       const response = await groupApi.update(selectedGroup.id, {
         name: metaForm.name.trim(),
         description: metaForm.description.trim() || undefined,
-      });
-      setSelectedGroup(response.data);
-      setEditingMeta(false);
-      await loadUsers();
-      await loadGroups();
+        is_default: metaForm.is_default,
+      })
+      setSelectedGroup(response.data)
+      await Promise.all([loadGroups(), loadUsers()])
+      toast('用户组信息已保存')
     } catch (err: any) {
-      setPanelError(err.response?.data?.detail || '更新用户组失败（可能需要管理员权限）');
+      setPanelError(err.response?.data?.detail || '更新用户组失败')
+    } finally {
+      setSavingMeta(false)
     }
-  };
+  }
 
   const members = selectedGroup
-    ? users.filter(u => u.groups?.includes(selectedGroup.name))
-    : [];
+    ? users.filter((item) => item.groups?.includes(selectedGroup.name))
+    : []
 
   const availableUsers = selectedGroup
-    ? users.filter(u => !u.groups?.includes(selectedGroup.name))
-    : [];
+    ? users.filter((item) => !item.groups?.includes(selectedGroup.name))
+    : []
 
-  const filteredAvailableUsers = availableUsers.filter(u =>
-    u.username.toLowerCase().includes(search.toLowerCase()) ||
-    u.email.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredAvailableUsers = useMemo(
+    () =>
+      availableUsers.filter(
+        (item) =>
+          item.username.toLowerCase().includes(searchMembers.toLowerCase()) ||
+          item.email.toLowerCase().includes(searchMembers.toLowerCase()),
+      ),
+    [availableUsers, searchMembers],
+  )
 
   const togglePendingAdd = (userId: number) => {
-    setPendingAddIds(prev =>
-      prev.includes(userId) ? prev.filter(id => id !== userId) : [...prev, userId]
-    );
-  };
+    setPendingAddIds((previous) =>
+      previous.includes(userId)
+        ? previous.filter((id) => id !== userId)
+        : [...previous, userId],
+    )
+  }
 
   const handleAddMembers = async () => {
-    if (!selectedGroup || pendingAddIds.length === 0) return;
-    setPanelError(null);
+    if (!selectedGroup || pendingAddIds.length === 0) return
+
+    setPanelError(null)
+    setSavingMembers(true)
     try {
-      await groupApi.addMembers(selectedGroup.id, pendingAddIds);
-      setPendingAddIds([]);
-      await loadUsers();
-      await loadGroups();
+      await groupApi.addMembers(selectedGroup.id, pendingAddIds)
+      setPendingAddIds([])
+      await Promise.all([loadUsers(), loadGroups()])
+      toast('成员已添加')
     } catch (err: any) {
-      setPanelError(err.response?.data?.detail || '添加成员失败（可能需要管理员权限）');
+      setPanelError(err.response?.data?.detail || '添加成员失败')
+    } finally {
+      setSavingMembers(false)
     }
-  };
+  }
 
   const handleRemoveMember = async (userId: number) => {
-    if (!selectedGroup) return;
-    setPanelError(null);
+    if (!selectedGroup) return
+
+    setPanelError(null)
     try {
-      await groupApi.removeMembers(selectedGroup.id, [userId]);
-      await loadUsers();
-      await loadGroups();
+      await groupApi.removeMembers(selectedGroup.id, [userId])
+      await Promise.all([loadUsers(), loadGroups()])
+      toast('成员已移除')
     } catch (err: any) {
-      setPanelError(err.response?.data?.detail || '移除成员失败（可能需要管理员权限）');
+      setPanelError(err.response?.data?.detail || '移除成员失败')
     }
-  };
+  }
+
+  const toggleAllowedApp = (appId: number) => {
+    if (selectedGroupDeniedApps.includes(appId)) {
+      setSelectedGroupDeniedApps((previous) => previous.filter((id) => id !== appId))
+    }
+    setSelectedGroupAllowedApps((previous) =>
+      previous.includes(appId)
+        ? previous.filter((id) => id !== appId)
+        : [...previous, appId],
+    )
+  }
+
+  const toggleDeniedApp = (appId: number) => {
+    if (selectedGroupAllowedApps.includes(appId)) {
+      setSelectedGroupAllowedApps((previous) => previous.filter((id) => id !== appId))
+    }
+    setSelectedGroupDeniedApps((previous) =>
+      previous.includes(appId)
+        ? previous.filter((id) => id !== appId)
+        : [...previous, appId],
+    )
+  }
+
+  const filteredApps = useMemo(
+    () =>
+      apps.filter((app) =>
+        !appSearch ? true : app.name.toLowerCase().includes(appSearch.toLowerCase()),
+      ),
+    [appSearch, apps],
+  )
 
   const handleUpdateAppPermissions = async () => {
-    if (!selectedGroup) return;
-    setPanelError(null);
+    if (!selectedGroup) return
+
+    setPanelError(null)
+    setSavingApps(true)
     try {
       await groupAppApi.updateAppPermissions(selectedGroup.id, {
         allowed_app_ids: selectedGroupAllowedApps,
         denied_app_ids: selectedGroupDeniedApps,
-      });
+      })
+      toast('应用权限已保存')
     } catch (err: any) {
-      setPanelError(err.response?.data?.detail || '更新应用权限失败');
+      setPanelError(err.response?.data?.detail || '更新应用权限失败')
+    } finally {
+      setSavingApps(false)
     }
-  };
+  }
 
-  const toggleAllowedApp = (appId: number) => {
-    // 如果在拒绝列表中，先移除
-    if (selectedGroupDeniedApps.includes(appId)) {
-      setSelectedGroupDeniedApps(prev => prev.filter(id => id !== appId));
-    }
-    setSelectedGroupAllowedApps(prev =>
-      prev.includes(appId)
-        ? prev.filter(id => id !== appId)
-        : [...prev, appId]
-    );
-  };
+  const handleDelete = async () => {
+    if (!selectedGroup) return
 
-  const toggleDeniedApp = (appId: number) => {
-    // 如果在允许列表中，先移除
-    if (selectedGroupAllowedApps.includes(appId)) {
-      setSelectedGroupAllowedApps(prev => prev.filter(id => id !== appId));
+    const shouldDelete = await confirmDialog({
+      title: '确认删除用户组',
+      description: `确定要删除用户组 ${selectedGroup.name} 吗？`,
+      confirmText: '删除用户组',
+      cancelText: '取消',
+      status: 'danger',
+      confirmVariant: 'danger',
+    })
+
+    if (!shouldDelete) return
+
+    setDeletingGroup(true)
+    try {
+      await groupApi.delete(selectedGroup.id)
+      setSelectedGroup(null)
+      setPanelError(null)
+      await Promise.all([loadGroups(), loadUsers()])
+      toast('用户组已删除')
+    } catch (err: any) {
+      setPanelError(err.response?.data?.detail || '删除用户组失败')
+    } finally {
+      setDeletingGroup(false)
     }
-    setSelectedGroupDeniedApps(prev =>
-      prev.includes(appId)
-        ? prev.filter(id => id !== appId)
-        : [...prev, appId]
-    );
-  };
+  }
+
+  if (!canManageGroups) {
+    return (
+      <AdminNotice tone="danger" title="无权限" description="该页面仅管理员可访问。" />
+    )
+  }
 
   if (loading) {
-    return <div className="text-center py-12 text-gray-600">加载中...</div>;
+    return <AdminLoadingState label="正在加载用户组..." />
   }
 
   return (
-    <div className="px-4 sm:px-0">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-semibold text-gray-900">用户组</h1>
-        <button
-          onClick={() => setShowCreateForm(!showCreateForm)}
-          className="btn btn-primary text-sm"
-        >
-          {showCreateForm ? '取消创建' : '创建用户组'}
-        </button>
+    <div className="space-y-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold text-foreground">用户组</h1>
+          <p className="mt-1 text-sm text-default-500">管理用户组、成员归属和应用访问权限。</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <Select
+            selectedKey={selectedGroup ? String(selectedGroup.id) : undefined}
+            onSelectionChange={(key) => {
+              if (key) {
+                const targetGroup = groups.find((g) => String(g.id) === String(key))
+                if (targetGroup) void openPanel(targetGroup)
+              }
+            }}
+            className="w-56"
+          >
+            <Select.Trigger>
+              <Select.Value placeholder="选择用户组" />
+              <Select.Indicator />
+            </Select.Trigger>
+            <Select.Popover>
+              <ListBox>
+                {groups.map((group) => (
+                  <ListBoxItem key={group.id} id={String(group.id)} textValue={group.name}>
+                    <div className="flex items-center gap-2">
+                      <span>{group.name}</span>
+                      {group.is_default ? <Chip color="accent" variant="soft" size="sm">默认</Chip> : null}
+                    </div>
+                  </ListBoxItem>
+                ))}
+              </ListBox>
+            </Select.Popover>
+          </Select>
+          <Button variant="primary" onPress={() => setShowCreateModal(true)}>创建用户组</Button>
+        </div>
       </div>
 
-      <div className="flex flex-col lg:flex-row gap-6">
-        <section className="flex-1">
-          {showCreateForm && (
-            <form onSubmit={handleCreate} className="card mb-6 space-y-4">
-              <h2 className="text-lg font-semibold">创建用户组</h2>
+      {pageError ? <AdminNotice tone="danger" description={pageError} /> : null}
 
-              <div>
-                <label className="block text-sm font-medium mb-2">组名称 *</label>
-                <input
-                  type="text"
-                  required
-                  className="input"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                />
-              </div>
+      {selectedGroup ? (
+        <div className="space-y-6">
+          {panelError ? <AdminNotice tone="danger" description={panelError} /> : null}
 
-              <div>
-                <label className="block text-sm font-medium mb-2">描述</label>
-                <textarea
-                  className="input"
-                  rows={3}
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                />
-              </div>
+          <Card>
+            <Card.Content className="p-6">
+              <Tabs selectedKey={activeTab} onSelectionChange={(key) => setActiveTab(String(key))} variant="primary">
+                <Tabs.ListContainer>
+                  <Tabs.List aria-label="用户组管理">
+                    <Tabs.Tab id="info">基本信息<Tabs.Indicator /></Tabs.Tab>
+                    <Tabs.Tab id="members">成员 ({members.length})<Tabs.Indicator /></Tabs.Tab>
+                    <Tabs.Tab id="apps">应用权限<Tabs.Indicator /></Tabs.Tab>
+                  </Tabs.List>
+                </Tabs.ListContainer>
 
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  id="is_default"
-                  checked={formData.is_default}
-                  onChange={(e) => setFormData({ ...formData, is_default: e.target.checked })}
-                  className="h-4 w-4"
-                />
-                <label htmlFor="is_default" className="ml-2 text-sm">
-                  默认组（新用户自动加入）
-                </label>
-              </div>
-
-              {panelError && (
-                <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded p-3">
-                  {panelError}
-                </div>
-              )}
-
-              <div className="flex gap-2">
-                <button type="submit" className="btn btn-primary text-sm">创建</button>
-                <button
-                  type="button"
-                  onClick={() => setShowCreateForm(false)}
-                  className="btn btn-secondary text-sm"
-                >
-                  取消
-                </button>
-              </div>
-            </form>
-          )}
-
-          <div className="surface overflow-hidden">
-            {groups.length === 0 ? (
-              <div className="p-8 text-center text-gray-500">暂无用户组</div>
-            ) : (
-              <div className="list">
-                {groups.map(group => {
-                  const active = selectedGroup?.id === group.id;
-                  return (
-                    <button
-                      key={group.id}
-                      onClick={() => openPanel(group)}
-                      className={`w-full text-left list-item list-item-pressable ${
-                        active ? 'bg-black/[0.03] dark:bg-white/[0.04]' : ''
-                      }`}
-                    >
-                      <div className="flex items-center justify-between gap-4">
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium text-gray-900 dark:text-gray-100 truncate">{group.name}</span>
-                            {group.is_default && (
-                              <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full border border-blue-200 dark:bg-blue-950 dark:text-blue-200 dark:border-blue-900 shrink-0">
-                                默认
-                              </span>
-                            )}
-                          </div>
-                          {group.description && (
-                            <div className="text-sm text-gray-600 dark:text-gray-300 mt-1 truncate">
-                              {group.description}
-                            </div>
-                          )}
-                        </div>
-                        <div className="text-sm text-gray-500 dark:text-gray-400 shrink-0">
-                          {group.member_count || 0} 人
-                        </div>
+                <div className="mt-6">
+                  <Tabs.Panel id="info">
+                    <form onSubmit={handleUpdateMeta} className="space-y-4">
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <AdminFormField label="组名称" isRequired>
+                          <Input required value={metaForm.name} onChange={(e) => setMetaForm((p) => ({ ...p, name: e.target.value }))} />
+                        </AdminFormField>
+                        <AdminFormField label="描述">
+                          <Input value={metaForm.description} onChange={(e) => setMetaForm((p) => ({ ...p, description: e.target.value }))} />
+                        </AdminFormField>
                       </div>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        </section>
+                      <AdminFieldGroup label="默认组" className="mb-0">
+                        <UICheckbox isSelected={metaForm.is_default} onChange={(isSelected) => setMetaForm((p) => ({ ...p, is_default: isSelected }))}>
+                          新用户自动加入该用户组
+                        </UICheckbox>
+                      </AdminFieldGroup>
+                      <div className="flex items-center justify-between border-t border-default-200/70 pt-4">
+                        <Button variant="danger" size="sm" isPending={deletingGroup} isDisabled={deletingGroup} onPress={() => void handleDelete()}>删除用户组</Button>
+                        <Button type="submit" variant="primary" isPending={savingMeta} isDisabled={savingMeta}>保存信息</Button>
+                      </div>
+                    </form>
+                  </Tabs.Panel>
 
-        <SidePanel
-          title={selectedGroup ? `用户组：${selectedGroup.name}` : '用户组详情'}
-          open={panelOpen && !!selectedGroup}
-          onClose={() => setPanelOpen(false)}
-        >
-          {!selectedGroup ? (
-            <div className="text-gray-500 text-sm">请选择左侧用户组查看详情</div>
-          ) : (
-            <div className="space-y-6">
-              {panelError && (
-                <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded p-3">
-                  {panelError}
-                </div>
-              )}
-
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <div className="text-sm font-medium text-gray-700 dark:text-gray-200">信息</div>
-                  {!editingMeta ? (
-                    <button
-                      type="button"
-                      className="btn btn-secondary text-sm"
-                      onClick={() => setEditingMeta(true)}
-                    >
-                      编辑
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      className="btn btn-secondary text-sm"
-                      onClick={() => {
-                        setEditingMeta(false);
-                        setMetaForm({ name: selectedGroup.name, description: selectedGroup.description || '' });
-                      }}
-                    >
-                      取消
-                    </button>
-                  )}
-                </div>
-
-                {!editingMeta ? (
-                  <div className="space-y-2">
-                    <div className="text-sm text-gray-600 dark:text-gray-300">
-                      <span className="font-medium text-gray-900 dark:text-gray-100">名称：</span>
-                      {selectedGroup.name}
-                    </div>
-                    <div className="text-sm text-gray-600 dark:text-gray-300">
-                      <span className="font-medium text-gray-900 dark:text-gray-100">描述：</span>
-                      {selectedGroup.description || '—'}
-                    </div>
-                  </div>
-                ) : (
-                  <form onSubmit={handleUpdateMeta} className="space-y-3 animate-slide-up">
-                    <div>
-                      <label className="block text-sm font-medium mb-2">组名称 *</label>
-                      <input
-                        type="text"
-                        required
-                        className="input"
-                        value={metaForm.name}
-                        onChange={(e) => setMetaForm({ ...metaForm, name: e.target.value })}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-2">描述</label>
-                      <textarea
-                        className="input"
-                        rows={3}
-                        value={metaForm.description}
-                        onChange={(e) => setMetaForm({ ...metaForm, description: e.target.value })}
-                      />
-                    </div>
-                    <div className="flex gap-2">
-                      <button type="submit" className="btn btn-primary text-sm">
-                        保存
-                      </button>
-                      <button
-                        type="button"
-                        className="btn btn-secondary text-sm"
-                        onClick={() => {
-                          setEditingMeta(false);
-                          setMetaForm({ name: selectedGroup.name, description: selectedGroup.description || '' });
-                        }}
-                      >
-                        取消
-                      </button>
-                    </div>
-                  </form>
-                )}
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div className="text-sm font-medium text-gray-700">默认组</div>
-                <button
-                  onClick={() => toggleDefault(selectedGroup.id, selectedGroup.is_default)}
-                  className="btn btn-secondary text-sm"
-                >
-                  {selectedGroup.is_default ? '取消默认' : '设为默认'}
-                </button>
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <div className="text-sm font-medium text-gray-700">成员</div>
-                  <div className="text-sm text-gray-500">{members.length} 人</div>
-                </div>
-                {members.length === 0 ? (
-                  <div className="text-sm text-gray-500">暂无成员</div>
-                ) : (
-                  <ul className="divide-y border rounded">
-                    {members.map(m => (
-                      <li key={m.id} className="flex items-center justify-between px-3 py-2">
-                        <div className="flex items-center gap-3">
-                          {m.avatar ? (
-                            <img src={m.avatar} alt={m.username} className="w-8 h-8 rounded-full" />
-                          ) : (
-                            <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-sm text-gray-700">
-                              {m.username.charAt(0).toUpperCase()}
-                            </div>
-                          )}
-                          <div>
-                            <div className="text-sm text-gray-900">{m.username}</div>
-                            <div className="text-xs text-gray-500">{m.email}</div>
-                          </div>
-                        </div>
-                        <button
-                          onClick={() => handleRemoveMember(m.id)}
-                          className="text-sm text-red-600 hover:text-red-800"
-                        >
-                          移除
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-
-              <div>
-                <div className="text-sm font-medium text-gray-700 mb-2">添加成员</div>
-                {users.length === 0 ? (
-                  <div className="text-sm text-gray-500">
-                    无法加载用户列表（可能需要管理员权限）
-                  </div>
-                ) : (
-                  <>
-                    <input
-                      type="text"
-                      placeholder="搜索用户名或邮箱"
-                      className="input text-sm mb-3"
-                      value={search}
-                      onChange={e => setSearch(e.target.value)}
-                    />
-                    <div className="max-h-56 overflow-y-auto border rounded">
-                      {filteredAvailableUsers.length === 0 ? (
-                        <div className="p-3 text-sm text-gray-500">没有可添加的用户</div>
+                  <Tabs.Panel id="members">
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-default-500">共 {members.length} 位成员</span>
+                        <Button variant="primary" size="sm" onPress={() => { setSearchMembers(''); setPendingAddIds([]); setShowAddMemberModal(true) }}>添加成员</Button>
+                      </div>
+                      {members.length === 0 ? (
+                        <p className="py-6 text-center text-sm text-default-500">暂无成员，点击上方按钮添加</p>
                       ) : (
-                        filteredAvailableUsers.map(u => (
-                          <label key={u.id} className="flex items-center gap-2 px-3 py-2 hover:bg-gray-50 cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={pendingAddIds.includes(u.id)}
-                              onChange={() => togglePendingAdd(u.id)}
-                              className="h-4 w-4"
-                            />
-                            <span className="text-sm text-gray-900">{u.username}</span>
-                            <span className="text-xs text-gray-500">{u.email}</span>
-                          </label>
-                        ))
+                        <Table aria-label="用户组成员列表">
+                          <Table.ScrollContainer>
+                            <Table.Content>
+                              <Table.Header>
+                                <Table.Column isRowHeader>用户</Table.Column>
+                                <Table.Column>操作</Table.Column>
+                              </Table.Header>
+                              <Table.Body>
+                                {members.map((member) => (
+                                  <Table.Row key={member.id} id={String(member.id)}>
+                                    <Table.Cell>
+                                      <div className="flex items-center gap-3">
+                                        <EntityAvatar src={member.avatar} name={member.username} size="sm" rounded="full" />
+                                        <div>
+                                          <p className="font-medium text-foreground">{member.username}</p>
+                                          <p className="text-xs text-default-500">{member.email}</p>
+                                        </div>
+                                      </div>
+                                    </Table.Cell>
+                                    <Table.Cell>
+                                      <Button variant="danger" size="sm" onPress={() => void handleRemoveMember(member.id)}>移除</Button>
+                                    </Table.Cell>
+                                  </Table.Row>
+                                ))}
+                              </Table.Body>
+                            </Table.Content>
+                          </Table.ScrollContainer>
+                        </Table>
                       )}
                     </div>
-                    <button
-                      type="button"
-                      onClick={handleAddMembers}
-                      disabled={pendingAddIds.length === 0}
-                      className="btn btn-primary text-sm mt-3 disabled:opacity-50"
-                    >
-                      添加到用户组
-                    </button>
-                  </>
-                )}
-              </div>
+                  </Tabs.Panel>
 
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <div className="text-sm font-medium text-gray-700 dark:text-gray-200">应用权限</div>
-                  <button
-                    type="button"
-                    onClick={handleUpdateAppPermissions}
-                    className="btn btn-primary text-sm"
-                    disabled={appPermissionsLoading}
-                  >
-                    保存权限
-                  </button>
-                </div>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
-                  优先级：用户拒绝 &gt; 用户允许 &gt; 用户组拒绝 &gt; 用户组允许 &gt; 应用默认
-                </p>
-                <input
-                  type="text"
-                  value={appSearch}
-                  onChange={(e) => setAppSearch(e.target.value)}
-                  placeholder="搜索应用名称..."
-                  className="input text-sm mb-3"
-                />
-                {appPermissionsLoading ? (
-                  <div className="text-sm text-gray-500">加载中...</div>
-                ) : apps.length === 0 ? (
-                  <div className="text-sm text-gray-500">暂无应用</div>
-                ) : (
-                  <div className="max-h-64 overflow-y-auto border rounded dark:border-gray-700">
-                    {apps
-                      .filter(app => !appSearch || app.name.toLowerCase().includes(appSearch.toLowerCase()))
-                      .map(app => (
-                      <div key={app.id} className="flex items-center justify-between px-3 py-2 border-b last:border-b-0 dark:border-gray-700">
-                        <div className="flex items-center gap-2 min-w-0">
-                          {app.logo ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                              src={app.logo}
-                              alt={app.name}
-                              className="h-6 w-6 rounded border border-gray-200 dark:border-gray-700"
-                            />
-                          ) : (
-                            <div className="h-6 w-6 rounded bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-gray-500 dark:text-gray-400 text-xs">
-                              {app.name.charAt(0).toUpperCase()}
-                            </div>
-                          )}
-                          <span className="text-sm text-gray-900 dark:text-gray-100 truncate">{app.name}</span>
-                        </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          <label className="flex items-center gap-1 cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={selectedGroupAllowedApps.includes(app.id)}
-                              onChange={() => toggleAllowedApp(app.id)}
-                              className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
-                            />
-                            <span className="text-xs text-green-600 dark:text-green-400">允许</span>
-                          </label>
-                          <label className="flex items-center gap-1 cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={selectedGroupDeniedApps.includes(app.id)}
-                              onChange={() => toggleDeniedApp(app.id)}
-                              className="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 rounded"
-                            />
-                            <span className="text-xs text-red-600 dark:text-red-400">拒绝</span>
-                          </label>
-                        </div>
+                  <Tabs.Panel id="apps">
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <Input value={appSearch} onChange={(e) => setAppSearch(e.target.value)} placeholder="搜索应用名称" size="sm" className="max-w-xs" />
+                        <Button variant="primary" size="sm" isPending={savingApps} isDisabled={savingApps} onPress={() => void handleUpdateAppPermissions()}>保存权限</Button>
                       </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+                      <p className="text-xs text-default-500">优先级：用户拒绝 {'>'} 用户允许 {'>'} 用户组拒绝 {'>'} 用户组允许 {'>'} 应用默认</p>
+                      {filteredApps.length === 0 ? (
+                        <p className="py-6 text-center text-sm text-default-500">暂无应用</p>
+                      ) : (
+                        <Table aria-label="用户组应用权限">
+                          <Table.ScrollContainer>
+                            <Table.Content>
+                              <Table.Header>
+                                <Table.Column isRowHeader>应用</Table.Column>
+                                <Table.Column>允许</Table.Column>
+                                <Table.Column>拒绝</Table.Column>
+                              </Table.Header>
+                              <Table.Body>
+                                {filteredApps.map((app) => (
+                                  <Table.Row key={app.id} id={String(app.id)}>
+                                    <Table.Cell>
+                                      <div className="flex items-center gap-3">
+                                        <EntityAvatar src={app.logo} name={app.name} size="sm" />
+                                        <div className="min-w-0">
+                                          <p className="font-medium text-foreground">{app.name}</p>
+                                          <p className="text-xs text-default-500">{app.client_id}</p>
+                                        </div>
+                                      </div>
+                                    </Table.Cell>
+                                    <Table.Cell>
+                                      <UICheckbox isSelected={selectedGroupAllowedApps.includes(app.id)} onChange={() => toggleAllowedApp(app.id)}>允许</UICheckbox>
+                                    </Table.Cell>
+                                    <Table.Cell>
+                                      <UICheckbox isSelected={selectedGroupDeniedApps.includes(app.id)} onChange={() => toggleDeniedApp(app.id)}>拒绝</UICheckbox>
+                                    </Table.Cell>
+                                  </Table.Row>
+                                ))}
+                              </Table.Body>
+                            </Table.Content>
+                          </Table.ScrollContainer>
+                        </Table>
+                      )}
+                    </div>
+                  </Tabs.Panel>
+                </div>
+              </Tabs>
+            </Card.Content>
+          </Card>
+        </div>
+      ) : (
+        <AdminSection className="flex items-center justify-center border-dashed">
+          <Card.Content className="p-10 text-center">
+            <p className="text-base font-medium text-foreground">请选择用户组</p>
+            <p className="mt-2 text-sm text-default-500">从上方下拉选择用户组，查看和编辑详情。</p>
+          </Card.Content>
+        </AdminSection>
+      )}
 
-              <div className="pt-2 border-t">
-                <button
-                  onClick={() => handleDelete(selectedGroup.id)}
-                  className="btn btn-danger text-sm"
-                >
-                  删除用户组
-                </button>
-              </div>
-            </div>
+      <AdminModalForm
+        title="创建用户组"
+        description="新建用户组后，可以继续添加成员并配置应用访问权限。"
+        isOpen={showCreateModal}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) {
+            setShowCreateModal(false)
+            setCreateForm({ name: '', description: '', is_default: false })
+          } else {
+            setShowCreateModal(true)
+          }
+        }}
+        onSubmit={handleCreate}
+        primaryActionLabel="创建用户组"
+        isPending={creatingGroup}
+      >
+        <AdminFormField label="组名称" isRequired>
+          <Input
+            required
+            value={createForm.name}
+            onChange={(event) =>
+              setCreateForm((previous) => ({ ...previous, name: event.target.value }))
+            }
+          />
+        </AdminFormField>
+
+        <AdminFormField label="描述">
+          <Input
+            value={createForm.description}
+            onChange={(event) =>
+              setCreateForm((previous) => ({
+                ...previous,
+                description: event.target.value,
+              }))
+            }
+          />
+        </AdminFormField>
+
+        <AdminFieldGroup label="默认组">
+          <UICheckbox
+            isSelected={createForm.is_default}
+            onChange={(isSelected) =>
+              setCreateForm((previous) => ({ ...previous, is_default: isSelected }))
+            }
+          >
+            新用户自动加入该组
+          </UICheckbox>
+        </AdminFieldGroup>
+      </AdminModalForm>
+
+      <AdminModalForm
+        title="添加成员"
+        description={selectedGroup ? `向「${selectedGroup.name}」添加成员` : '添加成员'}
+        isOpen={showAddMemberModal}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) {
+            setShowAddMemberModal(false)
+            setPendingAddIds([])
+            setSearchMembers('')
+          } else {
+            setShowAddMemberModal(true)
+          }
+        }}
+        onSubmit={async (e) => {
+          e.preventDefault()
+          await handleAddMembers()
+          if (pendingAddIds.length > 0) setShowAddMemberModal(false)
+        }}
+        primaryActionLabel={`添加选中用户 (${pendingAddIds.length})`}
+        isPending={savingMembers}
+        isDisabled={pendingAddIds.length === 0}
+        size="lg"
+      >
+        <Input value={searchMembers} onChange={(e) => setSearchMembers(e.target.value)} placeholder="搜索用户名或邮箱" />
+        <div className="max-h-80 space-y-1 overflow-y-auto rounded-xl border border-default-200/70 p-3">
+          {filteredAvailableUsers.length === 0 ? (
+            <p className="py-6 text-center text-sm text-default-500">没有可添加的用户</p>
+          ) : (
+            filteredAvailableUsers.map((member) => (
+              <UICheckbox
+                key={member.id}
+                className="m-0 max-w-full border-b border-default-200/70 py-2 last:border-b-0"
+                isSelected={pendingAddIds.includes(member.id)}
+                onChange={() => togglePendingAdd(member.id)}
+              >
+                <div className="min-w-0">
+                  <p className="font-medium text-foreground">{member.username}</p>
+                  <p className="text-xs text-default-500">{member.email}</p>
+                </div>
+              </UICheckbox>
+            ))
           )}
-        </SidePanel>
-      </div>
+        </div>
+      </AdminModalForm>
     </div>
-  );
+  )
 }

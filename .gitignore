@@ -105,3 +105,14 @@ secrets.json
 CLAUDE.md
 agent.md
 # end of .gitignore
+backend/data/GeoIP2-CN.mmdb
+.gitignore
+.claude/settings.local.json
+.gitignore
+backend/data/ip2region.xdb
+.agents/
+.claude/
+.factory/
+.trae/
+skills-lock.json
+.mimocode/

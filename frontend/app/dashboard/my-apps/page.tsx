@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { userApi } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { isAdmin } from '@/lib/authz';
+import { Alert, Button, Card, Spinner } from '@heroui/react';
 import { ExternalLink } from 'lucide-react';
 
 interface AppItem {
@@ -41,93 +42,84 @@ export default function MyAppsPage() {
     }
   };
 
+  const openApp = (app: AppItem) => {
+    if (!app.website_url) return;
+    window.open(app.website_url, '_blank', 'noopener,noreferrer');
+  };
+
   return (
-    <div className="space-y-6 animate-fade-in">
-      <div className="surface p-6">
+    <div className="px-4 sm:px-0 space-y-6 animate-fade-in">
+      <div>
         <div className="flex items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+            <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
               {adminView ? '应用列表' : '我的应用'}
             </h1>
-            <p className="text-gray-600 dark:text-gray-300 mt-1">
-              {adminView ? '当前账号可访问的应用列表。' : '你当前有权限访问的应用列表。'}
-            </p>
           </div>
-          <button onClick={loadApps} className="btn btn-secondary" disabled={loading}>
+          <Button onPress={loadApps} variant="tertiary" isDisabled={loading} >
             刷新
-          </button>
+          </Button>
         </div>
       </div>
 
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-          {error}
-        </div>
+        <Alert status="danger">
+          <Alert.Indicator />
+          <Alert.Content>
+            <Alert.Description>{error}</Alert.Description>
+          </Alert.Content>
+        </Alert>
       )}
 
-      <div className="surface overflow-hidden">
+      <div>
         {loading ? (
-          <div className="p-6 text-gray-600 dark:text-gray-300">加载中...</div>
+          <div className="flex items-center justify-center py-12">
+            <Spinner size="md" />
+          </div>
         ) : apps.length === 0 ? (
-          <div className="p-6 text-gray-600 dark:text-gray-300">暂无可访问应用</div>
+          <div className="p-6 text-default-600">暂无可访问应用</div>
         ) : (
-          <ul className="list">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {apps.map((app) => (
-              <li key={app.id} className="list-item">
-                <div className="flex items-start gap-4">
-                  {app.website_url ? (
-                    <a href={app.website_url} target="_blank" rel="noreferrer" className="shrink-0">
-                      {app.logo ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={app.logo}
-                          alt={app.name}
-                          className="h-12 w-12 rounded-xl object-cover border border-gray-200 dark:border-gray-800"
-                        />
-                      ) : (
-                        <div className="h-12 w-12 rounded-xl bg-gray-200 dark:bg-gray-800" />
-                      )}
-                    </a>
-                  ) : app.logo ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={app.logo}
-                      alt={app.name}
-                      className="h-12 w-12 rounded-xl object-cover shrink-0 border border-gray-200 dark:border-gray-800"
-                    />
-                  ) : (
-                    <div className="h-12 w-12 rounded-xl bg-gray-200 dark:bg-gray-800 shrink-0" />
-                  )}
+              <Card key={app.id} className="border border-default-200 bg-content2">
+                <div className="p-3 space-y-3">
+                  <div className="flex items-start gap-3">
+                    {app.logo ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={app.logo}
+                        alt={app.name}
+                        className="h-9 w-9 rounded-md object-cover shrink-0 border border-default-200"
+                      />
+                    ) : (
+                      <div className="h-9 w-9 rounded-md bg-default-200 shrink-0" />
+                    )}
 
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-3 flex-wrap">
-                      {app.website_url ? (
-                        <a
-                          href={app.website_url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex items-center gap-2 font-semibold text-gray-900 dark:text-gray-100 truncate hover:underline"
-                        >
-                          <span className="truncate">{app.name}</span>
-                          <ExternalLink className="h-4 w-4 text-gray-400 dark:text-gray-500 shrink-0" aria-hidden />
-                        </a>
-                      ) : (
-                        <div className="font-semibold text-gray-900 dark:text-gray-100 truncate">
-                          {app.name}
-                        </div>
-                      )}
-                    </div>
-
-                    {app.description ? (
-                      <div className="text-sm text-gray-600 dark:text-gray-300 mt-1">
-                        {app.description}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-foreground truncate">{app.name}</span>
+                        {app.website_url && <ExternalLink className="h-4 w-4 text-default-500 shrink-0" aria-hidden />}
                       </div>
-                    ) : null}
+                      <p className="text-xs text-default-600 mt-1 line-clamp-2 min-h-8">
+                        {app.description || '该应用暂未提供描述'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end">
+                    <Button
+                      onPress={() => openApp(app)}
+                      variant={app.website_url ? 'primary' : 'tertiary'}
+                      isDisabled={!app.website_url}
+                      className="w-auto px-3 text-sm"
+                    >
+                      {app.website_url ? '进入应用' : '暂无入口'}
+                    </Button>
                   </div>
                 </div>
-              </li>
+              </Card>
             ))}
-          </ul>
+          </div>
         )}
       </div>
     </div>

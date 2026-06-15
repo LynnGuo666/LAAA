@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useAuthStore } from '@/lib/store';
 import { userApi } from '@/lib/api';
 import { formatDate } from '@/lib/date';
+import { Alert, Button, Card, Description, Input, Label, TextField } from '@heroui/react';
 
 export default function ProfilePage() {
   const { user, setUser } = useAuthStore();
@@ -33,94 +34,77 @@ export default function ProfilePage() {
   if (!user) return null;
 
   return (
-    <div className="px-4 sm:px-0 max-w-2xl animate-fade-in">
-      <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100 mb-6 sm:mb-8">个人资料</h1>
+    <div className="px-4 sm:px-0 animate-fade-in">
+      <div className="mb-6 sm:mb-8">
+        <h1 className="text-2xl sm:text-3xl font-bold text-foreground">个人资料</h1>
+        <p className="text-default-600 mt-1 text-sm sm:text-base">
+          管理您的账号资料和基本信息。
+        </p>
+      </div>
 
-      <form onSubmit={handleSubmit} className="surface p-6 space-y-6">
-        {message && (
-          <div className={`p-4 rounded-lg ${message.startsWith('Error') ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
-            {message}
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)] gap-6">
+        <form onSubmit={handleSubmit} className="surface p-5 sm:p-6 space-y-5">
+          {message && (
+            <Alert status={message.startsWith('Error') ? 'danger' : 'success'}>
+              <Alert.Indicator />
+              <Alert.Content><Alert.Description>{message}</Alert.Description></Alert.Content>
+            </Alert>
+          )}
+
+          <div>
+            <TextField isDisabled>
+              <Label>用户名</Label>
+              <Input type="text" value={user.username} />
+              <Description>用户名不可修改</Description>
+            </TextField>
           </div>
-        )}
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            用户名
-          </label>
-          <input
-            type="text"
-            disabled
-            value={user.username}
-            className="input bg-gray-100 dark:bg-gray-800 cursor-not-allowed"
-          />
-          <p className="text-xs text-gray-500 mt-1">用户名不可修改</p>
-        </div>
+          <div>
+            <TextField isRequired isDisabled={loading}>
+              <Label>邮箱</Label>
+              <Input type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} />
+            </TextField>
+          </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            邮箱
-          </label>
-          <input
-            type="email"
-            required
-            className="input"
-            value={formData.email}
-            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-            disabled={loading}
-          />
-        </div>
+          <div>
+            <TextField isDisabled={loading}>
+              <Label>头像 URL</Label>
+              <Input type="url" placeholder="https://example.com/avatar.jpg" value={formData.avatar} onChange={(e) => setFormData({ ...formData, avatar: e.target.value })} />
+            </TextField>
+          </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            头像 URL
-          </label>
-          <input
-            type="url"
-            className="input"
-            placeholder="https://example.com/avatar.jpg"
-            value={formData.avatar}
-            onChange={(e) => setFormData({ ...formData, avatar: e.target.value })}
-            disabled={loading}
-          />
-        </div>
+          <div className="pt-2">
+            <Button type="submit" isDisabled={loading} variant="primary" isPending={loading}>{loading ? '保存中...' : '保存更改'}</Button>
+          </div>
+        </form>
 
-        <div className="pt-4">
-          <button
-            type="submit"
-            disabled={loading}
-            className="btn btn-primary disabled:opacity-50"
-          >
-            {loading ? '保存中...' : '保存更改'}
-          </button>
-        </div>
-      </form>
-
-      <div className="surface overflow-hidden mt-6">
-        <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-800">
-          <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">账号信息</h2>
-        </div>
-        <ul className="list">
-          <li className="list-item">
-            <div className="flex items-center justify-between gap-4">
-              <span className="text-sm text-gray-600 dark:text-gray-300">用户 ID</span>
-              <span className="text-sm text-gray-900 dark:text-gray-100">{user.id}</span>
-            </div>
-          </li>
-          <li className="list-item">
-            <div className="flex items-center justify-between gap-4">
-              <span className="text-sm text-gray-600 dark:text-gray-300">状态</span>
-              <span className="text-sm text-gray-900 dark:text-gray-100">{user.status}</span>
-            </div>
-          </li>
-          <li className="list-item">
-            <div className="flex items-center justify-between gap-4">
-              <span className="text-sm text-gray-600 dark:text-gray-300">注册时间</span>
-              <span className="text-sm text-gray-900 dark:text-gray-100">
-                {formatDate(user.created_at)}
-              </span>
-            </div>
-          </li>
-        </ul>
+        <Card className="border border-default-200 bg-content2 overflow-hidden">
+          <div className="px-4 py-3 border-b border-default-200">
+            <h2 className="text-base font-semibold text-foreground">账号信息</h2>
+          </div>
+          <ul className="list">
+            <li className="list-item">
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-sm text-default-600">用户 ID</span>
+                <span className="text-sm text-foreground">{user.id}</span>
+              </div>
+            </li>
+            <li className="list-item">
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-sm text-default-600">状态</span>
+                <span className="text-sm text-foreground">{user.status}</span>
+              </div>
+            </li>
+            <li className="list-item">
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-sm text-default-600">注册时间</span>
+                <span className="text-sm text-foreground">
+                  {formatDate(user.created_at)}
+                </span>
+              </div>
+            </li>
+          </ul>
+        </Card>
       </div>
     </div>
   );

@@ -3,10 +3,13 @@
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
+import { Button, ListBox, ListBoxItem, Popover, Tabs } from '@heroui/react';
 import { useAuthStore } from '@/lib/store';
 import { authApi, siteApi } from '@/lib/api';
 import { isAdmin } from '@/lib/authz';
 import RestrictedModeOverlay from '@/components/RestrictedModeOverlay';
+import { ThemeToggle } from '@/components/ThemeToggle';
+import { PageLoadingState } from '@/components/ui/loading';
 
 type NavItem = { href: string; label: string };
 
@@ -19,6 +22,7 @@ export default function DashboardLayout({
   const pathname = usePathname();
   const { user, setUser, logout } = useAuthStore();
   const [siteName, setSiteName] = useState('OAuth 服务器');
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
 
   useEffect(() => {
     // Check if user is authenticated
@@ -73,26 +77,22 @@ export default function DashboardLayout({
   };
 
   if (!user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">加载中...</p>
-        </div>
-      </div>
-    );
+    return <PageLoadingState />;
   }
 
   const navLinks: NavItem[] = [
     { href: '/dashboard/my-apps', label: '我的应用' },
     { href: '/dashboard/authorizations', label: '授权管理' },
-    { href: '/dashboard/sessions', label: '会话管理' },
-    { href: '/dashboard/security', label: '安全设置' },
-    { href: '/dashboard/passkeys', label: '通行密钥' },
+    { href: '/dashboard/security', label: '账户安全' },
     { href: '/dashboard/profile', label: '个人资料' },
   ];
 
   const userIsAdmin = isAdmin(user);
+  const legacySecurityRoutes = ['/dashboard/sessions', '/dashboard/passkeys', '/dashboard/security/totp'];
+  const normalizedPathname = legacySecurityRoutes.some((route) => pathname === route || pathname.startsWith(`${route}/`))
+    ? '/dashboard/security'
+    : pathname;
+  const activeDesktopNav = navLinks.find((link) => normalizedPathname === link.href || normalizedPathname.startsWith(`${link.href}/`))?.href || navLinks[0].href;
 
   // Show restricted mode overlay if user is restricted
   if (user.is_restricted) {
@@ -105,9 +105,9 @@ export default function DashboardLayout({
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
+    <div className="min-h-screen bg-background">
       {/* Navigation */}
-      <nav className="bg-white dark:bg-gray-900 shadow-sm border-b border-transparent dark:border-gray-800">
+      <nav className="bg-background shadow-sm border-b border-default-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
             <div className="flex">
@@ -118,63 +118,85 @@ export default function DashboardLayout({
                 {siteName}
               </Link>
 
-              <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
-                {navLinks.map((link) => {
-                  const isActive = pathname === link.href || pathname.startsWith(`${link.href}/`);
-                  return (
-                    <Link
-                      key={link.href}
-                      href={link.href}
-                      className={`inline-flex items-center px-1 pt-1 text-sm font-medium border-b-2 ${
-                        isActive
-                          ? 'text-blue-600 border-blue-600'
-                          : 'text-gray-500 dark:text-gray-300 border-transparent hover:border-gray-300 dark:hover:border-gray-600'
-                      }`}
-                    >
-                      {link.label}
-                    </Link>
-                  );
-                })}
+              <div className="hidden sm:ml-6 sm:flex sm:items-center">
+                <Tabs
+                  className="w-full"
+                  selectedKey={activeDesktopNav}
+                  variant="primary"
+                  onSelectionChange={(key) => {
+                    router.push(String(key));
+                  }}
+                >
+                  <Tabs.ListContainer>
+                    <Tabs.List aria-label="Dashboard Navigation" className="flex-nowrap">
+                      {navLinks.map((link) => (
+                        <Tabs.Tab key={link.href} id={link.href} className="whitespace-nowrap">
+                          {link.label}
+                          <Tabs.Indicator />
+                        </Tabs.Tab>
+                      ))}
+                    </Tabs.List>
+                  </Tabs.ListContainer>
+                </Tabs>
               </div>
             </div>
 
             <div className="flex items-center gap-2 sm:gap-3">
-              {userIsAdmin && (
-                <Link
-                  href="/admin"
-                  className="btn btn-primary text-xs sm:text-sm px-2 sm:px-3"
-                >
-                  <span className="hidden sm:inline">管理面板</span>
-                  <span className="sm:hidden">管理</span>
-                </Link>
-              )}
-              <span className="hidden sm:inline text-sm text-gray-700 dark:text-gray-200">
-                {user.username}
-              </span>
-              <button
-                onClick={handleLogout}
-                className="btn btn-secondary text-xs sm:text-sm px-2 sm:px-3"
-              >
-                <span className="hidden sm:inline">退出登录</span>
-                <span className="sm:hidden">退出</span>
-              </button>
+              <ThemeToggle />
+              <Popover isOpen={accountMenuOpen} onOpenChange={setAccountMenuOpen}>
+                <Popover.Trigger>
+                  <Button variant="tertiary" className="px-2 sm:px-3 min-w-0">
+                    <div className="flex items-center gap-2 min-w-0">
+                      {user.avatar ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={user.avatar} alt={user.username} className="h-7 w-7 rounded-full object-cover border border-default-300" />
+                      ) : (
+                        <div className="h-7 w-7 rounded-full bg-default-300 text-default-700 flex items-center justify-center text-xs font-semibold">
+                          {user.username.charAt(0).toUpperCase()}
+                        </div>
+                      )}
+                      <span className="hidden sm:inline text-sm text-default-600 truncate">{user.username}</span>
+                    </div>
+                  </Button>
+                </Popover.Trigger>
+                <Popover.Content className="w-44 p-1">
+                  <ListBox
+                    aria-label="账户菜单"
+                    onAction={(key) => {
+                      const action = String(key);
+                      setAccountMenuOpen(false);
+                      if (action === 'profile') {
+                        router.push('/dashboard/profile');
+                      } else if (action === 'admin') {
+                        router.push('/admin');
+                      } else if (action === 'logout') {
+                        void handleLogout();
+                      }
+                    }}
+                  >
+                    <ListBoxItem id="profile">个人资料</ListBoxItem>
+                    {userIsAdmin && <ListBoxItem id="admin">管理面板</ListBoxItem>}
+                    <ListBoxItem id="logout" className="text-danger">退出登录</ListBoxItem>
+                  </ListBox>
+                </Popover.Content>
+              </Popover>
             </div>
           </div>
         </div>
 
         {/* Mobile navigation */}
-        <div className="sm:hidden border-t border-gray-200 dark:border-gray-800">
+        <div className="sm:hidden border-t border-default-200">
           <div className="flex overflow-x-auto px-4 py-2 gap-4">
-            {navLinks.map((link) => {
-              const isActive = pathname === link.href || pathname.startsWith(`${link.href}/`);
+               {navLinks.map((link) => {
+               const isActive = normalizedPathname === link.href || normalizedPathname.startsWith(`${link.href}/`);
               return (
                 <Link
                   key={link.href}
                   href={link.href}
                   className={`text-sm whitespace-nowrap px-2 py-1 rounded ${
                     isActive
-                      ? 'text-blue-600 bg-blue-50 dark:bg-blue-950'
-                      : 'text-gray-600 dark:text-gray-300'
+                      ? 'text-primary bg-primary/10'
+                      : 'text-default-600'
                   }`}
                 >
                   {link.label}

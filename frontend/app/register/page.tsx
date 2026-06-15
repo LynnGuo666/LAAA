@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { authApi } from '@/lib/api';
+import { Alert, Button, Description, Input, Label, Spinner, TextField } from '@heroui/react';
 
 function RegisterContent() {
   const router = useRouter();
@@ -71,118 +72,65 @@ function RegisterContent() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-background px-4">
       <div className="max-w-md w-full space-y-8 animate-fade-in">
         <div className="text-center">
-          <h2 className="text-3xl font-bold text-gray-900 dark:text-gray-100">创建账号</h2>
-          <p className="mt-2 text-gray-600 dark:text-gray-300">开始使用本站服务</p>
+          <h2 className="text-3xl font-bold text-foreground">创建账号</h2>
+          <p className="mt-2 text-default-600">开始使用本站服务</p>
         </div>
 
         <form onSubmit={handleSubmit} className="surface p-6 space-y-6">
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-              {error}
-            </div>
+            <Alert status="danger">
+              <Alert.Indicator />
+              <Alert.Content><Alert.Description>{error}</Alert.Description></Alert.Content>
+            </Alert>
           )}
 
           <div>
-            <label htmlFor="inviteCode" className="block text-sm font-medium text-gray-700 mb-2">
-              邀请码
-            </label>
-            <input
-              id="inviteCode"
-              type="text"
-              required
-              className="input uppercase"
-              value={formData.inviteCode}
-              onChange={(e) => setFormData({ ...formData, inviteCode: e.target.value })}
-              disabled={loading}
-              placeholder="请输入邀请码"
-            />
-            <p className="mt-1 text-xs text-gray-500">仅支持邀请制注册</p>
+            <TextField isRequired isDisabled={loading}>
+              <Label>邀请码</Label>
+              <Input id="inviteCode" type="text" className="uppercase" value={formData.inviteCode} onChange={(e) => setFormData({ ...formData, inviteCode: e.target.value })} placeholder="请输入邀请码" />
+              <Description>仅支持邀请制注册</Description>
+            </TextField>
           </div>
 
           <div>
-            <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2">
-              用户名
-            </label>
-            <input
-              id="username"
-              type="text"
-              required
-              minLength={3}
-              className="input"
-              value={formData.username}
-              onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-              disabled={loading}
-            />
+            <TextField isRequired isDisabled={loading}>
+              <Label>用户名</Label>
+              <Input id="username" type="text" minLength={3} value={formData.username} onChange={(e) => setFormData({ ...formData, username: e.target.value })} />
+            </TextField>
           </div>
 
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-              邮箱
-            </label>
-            <input
-              id="email"
-              type="email"
-              required
-              className="input"
-              value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              disabled={loading}
-            />
+            <TextField isRequired isDisabled={loading}>
+              <Label>邮箱</Label>
+              <Input id="email" type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} />
+            </TextField>
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-              密码
-            </label>
-            <input
-              id="password"
-              type="password"
-              required
-              minLength={6}
-              className="input"
-              value={formData.password}
-              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-              disabled={loading}
-            />
-            <p className="mt-1 text-xs text-gray-500">至少 6 个字符</p>
+            <TextField isRequired isDisabled={loading}>
+              <Label>密码</Label>
+              <Input id="password" type="password" minLength={6} value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} />
+              <Description>至少 6 个字符</Description>
+            </TextField>
           </div>
 
           <div>
-            <label htmlFor="confirm-password" className="block text-sm font-medium text-gray-700 mb-2">
-              确认密码
-            </label>
-            <input
-              id="confirm-password"
-              type="password"
-              required
-              className="input"
-              value={formData.confirmPassword}
-              onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-              disabled={loading}
-            />
+            <TextField isRequired isDisabled={loading}>
+              <Label>确认密码</Label>
+              <Input id="confirm-password" type="password" value={formData.confirmPassword} onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })} />
+            </TextField>
           </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full btn btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {loading ? (
-              <span className="inline-flex items-center justify-center gap-2">
-                <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-                创建中...
-              </span>
-            ) : (
-              '创建账号'
-            )}
-          </button>
+          <Button type="submit"
+          isDisabled={loading}
+          variant="primary" className="w-full" isPending={loading} >{loading ? '创建中...' : '创建账号'}</Button>
 
           <div className="text-center text-sm">
-            <span className="text-gray-600">已有账号？ </span>
-            <Link href="/login" className="text-blue-600 hover:text-blue-700 font-medium">
+            <span className="text-default-600">已有账号？ </span>
+            <Link href="/login" className="text-primary hover:text-primary font-medium">
               登录
             </Link>
           </div>
@@ -196,10 +144,10 @@ export default function RegisterPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950 px-4">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-4 text-gray-600 dark:text-gray-300">加载中...</p>
+        <div className="min-h-screen flex items-center justify-center bg-background px-4">
+          <div className="flex flex-col items-center gap-3">
+            <Spinner size="lg" />
+            <p className="text-sm text-default-500">加载中...</p>
           </div>
         </div>
       }

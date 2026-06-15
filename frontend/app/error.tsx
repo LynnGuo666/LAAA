@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect } from 'react';
+import Link from 'next/link';
+import { Button, buttonVariants } from '@heroui/react';
 
 export default function Error({
   error,
@@ -18,19 +20,16 @@ export default function Error({
     <div className="min-h-screen flex items-center justify-center px-4">
       <div className="card max-w-lg w-full">
         <h1 className="text-2xl font-bold mb-2">页面出错了</h1>
-        <p className="text-gray-600 mb-6">
+        <p className="text-default-600 mb-6">
           请刷新重试，或返回控制台继续使用。
         </p>
         <div className="flex gap-3">
-          <button className="btn btn-primary" onClick={() => reset()}>
+          <Button  variant="primary" onPress={() => reset()}>
             重试
-          </button>
-          <a className="btn btn-secondary" href="/dashboard">
-            返回控制台
-          </a>
+          </Button>
+          <Link href="/dashboard" className={buttonVariants({ variant: 'secondary' })}>返回控制台</Link>
         </div>
       </div>
     </div>
   );
 }
-
