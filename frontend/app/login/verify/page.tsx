@@ -132,12 +132,12 @@ export default function VerifyPage() {
           <Button onPress={handleSendEmailCode} isDisabled={loading} variant="primary" className="w-full" isPending={loading}>发送验证码</Button>
         ) : (
           <>
-            <Input type="text" value={emailCode} onChange={e => setEmailCode(e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="输入6位验证码" className="text-center tracking-widest" maxLength={6} />
+            <Input type="text" value={emailCode} onChange={e => setEmailCode(e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="输入6位验证码" className="w-full" maxLength={6} />
             <Button onPress={() => verify(() => verificationApi.verifyEmailCode(session.session_token, emailCode), 'email_code')} isDisabled={loading || emailCode.length !== 6} variant="primary" className="w-full" isPending={loading}>验证</Button>
             <Button onPress={handleSendEmailCode} isDisabled={loading || emailCooldown > 0} variant="ghost" className="w-full text-sm">{emailCooldown > 0 ? `重新发送 (${emailCooldown}s)` : '重新发送'}</Button>
           </>
         )}
-        <Button onPress={() => setStep('select')} variant="secondary" className="w-full"><ArrowLeft className="w-4 h-4" /> 选择其他方式</Button>
+        <Button onPress={() => setStep('select')} variant="ghost" className="w-full border border-default-200/70"><ArrowLeft className="w-4 h-4" /> 选择其他方式</Button>
       </div>
     );
 
@@ -164,12 +164,12 @@ export default function VerifyPage() {
               <h2 className="text-lg font-semibold text-foreground">备用码</h2>
               <p className="text-sm text-default-500 mt-1">输入8位备用码</p>
             </div>
-            <Input type="text" value={backupCode} onChange={e => setBackupCode(e.target.value.toUpperCase().slice(0, 8))} placeholder="XXXXXXXX" className="text-center tracking-widest" maxLength={8} />
+            <Input type="text" value={backupCode} onChange={e => setBackupCode(e.target.value.toUpperCase().slice(0, 8))} placeholder="XXXXXXXX" className="w-full" maxLength={8} />
             <Button onPress={() => verify(() => verificationApi.verifyBackupCode(session.session_token, backupCode), 'totp')} isDisabled={loading || backupCode.length !== 8} variant="primary" className="w-full" isPending={loading}>验证</Button>
             <Button onPress={() => setShowBackupCode(false)} variant="ghost" className="w-full text-sm">使用身份验证器</Button>
           </>
         )}
-        <Button onPress={() => setStep('select')} variant="secondary" className="w-full"><ArrowLeft className="w-4 h-4" /> 选择其他方式</Button>
+        <Button onPress={() => setStep('select')} variant="ghost" className="w-full border border-default-200/70"><ArrowLeft className="w-4 h-4" /> 选择其他方式</Button>
       </div>
     );
 
@@ -185,7 +185,7 @@ export default function VerifyPage() {
           const cred = await getPasskeyCredential(parseAuthenticationOptions(opts.data.options));
           return verificationApi.completePasskeyVerification(session.session_token, serializeAuthenticationCredential(cred));
         }, 'passkey')} isDisabled={loading || !webAuthnSupported} variant="primary" className="w-full" isPending={loading}>使用通行密钥验证</Button>
-        <Button onPress={() => setStep('select')} variant="secondary" className="w-full"><ArrowLeft className="w-4 h-4" /> 选择其他方式</Button>
+        <Button onPress={() => setStep('select')} variant="ghost" className="w-full border border-default-200/70"><ArrowLeft className="w-4 h-4" /> 选择其他方式</Button>
       </div>
     );
 
@@ -215,20 +215,20 @@ export default function VerifyPage() {
             const disabled = !method?.available || done;
             const meta = METHOD_META[key];
             return (
-              <div
+              <Button
                 key={key}
-                role={disabled ? undefined : 'button'}
-                tabIndex={disabled ? -1 : 0}
-                onClick={() => !disabled && (setStep(key as VerificationStep), setError(''), setSuccess(''))}
-                className={`flex items-center gap-4 rounded-xl border border-default-200/70 px-4 py-3 transition-all ${done ? 'opacity-60 bg-default-50' : disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer hover:border-primary/50 hover:bg-primary/5'}`}
+                variant="ghost"
+                isDisabled={disabled}
+                onPress={() => { setStep(key as VerificationStep); setError(''); setSuccess(''); }}
+                className={`w-full justify-start h-auto py-3 border border-default-200/70 hover:bg-default-100 ${done ? 'opacity-60' : ''}`}
               >
                 <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${meta.color}`}>{meta.icon}</div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm text-foreground">{METHOD_NAMES[key]}</p>
+                <div className="flex-1 min-w-0 text-left">
+                  <p className="font-medium text-sm">{METHOD_NAMES[key]}</p>
                   <p className="text-xs text-default-500">{meta.desc}</p>
                 </div>
-                {done ? <Chip color="success" variant="soft" size="sm">已完成</Chip> : !disabled ? <ChevronRight className="w-4 h-4 text-default-400 shrink-0" /> : null}
-              </div>
+                {done ? <Chip color="success" variant="soft" size="sm">已完成</Chip> : <ChevronRight className="w-4 h-4 text-default-400 shrink-0" />}
+              </Button>
             );
           })}
         </div>
