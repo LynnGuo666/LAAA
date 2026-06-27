@@ -12,7 +12,10 @@ FROM python:3.11-slim AS runner
 WORKDIR /app
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    # Match the COPY target below so backend/app/main.py serves the frontend
+    # without relying on the dev-oriented relative path (../../frontend/out).
+    STATIC_DIR=/app/frontend/out
 
 COPY backend/requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir -r /app/requirements.txt
@@ -20,8 +23,12 @@ RUN pip install --no-cache-dir -r /app/requirements.txt
 COPY backend/app /app/app
 COPY backend/main.py /app/main.py
 
-# Place exported frontend at /app/frontend/out to match backend/app/main.py static_dir
+# Place exported frontend at /app/frontend/out to match STATIC_DIR above
 COPY --from=frontend-builder /frontend/out /app/frontend/out
+
+# GeoIP databases (downloaded by CI into backend/data/ before building).
+# CI always seeds this dir; for local builds ensure the files exist locally.
+COPY backend/data /app/data
 
 EXPOSE 8000
 # FastAPI app lives in backend/app/main.py
