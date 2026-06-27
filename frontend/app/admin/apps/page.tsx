@@ -5,18 +5,12 @@ import { useRouter } from 'next/navigation'
 import {
   Button,
   Card,
-  Checkbox,
-  CheckboxGroup,
   Chip,
-  Input,
-  RadioGroup,
-  TextArea,
   toast,
 } from '@heroui/react'
 import {
   AdminEmptyState,
   AdminFieldGroup,
-  AdminFormField,
   AdminLoadingState,
   AdminModalForm,
   AdminNotice,
@@ -24,8 +18,14 @@ import {
   AdminSection,
   EntityAvatar,
 } from '@/components/admin/admin-ui'
+import {
+  AppFormFields,
+  EMPTY_APP_FORM,
+  type AppFormData,
+  validateAppForm,
+} from '@/components/admin/app-form-fields'
+import GroupCheckboxList from '@/components/admin/group-checkbox-list'
 import SidePanel from '@/components/SidePanel'
-import { UICheckbox, UIRadio } from '@/components/ui/primitives'
 import { useConfirmDialog } from '@/components/ui/confirm-dialog-provider'
 import { clientApi, groupApi } from '@/lib/api'
 import { isAdmin } from '@/lib/authz'
@@ -50,14 +50,6 @@ interface Group {
   name: string
   description?: string
 }
-
-const AVAILABLE_SCOPES = [
-  { value: 'profile', label: '基本信息 (profile)', description: '用户名、头像等基本信息' },
-  { value: 'email', label: '邮箱地址 (email)', description: '用户邮箱地址' },
-  { value: 'openid', label: 'OpenID Connect (openid)', description: 'OIDC 标准身份范围' },
-  { value: 'read', label: '读取权限 (read)', description: '读取用户数据' },
-  { value: 'write', label: '写入权限 (write)', description: '修改用户数据' },
-]
 
 export default function AppsPage() {
   const confirmDialog = useConfirmDialog()
@@ -93,16 +85,7 @@ export default function AppsPage() {
     allowed_group_ids: [] as number[],
     denied_group_ids: [] as number[],
   })
-  const [formData, setFormData] = useState({
-    name: '',
-    description: '',
-    logo: '',
-    website_url: '',
-    redirect_uris: '',
-    allowed_scopes: ['profile', 'email'],
-    trusted: false,
-    default_access: false,
-  })
+  const [formData, setFormData] = useState<AppFormData>({ ...EMPTY_APP_FORM })
 
   const loadClients = async () => {
     try {
@@ -133,16 +116,7 @@ export default function AppsPage() {
 
   const resetForm = () => {
     setFormError(null)
-    setFormData({
-      name: '',
-      description: '',
-      logo: '',
-      website_url: '',
-      redirect_uris: '',
-      allowed_scopes: ['profile', 'email'],
-      trusted: false,
-      default_access: false,
-    })
+    setFormData({ ...EMPTY_APP_FORM })
   }
 
   const closeCreateModal = () => {
@@ -163,18 +137,7 @@ export default function AppsPage() {
     }
   }
 
-  const validateForm = () => {
-    if (!formData.name.trim()) {
-      return '应用名称不能为空'
-    }
-    if (formData.allowed_scopes.length === 0) {
-      return '请至少选择一个权限范围'
-    }
-    if (formData.redirect_uris.split('\n').filter((item) => item.trim()).length === 0) {
-      return '请至少填写一个回调地址'
-    }
-    return null
-  }
+  const validateForm = () => validateAppForm(formData)
 
   const handleCreate = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -343,138 +306,11 @@ export default function AppsPage() {
   }
 
   const renderAppFormFields = () => (
-    <>
-      {formError ? <AdminNotice tone="danger" description={formError} /> : null}
-
-      <AdminFormField label="应用名称" isRequired>
-        <Input
-          type="text"
-          value={formData.name}
-          onChange={(event) =>
-            setFormData((previous) => ({ ...previous, name: event.target.value }))
-          }
-        />
-      </AdminFormField>
-
-      <AdminFormField label="应用描述">
-        <TextArea
-          rows={3}
-          value={formData.description}
-          onChange={(event) =>
-            setFormData((previous) => ({ ...previous, description: event.target.value }))
-          }
-        />
-      </AdminFormField>
-
-      <AdminFormField
-        label="应用 Logo URL"
-        description="Logo 会显示在授权页面上。"
-      >
-        <Input
-          type="url"
-          placeholder="https://example.com/logo.png"
-          value={formData.logo}
-          onChange={(event) =>
-            setFormData((previous) => ({ ...previous, logo: event.target.value }))
-          }
-        />
-      </AdminFormField>
-
-      <AdminFormField label="应用官网">
-        <Input
-          type="url"
-          placeholder="https://example.com"
-          value={formData.website_url}
-          onChange={(event) =>
-            setFormData((previous) => ({ ...previous, website_url: event.target.value }))
-          }
-        />
-      </AdminFormField>
-
-      <AdminFormField
-        label="回调地址"
-        description="每行一个回调地址。"
-        isRequired
-      >
-        <TextArea
-          rows={4}
-          className="font-mono text-sm"
-          placeholder={`http://localhost:3000/callback\nhttps://myapp.com/callback`}
-          value={formData.redirect_uris}
-          onChange={(event) =>
-            setFormData((previous) => ({ ...previous, redirect_uris: event.target.value }))
-          }
-        />
-      </AdminFormField>
-
-      <AdminFieldGroup
-        label="权限范围"
-        description={`已选择 ${formData.allowed_scopes.length} 项权限。`}
-      >
-        <Card>
-          <Card.Content className="px-4 py-2">
-            <CheckboxGroup
-              aria-label="权限范围"
-              value={formData.allowed_scopes}
-              onChange={(value) =>
-                setFormData((previous) => ({
-                  ...previous,
-                  allowed_scopes: Array.isArray(value) ? value.map(String) : [],
-                }))
-              }
-            >
-              {AVAILABLE_SCOPES.map((scope) => (
-                <UICheckbox
-                  key={scope.value}
-                  value={scope.value}
-                  className="m-0 max-w-full border-b border-default-200/70 py-3 last:border-b-0"
-                >
-                  <div className="min-w-0">
-                    <p className="font-medium text-foreground">{scope.label}</p>
-                    <p className="text-xs text-default-500">{scope.description}</p>
-                  </div>
-                </UICheckbox>
-              ))}
-            </CheckboxGroup>
-          </Card.Content>
-        </Card>
-      </AdminFieldGroup>
-
-      <AdminFieldGroup label="信任应用">
-        <Checkbox
-          variant="secondary"
-          isSelected={formData.trusted}
-          onChange={(isSelected) =>
-            setFormData((previous) => ({ ...previous, trusted: isSelected }))
-          }
-        >
-          <Checkbox.Control>
-            <Checkbox.Indicator />
-          </Checkbox.Control>
-          <Checkbox.Content>信任的应用将跳过授权确认</Checkbox.Content>
-        </Checkbox>
-      </AdminFieldGroup>
-
-      <AdminFieldGroup
-        label="默认访问"
-        description="当未配置用户或用户组权限时，将采用这里的默认策略。"
-      >
-        <RadioGroup
-          orientation="vertical"
-          value={formData.default_access ? 'allow' : 'deny'}
-          onChange={(value) =>
-            setFormData((previous) => ({
-              ...previous,
-              default_access: value === 'allow',
-            }))
-          }
-          className="space-y-2"
-        >
-          <UIRadio value="allow">允许</UIRadio>
-          <UIRadio value="deny">拒绝</UIRadio>
-        </RadioGroup>
-      </AdminFieldGroup>
-    </>
+    <AppFormFields
+      formData={formData}
+      setFormData={setFormData}
+      formError={formError}
+    />
   )
 
   if (!canManageClients) {
@@ -660,7 +496,7 @@ export default function AppsPage() {
         onClose={closeAccessControl}
       >
         {!selectedClient ? null : accessControlLoading ? (
-          <AdminLoadingState label="正在加载访问控制..." className="border-0 p-0 shadow-none" />
+          <AdminLoadingState label="正在加载访问控制..." variant="inline" className="p-0" />
         ) : (
           <div className="space-y-6">
             {accessControlError ? <AdminNotice tone="danger" description={accessControlError} /> : null}
@@ -670,51 +506,19 @@ export default function AppsPage() {
               description="允许列表与禁止列表互斥；同一个用户组不会同时出现在两边。"
             />
 
-            <AdminFieldGroup
-              label="允许访问（白名单）"
-              description="这些用户组的成员可以访问此应用。"
-            >
-              <div className="max-h-72 space-y-2 overflow-y-auto rounded-xl border border-default-200/70 p-3">
-                  {groups.map((group) => (
-                    <UICheckbox
-                      key={group.id}
-                      className="m-0 max-w-full border-b border-default-200/70 py-3 last:border-b-0"
-                      isSelected={accessControl.allowed_group_ids.includes(group.id)}
-                      onChange={() => toggleGroupInList(group.id, 'allowed')}
-                    >
-                      <div className="min-w-0">
-                        <p className="font-medium text-foreground">{group.name}</p>
-                        {group.description ? (
-                          <p className="mt-1 text-xs text-default-500">{group.description}</p>
-                        ) : null}
-                      </div>
-                    </UICheckbox>
-                  ))}
-                </div>
-            </AdminFieldGroup>
+            <GroupCheckboxList
+              type="allowed"
+              groups={groups}
+              selectedIds={accessControl.allowed_group_ids}
+              onToggle={(groupId: number) => toggleGroupInList(groupId, 'allowed')}
+            />
 
-            <AdminFieldGroup
-              label="禁止访问（黑名单）"
-              description="这些用户组的成员会被拒绝访问。"
-            >
-              <div className="max-h-72 space-y-2 overflow-y-auto rounded-xl border border-default-200/70 p-3">
-                  {groups.map((group) => (
-                    <UICheckbox
-                      key={group.id}
-                      className="m-0 max-w-full border-b border-default-200/70 py-3 last:border-b-0"
-                      isSelected={accessControl.denied_group_ids.includes(group.id)}
-                      onChange={() => toggleGroupInList(group.id, 'denied')}
-                    >
-                      <div className="min-w-0">
-                        <p className="font-medium text-foreground">{group.name}</p>
-                        {group.description ? (
-                          <p className="mt-1 text-xs text-default-500">{group.description}</p>
-                        ) : null}
-                      </div>
-                    </UICheckbox>
-                  ))}
-                </div>
-            </AdminFieldGroup>
+            <GroupCheckboxList
+              type="denied"
+              groups={groups}
+              selectedIds={accessControl.denied_group_ids}
+              onToggle={(groupId: number) => toggleGroupInList(groupId, 'denied')}
+            />
 
             <div className="flex gap-2 pt-2">
               <Button

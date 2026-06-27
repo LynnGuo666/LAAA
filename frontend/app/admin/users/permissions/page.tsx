@@ -22,6 +22,7 @@ import {
   AdminSection,
   EntityAvatar,
 } from '@/components/admin/admin-ui'
+import { AdminSimplePagination } from '@/components/admin/pagination'
 import { adminApi } from '@/lib/api'
 import { isAdmin } from '@/lib/authz'
 import { useAuthStore } from '@/lib/store'
@@ -96,7 +97,11 @@ export default function UserPermissionsPage() {
   const handlePermissionChange = async (appId: number, permission: string | null) => {
     setUpdating(appId)
     try {
-      await adminApi.updateUserSingleAppPermission(userId, appId, permission)
+      await adminApi.updateUserSingleAppPermission(
+        userId,
+        appId,
+        permission === 'default' ? null : permission,
+      )
       await loadPermissions()
     } catch (err: any) {
       setError(err.response?.data?.detail || '更新权限失败')
@@ -198,7 +203,7 @@ export default function UserPermissionsPage() {
           </form>
 
           {loading ? (
-            <AdminLoadingState label="正在加载权限详情..." className="border-0 p-0 shadow-none" />
+            <AdminLoadingState label="正在加载权限详情..." variant="inline" className="p-0" />
           ) : !data || data.items.length === 0 ? (
             <AdminEmptyState
               title={search ? '没有匹配的应用' : '暂无应用权限数据'}
@@ -239,10 +244,14 @@ export default function UserPermissionsPage() {
                         <Table.Cell>
                           <div className="flex items-center gap-2">
                             <Select
-                              selectedKey={item.user_permission || ''}
+                              placeholder="默认"
+                              selectedKey={item.user_permission || undefined}
                               onSelectionChange={(key) => {
                                 const nextValue = key ? String(key) : null
-                                void handlePermissionChange(item.app_id, nextValue)
+                                void handlePermissionChange(
+                                  item.app_id,
+                                  nextValue === null ? 'default' : nextValue,
+                                )
                               }}
                               isDisabled={updating === item.app_id}
                               className="w-28"
@@ -253,7 +262,7 @@ export default function UserPermissionsPage() {
                               </Select.Trigger>
                               <Select.Popover>
                                 <ListBox>
-                                  <ListBoxItem id="">默认</ListBoxItem>
+                                  <ListBoxItem id="default">默认</ListBoxItem>
                                   <ListBoxItem id="allowed">允许</ListBoxItem>
                                   <ListBoxItem id="denied">拒绝</ListBoxItem>
                                 </ListBox>
@@ -273,29 +282,15 @@ export default function UserPermissionsPage() {
 
         {totalPages > 1 ? (
           <Card.Footer className="border-t border-default-200/70 px-6 py-4">
-            <div className="flex w-full items-center justify-between gap-4 text-sm text-default-500">
-              <span>
-                共 {data?.total ?? 0} 个应用，第 {page + 1} / {totalPages} 页
-              </span>
-              <div className="flex gap-2">
-                <Button
-                  variant="secondary"
-                  isDisabled={page === 0}
-                  onPress={() => setPage((current) => Math.max(0, current - 1))}
-                >
-                  上一页
-                </Button>
-                <Button
-                  variant="secondary"
-                  isDisabled={page >= totalPages - 1}
-                  onPress={() =>
-                    setPage((current) => Math.min(totalPages - 1, current + 1))
-                  }
-                >
-                  下一页
-                </Button>
-              </div>
-            </div>
+            <AdminSimplePagination
+              page={page}
+              total={data?.total ?? 0}
+              limit={limit}
+              onPageChange={setPage}
+              summary={(page, totalPages, total) =>
+                `共 ${total} 个应用，第 ${page + 1} / ${totalPages} 页`
+              }
+            />
           </Card.Footer>
         ) : null}
       </AdminSection>
