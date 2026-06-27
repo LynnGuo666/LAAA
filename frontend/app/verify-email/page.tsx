@@ -3,11 +3,119 @@
 import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { buttonVariants, cn, Spinner } from '@heroui/react';
+import { Button, Spinner } from '@heroui/react';
 import { authApi } from '@/lib/api';
 import { CheckCircle, XCircle, Mail } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
+import { cn } from '@heroui/react';
 
 type VerificationStatus = 'loading' | 'success' | 'error' | 'no-token';
+
+type ResultTone = 'loading' | 'success' | 'danger' | 'warning';
+
+const STATUS_CONFIG: Record<
+  VerificationStatus,
+  {
+    icon: LucideIcon;
+    tone: ResultTone;
+    title: string;
+    description: string;
+    primary?: { label: string; href: string; variant: 'primary' | 'secondary' };
+    secondary?: { label: string; href: string; variant: 'primary' | 'secondary' };
+  }
+> = {
+  loading: {
+    icon: CheckCircle,
+    tone: 'loading',
+    title: '正在验证邮箱',
+    description: '请稍候...',
+  },
+  success: {
+    icon: CheckCircle,
+    tone: 'success',
+    title: '邮箱验证成功',
+    description: '您的邮箱已验证，现在可以使用全部功能了。',
+    primary: { label: '前往控制台', href: '/dashboard', variant: 'primary' },
+    secondary: { label: '登录账号', href: '/login', variant: 'secondary' },
+  },
+  error: {
+    icon: XCircle,
+    tone: 'danger',
+    title: '验证失败',
+    description: '',
+    primary: { label: '重新登录', href: '/login', variant: 'primary' },
+    secondary: { label: '返回首页', href: '/', variant: 'secondary' },
+  },
+  'no-token': {
+    icon: Mail,
+    tone: 'warning',
+    title: '缺少验证令牌',
+    description: '请通过邮件中的链接访问此页面。',
+    primary: { label: '前往控制台', href: '/dashboard', variant: 'primary' },
+    secondary: { label: '返回登录', href: '/login', variant: 'secondary' },
+  },
+};
+
+const toneBg: Record<ResultTone, string> = {
+  loading: '',
+  success: 'bg-success/10 text-success',
+  danger: 'bg-danger/10 text-danger',
+  warning: 'bg-warning/10 text-warning',
+};
+
+function ResultState({
+  status,
+  description,
+}: {
+  status: VerificationStatus;
+  description: string;
+}) {
+  const config = STATUS_CONFIG[status];
+  const Icon = config.icon;
+
+  return (
+    <div
+      className="surface p-8 text-center animate-fade-in"
+      role="status"
+      aria-live="polite"
+    >
+      <div
+        className={cn(
+          'w-16 h-16 mx-auto mb-6 rounded-full flex items-center justify-center',
+          toneBg[config.tone],
+        )}
+      >
+        {status === 'loading' ? (
+          <Spinner size="lg" />
+        ) : (
+          <Icon className="w-10 h-10" />
+        )}
+      </div>
+      <h2 className="text-2xl font-bold text-foreground mb-2">{config.title}</h2>
+      <p className="text-default-600 mb-6">
+        {description || config.description}
+      </p>
+      {(config.primary || config.secondary) && (
+        <div className="space-y-3">
+          {config.primary && (
+            <Link href={config.primary.href}>
+              <Button variant={config.primary.variant} className="w-full">
+                {config.primary.label}
+              </Button>
+            </Link>
+          )}
+          {config.secondary && (
+            <Link href={config.secondary.href}>
+              <Button variant={config.secondary.variant} className="w-full">
+                {config.secondary.label}
+              </Button>
+            </Link>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function VerifyEmailContent() {
   const searchParams = useSearchParams();
@@ -37,76 +145,8 @@ function VerifyEmailContent() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background px-4">
-      <div className="max-w-md w-full space-y-8 animate-fade-in">
-        <div className="surface p-8 text-center">
-          {status === 'loading' && (
-            <>
-              <div className="w-16 h-16 mx-auto mb-6 flex items-center justify-center">
-                <Spinner size="lg" />
-              </div>
-              <h2 className="text-2xl font-bold text-foreground mb-2">
-                正在验证邮箱
-              </h2>
-              <p className="text-default-600">
-                请稍候...
-              </p>
-            </>
-          )}
-
-          {status === 'success' && (
-            <>
-              <div className="w-16 h-16 mx-auto mb-6 bg-success/10 rounded-full flex items-center justify-center">
-                <CheckCircle className="w-10 h-10 text-success" />
-              </div>
-              <h2 className="text-2xl font-bold text-foreground mb-2">
-                邮箱验证成功
-              </h2>
-              <p className="text-default-600 mb-6">
-                您的邮箱已验证，现在可以使用全部功能了。
-              </p>
-              <div className="space-y-3">
-                <Link href="/dashboard" className={cn(buttonVariants({ variant: 'primary', size: 'md', fullWidth: true }))}>前往控制台</Link>
-                <Link href="/login" className={cn(buttonVariants({ variant: 'secondary', size: 'md', fullWidth: true }))}>登录账号</Link>
-              </div>
-            </>
-          )}
-
-          {status === 'error' && (
-            <>
-              <div className="w-16 h-16 mx-auto mb-6 bg-danger/10 rounded-full flex items-center justify-center">
-                <XCircle className="w-10 h-10 text-danger" />
-              </div>
-              <h2 className="text-2xl font-bold text-foreground mb-2">
-                验证失败
-              </h2>
-              <p className="text-default-600 mb-6">
-                {errorMessage}
-              </p>
-              <div className="space-y-3">
-                <Link href="/dashboard" className={cn(buttonVariants({ variant: 'primary', size: 'md', fullWidth: true }))}>前往控制台重新发送</Link>
-                <Link href="/login" className={cn(buttonVariants({ variant: 'secondary', size: 'md', fullWidth: true }))}>返回登录</Link>
-              </div>
-            </>
-          )}
-
-          {status === 'no-token' && (
-            <>
-              <div className="w-16 h-16 mx-auto mb-6 bg-warning/10 rounded-full flex items-center justify-center">
-                <Mail className="w-10 h-10 text-warning" />
-              </div>
-              <h2 className="text-2xl font-bold text-foreground mb-2">
-                缺少验证令牌
-              </h2>
-              <p className="text-default-600 mb-6">
-                请通过邮件中的链接访问此页面。
-              </p>
-              <div className="space-y-3">
-                <Link href="/dashboard" className={cn(buttonVariants({ variant: 'primary', size: 'md', fullWidth: true }))}>前往控制台</Link>
-                <Link href="/login" className={cn(buttonVariants({ variant: 'secondary', size: 'md', fullWidth: true }))}>返回登录</Link>
-              </div>
-            </>
-          )}
-        </div>
+      <div className="max-w-md w-full">
+        <ResultState status={status} description={status === 'error' ? errorMessage : ''} />
       </div>
     </div>
   );

@@ -2,7 +2,7 @@ name: Build and Publish Docker Image
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "dev" ]
     tags: [ "v*" ]
   workflow_dispatch: {}
 
@@ -15,6 +15,48 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Get current date
+        id: date
+        run: echo "date=$(date -u +'%Y-%m-%d')" >> "$GITHUB_OUTPUT"
+
+      - name: Cache GeoIP databases
+        id: cache-geoip
+        uses: actions/cache@v4
+        with:
+          path: backend/data
+          # 数据库每日更新，按天缓存即可；workflow 文件本身变动也作废。
+          key: geoip-${{ hashFiles('.github/workflows/docker-publish.yml') }}-${{ steps.date.outputs.date }}
+          restore-keys: |
+            geoip-${{ hashFiles('.github/workflows/docker-publish.yml') }}-
+
+      # 三个 GeoIP 数据库都是公开 GitHub 资源，无需 MaxMind license key。
+      # - ip2region.xdb：中国 IP 省市定位
+      # - GeoIP2-CN.mmdb：中国 IP 国家级（取自 Hackl0us release 分支 Country.mmdb）
+      # - GeoLite2-City.mmdb：国际 IP 定位（取自 P3TERX 每日打包的 release asset）
+      - name: Download GeoIP databases
+        if: steps.cache-geoip.outputs.cache-hit != 'true'
+        working-directory: backend/data
+        run: |
+          set -euo pipefail
+
+          # ip2region.xdb（v4，IPv4）— 文件名按 config.py 期望保持 ip2region.xdb
+          curl -fsSL -o ip2region.xdb \
+            "https://raw.githubusercontent.com/lionsoul2014/ip2region/master/data/ip2region_v4.xdb"
+
+          # GeoIP2-CN.mmdb — Hackl0us 仓库 release 分支每日构建，原名 Country.mmdb
+          curl -fsSL -o GeoIP2-CN.mmdb \
+            "https://raw.githubusercontent.com/Hackl0us/GeoIP2-CN/release/Country.mmdb"
+
+          # GeoLite2-City.mmdb — P3TERX 每日打包的 release，取最新 asset URL
+          CITY_URL=$(curl -fsSL \
+            "https://api.github.com/repos/P3TERX/GeoLite.mmdb/releases/latest" \
+            | grep -Eo 'https://[^"]+/GeoLite2-City\.mmdb' | head -n1)
+          test -n "${CITY_URL}"
+          curl -fsSL -o GeoLite2-City.mmdb "${CITY_URL}"
+
+          ls -lh
+
       - uses: docker/setup-qemu-action@v3
       - uses: docker/setup-buildx-action@v3
       - name: Set lowercase image owner
@@ -33,6 +75,7 @@ jobs:
           tags: |
             ghcr.io/${{ env.OWNER_LC }}/laaa:latest
             ghcr.io/${{ env.OWNER_LC }}/laaa:${{ github.sha }}
+            ghcr.io/${{ env.OWNER_LC }}/laaa:${{ github.ref_name }}
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}

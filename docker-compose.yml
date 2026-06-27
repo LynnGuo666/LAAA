@@ -1,0 +1,44 @@
+# LAAA 一键部署编排
+#
+# 镜像由 .github/workflows/docker-publish.yml 构建并推送到 ghcr.io。
+# owner 取仓库所有者的小写形式（GITHUB_REPOSITORY_OWNER,,）。
+# 当前仓库为 LynnGuo666/LAAA → ghcr.io/lynnguo666/laaa
+# 若你的 fork owner 不同，请把下面的镜像名改为 ghcr.io/<你的小写owner>/laaa。
+#
+# 用法：
+#   1. 准备配置：cp backend/.env.example ./env  （或手写，至少含 SECRET_KEY / DATABASE_URL）
+#   2. docker compose pull
+#   3. docker compose up -d
+#   4. 访问 http://<host>:8000
+#
+# 数据持久化：
+#   - ./oauth.db   挂载为容器内 /app/oauth.db（SQLite，含全部用户/会话/应用数据）
+#   - ./data       挂载为容器内 /app/data   （可选：用自有 GeoIP 数据库覆盖镜像内置的）
+# 首次 up 前无需手动创建文件，compose 会自动创建空目录/占位文件。
+
+services:
+  laaa:
+    image: ghcr.io/lynnguo666/laaa:latest
+    container_name: laaa
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./env
+    environment:
+      # 这些项即使 ./env 没给也有合理默认，但生产建议显式覆盖。
+      - HOST=0.0.0.0
+      - PORT=8000
+      - STATIC_DIR=/app/frontend/out
+      - DATABASE_URL=sqlite:///./oauth.db
+    volumes:
+      # 数据库持久化：容器重建/升级后用户、会话、应用配置不丢
+      - ./oauth.db:/app/oauth.db
+      # 可选：放自有 GeoIP 库覆盖镜像内置；不放则用镜像自带的（CI 已下载）
+      - ./data:/app/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/api/health',timeout=5).status==200 else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s

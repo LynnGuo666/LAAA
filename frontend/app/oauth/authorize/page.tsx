@@ -4,6 +4,7 @@ import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button, Card, Spinner, toast } from '@heroui/react';
 import { authApi, API_URL } from '@/lib/api';
+import { EntityAvatar } from '@/components/admin/admin-ui';
 import axios from 'axios';
 import { AlertTriangle, Ban, Check } from 'lucide-react';
 
@@ -69,7 +70,6 @@ function AuthorizeContent() {
         },
       });
 
-      console.log('Client info from API:', clientResponse.data);
       setClientInfo({
         name: clientResponse.data.name,
         description: clientResponse.data.description,
@@ -158,6 +158,11 @@ function AuthorizeContent() {
       if (err.response?.status === 403) {
         setAccessDenied(true);
         setError(err.response?.data?.detail || '您没有权限访问此应用');
+      } else if (err.response?.status === 401) {
+        // Token 过期，重新登录
+        const returnUrl = `/oauth/authorize?${searchParams.toString()}`;
+        router.push(`/login?redirect=${encodeURIComponent(returnUrl)}`);
+        return;
       } else {
         toast('授权失败: ' + (err.response?.data?.detail || '未知错误'));
       }
@@ -250,21 +255,11 @@ function AuthorizeContent() {
         {currentUser && (
           <div className="mb-6 pb-4 border-b border-default-200">
             <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                {currentUser.avatar ? (
-                  <img
-                    src={currentUser.avatar}
-                    alt={currentUser.username}
-                    className="w-10 h-10 rounded-full mr-3"
-                  />
-                ) : (
-                  <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white font-medium mr-3">
-                    {currentUser.username.charAt(0).toUpperCase()}
-                  </div>
-                )}
-                <div>
+              <div className="flex items-center gap-3">
+                <EntityAvatar src={currentUser.avatar} name={currentUser.username} size="md" rounded="full" />
+                <div className="min-w-0">
                   <p className="text-sm font-medium text-foreground">{currentUser.username}</p>
-                  <p className="text-xs text-default-500">{currentUser.email}</p>
+                  <p className="text-xs text-default-500 truncate">{currentUser.email}</p>
                 </div>
               </div>
               <Button onPress={handleSwitchAccount} className="text-sm text-primary" variant="tertiary" isDisabled={!!submitting}>
@@ -275,13 +270,17 @@ function AuthorizeContent() {
         )}
 
         <div className="text-center mb-6">
-          {clientInfo?.logo && (
+          {clientInfo?.logo ? (
+            // eslint-disable-next-line @next/next/no-img-element
             <img
               src={clientInfo.logo}
               alt={clientInfo.name}
-              className="w-16 h-16 mx-auto mb-4 rounded"
+              className="w-16 h-16 mx-auto mb-4 rounded-xl object-cover border border-default-200"
+              onError={(e) => {
+                e.currentTarget.style.display = 'none'
+              }}
             />
-          )}
+          ) : null}
           <h1 className="text-2xl font-bold text-foreground mb-2">授权请求</h1>
           <p className="text-default-600">
             <strong className="text-foreground">{clientInfo?.name}</strong> 想要访问您的账号
@@ -301,7 +300,7 @@ function AuthorizeContent() {
           )}
         </div>
 
-        <div className="bg-background rounded-lg p-4 mb-6">
+        <div className="rounded-lg p-4 mb-6 bg-default-50">
           <h2 className="font-semibold text-foreground mb-3">此应用将能够：</h2>
           <div className="space-y-2">
             {scope.split(' ').map((s) => (

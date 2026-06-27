@@ -24,6 +24,7 @@ import {
   AdminSection,
   EntityAvatar,
 } from '@/components/admin/admin-ui'
+import { AdminSimplePagination } from '@/components/admin/pagination'
 import { UICheckbox } from '@/components/ui/primitives'
 import { useConfirmDialog } from '@/components/ui/confirm-dialog-provider'
 import { adminApi, groupApi } from '@/lib/api'
@@ -578,7 +579,7 @@ export default function UserDetailPage() {
             ) : null}
 
             {tabLoading ? (
-              <AdminLoadingState label="正在加载标签页数据..." className="mt-4 border-0 p-0 shadow-none" />
+              <AdminLoadingState label="正在加载标签页数据..." variant="inline" className="mt-4 p-0" />
             ) : null}
 
             {!tabLoading && activeTab === 'logs' ? (
@@ -637,27 +638,16 @@ export default function UserDetailPage() {
                   </Table.ScrollContainer>
                   {logsTotal > 20 ? (
                     <Table.Footer>
-                      <div className="flex w-full items-center justify-between gap-4 px-6 py-4 text-sm text-default-500">
-                        <span>
-                          第 {logsPage + 1} / {Math.ceil(logsTotal / 20)} 页
-                        </span>
-                        <div className="flex gap-2">
-                          <Button
-                            variant="secondary"
-                            isDisabled={logsPage === 0}
-                            onPress={() => setLogsPage((value) => Math.max(0, value - 1))}
-                          >
-                            上一页
-                          </Button>
-                          <Button
-                            variant="secondary"
-                            isDisabled={(logsPage + 1) * 20 >= logsTotal}
-                            onPress={() => setLogsPage((value) => value + 1)}
-                          >
-                            下一页
-                          </Button>
-                        </div>
-                      </div>
+                      <AdminSimplePagination
+                        page={logsPage}
+                        total={logsTotal}
+                        limit={20}
+                        onPageChange={setLogsPage}
+                        summary={(page, totalPages) =>
+                          `第 ${page + 1} / ${totalPages} 页`
+                        }
+                        className="flex w-full items-center justify-between gap-4 px-6 py-4 text-sm text-default-500"
+                      />
                     </Table.Footer>
                   ) : null}
                 </Table>

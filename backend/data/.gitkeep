@@ -1,0 +1,4 @@
+# 占位文件，保证 backend/data/ 目录在干净 clone 后存在。
+# GeoIP 数据库（ip2region.xdb / GeoIP2-CN.mmdb / GeoLite2-City.mmdb）
+# 由 GitHub Actions 在构建前下载到本目录（见 .github/workflows/docker-publish.yml），
+# 也被 .gitignore 排除，不会进版本库。本地构建时请自行放入或运行 workflow 同款下载步骤。

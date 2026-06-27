@@ -208,7 +208,8 @@ export default function InvitesPage() {
           <form onSubmit={handleCreate} className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <AdminFormField label="用户组" isRequired isDisabled={creating}>
               <Select
-                selectedKey={createForm.groupId ? String(createForm.groupId) : ''}
+                placeholder="请选择"
+                selectedKey={createForm.groupId ? String(createForm.groupId) : undefined}
                 onSelectionChange={(key) =>
                   setCreateForm((previous) => ({
                     ...previous,
@@ -222,7 +223,6 @@ export default function InvitesPage() {
                 </Select.Trigger>
                 <Select.Popover>
                   <ListBox>
-                    <ListBoxItem id="">请选择</ListBoxItem>
                     {groups.map((group) => (
                       <ListBoxItem key={group.id} id={String(group.id)}>
                         {group.name}

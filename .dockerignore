@@ -1,0 +1,58 @@
+# 减小 Docker 构建上下文、加速构建、避免把本地产物带进镜像。
+# 注意：backend/data/ 不能整体排除——CI 会在构建前把 GeoIP 数据库下载到此处，
+# Dockerfile 依赖 COPY backend/data /app/data。具体的 *.mmdb / *.xdb 文件
+# 不需要从宿主机拷入（CI 会重新下载），但保留目录可访问性。
+
+# --- 版本控制 / 元数据 ---
+.git
+.gitignore
+.github
+.vscode
+.idea
+*.swp
+.DS_Store
+
+# --- 前端 ---
+node_modules/
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/.env.local
+
+# --- Python ---
+**/__pycache__/
+**/*.py[cod]
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+*.egg-info/
+
+# --- 数据库与本地状态（容器内自建，不带入镜像）---
+backend/oauth.db
+backend/oauth.db-journal
+*.sqlite3
+*.db-journal
+
+# --- 配置 / 密钥（部署方通过 compose env_file 注入，不进镜像）---
+.env
+.env.*
+backend/.env
+backend/.env.*
+
+# --- 其它本地杂项 ---
+*.log
+*.tmp
+*.temp
+.cache/
+coverage/
+htmlcov/
+.claude/
+.agents/
+.factory/
+.trae/
+.mimocode/
+skills-lock.json
+CLAUDE.md
+agent.md

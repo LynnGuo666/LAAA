@@ -185,18 +185,19 @@ export default function DashboardLayout({
         </div>
 
         {/* Mobile navigation */}
-        <div className="sm:hidden border-t border-default-200">
-          <div className="flex overflow-x-auto px-4 py-2 gap-4">
+        <div className="sm:hidden border-t border-default-200 relative">
+          <div className="flex overflow-x-auto px-4 py-2 gap-4 no-scrollbar scroll-smooth">
                {navLinks.map((link) => {
                const isActive = normalizedPathname === link.href || normalizedPathname.startsWith(`${link.href}/`);
               return (
                 <Link
                   key={link.href}
                   href={link.href}
-                  className={`text-sm whitespace-nowrap px-2 py-1 rounded ${
+                  aria-current={isActive ? 'page' : undefined}
+                  className={`text-sm whitespace-nowrap px-2 py-1 rounded transition-colors ${
                     isActive
                       ? 'text-primary bg-primary/10'
-                      : 'text-default-600'
+                      : 'text-default-600 hover:text-default-foreground'
                   }`}
                 >
                   {link.label}
@@ -204,6 +205,7 @@ export default function DashboardLayout({
               );
             })}
           </div>
+          <div className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-background to-transparent" />
         </div>
       </nav>
 

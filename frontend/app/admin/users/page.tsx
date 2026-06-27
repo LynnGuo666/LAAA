@@ -2,18 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import {
-  Button,
-  Card,
-  Chip,
-  Input,
-  ListBox,
-  ListBoxItem,
-  Pagination,
-  Popover,
-  Select,
-  Table,
-} from '@heroui/react'
+import { Button, Card, Input, ListBox, ListBoxItem, Popover, Table } from '@heroui/react'
 import { MoreHorizontal } from 'lucide-react'
 import {
   AdminEmptyState,
@@ -25,6 +14,7 @@ import {
   AdminSection,
   EntityAvatar,
 } from '@/components/admin/admin-ui'
+import { AdminPagination } from '@/components/admin/pagination'
 import { UICheckbox } from '@/components/ui/primitives'
 import { useConfirmDialog } from '@/components/ui/confirm-dialog-provider'
 import { adminApi, groupApi } from '@/lib/api'
@@ -406,7 +396,7 @@ export default function UsersPage() {
           </form>
 
           {loading ? (
-            <AdminLoadingState label="正在加载用户列表..." className="border-0 p-0 shadow-none" />
+            <AdminLoadingState label="正在加载用户列表..." variant="inline" className="p-0" />
           ) : users.length === 0 ? (
             <AdminEmptyState
               title={search ? '没有匹配的用户' : '暂无用户'}
@@ -509,41 +499,15 @@ export default function UsersPage() {
 
         {totalPages > 1 ? (
           <Card.Footer className="border-t border-default-200/70 px-6 py-4">
-            <Pagination>
-              <Pagination.Summary>
-                第 {page + 1} / {totalPages} 页，共 {total} 位用户
-              </Pagination.Summary>
-              <Pagination.Content>
-                <Pagination.Item>
-                  <Pagination.Previous
-                    isDisabled={page === 0}
-                    onPress={() => setPage((current) => Math.max(0, current - 1))}
-                  >
-                    上一页
-                  </Pagination.Previous>
-                </Pagination.Item>
-                {Array.from({ length: totalPages }, (_, index) => (
-                  <Pagination.Item key={index}>
-                    <Pagination.Link
-                      isActive={page === index}
-                      onPress={() => setPage(index)}
-                    >
-                      {index + 1}
-                    </Pagination.Link>
-                  </Pagination.Item>
-                ))}
-                <Pagination.Item>
-                  <Pagination.Next
-                    isDisabled={page >= totalPages - 1}
-                    onPress={() =>
-                      setPage((current) => Math.min(totalPages - 1, current + 1))
-                    }
-                  >
-                    下一页
-                  </Pagination.Next>
-                </Pagination.Item>
-              </Pagination.Content>
-            </Pagination>
+            <AdminPagination
+              page={page}
+              total={total}
+              limit={limit}
+              onPageChange={setPage}
+              summary={(page, totalPages, total) =>
+                `第 ${page + 1} / ${totalPages} 页，共 ${total} 位用户`
+              }
+            />
           </Card.Footer>
         ) : null}
       </AdminSection>
