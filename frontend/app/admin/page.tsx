@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Button, Card } from '@heroui/react'
+import { Button } from '@heroui/react'
 import {
   AppWindow,
   Users,
@@ -12,10 +12,8 @@ import {
   ArrowRight,
 } from 'lucide-react'
 import {
-  AdminEmptyState,
   AdminLoadingState,
   AdminPageHeader,
-  AdminSection,
   AdminNotice,
 } from '@/components/admin/admin-ui'
 import { adminApi, clientApi } from '@/lib/api'
@@ -122,37 +120,39 @@ export default function AdminDashboardPage() {
       {error ? <AdminNotice tone="danger" description={error} /> : null}
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <Link href="/admin/apps" className="group">
-          <div className="rounded-xl border border-default-200/70 bg-background p-5 shadow-sm transition-shadow group-hover:shadow-md">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                  <AppWindow className="h-5 w-5 text-primary" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-default-600">应用总数</p>
-                  <p className="text-3xl font-bold text-foreground">{stats.apps}</p>
-                </div>
+        <Link
+          href="/admin/apps"
+          className="group rounded-xl border border-default-200/70 bg-background p-5 shadow-sm transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 group-hover:shadow-md"
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+                <AppWindow className="h-5 w-5 text-primary" />
               </div>
-              <ArrowRight className="h-5 w-5 text-default-300 transition-colors group-hover:text-primary" />
+              <div>
+                <p className="text-sm font-medium text-default-600">应用总数</p>
+                <p className="text-3xl font-bold text-foreground">{stats.apps}</p>
+              </div>
             </div>
+            <ArrowRight className="h-5 w-5 text-default-300 transition-colors group-hover:text-primary" />
           </div>
         </Link>
 
-        <Link href="/admin/users" className="group">
-          <div className="rounded-xl border border-default-200/70 bg-background p-5 shadow-sm transition-shadow group-hover:shadow-md">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-success/10">
-                  <Users className="h-5 w-5 text-success" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-default-600">用户总数</p>
-                  <p className="text-3xl font-bold text-foreground">{stats.users}</p>
-                </div>
+        <Link
+          href="/admin/users"
+          className="group rounded-xl border border-default-200/70 bg-background p-5 shadow-sm transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 group-hover:shadow-md"
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-success/10">
+                <Users className="h-5 w-5 text-success" />
               </div>
-              <ArrowRight className="h-5 w-5 text-default-300 transition-colors group-hover:text-primary" />
+              <div>
+                <p className="text-sm font-medium text-default-600">用户总数</p>
+                <p className="text-3xl font-bold text-foreground">{stats.users}</p>
+              </div>
             </div>
+            <ArrowRight className="h-5 w-5 text-default-300 transition-colors group-hover:text-primary" />
           </div>
         </Link>
       </div>
@@ -161,8 +161,12 @@ export default function AdminDashboardPage() {
         {quickActions.map((action) => {
           const Icon = action.icon
           return (
-            <Link key={action.href} href={action.href} className="group">
-              <div className="flex items-start gap-4 rounded-xl border border-default-200/70 bg-background p-5 shadow-sm transition-shadow group-hover:shadow-md">
+            <Link
+              key={action.href}
+              href={action.href}
+              className="group rounded-xl border border-default-200/70 bg-background p-5 shadow-sm transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 group-hover:shadow-md"
+            >
+              <div className="flex items-start gap-4">
                 <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${action.bg}`}>
                   <Icon className={`h-5 w-5 ${action.color}`} />
                 </div>
@@ -176,10 +180,6 @@ export default function AdminDashboardPage() {
           )
         })}
       </div>
-
-      {quickActions.length === 0 ? (
-        <AdminEmptyState title="暂无可用管理入口" description="请稍后再试。" />
-      ) : null}
     </div>
   )
 }
