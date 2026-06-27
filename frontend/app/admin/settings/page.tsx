@@ -24,6 +24,13 @@ export default function SiteSettingsPage() {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
 
+  // 保存成功提示在 4 秒后自动消失，并在卸载时清理定时器
+  useEffect(() => {
+    if (!success) return
+    const timer = window.setTimeout(() => setSuccess(null), 4000)
+    return () => window.clearTimeout(timer)
+  }, [success])
+
   useEffect(() => {
     if (!canManage) return
 
@@ -57,7 +64,6 @@ export default function SiteSettingsPage() {
       const response = await siteApi.update(trimmedName)
       setSiteName(response.data?.site_name || trimmedName)
       setSuccess('站点设置已保存')
-      window.setTimeout(() => setSuccess(null), 1500)
     } catch (err: any) {
       setError(err.response?.data?.detail || '保存失败')
     } finally {

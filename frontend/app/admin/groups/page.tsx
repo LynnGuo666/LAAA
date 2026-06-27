@@ -353,10 +353,11 @@ export default function GroupsPage() {
                 if (targetGroup) void openPanel(targetGroup)
               }
             }}
+            placeholder="选择用户组"
             className="w-56"
           >
             <Select.Trigger>
-              <Select.Value placeholder="选择用户组" />
+              <Select.Value />
               <Select.Indicator />
             </Select.Trigger>
             <Select.Popover>
@@ -460,10 +461,10 @@ export default function GroupsPage() {
                   <Tabs.Panel id="apps">
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
-                        <Input value={appSearch} onChange={(e) => setAppSearch(e.target.value)} placeholder="搜索应用名称" size="sm" className="max-w-xs" />
+                        <Input value={appSearch} onChange={(e) => setAppSearch(e.target.value)} placeholder="搜索应用名称" className="max-w-xs" />
                         <Button variant="primary" size="sm" isPending={savingApps} isDisabled={savingApps} onPress={() => void handleUpdateAppPermissions()}>保存权限</Button>
                       </div>
-                      <p className="text-xs text-default-500">优先级：用户拒绝 {'>'} 用户允许 {'>'} 用户组拒绝 {'>'} 用户组允许 {'>'} 应用默认</p>
+                      <p className="text-xs text-default-500">优先级：用户拒绝 → 用户允许 → 用户组拒绝 → 用户组允许 → 应用默认</p>
                       {filteredApps.length === 0 ? (
                         <p className="py-6 text-center text-sm text-default-500">暂无应用</p>
                       ) : (

@@ -13,6 +13,7 @@ import {
   TextField,
   cn,
 } from '@heroui/react'
+import { useState } from 'react'
 import type { ComponentProps, ReactNode } from 'react'
 
 type NoticeTone = 'danger' | 'success' | 'warning' | 'accent' | 'default'
@@ -39,6 +40,11 @@ type AdminNoticeProps = {
 type AdminLoadingStateProps = {
   label?: string
   className?: string
+  /**
+   * 默认包在 Card 内展示；传 "inline" 时不带卡片边框，
+   * 适合嵌入到已有卡片/抽屉内容区里，避免双层卡片。
+   */
+  variant?: 'card' | 'inline'
 }
 
 type AdminEmptyStateProps = {
@@ -125,7 +131,7 @@ export function AdminSection({ children, className, variant = 'default' }: Admin
 
 export function AdminNotice({ tone, title, description, className }: AdminNoticeProps) {
   return (
-    <Alert status={tone} className={className}>
+    <Alert status={tone} className={className} role={tone === 'danger' ? 'alert' : 'status'} aria-live={tone === 'danger' ? 'assertive' : 'polite'}>
       <Alert.Indicator />
       <Alert.Content>
         {title ? <Alert.Title>{title}</Alert.Title> : null}
@@ -138,14 +144,21 @@ export function AdminNotice({ tone, title, description, className }: AdminNotice
 export function AdminLoadingState({
   label = '加载中...',
   className,
+  variant = 'card',
 }: AdminLoadingStateProps) {
+  const inner = (
+    <div className="flex flex-col items-center justify-center gap-3 text-center">
+      <Spinner size="lg" />
+      <p className="text-sm text-default-500">{label}</p>
+    </div>
+  )
+
+  if (variant === 'inline') {
+    return <div className={cn('p-10', className)}>{inner}</div>
+  }
+
   return (
-    <AdminSection className={cn('p-10', className)}>
-      <div className="flex flex-col items-center justify-center gap-3 text-center">
-        <Spinner size="lg" />
-        <p className="text-sm text-default-500">{label}</p>
-      </div>
-    </AdminSection>
+    <AdminSection className={cn('p-10', className)}>{inner}</AdminSection>
   )
 }
 
@@ -279,13 +292,16 @@ export function EntityAvatar({
     avatarRoundedClasses[rounded],
   )
 
-  if (src) {
+  const [imageFailed, setImageFailed] = useState(false)
+
+  if (src && !imageFailed) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
         src={src}
         alt={name}
         className={cn(baseClassName, 'object-cover')}
+        onError={() => setImageFailed(true)}
       />
     )
   }

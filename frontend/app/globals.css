@@ -3,3 +3,35 @@
 
 /* 启用基于 data-theme 属性的 dark: 变体（配合 HeroUI 主题系统） */
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+/* 页面/卡片淡入动画：多个页面通过 animate-fade-in 引用 */
+@utility animate-fade-in {
+  animation: fade-in 0.3s ease-out both;
+}
+
+/* 隐藏横向滚动条（移动端导航等场景仍可手势滚动） */
+@utility no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in {
+    animation: none;
+  }
+}
