@@ -50,6 +50,9 @@ async def authorize_get(
     redirect_uri: str = Query(...),
     scope: str = Query(default="profile"),
     state: Optional[str] = Query(default=None),
+    nonce: Optional[str] = Query(default=None),
+    code_challenge: Optional[str] = Query(default=None),
+    code_challenge_method: Optional[str] = Query(default=None),
     current_user: Optional[User] = Depends(get_optional_user),
     db: Session = Depends(get_db),
     request: Request = None
@@ -72,12 +75,20 @@ async def authorize_get(
     if not OAuthService.verify_scope(client, scope):
         raise HTTPException(status_code=400, detail="Invalid scope")
 
+    # PKCE:code_challenge_method 仅允许 S256(或 plain 向后兼容)
+    if code_challenge and code_challenge_method not in (None, "S256", "plain"):
+        raise HTTPException(status_code=400, detail="Unsupported code_challenge_method")
+
     # Check if user is logged in
     if not current_user:
         # Redirect to login page with return URL
         return_url = f"/oauth/authorize?response_type={response_type}&client_id={client_id}&redirect_uri={redirect_uri}&scope={scope}"
         if state:
             return_url += f"&state={state}"
+        if nonce:
+            return_url += f"&nonce={quote(nonce, safe='')}"
+        if code_challenge:
+            return_url += f"&code_challenge={code_challenge}&code_challenge_method={code_challenge_method or 'S256'}"
         login_url = f"/login?redirect={quote(return_url, safe='')}"
         return RedirectResponse(url=login_url, status_code=302)
 
@@ -101,11 +112,17 @@ async def authorize_get(
             detail="您的账户处于受限模式，请先完成邮箱验证和二次验证设置"
         )
 
-    # Check if client is trusted or user has already authorized
-    if client.trusted or OAuthService.has_user_authorized_client(db, current_user.id, client.id):
+    # P2-4:仅当请求 scope 是已授权 scope 的子集时才跳过同意(避免静默升级)
+    needs_consent = OAuthService.needs_consent(db, current_user, client, scope)
+
+    # Check if client is trusted or user has already authorized (sufficient scope)
+    if client.trusted or not needs_consent:
         # Auto-approve
         code = OAuthService.create_authorization_code(
-            db, client, current_user, redirect_uri, scope
+            db, client, current_user, redirect_uri, scope,
+            code_challenge=code_challenge,
+            code_challenge_method=code_challenge_method,
+            nonce=nonce,
         )
 
         # Redirect back with code
@@ -145,6 +162,9 @@ async def authorize_post(
     redirect_uri: str = Form(...),
     scope: str = Form(default="profile"),
     state: Optional[str] = Form(default=None),
+    nonce: Optional[str] = Form(default=None),
+    code_challenge: Optional[str] = Form(default=None),
+    code_challenge_method: Optional[str] = Form(default=None),
     action: str = Form(...),
     current_user: Optional[User] = Depends(get_optional_user),
     db: Session = Depends(get_db),
@@ -203,9 +223,12 @@ async def authorize_post(
         if not OAuthService.verify_scope(client, scope):
             raise HTTPException(status_code=400, detail="Invalid scope")
 
-        # Create authorization code
+        # Create authorization code(透传 PKCE + nonce)
         code = OAuthService.create_authorization_code(
-            db, client, current_user, redirect_uri, scope
+            db, client, current_user, redirect_uri, scope,
+            code_challenge=code_challenge,
+            code_challenge_method=code_challenge_method,
+            nonce=nonce,
         )
 
         # Redirect back with code
@@ -313,6 +336,7 @@ async def token(
     username = payload.get("username")
     password = payload.get("password")
     scope = payload.get("scope") or "profile"
+    code_verifier = payload.get("code_verifier")  # PKCE
 
     client_id = payload.get("client_id")
     client_secret = payload.get("client_secret")
@@ -323,22 +347,28 @@ async def token(
     if not grant_type:
         logger.warning("oauth token: missing grant_type client_id=%s", client_id)
         return oauth_error(400, "invalid_request", "grant_type required")
-    if not client_id or not client_secret:
+    if not client_id:
         logger.warning(
-            "oauth token: missing client credentials grant_type=%s has_client_id=%s has_client_secret=%s",
-            grant_type,
-            bool(client_id),
-            bool(client_secret),
+            "oauth token: missing client_id grant_type=%s", grant_type,
         )
         return oauth_error(
             401,
             "invalid_client",
-            "client authentication failed (missing client_id/client_secret)",
+            "client authentication failed (missing client_id)",
             headers={"WWW-Authenticate": 'Basic realm="oauth"'},
         )
 
     client = OAuthService.get_client_by_id(db, client_id)
-    if not client or not verify_client_secret(client_secret, client.client_secret_hash):
+    if not client:
+        return oauth_error(
+            401,
+            "invalid_client",
+            "client authentication failed (invalid client_id)",
+            headers={"WWW-Authenticate": 'Basic realm="oauth"'},
+        )
+    # 公开客户端(public)免 secret,靠 PKCE;机密客户端仍校验 secret
+    is_public = (getattr(client, 'client_type', 'confidential') == 'public')
+    if not is_public and not verify_client_secret(client_secret, client.client_secret_hash):
         return oauth_error(
             401,
             "invalid_client",
@@ -349,7 +379,7 @@ async def token(
     base = str(request.base_url).rstrip("/") if request else ""
     issuer = settings.oidc_issuer or base
 
-    def maybe_add_id_token(response_dict: dict, access_token_value: str) -> dict:
+    def maybe_add_id_token(response_dict: dict, access_token_value: str, nonce: Optional[str] = None) -> dict:
         payload = decode_token(access_token_value) or {}
         if "openid" not in (payload.get("scope") or "").split():
             return response_dict
@@ -360,16 +390,30 @@ async def token(
         except Exception as e:
             logger.warning("oauth token: id_token user lookup failed sub=%s err=%s", payload.get("sub"), e)
             user = None
-        id_token = create_id_token(
-            {
-                "sub": payload.get("sub"),
-                "aud": payload.get("client_id"),
-                "iss": issuer or None,
-                "username": getattr(user, "username", None),
-                "email": getattr(user, "email", None),
-                "avatar": getattr(user, "avatar", None),
-            }
-        )
+
+        # OIDC 完整性 claims:
+        # - nonce:请求时透传,回填防重放
+        # - c_hash:授权码 hash 的左半,RP 校验 id_token 与 code 绑定
+        # - at_hash:access_token hash 的左半,RP 校验 id_token 与 access_token 绑定
+        id_claims = {
+            "sub": payload.get("sub"),
+            "aud": payload.get("client_id"),
+            "iss": issuer or None,
+            "username": getattr(user, "username", None),
+            "email": getattr(user, "email", None),
+            "avatar": getattr(user, "avatar", None),
+        }
+        if nonce:
+            id_claims["nonce"] = nonce
+        # at_hash = base64url(sha256(access_token)[0:16])
+        # OIDC §3.1.3.6:at_hash 对隐式流必填,对 code 流 SHOULD。这里都加,便于 RP 校验绑定。
+        try:
+            digest = hashlib.sha256(access_token_value.encode("ascii")).digest()
+            id_claims["at_hash"] = base64.urlsafe_b64encode(digest[:16]).rstrip(b"=").decode("ascii")
+        except Exception:
+            pass
+
+        id_token = create_id_token(id_claims)
         response_dict["id_token"] = id_token
         return response_dict
 
@@ -385,7 +429,7 @@ async def token(
             return oauth_error(400, "invalid_request", "code and redirect_uri required")
 
         result = OAuthService.exchange_code_for_token(
-            db, code, client_id, client_secret, redirect_uri
+            db, code, client_id, client_secret or "", redirect_uri, code_verifier=code_verifier
         )
 
         if not result:
@@ -396,7 +440,7 @@ async def token(
             )
             return oauth_error(400, "invalid_grant", "invalid authorization code")
 
-        access_token, refresh_token_value, expires_in = result
+        access_token, refresh_token_value, expires_in, nonce = result
 
         response = {
             "access_token": access_token,
@@ -404,7 +448,7 @@ async def token(
             "token_type": "bearer",
             "expires_in": expires_in
         }
-        return maybe_add_id_token(response, access_token)
+        return maybe_add_id_token(response, access_token, nonce)
 
     elif grant_type == "refresh_token":
         # Refresh token flow
@@ -413,7 +457,7 @@ async def token(
             return oauth_error(400, "invalid_request", "refresh_token required")
 
         result = OAuthService.refresh_token_grant(
-            db, refresh_token, client_id, client_secret
+            db, refresh_token, client_id, client_secret or ""
         )
 
         if not result:
@@ -428,7 +472,7 @@ async def token(
             "token_type": "bearer",
             "expires_in": expires_in
         }
-        return maybe_add_id_token(response, access_token)
+        return maybe_add_id_token(response, access_token, None)
 
     elif grant_type == "password":
         # Password flow (for trusted clients)
@@ -442,7 +486,7 @@ async def token(
             return oauth_error(400, "invalid_request", "username and password required")
 
         result = OAuthService.password_grant(
-            db, username, password, client_id, client_secret, scope or "profile"
+            db, username, password, client_id, client_secret or "", scope or "profile"
         )
 
         if not result:
@@ -457,15 +501,127 @@ async def token(
             "token_type": "bearer",
             "expires_in": expires_in
         }
-        return maybe_add_id_token(response, access_token)
+        return maybe_add_id_token(response, access_token, None)
 
     else:
         return oauth_error(400, "unsupported_grant_type", "unsupported grant_type")
 
 
+@router.post("/introspect")
+@limiter.limit("30/minute")
+async def introspect(
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """RFC 7662 token introspection.
+
+    资源服务器用 client 凭据查询某 access_token 是否有效及其 scope/sub/exp。
+    返回 {"active": false} 表示无效/过期/吊销(不暴露具体原因)。
+    """
+    body = await _parse_form_or_json(request)
+    token_value = body.get("token")
+    # client 认证(Basic 或 body)
+    cid, csec = _extract_client_credentials(request, body)
+    client = OAuthService.get_client_by_id(db, cid) if cid else None
+    if not client or not verify_client_secret(csec or "", client.client_secret_hash):
+        return JSONResponse(status_code=401, content={"error": "invalid_client"})
+
+    if not token_value:
+        return {"active": False}
+
+    payload = decode_token(token_value)
+    if not payload or payload.get("type") != "access":
+        return {"active": False}
+    user = OAuthService.get_user_from_token(db, token_value)
+    if not user:
+        return {"active": False}
+
+    return {
+        "active": True,
+        "scope": payload.get("scope", ""),
+        "client_id": payload.get("client_id"),
+        "sub": payload.get("sub"),
+        "token_type": "Bearer",
+        "exp": int(payload.get("exp", 0)),
+    }
+
+
+@router.post("/revoke")
+@limiter.limit("30/minute")
+async def revoke(
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """RFC 7009 token revocation.
+
+    吊销 refresh token(删 DB 记录)。access token 是无状态 JWT,15min TTL,
+    配合 P1-5 token_version 机制已可即时吊销(改密/封禁时);此处主要清 refresh。
+    成功总是返回 200(即使 token 无效,避免泄露信息)。
+    """
+    body = await _parse_form_or_json(request)
+    token_value = body.get("token")
+    token_type_hint = body.get("token_type_hint", "refresh_token")
+    cid, csec = _extract_client_credentials(request, body)
+    client = OAuthService.get_client_by_id(db, cid) if cid else None
+    if not client or not verify_client_secret(csec or "", client.client_secret_hash):
+        return JSONResponse(status_code=401, content={"error": "invalid_client"})
+
+    if token_value:
+        from app.models import Token
+        from app.utils.security import hash_token
+        th = hash_token(token_value)
+        record = db.query(Token).filter(
+            Token.token_hash == th,
+            Token.client_id == client.id,
+        ).first()
+        if record:
+            db.delete(record)
+            db.commit()
+            logger.info("oauth revoke: token revoked client_id=%s type=%s", cid, record.type)
+
+    # RFC 7009 §2.2:始终 200
+    return JSONResponse(status_code=200, content={})
+
+
+async def _parse_form_or_json(request: Request) -> dict:
+    """token/revoke/introspect 端点支持 form 或 json body。"""
+    ct = (request.headers.get("content-type") or "").lower()
+    if "application/json" in ct:
+        try:
+            data = await request.json()
+            return data if isinstance(data, dict) else {}
+        except Exception:
+            return {}
+    try:
+        form = await request.form()
+    except Exception:
+        return {}
+    return dict(form.multi_items())
+
+
+def _extract_client_credentials(request: Request, body: dict):
+    """从 Basic header 或 body 取 client_id/client_secret。"""
+    auth = request.headers.get("authorization") or ""
+    if auth.lower().startswith("basic "):
+        try:
+            decoded = base64.b64decode(auth.split(" ", 1)[1].strip()).decode("utf-8")
+            if ":" in decoded:
+                cid, csec = decoded.split(":", 1)
+                return cid or None, csec or None
+        except Exception as e:
+            logger.debug("oauth: invalid basic auth err=%s", e)
+    return body.get("client_id"), body.get("client_secret")
+
+
 @router.get("/userinfo", response_model=UserInfoResponse)
 async def userinfo(request: Request, db: Session = Depends(get_db)):
-    """Get user info from access token (OpenID Connect endpoint)"""
+    """Get user info from access token (OpenID Connect userinfo endpoint).
+
+    OIDC §5.4:按 token 的 scope 过滤返回的 claims。
+    - profile scope:sub, username, avatar
+    - email scope:email
+    无对应 scope 的 claim 不返回(最小披露)。
+    """
     # Get token from Authorization header
     auth_header = request.headers.get("Authorization")
     if not auth_header or not auth_header.startswith("Bearer "):
@@ -478,9 +634,17 @@ async def userinfo(request: Request, db: Session = Depends(get_db)):
     if not user:
         raise HTTPException(status_code=401, detail="Invalid access token")
 
-    return UserInfoResponse(
-        sub=str(user.id),
-        username=user.username,
-        email=user.email,
-        avatar=user.avatar
-    )
+    # 解析 scope 决定返回哪些 claims(从 token payload 取 scope,不信任请求方)
+    from app.utils.security import decode_token
+    payload = decode_token(access_token) or {}
+    scopes = set((payload.get("scope") or "").split())
+
+    claims = {"sub": str(user.id)}
+    if "profile" in scopes or not scopes:
+        # profile 或无明确 scope(向后兼容)时返回 profile claims
+        claims["username"] = user.username
+        claims["avatar"] = user.avatar
+    if "email" in scopes or not scopes:
+        claims["email"] = user.email
+
+    return UserInfoResponse(**claims)

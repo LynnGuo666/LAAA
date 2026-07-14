@@ -19,12 +19,24 @@ async def openid_configuration(request: Request):
         "token_endpoint": f"{issuer}/api/oauth/token",
         "userinfo_endpoint": f"{issuer}/api/oauth/userinfo",
         "jwks_uri": f"{issuer}/.well-known/jwks.json",
+        "revocation_endpoint": f"{issuer}/api/oauth/revoke",
+        "introspection_endpoint": f"{issuer}/api/oauth/introspect",
         "response_types_supported": ["code"],
+        "grant_types_supported": [
+            "authorization_code",
+            "refresh_token",
+            "password",
+        ],
         "subject_types_supported": ["public"],
         "id_token_signing_alg_values_supported": [settings.jwt_algorithm],
         "scopes_supported": ["openid", "profile", "email"],
-        "claims_supported": ["sub", "username", "email", "avatar"],
+        "claims_supported": [
+            "sub", "username", "email", "avatar",
+            "nonce", "at_hash", "aud", "iss", "iat", "exp",
+        ],
+        # 实现同时支持 client_secret_post 与 client_secret_basic
         "token_endpoint_auth_methods_supported": ["client_secret_post", "client_secret_basic"],
+        "code_challenge_methods_supported": ["S256", "plain"],
     }
 
 

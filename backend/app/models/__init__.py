@@ -199,6 +199,8 @@ class Client(Base):
     allowed_scopes = Column(Text, nullable=False)  # JSON array stored as text
     trusted = Column(Boolean, default=False)  # Skip authorization for trusted apps
     default_access = Column(Boolean, default=False)  # Default access policy (True=open, False=requires permission)
+    # 客户端类型:confidential(机密,有 client_secret)或 public(公开,SPA/移动端,免 secret 走 PKCE)
+    client_type = Column(String(20), default='confidential')
     owner_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
     created_at = Column(DateTime, default=utcnow)
 
@@ -236,6 +238,11 @@ class Token(Base):
     scope = Column(Text, nullable=False)
     device_info = Column(Text, nullable=True)  # JSON with device information
     redirect_uri = Column(String(500), nullable=True)  # For authorization codes
+    # PKCE(RFC 7636):授权码绑定 code_challenge,token 兑换时校验 code_verifier
+    code_challenge = Column(String(128), nullable=True)
+    code_challenge_method = Column(String(10), nullable=True)  # S256 / plain
+    # OIDC nonce:授权码请求时透传,签发 id_token 时回填(防重放)
+    nonce = Column(String(128), nullable=True)
     expires_at = Column(DateTime, nullable=False)
     created_at = Column(DateTime, default=utcnow)
 

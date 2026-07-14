@@ -1,4 +1,6 @@
+import base64
 import hashlib
+import hmac
 import json
 import logging
 from datetime import timedelta
@@ -75,9 +77,16 @@ class OAuthService:
         client: Client,
         user: User,
         redirect_uri: str,
-        scope: str
+        scope: str,
+        code_challenge: Optional[str] = None,
+        code_challenge_method: Optional[str] = None,
+        nonce: Optional[str] = None,
     ) -> str:
-        """Create an authorization code"""
+        """Create an authorization code.
+
+        code_challenge/code_challenge_method: PKCE(RFC 7636),公开客户端防授权码拦截。
+        nonce: OIDC 请求透传,签发 id_token 时回填(防重放)。
+        """
         # Generate code
         code = generate_random_string(32)
 
@@ -90,6 +99,9 @@ class OAuthService:
             client_id=client.id,
             scope=scope,
             redirect_uri=redirect_uri,
+            code_challenge=code_challenge,
+            code_challenge_method=code_challenge_method or ("S256" if code_challenge else None),
+            nonce=nonce,
             expires_at=expires_at
         )
         db.add(token)
@@ -101,7 +113,10 @@ class OAuthService:
         ).first()
 
         if auth:
-            auth.scope = scope
+            # P2-4:scope 存并集(而非覆盖),新增 scope 才需再次同意
+            existing_scopes = set(auth.scope.split()) if auth.scope else set()
+            new_scopes = set(scope.split())
+            auth.scope = " ".join(sorted(existing_scopes | new_scopes))
             auth.last_used_at = utcnow()
         else:
             auth = UserAuthorization(
@@ -116,24 +131,52 @@ class OAuthService:
         return code
 
     @staticmethod
+    def _verify_pkce(code_verifier: Optional[str], stored_challenge: Optional[str], method: Optional[str]) -> bool:
+        """校验 PKCE code_verifier。无 stored_challenge 时视为未启用 PKCE,直接通过。"""
+        if not stored_challenge:
+            # 客户端未在 authorize 时提供 code_challenge:对公开客户端应拒绝,
+            # 对机密客户端允许(向后兼容)。调用方按 client_type 决定。
+            return True
+        if not code_verifier:
+            return False
+        if method == "S256":
+            digest = hashlib.sha256(code_verifier.encode("ascii")).digest()
+            computed = base64.urlsafe_b64encode(digest).rstrip(b"=").decode("ascii")
+            return hmac.compare_digest(computed, stored_challenge)
+        elif method == "plain":
+            return hmac.compare_digest(code_verifier, stored_challenge)
+        return False
+
+    @staticmethod
     def exchange_code_for_token(
         db: Session,
         code: str,
         client_id: str,
         client_secret: str,
-        redirect_uri: str
-    ) -> Optional[Tuple[str, str, int]]:
-        """Exchange authorization code for access token"""
+        redirect_uri: str,
+        code_verifier: Optional[str] = None,
+    ) -> Optional[Tuple[str, str, int, Optional[str]]]:
+        """Exchange authorization code for access token.
+
+        返回 (access_token, refresh_token, expires_in, nonce) —— nonce 用于签发 id_token。
+        """
         # Get client
         client = OAuthService.get_client_by_id(db, client_id)
         if not client:
             logger.info("oauth exchange_code: client not found client_id=%s", client_id)
             return None
 
-        # Verify client secret
-        if not verify_client_secret(client_secret, client.client_secret_hash):
-            logger.info("oauth exchange_code: invalid client_secret client_id=%s", client_id)
-            return None
+        # 公开客户端(public)免 client_secret,但必须用 PKCE
+        is_public = (getattr(client, 'client_type', 'confidential') == 'public')
+        if is_public:
+            if not code_verifier:
+                logger.info("oauth exchange_code: public client missing code_verifier client_id=%s", client_id)
+                return None
+        else:
+            # 机密客户端仍校验 secret
+            if not verify_client_secret(client_secret, client.client_secret_hash):
+                logger.info("oauth exchange_code: invalid client_secret client_id=%s", client_id)
+                return None
 
         # Get authorization code
         code_hash = hash_token(code)
@@ -159,6 +202,16 @@ class OAuthService:
                 token.redirect_uri,
                 redirect_uri,
             )
+            return None
+
+        # PKCE 校验(RFC 7636)
+        if not OAuthService._verify_pkce(code_verifier, token.code_challenge, token.code_challenge_method):
+            logger.info("oauth exchange_code: pkce verification failed client_id=%s", client_id)
+            return None
+
+        # 公开客户端必须走了 PKCE(授权码创建时有 challenge)
+        if is_public and not token.code_challenge:
+            logger.info("oauth exchange_code: public client code has no pkce challenge client_id=%s", client_id)
             return None
 
         # Get user
@@ -203,7 +256,7 @@ class OAuthService:
 
         db.commit()
 
-        return access_token, refresh_token, settings.access_token_expire_minutes * 60
+        return access_token, refresh_token, settings.access_token_expire_minutes * 60, token.nonce
 
     @staticmethod
     def password_grant(
@@ -364,3 +417,23 @@ class OAuthService:
             UserAuthorization.client_id == client_id
         ).first()
         return auth is not None
+
+    @staticmethod
+    def needs_consent(db: Session, user: User, client: Client, requested_scope: str) -> bool:
+        """P2-4:判断是否需要再次征得用户同意。
+
+        仅当请求 scope 是已授权 scope 的子集时,才视为已充分授权、跳过同意。
+        新增 scope(超出已授权范围)→ 需要同意(避免静默 scope 升级)。
+        从未授权过 → 需要同意。
+        """
+        if client.trusted:
+            return False
+        auth = db.query(UserAuthorization).filter(
+            UserAuthorization.user_id == user.id,
+            UserAuthorization.client_id == client.id
+        ).first()
+        if not auth:
+            return True
+        existing = set(auth.scope.split()) if auth.scope else set()
+        requested = set(requested_scope.split())
+        return not requested.issubset(existing)

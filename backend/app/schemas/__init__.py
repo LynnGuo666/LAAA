@@ -178,9 +178,9 @@ class TokenRequest(BaseModel):
 
 class UserInfoResponse(BaseModel):
     sub: str  # user id
-    username: str
-    email: str
-    avatar: Optional[str] = None
+    username: Optional[str] = None  # profile scope
+    email: Optional[str] = None  # email scope
+    avatar: Optional[str] = None  # profile scope
 
 
 # Authorization Management
