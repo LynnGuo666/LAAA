@@ -34,6 +34,11 @@ services:
     volumes:
       # 数据库持久化：容器重建/升级后用户、会话、应用配置不丢
       - ./oauth.db:/app/oauth.db
+      # RS256 JWT 签名密钥对(access/id token 用)。先用
+      #   python scripts/generate_jwt_keys.py --out-dir ./jwt_keys
+      # 生成,再挂载进来;.env 里 JWT_PRIVATE_KEY_PATH=jwt_keys/jwt_private.pem
+      # 私钥不入镜像、不进 git,随数据卷持久化。
+      - ./jwt_keys:/app/jwt_keys
       # 可选：放自有 GeoIP 库覆盖镜像内置；不放则用镜像自带的（CI 已下载）
       - ./data:/app/data
     healthcheck:

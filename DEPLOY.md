@@ -24,20 +24,32 @@ cd LAAA
 # 2. 准备环境变量文件
 cp backend/.env.example ./env
 # 编辑 ./env，至少改：
-#   SECRET_KEY=<随机长字符串>           ← 必改，否则 token 可被伪造
+#   SECRET_KEY=<≥32 字符随机串>         ← 必改，占位串会被启动校验拒绝
+#   JWT_PRIVATE_KEY_PATH=jwt_keys/jwt_private.pem   ← RS256 签名密钥(下方生成)
+#   JWT_PUBLIC_KEY_PATH=jwt_keys/jwt_public.pem
 #   ALLOWED_ORIGINS=http://localhost:8000
 #   FRONTEND_URL=http://localhost:8000
 #   WEBAUTHN_RP_ID=localhost
 #   WEBAUTHN_RP_ORIGIN=http://localhost:8000
 
-# 3. 拉起
+# 3. 生成 RS256 签名密钥对(access/id token 用,只生成一次,随卷持久化)
+#    任意能跑 python + cryptography 的环境即可;镜像内也带这个脚本:
+mkdir jwt_keys
+docker run --rm -v "$PWD/jwt_keys:/jwt_keys" \
+  ghcr.io/lynnguo666/laaa:latest \
+  python scripts/generate_jwt_keys.py --out-dir /jwt_keys
+
+# 4. 拉起
 docker compose pull
 docker compose up -d
 
-# 4. 访问
+# 5. 访问
 open http://localhost:8000        # 首页
 curl http://localhost:8000/api/health   # 应返回 {"status":"ok"}
 ```
+
+> ⚠️ **必须生成 RS256 密钥对**。access token / id token 用 RS256 非对称签名,未配置密钥时登录与 OAuth 签发 token 会失败。`jwt_keys/` 已由 compose 挂载到容器 `/app/jwt_keys`,私钥不入镜像、不进 git。
+
 
 首次启动会自动初始化数据库并创建默认管理员（用户名 `admin` / 密码 `admin123`，**登录后立即改密码**）。
 
@@ -51,7 +63,9 @@ curl http://localhost:8000/api/health   # 应返回 {"status":"ok"}
 
 | 变量 | 说明 | 生产示例 |
 |---|---|---|
-| `SECRET_KEY` | JWT 签名密钥，**必改** | `openssl rand -hex 32` 生成 |
+| `SECRET_KEY` | refresh token 签名密钥，**必改**(≥32 字符) | `openssl rand -hex 32` 生成 |
+| `JWT_PRIVATE_KEY_PATH` / `JWT_PUBLIC_KEY_PATH` | RS256 密钥对(access/id token),**必配** | `jwt_keys/jwt_private.pem` 等(见上方生成步骤) |
+| `OIDC_ISSUER` | OIDC issuer，反代后**必须显式设**避免 http/内网地址 | `https://laaa.example.com` |
 | `DATABASE_URL` | SQLite 路径，保持默认即可 | `sqlite:///./oauth.db` |
 | `DEBUG` | 生产置 `False` | `False` |
 | `ALLOWED_ORIGINS` | 前端来源（逗号分隔） | `https://laaa.example.com` |
@@ -61,16 +75,17 @@ curl http://localhost:8000/api/health   # 应返回 {"status":"ok"}
 | `ALLOW_OPEN_REGISTRATION` | 是否开放注册 | `false` |
 | `SMTP_*` | 邮件（验证码/魔法链接），见 `.env.example` 注释 | 按服务商填 |
 
-> `docker-compose.yml` 已把 `HOST`/`PORT`/`STATIC_DIR`/`DATABASE_URL` 设为容器内默认，`./env` 不填也行；但 `SECRET_KEY` 和域名相关项**必须**显式设置。
+> `docker-compose.yml` 已把 `HOST`/`PORT`/`STATIC_DIR`/`DATABASE_URL` 设为容器内默认，`./env` 不填也行；但 `SECRET_KEY`、`JWT_PRIVATE_KEY_PATH`/`JWT_PUBLIC_KEY_PATH`、`OIDC_ISSUER` 和域名相关项**必须**显式设置。
 
 ### 2. 数据持久化
 
-`docker-compose.yml` 挂了两个卷，**不要删**：
+`docker-compose.yml` 挂了三个卷，**不要删**：
 
 - `./oauth.db:/app/oauth.db` — SQLite 数据库。容器升级/重建后用户、会话、应用配置全靠它保留。
+- `./jwt_keys:/app/jwt_keys` — RS256 JWT 签名密钥对。私钥用于签发 access/id token，**不入镜像、不进 git**，随卷持久化（密钥丢了所有已签发 token 立即失效，用户需重新登录；可重新生成但 RP 侧 JWKS 缓存会过期自动刷新）。
 - `./data:/app/data` — 可选。若想用**自有** GeoIP 数据库覆盖镜像内置的，把 `ip2region.xdb` / `GeoIP2-CN.mmdb` / `GeoLite2-City.mmdb` 放进 `./data/` 即可；不放则用镜像自带的。
 
-> 首次 `up` 前无需手动创建这两个文件，compose 会自动建空目录/空文件。SQLite 会在首次启动时由应用自动建表。
+> 首次 `up` 前无需手动创建 `oauth.db`/`data`，compose 会自动建空目录/空文件。SQLite 会在首次启动时由应用自动建表。`jwt_keys/` 须先按上方步骤生成密钥对再 up。
 
 ### 3. 拉起与升级
 
@@ -174,10 +189,12 @@ GitHub Actions（`.github/workflows/docker-publish.yml`）在以下情况自动�
 部署完成后逐项确认：
 
 - [ ] `curl https://<域名>/api/health` 返回 `{"status":"ok"}`
+- [ ] `curl https://<域名>/.well-known/openid-configuration` 返回 JSON，`issuer` 是 `https://<域名>`（验证 `OIDC_ISSUER` 已设）
+- [ ] `curl https://<域名>/.well-known/jwks.json` 返回含 `kid`/`n`/`e` 的公钥（验证 RS256 密钥已挂载）
 - [ ] 浏览器访问首页正常渲染（非 404 JSON）—— 验证前端静态文件 `STATIC_DIR` 生效
-- [ ] `/login` 能打开登录页
+- [ ] `/login` 能打开登录页并能成功登录（验证 RS256 签发正常）
 - [ ] 登录后「会话列表」的「位置」字段有值（验证 GeoIP 生效）
-- [ ] 容器日志无 `database not found` 警告：`docker compose logs laaa | grep -i "not found"`
+- [ ] 容器日志无 `database not found` / `JWT RS256 keys not configured` 警告：`docker compose logs laaa | grep -iE "not found|not configured"`
 - [ ] `docker compose down && docker compose up -d` 后，用户/会话数据仍在（验证 `oauth.db` 持久化）
 - [ ] Passkey 注册+登录成功（验证 `WEBAUTHN_RP_*` 域名对齐）
 
@@ -188,8 +205,12 @@ GitHub Actions（`.github/workflows/docker-publish.yml`）在以下情况自动�
 | 现象 | 排查 |
 |---|---|
 | 首页返回 `{"error":"Not found"}` JSON | 前端静态文件未生效。进容器 `docker exec -it laaa ls /app/frontend/out/index.html` 应存在；检查 `STATIC_DIR=/app/frontend/out` |
+| 登录失败 / OAuth 签发 token 报错 | RS256 密钥未挂载。`docker exec -it laaa ls /app/jwt_keys/` 应见 `jwt_private.pem`/`jwt_public.pem`；检查 `.env` 的 `JWT_PRIVATE_KEY_PATH`/`JWT_PUBLIC_KEY_PATH` 与 compose 挂载 |
+| `/.well-known/jwks.json` 返回 `{"keys":[]}` | 公钥路径未配置或文件不存在；同上排查 `jwt_keys` |
+| 第三方应用校验 id_token 失败 `iss` 不匹配 | 反代后未设 `OIDC_ISSUER`，issuer 带了 `http://` 或内网地址；在 `./env` 显式设 `OIDC_ISSUER=https://<域名>` |
 | 登录后位置为空 | GeoIP 库缺失或 `GEOIP_ENABLED=false`。`docker exec -it laaa ls /app/data/` 应见三个库文件 |
 | Passkey 注册失败 | `WEBAUTHN_RP_ID` 必须等于访问域名，`WEBAUTHN_RP_ORIGIN` 必须是 `https://<域名>` |
 | 邮件链接 404 | `FRONTEND_URL` 未对齐实际访问地址 |
 | 升级后数据丢失 | `./oauth.db` 没正确挂载，检查 `docker compose config` 里 volumes |
+| 升级后所有用户被踢下线 | `./jwt_keys` 未持久化或被重新生成，密钥变了旧 token 全部失效（预期行为）；保留好 `jwt_keys` 卷即可避免 |
 | 拉不到镜像 | ghcr.io 镜像默认是 private；到 GitHub 包设置页改 public，或用 `docker login ghcr.io` 拉取 |
