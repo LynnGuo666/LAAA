@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 
-from app.models import SystemSetting
 from app.config import get_settings
+from app.models import SystemSetting
 
 
 class SiteService:

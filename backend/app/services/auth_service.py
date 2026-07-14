@@ -1,21 +1,24 @@
-from sqlalchemy.orm import Session
+import json
 from datetime import timedelta
-from typing import Optional, Tuple, Dict, Any, List
-from app.models import User, Token, Session as SessionModel, LoginLog
+from typing import Any, Dict, List, Optional, Tuple
+
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
+
+from app.config import get_settings
+from app.models import LoginLog, Token, User
+from app.models import Session as SessionModel
+from app.utils.device import generate_device_id, get_device_name, parse_device_type
 from app.utils.security import (
-    verify_password,
-    get_password_hash,
     create_access_token,
     create_refresh_token,
     decode_token,
+    get_password_hash,
     hash_token,
-    verify_client_secret
+    verify_client_secret,
+    verify_password,
 )
-from sqlalchemy.exc import IntegrityError
-from app.utils.device import generate_device_id, get_device_name, parse_device_type
-from app.config import get_settings
 from app.utils.time import utcnow
-import json
 
 settings = get_settings()
 
@@ -66,11 +69,11 @@ class AuthService:
         db.flush()
 
         # Assign default 'user' role
-        from app.models import Role, Group
+        from app.models import Group, Role
         user_role = db.query(Role).filter(Role.name == 'user').first()
         if user_role:
             user.roles.append(user_role)
-        
+
         # Assign default groups (is_default=True)
         default_groups = db.query(Group).filter(Group.is_default == True).all()
         for group in default_groups:
@@ -139,8 +142,8 @@ class AuthService:
             - anomalies: List[dict] - List of detected anomalies
         """
         from app.services.geoip_service import GeoIPService
-        from app.services.session_limit_service import SessionLimitService
         from app.services.login_anomaly_service import LoginAnomalyService
+        from app.services.session_limit_service import SessionLimitService
 
         safe_user_agent = user_agent or "unknown"
         safe_ip_address = ip_address or "unknown"
@@ -341,7 +344,6 @@ class AuthService:
             return None
 
         # Ensure the refresh token is still bound to a valid client
-        from app.models import Client
         bound_client = token_record.client
         if not bound_client:
             return None

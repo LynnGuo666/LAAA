@@ -6,12 +6,13 @@ When a user exceeds their session limit, the oldest session is automatically
 terminated to make room for the new login.
 """
 
-from sqlalchemy.orm import Session
-from sqlalchemy import and_
-from typing import Optional, List, Tuple, Dict, Any
+from typing import Any, Dict, List, Optional, Tuple
 
-from app.models import User, Session as SessionModel, Token
+from sqlalchemy.orm import Session
+
 from app.config import get_settings
+from app.models import Session as SessionModel
+from app.models import Token, User
 from app.utils.time import utcnow
 
 settings = get_settings()

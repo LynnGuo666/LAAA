@@ -1,19 +1,20 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query, Form, Request
-from fastapi.responses import RedirectResponse, HTMLResponse
-from sqlalchemy.orm import Session
-from typing import Optional, Tuple
-from app.database import get_db
-from app.schemas import TokenRequest, UserInfoResponse
-from app.services.oauth_service import OAuthService
-from app.middleware.auth import get_optional_user
-from app.models import User, Passkey
-from app.utils.security import create_id_token, decode_token, verify_client_secret
-from app.config import get_settings
-from urllib.parse import quote
 import base64
 import hashlib
 import logging
-from fastapi.responses import JSONResponse
+from typing import Optional, Tuple
+from urllib.parse import quote
+
+from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request, status
+from fastapi.responses import JSONResponse, RedirectResponse
+from sqlalchemy.orm import Session
+
+from app.config import get_settings
+from app.database import get_db
+from app.middleware.auth import get_optional_user
+from app.models import Passkey, User
+from app.schemas import UserInfoResponse
+from app.services.oauth_service import OAuthService
+from app.utils.security import create_id_token, decode_token, verify_client_secret
 
 settings = get_settings()
 

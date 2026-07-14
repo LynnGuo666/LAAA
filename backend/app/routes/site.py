@@ -2,11 +2,10 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.schemas.site import SiteConfigResponse, SiteConfigUpdate
-from app.services.site_service import SiteService
 from app.middleware.permission import require_permission
 from app.models import User
-
+from app.schemas.site import SiteConfigResponse, SiteConfigUpdate
+from app.services.site_service import SiteService
 
 router = APIRouter(prefix="/api/site", tags=["Site"])
 

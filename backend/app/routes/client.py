@@ -1,20 +1,16 @@
+import json
+from typing import List
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from typing import List
+
 from app.database import get_db
-from app.schemas import (
-    ClientCreate,
-    ClientUpdate,
-    ClientResponse,
-    ClientWithSecretResponse,
-    ClientSecretResetResponse
-)
-from app.schemas.group import ClientAccessControlUpdate
 from app.middleware.permission import require_permission
-from app.models import User, Client
+from app.models import Client, User
+from app.schemas import ClientCreate, ClientResponse, ClientSecretResetResponse, ClientUpdate, ClientWithSecretResponse
+from app.schemas.group import ClientAccessControlUpdate
 from app.services.group_service import GroupService
 from app.utils.security import generate_random_string, hash_token
-import json
 
 router = APIRouter(prefix="/api/clients", tags=["Client Management"])
 

@@ -18,6 +18,7 @@ annotated-types==0.7.0
     # via pydantic
 anyio==4.14.2
     # via
+    #   httpx
     #   starlette
     #   watchfiles
 attrs==26.1.0
@@ -29,7 +30,10 @@ bcrypt==5.0.0
 cbor2==6.1.3
     # via webauthn
 certifi==2026.6.17
-    # via requests
+    # via
+    #   httpcore
+    #   httpx
+    #   requests
 cffi==2.1.0
     # via cryptography
 charset-normalizer==3.4.9
@@ -60,15 +64,24 @@ geoip2==5.2.0
 greenlet==3.5.3
     # via sqlalchemy
 h11==0.16.0
-    # via uvicorn
+    # via
+    #   httpcore
+    #   uvicorn
+httpcore==1.0.9
+    # via httpx
 httptools==0.8.0
     # via uvicorn
+httpx==0.28.1
+    # via -r backend/requirements.txt
 idna==3.18
     # via
     #   anyio
     #   email-validator
+    #   httpx
     #   requests
     #   yarl
+iniconfig==2.3.0
+    # via pytest
 jinja2==3.1.6
     # via -r backend/requirements.txt
 joserfc==1.7.3
@@ -85,8 +98,12 @@ multidict==6.7.1
     # via
     #   aiohttp
     #   yarl
+packaging==26.2
+    # via pytest
 pillow==12.3.0
     # via qrcode
+pluggy==1.6.0
+    # via pytest
 propcache==0.5.2
     # via
     #   aiohttp
@@ -112,9 +129,13 @@ pydantic-core==2.46.4
     # via pydantic
 pydantic-settings==2.14.2
     # via -r backend/requirements.txt
+pygments==2.20.0
+    # via pytest
 pyopenssl==26.3.0
     # via webauthn
 pyotp==2.10.0
+    # via -r backend/requirements.txt
+pytest==9.1.1
     # via -r backend/requirements.txt
 python-dotenv==1.2.2
     # via

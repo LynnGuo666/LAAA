@@ -8,13 +8,13 @@ Supports both plain text and HTML emails with Jinja2 templating.
 import asyncio
 import logging
 import ssl
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
-from typing import Optional, Dict, Any, List
 from datetime import datetime
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from typing import Any, Dict, List, Optional
 
 import aiosmtplib
-from jinja2 import Environment, BaseLoader
+from jinja2 import BaseLoader, Environment
 
 from app.config import get_settings
 

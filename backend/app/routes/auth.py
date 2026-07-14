@@ -1,56 +1,52 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Request, Response
+from typing import Union
+
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
-from typing import Union
-import json
 
+from app.config import get_settings
 from app.database import get_db
+from app.middleware.auth import get_current_user
+from app.models import Passkey, User
 from app.schemas import (
-    UserCreate,
-    UserResponse,
-    UserMeResponse,
+    ChangeEmailRequest,
     LoginRequest,
+    MagicLinkLoginRequest,
+    PasskeyVerifyCompleteRequest,
+    PasskeyVerifyRequest,
+    RefreshTokenRequest,
+    SendEmailCodeRequest,
+    SendMagicLinkRequest,
+    SkipVerificationRequest,
     TokenResponse,
     TokenResponseExtended,
-    RefreshTokenRequest,
-    VerificationRequiredResponse,
-    VerificationStatusResponse,
+    UserCreate,
+    UserMeResponse,
+    UserResponse,
     VerificationCompleteResponse,
-    VerificationMethodInfo,
-    AnomalyInfo,
-    SendEmailCodeRequest,
+    VerificationRequiredResponse,
+    VerifyBackupCodeRequest,
     VerifyEmailCodeRequest,
     VerifyTOTPRequest,
-    VerifyBackupCodeRequest,
-    SendMagicLinkRequest,
-    MagicLinkLoginRequest,
-    PasskeyVerifyRequest,
-    PasskeyVerifyCompleteRequest,
-    SkipVerificationRequest,
-    ChangeEmailRequest,
 )
 from app.services.auth_service import AuthService
-from app.services.risk_service import RiskService, RiskLevel
-from app.services.verification_service import (
-    VerificationService,
-    VerificationError,
-    CodeExpiredError,
-    CodeInvalidError,
-    MaxAttemptsError,
-    DeviceMismatchError,
-    SessionExpiredError,
-)
-from app.services.totp_service import (
-    TOTPService,
-    TOTPNotEnabledError,
-    InvalidTOTPCodeError,
-    InvalidBackupCodeError,
-)
 from app.services.email_service import EmailService
 from app.services.geoip_service import GeoIPService
-from app.middleware.auth import get_current_user
-from app.models import User, Passkey
-from app.config import get_settings
+from app.services.risk_service import RiskLevel, RiskService
+from app.services.totp_service import (
+    InvalidBackupCodeError,
+    InvalidTOTPCodeError,
+    TOTPNotEnabledError,
+    TOTPService,
+)
+from app.services.verification_service import (
+    CodeExpiredError,
+    CodeInvalidError,
+    DeviceMismatchError,
+    MaxAttemptsError,
+    VerificationError,
+    VerificationService,
+)
 from app.utils.device import get_client_ip
 from app.utils.time import utcnow
 
@@ -72,9 +68,10 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)):
 
         # Send verification email (non-blocking)
         try:
-            import secrets
             import asyncio
+            import secrets
             from datetime import timedelta
+
             from app.models import VerificationCode
             from app.services.site_service import SiteService
 
@@ -876,8 +873,9 @@ async def send_verification_email(
         )
 
     # Check rate limiting (max 5 per day, 60s between sends)
-    from app.models import VerificationCode
     from datetime import timedelta
+
+    from app.models import VerificationCode
 
     now = utcnow()
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)

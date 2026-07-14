@@ -3,29 +3,30 @@ Passkey/WebAuthn API routes
 """
 
 import json
-from fastapi import APIRouter, Depends, HTTPException, status, Request
-from fastapi.responses import JSONResponse
-from sqlalchemy.orm import Session
 from typing import List, Union
 
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi.responses import JSONResponse
+from sqlalchemy.orm import Session
+
+from app.config import get_settings
 from app.database import get_db
+from app.middleware.auth import get_current_user
+from app.models import Passkey, User
+from app.schemas import TokenResponse, VerificationRequiredResponse
 from app.schemas.passkey import (
-    PasskeyRegistrationVerify,
     PasskeyAuthenticationOptionsRequest,
     PasskeyAuthenticationVerify,
-    PasskeyUpdate,
-    PasskeyResponse,
     PasskeyCheckResponse,
+    PasskeyRegistrationVerify,
+    PasskeyResponse,
+    PasskeyUpdate,
 )
-from app.schemas import TokenResponse, VerificationRequiredResponse
-from app.services.passkey_service import PasskeyService
 from app.services.auth_service import AuthService
-from app.services.risk_service import RiskService, RiskLevel
-from app.services.verification_service import VerificationService
 from app.services.geoip_service import GeoIPService
-from app.middleware.auth import get_current_user
-from app.models import User, Passkey
-from app.config import get_settings
+from app.services.passkey_service import PasskeyService
+from app.services.risk_service import RiskLevel, RiskService
+from app.services.verification_service import VerificationService
 from app.utils.device import get_client_ip
 
 settings = get_settings()

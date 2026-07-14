@@ -1,6 +1,7 @@
 from fastapi import Depends, HTTPException, status
-from app.models import User
+
 from app.middleware.auth import get_current_user
+from app.models import User
 
 
 def require_permission(permission_code: str):

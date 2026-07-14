@@ -1,8 +1,8 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text, ForeignKey, Table
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Table, Text
 from sqlalchemy.orm import relationship
-from app.utils.time import utcnow
-from app.database import Base
 
+from app.database import Base
+from app.utils.time import utcnow
 
 # User-Role association table
 user_roles = Table(

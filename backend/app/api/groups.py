@@ -1,20 +1,17 @@
+from typing import List
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from typing import List
+
 from app.database import get_db
 from app.middleware.permission import require_permission
-from app.models import User, Group, Client
-from app.schemas.group import (
-    GroupCreate,
-    GroupUpdate,
-    GroupResponse,
-    GroupMembersUpdate
-)
+from app.models import Client, Group, User
 from app.schemas.admin import (
     AppPermissionItem,
     GroupAppPermissionsResponse,
     GroupAppPermissionsUpdate,
 )
+from app.schemas.group import GroupCreate, GroupMembersUpdate, GroupResponse, GroupUpdate
 from app.services.group_service import GroupService
 
 router = APIRouter()

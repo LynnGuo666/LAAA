@@ -1,8 +1,8 @@
-from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import field_validator
 from functools import lru_cache
 from typing import Optional
 
+from pydantic import field_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # 占位/弱密钥黑名单——出现这些值时启动 fail-fast
 _WEAK_SECRET_KEYS = {

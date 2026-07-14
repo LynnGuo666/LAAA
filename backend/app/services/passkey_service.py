@@ -3,31 +3,30 @@ Passkey/WebAuthn service for handling credential registration and authentication
 """
 
 import json
-import secrets
 from datetime import timedelta
-from typing import Optional, Tuple, List
+from typing import List, Optional, Tuple
 
 from sqlalchemy.orm import Session
-from app.utils.time import utcnow
 from webauthn import (
-    generate_registration_options,
-    verify_registration_response,
     generate_authentication_options,
-    verify_authentication_response,
+    generate_registration_options,
     options_to_json,
+    verify_authentication_response,
+    verify_registration_response,
 )
-from webauthn.helpers.structs import (
-    PublicKeyCredentialDescriptor,
-    AuthenticatorTransport,
-    UserVerificationRequirement,
-    ResidentKeyRequirement,
-    AuthenticatorSelectionCriteria,
-)
-from webauthn.helpers.cose import COSEAlgorithmIdentifier
 from webauthn.helpers import base64url_to_bytes, bytes_to_base64url
+from webauthn.helpers.cose import COSEAlgorithmIdentifier
+from webauthn.helpers.structs import (
+    AuthenticatorSelectionCriteria,
+    AuthenticatorTransport,
+    PublicKeyCredentialDescriptor,
+    ResidentKeyRequirement,
+    UserVerificationRequirement,
+)
 
-from app.models import User, Passkey, WebAuthnChallenge
 from app.config import get_settings
+from app.models import Passkey, User, WebAuthnChallenge
+from app.utils.time import utcnow
 
 settings = get_settings()
 

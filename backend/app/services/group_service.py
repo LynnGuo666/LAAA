@@ -1,6 +1,8 @@
-from sqlalchemy.orm import Session
 from typing import List, Optional
-from app.models import Group, User, Client
+
+from sqlalchemy.orm import Session
+
+from app.models import Client, Group, User
 from app.schemas.group import GroupCreate, GroupUpdate
 
 

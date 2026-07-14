@@ -8,25 +8,23 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.schemas import (
-    TOTPSetupResponse,
-    TOTPVerifySetupRequest,
-    TOTPEnableResponse,
-    TOTPStatusResponse,
-    TOTPDisableRequest,
-    TOTPBackupCodesRequest,
-    TOTPBackupCodesResponse,
-)
-from app.services.totp_service import (
-    TOTPService,
-    TOTPError,
-    TOTPAlreadyEnabledError,
-    TOTPNotEnabledError,
-    InvalidTOTPCodeError,
-)
-from app.services.auth_service import AuthService
 from app.middleware.auth import get_current_user
 from app.models import User
+from app.schemas import (
+    TOTPBackupCodesRequest,
+    TOTPBackupCodesResponse,
+    TOTPDisableRequest,
+    TOTPEnableResponse,
+    TOTPSetupResponse,
+    TOTPStatusResponse,
+    TOTPVerifySetupRequest,
+)
+from app.services.totp_service import (
+    InvalidTOTPCodeError,
+    TOTPAlreadyEnabledError,
+    TOTPNotEnabledError,
+    TOTPService,
+)
 from app.utils.security import verify_password
 
 router = APIRouter(prefix="/api/totp", tags=["TOTP"])

@@ -5,14 +5,15 @@ Calculates risk scores based on login anomalies and determines verification requ
 """
 
 import logging
-from typing import List, Dict, Any, Optional
 from dataclasses import dataclass
 from enum import Enum
+from typing import Any, Dict, List, Optional
 
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
-from app.models import User, Session as UserSession, LoginLog
+from app.models import LoginLog, User
+from app.models import Session as UserSession
 
 settings = get_settings()
 logger = logging.getLogger(__name__)

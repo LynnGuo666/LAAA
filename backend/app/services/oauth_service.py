@@ -1,20 +1,22 @@
-from sqlalchemy.orm import Session
+import hashlib
+import json
+import logging
 from datetime import timedelta
 from typing import Optional, Tuple
-from app.models import Client, User, Token, UserAuthorization
+
+from sqlalchemy.orm import Session
+
+from app.config import get_settings
+from app.models import Client, Token, User, UserAuthorization
 from app.utils.security import (
+    create_access_token,
+    create_refresh_token,
+    decode_token,
     generate_random_string,
     hash_token,
     verify_client_secret,
-    create_access_token,
-    create_refresh_token,
-    decode_token
 )
 from app.utils.time import utcnow
-from app.config import get_settings
-import json
-import hashlib
-import logging
 
 settings = get_settings()
 logger = logging.getLogger("uvicorn.error")

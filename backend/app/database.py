@@ -1,5 +1,6 @@
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import declarative_base, sessionmaker
+
 from app.config import get_settings
 
 settings = get_settings()
@@ -40,8 +41,9 @@ def get_db():
 
 # Create all tables
 def init_db():
-    from app.models import Role, Permission, role_permissions
     from sqlalchemy.exc import IntegrityError
+
+    from app.models import Permission, Role, role_permissions
 
     Base.metadata.create_all(bind=engine)
 

@@ -1,15 +1,15 @@
 from __future__ import annotations
 
+import secrets
+import string
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
 
-from app.models import InviteCode, Group
+from app.models import Group, InviteCode
 from app.utils.time import utcnow
-import secrets
-import string
 
 
 class InviteService:

@@ -1,19 +1,20 @@
-from fastapi import FastAPI, Request, Depends, HTTPException
+import logging
+import os
+
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.openapi.docs import get_redoc_html, get_swagger_ui_html
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
-from fastapi.responses import JSONResponse
-from fastapi.openapi.docs import get_swagger_ui_html, get_redoc_html
 from starlette.exceptions import HTTPException as StarletteHTTPException
+
+from app.api import admin, groups, invites
 from app.config import get_settings
 from app.database import init_db
-from app.routes import auth, oauth, user, client, oidc, site, passkey, totp
-from app.api import groups, admin, invites
 from app.middleware.auth import get_current_user
 from app.models import User
-import os
-import logging
+from app.routes import auth, client, oauth, oidc, passkey, site, totp, user
 
 settings = get_settings()
 logger = logging.getLogger("uvicorn.error")

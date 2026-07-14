@@ -11,9 +11,10 @@ Requirements:
 - Download ip2region.xdb from https://github.com/lionsoul2014/ip2region
 """
 
-from typing import Optional, Dict, Any
-from app.config import get_settings
 import logging
+from typing import Any, Dict, Optional
+
+from app.config import get_settings
 
 logger = logging.getLogger(__name__)
 import os
@@ -99,8 +100,8 @@ def _get_ip2region_searcher():
         return None
 
     try:
-        import ip2region.util as util
         import ip2region.searcher as xdb
+        import ip2region.util as util
 
         # Load entire xdb to memory for best performance and thread safety
         c_buffer = util.load_content_from_file(db_path)

@@ -4,20 +4,20 @@ Verification Service
 Handles multi-step verification for suspicious logins.
 """
 
-import secrets
 import hashlib
 import hmac
 import json
 import logging
+import secrets
 from datetime import timedelta
-from typing import Optional, List, Dict, Any, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
-from app.models import User, VerificationSession, VerificationCode
-from app.services.risk_service import RiskAssessment, RiskLevel, RiskService
+from app.models import User, VerificationCode, VerificationSession
 from app.services.email_service import EmailService
+from app.services.risk_service import RiskAssessment, RiskLevel, RiskService
 from app.utils.time import utcnow
 
 settings = get_settings()

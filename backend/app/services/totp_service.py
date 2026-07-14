@@ -4,14 +4,14 @@ TOTP Service
 Handles Time-based One-Time Password (TOTP) for two-factor authentication.
 """
 
-import secrets
-import hashlib
-import json
 import base64
+import hashlib
 import hmac
+import json
 import logging
+import secrets
 from io import BytesIO
-from typing import Optional, List, Tuple
+from typing import List, Optional, Tuple
 
 import pyotp
 import qrcode

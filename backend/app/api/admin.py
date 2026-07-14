@@ -1,33 +1,45 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlalchemy.orm import Session as DBSession
-from sqlalchemy import or_, func
 from typing import List, Optional
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import or_
+from sqlalchemy.orm import Session as DBSession
+
 from app.database import get_db
-from app.utils.time import utcnow
-from app.models import User, Group, user_groups, Role, user_roles, Client, user_allowed_apps, user_denied_apps, LoginLog, Session, Passkey, UserAuthorization
+from app.middleware.permission import require_permission
+from app.models import (
+    Client,
+    Group,
+    LoginLog,
+    Passkey,
+    Role,
+    Session,
+    User,
+    UserAuthorization,
+    user_groups,
+    user_roles,
+)
 from app.schemas.admin import (
-    AdminUserResponse,
+    AdminAuthorizationResponse,
+    AdminLoginLogResponse,
+    AdminPasskeyResponse,
+    AdminSessionResponse,
     AdminUserCreate,
-    AdminUserUpdate,
     AdminUserGroupsUpdate,
+    AdminUserResponse,
     AdminUserRolesUpdate,
-    RoleResponse,
+    AdminUserSecurityMethodsResponse,
+    AdminUserUpdate,
     AppPermissionItem,
-    UserAppPermissionsResponse,
-    UserAppPermissionsUpdate,
     ComputedAppPermission,
     ComputedAppPermissionsResponse,
-    PaginatedUsersResponse,
-    AdminLoginLogResponse,
     PaginatedLoginLogsResponse,
-    AdminSessionResponse,
-    AdminPasskeyResponse,
-    AdminAuthorizationResponse,
-    AdminUserSecurityMethodsResponse,
+    PaginatedUsersResponse,
+    RoleResponse,
+    UserAppPermissionsResponse,
+    UserAppPermissionsUpdate,
 )
-from app.middleware.auth import get_current_user
-from app.middleware.permission import require_permission
 from app.utils.security import get_password_hash
+from app.utils.time import utcnow
 
 router = APIRouter()
 

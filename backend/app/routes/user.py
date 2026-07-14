@@ -1,24 +1,27 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Request
-from sqlalchemy.orm import Session
+import logging
 from typing import List
+
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from sqlalchemy.orm import Session
+
 from app.database import get_db
+from app.middleware.auth import get_current_user
+from app.models import Client, LoginLog, User, UserAuthorization
+from app.models import Session as SessionModel
 from app.schemas import (
-    UserMeResponse,
-    UserUpdate,
     AuthorizationListItem,
-    SessionResponse,
+    ChangePasswordRequest,
     ClientPublicResponse,
+    KickedSessionsResponse,
     LoginLogResponse,
     SecuritySettingsResponse,
     SecuritySettingsUpdate,
-    KickedSessionsResponse,
-    ChangePasswordRequest,
+    SessionResponse,
+    UserMeResponse,
+    UserUpdate,
 )
-from app.middleware.auth import get_current_user
-from app.models import User, UserAuthorization, Session as SessionModel, Client, LoginLog
 from app.utils.device import generate_device_id, get_client_ip
 from app.utils.time import utcnow
-import logging
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -378,7 +381,7 @@ async def change_password(
     db: Session = Depends(get_db)
 ):
     """Change current user password"""
-    from app.utils.security import verify_password, hash_password
+    from app.utils.security import hash_password, verify_password
 
     # Verify current password
     if not verify_password(password_data.current_password, current_user.password_hash):

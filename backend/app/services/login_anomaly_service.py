@@ -11,13 +11,15 @@ Detection rules:
 4. New device detection - Login from never-seen-before device
 """
 
-from sqlalchemy.orm import Session
 from datetime import timedelta
-from typing import Optional, List, Dict, Any
-from math import radians, sin, cos, sqrt, atan2
+from math import atan2, cos, radians, sin, sqrt
+from typing import Any, Dict, List, Optional
 
-from app.models import User, LoginLog, Session as SessionModel
+from sqlalchemy.orm import Session
+
 from app.config import get_settings
+from app.models import LoginLog, User
+from app.models import Session as SessionModel
 from app.utils.time import utcnow
 
 settings = get_settings()
