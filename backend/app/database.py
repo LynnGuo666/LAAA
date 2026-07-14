@@ -41,6 +41,12 @@ def get_db():
 
 # Create all tables
 def init_db():
+    """初始化数据库 schema + 种子权限/角色。
+
+    schema 演进说明:生产应优先用 `alembic upgrade head`(见 DEPLOY.md)。
+    此处在无 alembic 的部署(如开发快速启动)兜底用 create_all 建缺失表,
+    但不会修改既有表结构(加列需走迁移)。权限/角色种子是幂等的。
+    """
     from sqlalchemy.exc import IntegrityError
 
     from app.models import Permission, Role, role_permissions

@@ -1,5 +1,6 @@
 import logging
 import os
+from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
@@ -7,18 +8,41 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.docs import get_redoc_html, get_swagger_ui_html
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy.orm import Session
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api import admin, groups, invites
 from app.config import get_settings
-from app.database import init_db
+from app.database import get_db, init_db
 from app.middleware.auth import get_current_user
+from app.middleware.observability import RequestIdMiddleware, configure_logging
 from app.middleware.ratelimit import limiter
 from app.models import User
 from app.routes import auth, client, oauth, oidc, passkey, site, totp, user
+from app.utils.security import keystore
 
 settings = get_settings()
+configure_logging()
 logger = logging.getLogger("uvicorn.error")
+
+
+# 生命周期:替代已弃用的 @app.on_event("startup")。
+# startup 初始化 DB schema + 加载 RS256 签名密钥;shutdown 预留资源清理(目前无)。
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    init_db()
+    # 加载 RS256 密钥(若配置了路径);未配置则 access/id token 签发时会 fail
+    keystore.ensure_loaded()
+    if not keystore.is_configured:
+        logger.warning(
+            "startup: JWT RS256 keys not configured (JWT_PRIVATE_KEY_PATH/JWT_PUBLIC_KEY_PATH) "
+            "— access/id token issuance will fail"
+        )
+    logger.info("startup: db initialized debug=%s", settings.debug)
+    logger.info("docs: http://localhost:%s/api/docs", settings.port)
+    yield
+    logger.info("shutdown: cleaning up")
+
 
 # Create FastAPI app
 app = FastAPI(
@@ -28,6 +52,7 @@ app = FastAPI(
     docs_url=None,
     redoc_url=None,
     openapi_url=None,
+    lifespan=lifespan,
 )
 
 # Rate limiting (slowapi)
@@ -36,6 +61,9 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# request_id 中间件:每个请求注入 X-Request-ID,贯穿日志便于排障
+app.add_middleware(RequestIdMiddleware)
 
 @app.exception_handler(RequestValidationError)
 async def request_validation_error_handler(request: Request, exc: RequestValidationError):
@@ -106,10 +134,29 @@ def redoc(_: User = Depends(require_docs_admin)):
     )
 
 
-# Health check
+# Health check —— liveness(进程存活,轻量)
 @app.get("/api/health")
 async def health_check():
+    """Liveness probe:进程能响应即 ok(不检查依赖)。"""
     return {"status": "ok"}
+
+
+@app.get("/api/ready")
+async def readiness_check(db: Session = Depends(get_db)):
+    """Readiness probe:深度检查——DB 可读。失败返回 503。
+
+    compose healthcheck 应打此端点,避免 DB 不可用时容器仍报 healthy(假活)。
+    GeoIP/SMTP 为非关键依赖(降级可用),不阻塞 ready。
+    """
+    checks = {"database": "ok"}
+    http_status = 200
+    try:
+        from sqlalchemy import text
+        db.execute(text("SELECT 1"))
+    except Exception as e:
+        checks["database"] = f"fail: {e}"
+        http_status = 503
+    return JSONResponse(status_code=http_status, content={"status": "ready" if http_status == 200 else "not_ready", "checks": checks})
 
 
 # Serve Next.js static files
@@ -170,19 +217,7 @@ if os.path.exists(static_dir):
 
 
 # Initialize database + load JWT signing keys on startup
-@app.on_event("startup")
-async def startup_event():
-    init_db()
-    # 加载 RS256 密钥(若配置了路径);未配置则 access/id token 签发时会 fail
-    from app.utils.security import keystore
-    keystore.ensure_loaded()
-    if not keystore.is_configured:
-        logger.warning(
-            "startup: JWT RS256 keys not configured (JWT_PRIVATE_KEY_PATH/JWT_PUBLIC_KEY_PATH) "
-            "— access/id token issuance will fail"
-        )
-    logger.info("startup: db initialized debug=%s", settings.debug)
-    logger.info("docs: http://localhost:%s/api/docs", settings.port)
+# (moved into lifespan() above)
 
 
 if __name__ == "__main__":

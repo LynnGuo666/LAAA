@@ -37,7 +37,8 @@ services:
       # 可选：放自有 GeoIP 库覆盖镜像内置；不放则用镜像自带的（CI 已下载）
       - ./data:/app/data
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/api/health',timeout=5).status==200 else 1)"]
+      # 打 readiness 端点(深度检查 DB),而非浅 liveness,避免容器假活
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/api/ready',timeout=5).status==200 else 1)"]
       interval: 30s
       timeout: 5s
       retries: 3

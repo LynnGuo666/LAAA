@@ -368,7 +368,9 @@ LOGIN_METHOD_NAMES = {
 class EmailService:
     """Async email service using aiosmtplib"""
 
-    _jinja_env = Environment(loader=BaseLoader())
+    # autoescape=True:邮件模板渲染用户可控字段(显示名、IP、地理位置、验证码等),
+    # 自动转义防止 HTML 注入/XSS。模板本身需要的 HTML 结构写在模板里,不依赖原始注入。
+    _jinja_env = Environment(loader=BaseLoader(), autoescape=True)
 
     @classmethod
     async def send_email(

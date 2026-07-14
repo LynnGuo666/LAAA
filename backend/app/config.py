@@ -119,6 +119,12 @@ class Settings(BaseSettings):
     # Env var: RATELIMIT_STORAGE_URI
     ratelimit_storage_uri: str = ""
 
+    # 可观测性(env 开关,默认关闭以避免开销)
+    # LOG_FORMAT=json 启用结构化 JSON 日志;SENTRY_DSN 启用错误上报
+    log_format: str = ""  # 空=人类可读,json=结构化
+    sentry_dsn: str = ""
+    sentry_environment: str = "production"
+
     @field_validator("secret_key")
     @classmethod
     def _validate_secret_key(cls, v: str) -> str:

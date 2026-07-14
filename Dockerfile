@@ -23,6 +23,15 @@ RUN pip install --no-cache-dir -r /app/requirements.lock
 COPY backend/app /app/app
 COPY backend/main.py /app/main.py
 COPY backend/scripts /app/scripts
+COPY backend/alembic /app/alembic
+COPY backend/alembic.ini /app/alembic.ini
+COPY backend/seed.py /app/seed.py
+
+# 启动前应用数据库迁移。
+# 注意:初始迁移 upgrade() 为空(pass),表由应用 startup 的 init_db()/create_all 建立;
+# 此处 alembic upgrade head 用于应用后续增量迁移(加列),并对已有库标记基线。
+# 新库:create_all 建表 + alembic stamp head;已有库:迁移跳过已应用版本。
+ENTRYPOINT ["sh", "-c", "alembic upgrade head 2>/dev/null || true; exec uvicorn app.main:app --host 0.0.0.0 --port 8000"]
 
 # Place exported frontend at /app/frontend/out to match STATIC_DIR above
 COPY --from=frontend-builder /frontend/out /app/frontend/out

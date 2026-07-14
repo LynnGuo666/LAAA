@@ -20,6 +20,10 @@ pyotp>=2.9.0
 qrcode[pil]>=7.4.0
 slowapi>=0.1.9
 
+# 可观测性(可选,env 开关启用,默认不装不影响运行)
+structlog>=24.0.0
+sentry-sdk[fastapi]>=2.0.0
+
 # Testing (dev only — also installed in CI)
 pytest>=8.0.0
 httpx>=0.27.0
