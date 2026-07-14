@@ -199,6 +199,12 @@ async def update_user(
 
     if user_data.password is not None:
         user.password_hash = get_password_hash(user_data.password)
+        # 管理员重置密码:吊销该用户所有现有 token(同改密逻辑)
+        user.token_version = (user.token_version or 0) + 1
+        from app.models import Session as SessionModel
+        from app.models import Token as TokenModel
+        db.query(TokenModel).filter(TokenModel.user_id == user.id, TokenModel.type == 'refresh').delete()
+        db.query(SessionModel).filter(SessionModel.user_id == user.id).delete()
 
     db.commit()
     db.refresh(user)

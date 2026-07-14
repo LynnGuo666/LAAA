@@ -163,14 +163,17 @@ def _sign_asymmetric(to_encode: dict) -> str:
     return jwt.encode(to_encode, priv, algorithm=settings.jwt_algorithm, headers={"kid": kid})
 
 
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
-    """Create a JWT access token (RS256)."""
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None, token_version: int = 0) -> str:
+    """Create a JWT access token (RS256).
+
+    token_version 写入 tv claim;改密/封禁时用户 token_version+1,使旧 token 验证失败。
+    """
     to_encode = data.copy()
     if expires_delta:
         expire = utcnow() + expires_delta
     else:
         expire = utcnow() + timedelta(minutes=settings.access_token_expire_minutes)
-    to_encode.update({"exp": expire, "type": "access"})
+    to_encode.update({"exp": expire, "type": "access", "tv": token_version})
     return _sign_asymmetric(to_encode)
 
 

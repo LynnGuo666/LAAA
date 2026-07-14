@@ -181,7 +181,7 @@ class AuthService:
             "client_id": client.client_id if client else client_id,
             "device_id": device_id,  # Always include device_id
         }
-        access_token = create_access_token(token_data)
+        access_token = create_access_token(token_data, token_version=user.token_version)
         refresh_token = create_refresh_token(token_data, remember_me)
 
         # Calculate expiration
@@ -369,7 +369,7 @@ class AuthService:
         }
         if device_id:
             token_data["device_id"] = device_id
-        new_access_token = create_access_token(token_data)
+        new_access_token = create_access_token(token_data, token_version=user.token_version)
         new_refresh_token = create_refresh_token(token_data)
 
         # Calculate new expiration

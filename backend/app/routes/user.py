@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.middleware.auth import get_current_user
-from app.models import Client, LoginLog, User, UserAuthorization
+from app.models import Client, LoginLog, Token, User, UserAuthorization
 from app.models import Session as SessionModel
 from app.schemas import (
     AuthorizationListItem,
@@ -400,6 +400,11 @@ async def change_password(
     # Update password
     current_user.password_hash = hash_password(password_data.new_password)
     current_user.updated_at = utcnow()
+    # 吊销所有现有 token:token_version+1 使旧 access token 立即失效,
+    # 删除 refresh token 记录和 session(被窃的 refresh 也无法换新)
+    current_user.token_version = (current_user.token_version or 0) + 1
+    db.query(Token).filter(Token.user_id == current_user.id, Token.type == 'refresh').delete()
+    db.query(SessionModel).filter(SessionModel.user_id == current_user.id).delete()
     db.commit()
 
-    return {"message": "密码修改成功"}
+    return {"message": "密码修改成功,其他设备已登出"}

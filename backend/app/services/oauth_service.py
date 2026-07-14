@@ -173,7 +173,7 @@ class OAuthService:
 
         # Create tokens
         token_data = {"sub": str(user.id), "scope": token.scope, "client_id": client_id}
-        access_token = create_access_token(token_data)
+        access_token = create_access_token(token_data, token_version=user.token_version)
         refresh_token = create_refresh_token(token_data)
 
         # Store refresh token
@@ -245,7 +245,7 @@ class OAuthService:
 
         # Create tokens
         token_data = {"sub": str(user.id), "scope": scope, "client_id": client_id}
-        access_token = create_access_token(token_data)
+        access_token = create_access_token(token_data, token_version=user.token_version)
         refresh_token = create_refresh_token(token_data)
 
         # Store refresh token
@@ -330,7 +330,7 @@ class OAuthService:
 
         # Create new tokens
         token_data = {"sub": str(user.id), "scope": token.scope, "client_id": client_id}
-        new_access_token = create_access_token(token_data)
+        new_access_token = create_access_token(token_data, token_version=user.token_version)
         new_refresh_token = create_refresh_token(token_data)
 
         # Update refresh token

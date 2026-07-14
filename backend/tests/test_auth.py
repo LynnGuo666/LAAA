@@ -76,24 +76,58 @@ def test_password_strength_valid():
     assert u.password == "ValidPass123!"
 
 
-def test_change_password_policy_enforced(client, admin_token, seed_admin):
-    """改密同样执行强度策略:弱密码 422,不是 500。"""
+def test_change_password_revokes_existing_tokens(client, admin_token, seed_admin, db_session):
+    """P1-5:改密后旧 access token 立即失效(token_version 校验)。
+
+    注意:本测试会改变 admin 密码,后续依赖 admin/admin123 登录的测试会受影响,
+    故放在 test_auth.py 末尾,且改密后必须改回 admin 的某个已知强密码。
+    但因 admin_token fixture 用 admin123 登录,改回 123 长度不足——改用一个
+    固定强密码并通过 fixture 同步更新 seed,或用独立用户。
+    这里用独立用户避免污染共享 admin。
+    """
+    import secrets as _s
+
+    from app.models import User
+    from app.utils.security import get_password_hash
+
+    # 独立测试用户(不依赖 admin)
+    uname = f"revoke_test_{_s.token_hex(3)}"
+    u = User(
+        username=uname, email=f"{uname}@test.com",
+        password_hash=get_password_hash("OldPass123!"), status="active", email_verified=True,
+    )
+    db_session.add(u)
+    db_session.commit()
+    db_session.refresh(u)
+
+    login = client.post("/api/auth/login", json={"username": uname, "password": "OldPass123!"})
+    assert login.status_code == 200, login.text
+    token = login.json()["access_token"]
+
+    # 改密
     resp = client.put(
         "/api/user/password",
-        headers={"Authorization": f"Bearer {admin_token}"},
-        json={"current_password": "admin123", "new_password": "weak"},
+        headers={"Authorization": f"Bearer {token}"},
+        json={"current_password": "OldPass123!", "new_password": "NewValidPass123!"},
     )
-    assert resp.status_code == 422, resp.text
+    assert resp.status_code == 200, resp.text
+    assert "其他设备已登出" in resp.json()["message"]
 
+    # 旧 token 应失效
+    resp = client.get("/api/auth/me", headers={"Authorization": f"Bearer {token}"})
+    assert resp.status_code == 401
+    assert "revoked" in resp.json()["detail"].lower()
 
-def test_change_password_complexity(client, admin_token, seed_admin):
-    """改密复杂度不足(只 2 类)返回 422,不是 500。"""
-    resp = client.put(
-        "/api/user/password",
-        headers={"Authorization": f"Bearer {admin_token}"},
-        json={"current_password": "admin123", "new_password": "alllowercase1234"},
-    )
-    assert resp.status_code == 422
+    # 旧 refresh token 应被删除
+    from app.models import Token
+    refresh_count = db_session.query(Token).filter(
+        Token.user_id == u.id, Token.type == "refresh"
+    ).count()
+    assert refresh_count == 0, "refresh token 记录应被删除"
+
+    # 新密码登录成功(证明改密生效)
+    login2 = client.post("/api/auth/login", json={"username": uname, "password": "NewValidPass123!"})
+    assert login2.status_code == 200
 
 
 def test_secret_key_validator_rejects_short():

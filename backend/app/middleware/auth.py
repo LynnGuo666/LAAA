@@ -66,6 +66,14 @@ def get_current_user(
             detail="User account is not active"
         )
 
+    # 校验 token_version:改密/封禁后 tv 不匹配则拒绝(使旧 access token 立即失效)
+    if payload.get("tv", 0) != user.token_version:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token has been revoked",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
     return user
 
 

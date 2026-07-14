@@ -108,6 +108,10 @@ class User(Base):
     email_verified = Column(Boolean, default=False)  # Whether email is verified
     email_verified_at = Column(DateTime, nullable=True)  # When email was verified
 
+    # Token version: 改密/重置密码/封禁时 +1,使旧 access token 立即失效
+    # (access token 签发时写入 tv,decode 时校验是否匹配)
+    token_version = Column(Integer, default=0)
+
     # Relationships
     roles = relationship('Role', secondary=user_roles, back_populates='users')
     groups = relationship('Group', secondary=user_groups, back_populates='users')
