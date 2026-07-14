@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from app.config import get_settings
 from app.database import get_db
 from app.middleware.auth import get_optional_user
+from app.middleware.ratelimit import limiter
 from app.models import Passkey, User
 from app.schemas import UserInfoResponse
 from app.services.oauth_service import OAuthService
@@ -220,6 +221,7 @@ async def authorize_post(
 
 
 @router.post("/token")
+@limiter.limit("10/minute")
 async def token(
     db: Session = Depends(get_db),
     request: Request = None

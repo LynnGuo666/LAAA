@@ -48,6 +48,8 @@ cryptography==49.0.0
     #   pyopenssl
     #   python-jose
     #   webauthn
+deprecated==1.3.1
+    # via limits
 dnspython==2.8.0
     # via email-validator
 ecdsa==0.19.2
@@ -87,6 +89,8 @@ jinja2==3.1.6
     # via -r backend/requirements.txt
 joserfc==1.7.3
     # via authlib
+limits==5.8.0
+    # via slowapi
 mako==1.3.12
     # via alembic
 markupsafe==3.0.3
@@ -100,7 +104,9 @@ multidict==6.7.1
     #   aiohttp
     #   yarl
 packaging==26.2
-    # via pytest
+    # via
+    #   limits
+    #   pytest
 pillow==12.3.0
     # via qrcode
 pluggy==1.6.0
@@ -157,6 +163,8 @@ rsa==4.9.1
     # via python-jose
 six==1.17.0
     # via ecdsa
+slowapi==0.1.10
+    # via -r backend/requirements.txt
 sqlalchemy==2.0.51
     # via
     #   -r backend/requirements.txt
@@ -170,6 +178,7 @@ typing-extensions==4.16.0
     #   alembic
     #   anyio
     #   fastapi
+    #   limits
     #   pydantic
     #   pydantic-core
     #   pyopenssl
@@ -193,5 +202,7 @@ webauthn==3.0.0
     # via -r backend/requirements.txt
 websockets==16.1
     # via uvicorn
+wrapt==2.2.2
+    # via deprecated
 yarl==1.24.2
     # via aiohttp

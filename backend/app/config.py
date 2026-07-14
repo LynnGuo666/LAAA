@@ -115,6 +115,10 @@ class Settings(BaseSettings):
     jwt_public_key_path: str = ""
     jwt_key_id: str = ""  # 可选,留空则用公钥 DER 的 sha256[:16]
 
+    # Rate limiting storage (slowapi)。单实例留空用内存;多 worker 设 redis://...
+    # Env var: RATELIMIT_STORAGE_URI
+    ratelimit_storage_uri: str = ""
+
     @field_validator("secret_key")
     @classmethod
     def _validate_secret_key(cls, v: str) -> str:

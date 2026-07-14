@@ -24,6 +24,17 @@ from fastapi.testclient import TestClient
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
+@pytest.fixture(autouse=True)
+def _reset_rate_limiter():
+    """每个测试前清空 slowapi 限流计数,避免测试间触发 IP 限流(同 IP=testclient)。"""
+    yield
+    try:
+        from app.middleware.ratelimit import limiter
+        limiter.reset()
+    except Exception:
+        pass
+
+
 @pytest.fixture(scope="session")
 def app():
     """创建一次应用 + 初始化 schema + 生成 RSA 密钥,session 内复用。"""

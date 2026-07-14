@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.config import get_settings
 from app.database import get_db
 from app.middleware.auth import get_current_user
+from app.middleware.ratelimit import limiter
 from app.models import Passkey, User
 from app.schemas import (
     ChangeEmailRequest,
@@ -55,7 +56,8 @@ router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-async def register(user_data: UserCreate, db: Session = Depends(get_db)):
+@limiter.limit("3/hour")
+async def register(request: Request, user_data: UserCreate, db: Session = Depends(get_db)):
     """Register a new user"""
     try:
         user = AuthService.register_user(
@@ -120,6 +122,7 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)):
 
 
 @router.post("/login", response_model=Union[TokenResponseExtended, VerificationRequiredResponse])
+@limiter.limit("10/minute")
 async def login(
     login_data: LoginRequest,
     request: Request,
@@ -398,7 +401,9 @@ async def get_verification_status(
 
 
 @router.post("/verify/email-code/send")
+@limiter.limit("5/hour")
 async def send_email_verification_code(
+    request: Request,
     request_data: SendEmailCodeRequest,
     db: Session = Depends(get_db)
 ):
@@ -534,7 +539,9 @@ async def verify_backup_code(
 
 
 @router.post("/verify/magic-link/send")
+@limiter.limit("5/hour")
 async def send_magic_link(
+    request: Request,
     request_data: SendMagicLinkRequest,
     response: Response,
     db: Session = Depends(get_db)
@@ -641,7 +648,9 @@ async def verify_magic_link(
 # =============================================================================
 
 @router.post("/magic-link/login")
+@limiter.limit("10/hour")
 async def magic_link_login_send(
+    request: Request,
     request_data: MagicLinkLoginRequest,
     response: Response,
     db: Session = Depends(get_db)

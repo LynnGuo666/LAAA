@@ -13,6 +13,7 @@ from app.api import admin, groups, invites
 from app.config import get_settings
 from app.database import init_db
 from app.middleware.auth import get_current_user
+from app.middleware.ratelimit import limiter
 from app.models import User
 from app.routes import auth, client, oauth, oidc, passkey, site, totp, user
 
@@ -28,6 +29,13 @@ app = FastAPI(
     redoc_url=None,
     openapi_url=None,
 )
+
+# Rate limiting (slowapi)
+app.state.limiter = limiter
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 @app.exception_handler(RequestValidationError)
 async def request_validation_error_handler(request: Request, exc: RequestValidationError):
