@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import Optional, Tuple
 from app.models import Client, User, Token, UserAuthorization
 from app.utils.security import (
@@ -10,6 +10,7 @@ from app.utils.security import (
     create_refresh_token,
     decode_token
 )
+from app.utils.time import utcnow
 from app.config import get_settings
 import json
 import hashlib
@@ -44,7 +45,11 @@ class OAuthService:
         try:
             allowed_uris = json.loads(client.redirect_uris)
             return redirect_uri in allowed_uris
-        except:
+        except Exception as e:
+            logger.warning(
+                "oauth verify_redirect_uri failed client_id=%s err=%s",
+                getattr(client, "client_id", None), e,
+            )
             return False
 
     @staticmethod
@@ -55,7 +60,11 @@ class OAuthService:
             requested = set(requested_scope.split())
             allowed = set(allowed_scopes)
             return requested.issubset(allowed)
-        except:
+        except Exception as e:
+            logger.warning(
+                "oauth verify_scope failed client_id=%s err=%s",
+                getattr(client, "client_id", None), e,
+            )
             return False
 
     @staticmethod
@@ -71,7 +80,7 @@ class OAuthService:
         code = generate_random_string(32)
 
         # Store code in database
-        expires_at = datetime.utcnow() + timedelta(minutes=10)  # 10 minutes
+        expires_at = utcnow() + timedelta(minutes=10)  # 10 minutes
         token = Token(
             token_hash=hash_token(code),
             type='authorization_code',
@@ -91,7 +100,7 @@ class OAuthService:
 
         if auth:
             auth.scope = scope
-            auth.last_used_at = datetime.utcnow()
+            auth.last_used_at = utcnow()
         else:
             auth = UserAuthorization(
                 user_id=user.id,
@@ -129,7 +138,7 @@ class OAuthService:
         token = db.query(Token).filter(
             Token.token_hash == code_hash,
             Token.type == 'authorization_code',
-            Token.expires_at > datetime.utcnow()
+            Token.expires_at > utcnow()
         ).first()
 
         if not token:
@@ -166,8 +175,8 @@ class OAuthService:
         refresh_token = create_refresh_token(token_data)
 
         # Store refresh token
-        access_expires = datetime.utcnow() + timedelta(minutes=settings.access_token_expire_minutes)
-        refresh_expires = datetime.utcnow() + timedelta(days=settings.refresh_token_expire_days)
+        access_expires = utcnow() + timedelta(minutes=settings.access_token_expire_minutes)
+        refresh_expires = utcnow() + timedelta(days=settings.refresh_token_expire_days)
 
         refresh_token_record = Token(
             token_hash=hash_token(refresh_token),
@@ -188,7 +197,7 @@ class OAuthService:
             UserAuthorization.client_id == client.id
         ).first()
         if auth:
-            auth.last_used_at = datetime.utcnow()
+            auth.last_used_at = utcnow()
 
         db.commit()
 
@@ -238,7 +247,7 @@ class OAuthService:
         refresh_token = create_refresh_token(token_data)
 
         # Store refresh token
-        refresh_expires = datetime.utcnow() + timedelta(days=settings.refresh_token_expire_days)
+        refresh_expires = utcnow() + timedelta(days=settings.refresh_token_expire_days)
 
         refresh_token_record = Token(
             token_hash=hash_token(refresh_token),
@@ -258,7 +267,7 @@ class OAuthService:
 
         if auth:
             auth.scope = scope
-            auth.last_used_at = datetime.utcnow()
+            auth.last_used_at = utcnow()
         else:
             auth = UserAuthorization(
                 user_id=user.id,
@@ -296,7 +305,7 @@ class OAuthService:
             Token.token_hash == token_hash_value,
             Token.type == 'refresh',
             Token.client_id == client.id,
-            Token.expires_at > datetime.utcnow()
+            Token.expires_at > utcnow()
         ).first()
 
         if not token:
@@ -323,7 +332,7 @@ class OAuthService:
         new_refresh_token = create_refresh_token(token_data)
 
         # Update refresh token
-        refresh_expires = datetime.utcnow() + timedelta(days=settings.refresh_token_expire_days)
+        refresh_expires = utcnow() + timedelta(days=settings.refresh_token_expire_days)
         token.token_hash = hash_token(new_refresh_token)
         token.expires_at = refresh_expires
 

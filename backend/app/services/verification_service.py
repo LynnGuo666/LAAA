@@ -6,9 +6,10 @@ Handles multi-step verification for suspicious logins.
 
 import secrets
 import hashlib
+import hmac
 import json
 import logging
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import Optional, List, Dict, Any, Tuple
 
 from sqlalchemy.orm import Session
@@ -17,6 +18,7 @@ from app.config import get_settings
 from app.models import User, VerificationSession, VerificationCode
 from app.services.risk_service import RiskAssessment, RiskLevel, RiskService
 from app.services.email_service import EmailService
+from app.utils.time import utcnow
 
 settings = get_settings()
 logger = logging.getLogger(__name__)
@@ -103,7 +105,7 @@ class VerificationService:
             Created VerificationSession
         """
         session_token = VerificationService.generate_session_token()
-        expires_at = datetime.utcnow() + timedelta(minutes=settings.verification_session_expire_minutes)
+        expires_at = utcnow() + timedelta(minutes=settings.verification_session_expire_minutes)
 
         verification_session = VerificationSession(
             user_id=user.id,
@@ -143,7 +145,7 @@ class VerificationService:
         """Check if session is still valid"""
         if session.is_completed:
             return False
-        if datetime.utcnow() > session.expires_at:
+        if utcnow() > session.expires_at:
             return False
         return True
 
@@ -169,12 +171,12 @@ class VerificationService:
             VerificationCode.session_id == verification_session.id,
             VerificationCode.purpose == "email_code",
             VerificationCode.is_used == False,
-            VerificationCode.expires_at > datetime.utcnow()
+            VerificationCode.expires_at > utcnow()
         ).first()
 
         if existing:
             # Check cooldown
-            time_since_creation = (datetime.utcnow() - existing.created_at).total_seconds()
+            time_since_creation = (utcnow() - existing.created_at).total_seconds()
             if time_since_creation < settings.verification_code_cooldown_seconds:
                 raise VerificationError(
                     f"请等待 {int(settings.verification_code_cooldown_seconds - time_since_creation)} 秒后重试"
@@ -183,7 +185,7 @@ class VerificationService:
         # Generate new code
         code = VerificationService.generate_verification_code()
         code_hash = VerificationService.hash_code(code)
-        expires_at = datetime.utcnow() + timedelta(minutes=settings.verification_code_expire_minutes)
+        expires_at = utcnow() + timedelta(minutes=settings.verification_code_expire_minutes)
 
         verification_code = VerificationCode(
             session_id=verification_session.id,
@@ -235,7 +237,7 @@ class VerificationService:
             Tuple of (VerificationCode, magic link token)
         """
         token = VerificationService.generate_magic_link_token()
-        expires_at = datetime.utcnow() + timedelta(minutes=settings.magic_link_expire_minutes)
+        expires_at = utcnow() + timedelta(minutes=settings.magic_link_expire_minutes)
 
         verification_code = VerificationCode(
             session_id=verification_session.id if verification_session else None,
@@ -288,7 +290,7 @@ class VerificationService:
             raise CodeInvalidError("验证码不存在或已使用")
 
         # Check expiration
-        if datetime.utcnow() > verification_code.expires_at:
+        if utcnow() > verification_code.expires_at:
             raise CodeExpiredError("验证码已过期")
 
         # Check attempts
@@ -300,13 +302,13 @@ class VerificationService:
 
         # Verify code
         code_hash = VerificationService.hash_code(code)
-        if code_hash != verification_code.code_hash:
+        if not hmac.compare_digest(code_hash, verification_code.code_hash):
             db.commit()
             raise CodeInvalidError("验证码错误")
 
         # Mark as used
         verification_code.is_used = True
-        verification_code.used_at = datetime.utcnow()
+        verification_code.used_at = utcnow()
         db.commit()
 
         logger.info(f"Email code verified for session {verification_session.session_token}")
@@ -345,7 +347,7 @@ class VerificationService:
         if verification_code.is_used:
             raise CodeInvalidError("链接已使用")
 
-        if datetime.utcnow() > verification_code.expires_at:
+        if utcnow() > verification_code.expires_at:
             raise CodeExpiredError("链接已过期")
 
         # Check device token
@@ -364,7 +366,7 @@ class VerificationService:
 
         # Mark as used
         verification_code.is_used = True
-        verification_code.used_at = datetime.utcnow()
+        verification_code.used_at = utcnow()
         db.commit()
 
         logger.info(f"Magic link verified for user {verification_code.user_id}")
@@ -398,7 +400,7 @@ class VerificationService:
         # Check if all verifications complete
         if verification_session.completed_verifications >= verification_session.required_verifications:
             verification_session.is_completed = True
-            verification_session.completed_at = datetime.utcnow()
+            verification_session.completed_at = utcnow()
 
         db.commit()
 
@@ -449,7 +451,7 @@ class VerificationService:
     def cleanup_expired_sessions(db: Session) -> int:
         """Clean up expired verification sessions"""
         expired = db.query(VerificationSession).filter(
-            VerificationSession.expires_at < datetime.utcnow(),
+            VerificationSession.expires_at < utcnow(),
             VerificationSession.is_completed == False
         ).all()
 

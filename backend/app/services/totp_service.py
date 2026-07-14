@@ -8,10 +8,10 @@ import secrets
 import hashlib
 import json
 import base64
+import hmac
 import logging
 from io import BytesIO
 from typing import Optional, List, Tuple
-from datetime import datetime
 
 import pyotp
 import qrcode
@@ -20,6 +20,7 @@ from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.models import User, UserTOTP
+from app.utils.time import utcnow
 
 settings = get_settings()
 logger = logging.getLogger(__name__)
@@ -236,7 +237,7 @@ class TOTPService:
         # Enable TOTP
         user.totp.is_enabled = True
         user.totp.backup_codes_hash = json.dumps(hashed_codes)
-        user.totp.last_used_at = datetime.utcnow()
+        user.totp.last_used_at = utcnow()
 
         db.commit()
 
@@ -274,7 +275,7 @@ class TOTPService:
             raise InvalidTOTPCodeError("验证码错误")
 
         # Update last used
-        user.totp.last_used_at = datetime.utcnow()
+        user.totp.last_used_at = utcnow()
         db.commit()
 
         logger.info(f"TOTP verified for user {user.id}")
@@ -312,13 +313,17 @@ class TOTPService:
         hashed_codes = json.loads(user.totp.backup_codes_hash)
         code_hash = cls.hash_backup_code(code)
 
-        if code_hash not in hashed_codes:
+        # 常量时间比较(用 | 不短路,避免泄漏匹配位置)
+        matched = False
+        for h in hashed_codes:
+            matched = matched | hmac.compare_digest(code_hash, h)
+        if not matched:
             raise InvalidBackupCodeError("备用码无效或已使用")
 
         # Remove used code
         hashed_codes.remove(code_hash)
         user.totp.backup_codes_hash = json.dumps(hashed_codes)
-        user.totp.last_used_at = datetime.utcnow()
+        user.totp.last_used_at = utcnow()
         db.commit()
 
         logger.info(f"Backup code used for user {user.id}, {len(hashed_codes)} remaining")

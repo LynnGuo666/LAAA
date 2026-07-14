@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 
 from app.models import InviteCode, Group
+from app.utils.time import utcnow
 import secrets
 import string
 
@@ -74,7 +75,7 @@ class InviteService:
             return None
         if not invite.is_active:
             return None
-        if invite.expires_at and invite.expires_at <= datetime.utcnow():
+        if invite.expires_at and invite.expires_at <= utcnow():
             return None
         if invite.max_uses is not None and (invite.used_count or 0) >= invite.max_uses:
             return None
@@ -86,7 +87,7 @@ class InviteService:
 
         invite.used_count = (invite.used_count or 0) + 1
         invite.used_by_user_id = user_id
-        invite.used_at = datetime.utcnow()
+        invite.used_at = utcnow()
         db.add(InviteRedemption(invite_id=invite.id, user_id=user_id, used_at=invite.used_at))
 
         if invite.max_uses is not None and invite.used_count >= invite.max_uses:

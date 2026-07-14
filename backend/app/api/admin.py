@@ -2,8 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session as DBSession
 from sqlalchemy import or_, func
 from typing import List, Optional
-from datetime import datetime
 from app.database import get_db
+from app.utils.time import utcnow
 from app.models import User, Group, user_groups, Role, user_roles, Client, user_allowed_apps, user_denied_apps, LoginLog, Session, Passkey, UserAuthorization
 from app.schemas.admin import (
     AdminUserResponse,
@@ -615,7 +615,7 @@ async def get_user_sessions(
 
     sessions = db.query(Session).filter(
         Session.user_id == user_id,
-        Session.expires_at > datetime.utcnow()
+        Session.expires_at > utcnow()
     ).order_by(Session.last_active.desc()).all()
 
     return [AdminSessionResponse.model_validate(s) for s in sessions]

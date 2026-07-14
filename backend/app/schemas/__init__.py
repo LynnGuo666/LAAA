@@ -1,6 +1,27 @@
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator, ConfigDict
 from typing import Optional, List, Any, Dict
 from datetime import datetime
+import string
+
+
+def _validate_password_strength(v: str) -> str:
+    """密码强度校验:长度 12-72,且至少包含大写/小写/数字/特殊字符中的 3 类。
+
+    注册和改密共用。登录端点不调用(登录不应因复杂度拒绝)。
+    """
+    if len(v) < 12:
+        raise ValueError("密码至少 12 个字符")
+    if len(v) > 72:
+        raise ValueError("密码不能超过 72 个字符")
+    categories = sum([
+        any(c.islower() for c in v),
+        any(c.isupper() for c in v),
+        any(c.isdigit() for c in v),
+        any(c in string.punctuation for c in v),
+    ])
+    if categories < 3:
+        raise ValueError("密码需包含大写、小写、数字、特殊字符中至少 3 类")
+    return v
 
 
 # User Schemas
@@ -10,8 +31,13 @@ class UserBase(BaseModel):
 
 
 class UserCreate(UserBase):
-    password: str = Field(..., min_length=6)
+    password: str = Field(..., min_length=12, max_length=72)
     invite_code: Optional[str] = Field(None, min_length=4, max_length=64)
+
+    @field_validator("password")
+    @classmethod
+    def _check_password_strength(cls, v: str) -> str:
+        return _validate_password_strength(v)
 
 
 class UserUpdate(BaseModel):
@@ -26,8 +52,7 @@ class UserResponse(UserBase):
     email_verified: bool = False
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class UserMeResponse(UserResponse):
@@ -100,8 +125,7 @@ class ClientResponse(ClientBase):
     owner_id: int
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ClientWithSecretResponse(ClientResponse):
@@ -117,8 +141,7 @@ class ClientPublicResponse(BaseModel):
     website_url: Optional[str] = None
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ClientSecretResetResponse(BaseModel):
@@ -168,8 +191,7 @@ class AuthorizationListItem(BaseModel):
     created_at: datetime
     last_used_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # Session Management
@@ -187,8 +209,7 @@ class SessionResponse(BaseModel):
     city: Optional[str] = None
     is_trusted: bool = False
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # Role and Permission
@@ -197,8 +218,7 @@ class RoleResponse(BaseModel):
     name: str
     description: Optional[str]
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class PermissionResponse(BaseModel):
@@ -207,8 +227,7 @@ class PermissionResponse(BaseModel):
     name: str
     description: Optional[str]
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # Login History and Security Settings
@@ -226,8 +245,7 @@ class LoginLogResponse(BaseModel):
     login_method: str = "password"
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class SecuritySettingsResponse(BaseModel):
@@ -251,7 +269,12 @@ class KickedSessionsResponse(BaseModel):
 class ChangePasswordRequest(BaseModel):
     """Request to change user password"""
     current_password: str = Field(..., min_length=1)
-    new_password: str = Field(..., min_length=6)
+    new_password: str = Field(..., min_length=12, max_length=72)
+
+    @field_validator("new_password")
+    @classmethod
+    def _check_new_password_strength(cls, v: str) -> str:
+        return _validate_password_strength(v)
 
 
 # Verification Schemas (Risk-based Multi-step Verification)

@@ -32,6 +32,19 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
+    // Network failure / timeout — no HTTP response at all. Surface a typed
+    // error so callers can distinguish connectivity issues from API errors.
+    if (!error.response) {
+      const code = error.code; // 'ERR_NETWORK' | 'ECONNABORTED' | ...
+      const message =
+        code === 'ECONNABORTED'
+          ? '请求超时,请检查网络后重试'
+          : '网络错误,无法连接到服务器';
+      return Promise.reject(
+        Object.assign(new Error(message), { code, isNetworkError: true })
+      );
+    }
+
     // If 401 and we haven't retried yet, try to refresh token
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;

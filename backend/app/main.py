@@ -30,8 +30,16 @@ app = FastAPI(
 
 @app.exception_handler(RequestValidationError)
 async def request_validation_error_handler(request: Request, exc: RequestValidationError):
-    logger.warning("validation error path=%s errors=%s", request.url.path, exc.errors())
-    return JSONResponse(status_code=422, content={"detail": exc.errors()})
+    # exc.errors() 的 ctx 里可能含 ValueError 等不可 JSON 序列化的对象,转成 str 再返回
+    safe_errors = []
+    for err in exc.errors():
+        e = dict(err)
+        ctx = e.get("ctx")
+        if ctx and "error" in ctx:
+            e["ctx"] = {k: (str(v) if k == "error" else v) for k, v in ctx.items()}
+        safe_errors.append(e)
+    logger.warning("validation error path=%s errors=%s", request.url.path, safe_errors)
+    return JSONResponse(status_code=422, content={"detail": safe_errors})
 
 
 @app.exception_handler(StarletteHTTPException)

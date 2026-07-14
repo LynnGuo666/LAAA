@@ -12,12 +12,13 @@ Detection rules:
 """
 
 from sqlalchemy.orm import Session
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import Optional, List, Dict, Any
 from math import radians, sin, cos, sqrt, atan2
 
 from app.models import User, LoginLog, Session as SessionModel
 from app.config import get_settings
+from app.utils.time import utcnow
 
 settings = get_settings()
 
@@ -89,7 +90,7 @@ class LoginAnomalyService:
         current_ip: str
     ) -> Optional[Dict[str, Any]]:
         """Check if IP changed significantly within the time window"""
-        time_window = datetime.utcnow() - timedelta(hours=settings.suspicious_ip_change_hours)
+        time_window = utcnow() - timedelta(hours=settings.suspicious_ip_change_hours)
 
         # Get recent successful logins
         recent_logins = db.query(LoginLog).filter(
@@ -127,7 +128,7 @@ class LoginAnomalyService:
         current_geo: Dict[str, Any]
     ) -> Optional[Dict[str, Any]]:
         """Check for impossible geographic travel"""
-        time_window = datetime.utcnow() - timedelta(hours=settings.suspicious_ip_change_hours)
+        time_window = utcnow() - timedelta(hours=settings.suspicious_ip_change_hours)
 
         # Get last login with location data
         last_login = db.query(LoginLog).filter(
@@ -175,7 +176,7 @@ class LoginAnomalyService:
         user: User
     ) -> Optional[Dict[str, Any]]:
         """Check for excessive login frequency"""
-        time_window = datetime.utcnow() - timedelta(minutes=settings.suspicious_login_velocity_minutes)
+        time_window = utcnow() - timedelta(minutes=settings.suspicious_login_velocity_minutes)
 
         # Count recent login attempts (both success and failure)
         recent_attempts = db.query(LoginLog).filter(

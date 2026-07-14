@@ -17,7 +17,10 @@ from app.schemas import (
 from app.middleware.auth import get_current_user
 from app.models import User, UserAuthorization, Session as SessionModel, Client, LoginLog
 from app.utils.device import generate_device_id, get_client_ip
-from datetime import datetime
+from app.utils.time import utcnow
+import logging
+
+logger = logging.getLogger("uvicorn.error")
 
 router = APIRouter(prefix="/api/user", tags=["User Management"])
 
@@ -63,7 +66,7 @@ async def update_profile(
     if user_data.avatar is not None:
         current_user.avatar = user_data.avatar
 
-    current_user.updated_at = datetime.utcnow()
+    current_user.updated_at = utcnow()
     db.commit()
     db.refresh(current_user)
 
@@ -150,7 +153,7 @@ async def get_sessions(
 
     sessions = db.query(SessionModel).filter(
         SessionModel.user_id == current_user.id,
-        SessionModel.expires_at > datetime.utcnow(),
+        SessionModel.expires_at > utcnow(),
         SessionModel.kicked_at.is_(None)  # Exclude kicked sessions
     ).order_by(SessionModel.last_active.desc()).all()
 
@@ -211,7 +214,11 @@ async def list_accessible_apps(
     for client in clients:
         try:
             can_access = current_user.can_access_client(client)
-        except Exception:
+        except Exception as e:
+            logger.warning(
+                "list_accessible_apps: can_access_client failed user_id=%s client_id=%s err=%s",
+                current_user.id, getattr(client, "client_id", None), e,
+            )
             can_access = False
         if not can_access:
             continue
@@ -389,7 +396,7 @@ async def change_password(
 
     # Update password
     current_user.password_hash = hash_password(password_data.new_password)
-    current_user.updated_at = datetime.utcnow()
+    current_user.updated_at = utcnow()
     db.commit()
 
     return {"message": "密码修改成功"}

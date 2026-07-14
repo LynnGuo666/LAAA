@@ -2,7 +2,6 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request, Response
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from typing import Union
-from datetime import datetime
 import json
 
 from app.database import get_db
@@ -53,6 +52,7 @@ from app.middleware.auth import get_current_user
 from app.models import User, Passkey
 from app.config import get_settings
 from app.utils.device import get_client_ip
+from app.utils.time import utcnow
 
 settings = get_settings()
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
@@ -74,13 +74,13 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)):
         try:
             import secrets
             import asyncio
-            from datetime import datetime, timedelta
+            from datetime import timedelta
             from app.models import VerificationCode
             from app.services.site_service import SiteService
 
             # Generate verification token
             token = secrets.token_urlsafe(32)
-            now = datetime.utcnow()
+            now = utcnow()
 
             # Create verification code record
             verification_code = VerificationCode(
@@ -879,7 +879,7 @@ async def send_verification_email(
     from app.models import VerificationCode
     from datetime import timedelta
 
-    now = datetime.utcnow()
+    now = utcnow()
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
 
     # Count today's verification emails
@@ -966,7 +966,7 @@ async def verify_email(
         )
 
     # Check expiration
-    if datetime.utcnow() > verification_code.expires_at:
+    if utcnow() > verification_code.expires_at:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="验证链接已过期，请重新发送"
@@ -982,11 +982,11 @@ async def verify_email(
 
     # Mark email as verified
     user.email_verified = True
-    user.email_verified_at = datetime.utcnow()
+    user.email_verified_at = utcnow()
 
     # Mark verification code as used
     verification_code.is_used = True
-    verification_code.used_at = datetime.utcnow()
+    verification_code.used_at = utcnow()
 
     db.commit()
 

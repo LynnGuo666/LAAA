@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text, ForeignKey, Table
 from sqlalchemy.orm import relationship
-from datetime import datetime
+from app.utils.time import utcnow
 from app.database import Base
 
 
@@ -10,7 +10,7 @@ user_roles = Table(
     Base.metadata,
     Column('user_id', Integer, ForeignKey('users.id', ondelete='CASCADE')),
     Column('role_id', Integer, ForeignKey('roles.id', ondelete='CASCADE')),
-    Column('created_at', DateTime, default=datetime.utcnow)
+    Column('created_at', DateTime, default=utcnow)
 )
 
 
@@ -20,7 +20,7 @@ role_permissions = Table(
     Base.metadata,
     Column('role_id', Integer, ForeignKey('roles.id', ondelete='CASCADE')),
     Column('permission_id', Integer, ForeignKey('permissions.id', ondelete='CASCADE')),
-    Column('created_at', DateTime, default=datetime.utcnow)
+    Column('created_at', DateTime, default=utcnow)
 )
 
 
@@ -30,7 +30,7 @@ user_groups = Table(
     Base.metadata,
     Column('user_id', Integer, ForeignKey('users.id', ondelete='CASCADE')),
     Column('group_id', Integer, ForeignKey('groups.id', ondelete='CASCADE')),
-    Column('created_at', DateTime, default=datetime.utcnow)
+    Column('created_at', DateTime, default=utcnow)
 )
 
 
@@ -40,7 +40,7 @@ client_allowed_groups = Table(
     Base.metadata,
     Column('client_id', Integer, ForeignKey('clients.id', ondelete='CASCADE')),
     Column('group_id', Integer, ForeignKey('groups.id', ondelete='CASCADE')),
-    Column('created_at', DateTime, default=datetime.utcnow)
+    Column('created_at', DateTime, default=utcnow)
 )
 
 client_denied_groups = Table(
@@ -48,7 +48,7 @@ client_denied_groups = Table(
     Base.metadata,
     Column('client_id', Integer, ForeignKey('clients.id', ondelete='CASCADE')),
     Column('group_id', Integer, ForeignKey('groups.id', ondelete='CASCADE')),
-    Column('created_at', DateTime, default=datetime.utcnow)
+    Column('created_at', DateTime, default=utcnow)
 )
 
 
@@ -58,7 +58,7 @@ group_allowed_apps = Table(
     Base.metadata,
     Column('group_id', Integer, ForeignKey('groups.id', ondelete='CASCADE')),
     Column('client_id', Integer, ForeignKey('clients.id', ondelete='CASCADE')),
-    Column('created_at', DateTime, default=datetime.utcnow)
+    Column('created_at', DateTime, default=utcnow)
 )
 
 group_denied_apps = Table(
@@ -66,7 +66,7 @@ group_denied_apps = Table(
     Base.metadata,
     Column('group_id', Integer, ForeignKey('groups.id', ondelete='CASCADE')),
     Column('client_id', Integer, ForeignKey('clients.id', ondelete='CASCADE')),
-    Column('created_at', DateTime, default=datetime.utcnow)
+    Column('created_at', DateTime, default=utcnow)
 )
 
 
@@ -76,7 +76,7 @@ user_allowed_apps = Table(
     Base.metadata,
     Column('user_id', Integer, ForeignKey('users.id', ondelete='CASCADE')),
     Column('client_id', Integer, ForeignKey('clients.id', ondelete='CASCADE')),
-    Column('created_at', DateTime, default=datetime.utcnow)
+    Column('created_at', DateTime, default=utcnow)
 )
 
 user_denied_apps = Table(
@@ -84,7 +84,7 @@ user_denied_apps = Table(
     Base.metadata,
     Column('user_id', Integer, ForeignKey('users.id', ondelete='CASCADE')),
     Column('client_id', Integer, ForeignKey('clients.id', ondelete='CASCADE')),
-    Column('created_at', DateTime, default=datetime.utcnow)
+    Column('created_at', DateTime, default=utcnow)
 )
 
 
@@ -97,8 +97,8 @@ class User(Base):
     password_hash = Column(String(255), nullable=False)
     avatar = Column(String(255), nullable=True)
     status = Column(String(20), default='active')  # active, inactive, suspended
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
 
     # Session security settings
     max_sessions = Column(Integer, default=3)  # Maximum concurrent sessions
@@ -196,7 +196,7 @@ class Client(Base):
     trusted = Column(Boolean, default=False)  # Skip authorization for trusted apps
     default_access = Column(Boolean, default=False)  # Default access policy (True=open, False=requires permission)
     owner_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
 
     # Relationships
     owner = relationship('User', back_populates='clients')
@@ -213,8 +213,8 @@ class UserAuthorization(Base):
     user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
     client_id = Column(Integer, ForeignKey('clients.id', ondelete='CASCADE'), nullable=False)
     scope = Column(Text, nullable=False)  # Space-separated scopes
-    created_at = Column(DateTime, default=datetime.utcnow)
-    last_used_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
+    last_used_at = Column(DateTime, default=utcnow)
 
     # Relationships
     user = relationship('User', back_populates='authorizations')
@@ -233,7 +233,7 @@ class Token(Base):
     device_info = Column(Text, nullable=True)  # JSON with device information
     redirect_uri = Column(String(500), nullable=True)  # For authorization codes
     expires_at = Column(DateTime, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
 
     # Relationships
     user = relationship('User', back_populates='tokens')
@@ -252,9 +252,9 @@ class Session(Base):
     refresh_token_hash = Column(String(255), nullable=True)
     ip_address = Column(String(50), nullable=True)
     user_agent = Column(Text, nullable=True)
-    last_active = Column(DateTime, default=datetime.utcnow)
+    last_active = Column(DateTime, default=utcnow)
     expires_at = Column(DateTime, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
 
     # GeoIP location fields
     country = Column(String(100), nullable=True)
@@ -276,7 +276,7 @@ class Role(Base):
     name = Column(String(50), unique=True, nullable=False)
     description = Column(Text, nullable=True)
     level = Column(Integer, default=0)  # Higher level = more permissions
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
 
     # Relationships
     users = relationship('User', secondary=user_roles, back_populates='roles')
@@ -290,7 +290,7 @@ class Permission(Base):
     code = Column(String(100), unique=True, nullable=False)  # e.g., 'user.read', 'admin.*'
     name = Column(String(100), nullable=False)
     description = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
 
     # Relationships
     roles = relationship('Role', secondary=role_permissions, back_populates='permissions')
@@ -303,8 +303,8 @@ class Group(Base):
     name = Column(String(50), unique=True, nullable=False)
     description = Column(Text, nullable=True)
     is_default = Column(Boolean, default=False)  # Auto-assign new users to this group
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
 
     # Relationships
     users = relationship('User', secondary=user_groups, back_populates='groups')
@@ -333,8 +333,8 @@ class InviteCode(Base):
     used_by_user_id = Column(Integer, ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
     used_at = Column(DateTime, nullable=True)
 
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
 
     group = relationship('Group')
     created_by_user = relationship('User', foreign_keys=[created_by_user_id])
@@ -348,7 +348,7 @@ class InviteRedemption(Base):
     id = Column(Integer, primary_key=True, index=True)
     invite_id = Column(Integer, ForeignKey('invite_codes.id', ondelete='CASCADE'), nullable=False, index=True)
     user_id = Column(Integer, ForeignKey('users.id', ondelete='SET NULL'), nullable=True, index=True)
-    used_at = Column(DateTime, default=datetime.utcnow)
+    used_at = Column(DateTime, default=utcnow)
 
     invite = relationship('InviteCode', back_populates='redemptions')
     user = relationship('User')
@@ -359,7 +359,7 @@ class SystemSetting(Base):
 
     key = Column(String(100), primary_key=True)
     value = Column(Text, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
 
 
 class AuditLog(Base):
@@ -372,7 +372,7 @@ class AuditLog(Base):
     ip_address = Column(String(50), nullable=True)
     user_agent = Column(Text, nullable=True)
     details = Column(Text, nullable=True)  # JSON with additional info
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
 
 
 class Passkey(Base):
@@ -402,7 +402,7 @@ class Passkey(Base):
 
     # Usage tracking
     last_used_at = Column(DateTime, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
 
     # Relationships
     user = relationship('User', back_populates='passkeys')
@@ -417,7 +417,7 @@ class WebAuthnChallenge(Base):
     type = Column(String(20), nullable=False)  # 'registration' or 'authentication'
     user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=True)  # NULL for authentication
     expires_at = Column(DateTime, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
 
 
 class LoginLog(Base):
@@ -455,7 +455,7 @@ class LoginLog(Base):
     # Login method
     login_method = Column(String(20), default='password')  # password, passkey, oauth
 
-    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    created_at = Column(DateTime, default=utcnow, index=True)
 
     # Relationships
     user = relationship('User', back_populates='login_logs')
@@ -490,7 +490,7 @@ class VerificationSession(Base):
     # Status
     is_completed = Column(Boolean, default=False)
     expires_at = Column(DateTime, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
     completed_at = Column(DateTime, nullable=True)
 
     # Relationships
@@ -523,7 +523,7 @@ class VerificationCode(Base):
     # Status
     is_used = Column(Boolean, default=False)
     expires_at = Column(DateTime, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
     used_at = Column(DateTime, nullable=True)
 
     # Relationships
@@ -547,7 +547,7 @@ class UserTOTP(Base):
 
     # Status
     is_enabled = Column(Boolean, default=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
     last_used_at = Column(DateTime, nullable=True)
 
     # Relationships

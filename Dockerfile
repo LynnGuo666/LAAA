@@ -17,8 +17,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     # without relying on the dev-oriented relative path (../../frontend/out).
     STATIC_DIR=/app/frontend/out
 
-COPY backend/requirements.txt /app/requirements.txt
-RUN pip install --no-cache-dir -r /app/requirements.txt
+COPY backend/requirements.lock /app/requirements.lock
+RUN pip install --no-cache-dir -r /app/requirements.lock
 
 COPY backend/app /app/app
 COPY backend/main.py /app/main.py

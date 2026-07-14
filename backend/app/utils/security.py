@@ -1,11 +1,13 @@
 import bcrypt
 from jose import JWTError, jwt
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import Optional, Dict, Any
 from app.config import get_settings
+from app.utils.time import utcnow
 import secrets
 import hashlib
 import base64
+import hmac
 
 settings = get_settings()
 
@@ -26,9 +28,9 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     """Create a JWT access token"""
     to_encode = data.copy()
     if expires_delta:
-        expire = datetime.utcnow() + expires_delta
+        expire = utcnow() + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(minutes=settings.access_token_expire_minutes)
+        expire = utcnow() + timedelta(minutes=settings.access_token_expire_minutes)
 
     to_encode.update({"exp": expire, "type": "access"})
     encoded_jwt = jwt.encode(to_encode, settings.secret_key, algorithm=settings.algorithm)
@@ -41,9 +43,9 @@ def create_refresh_token(data: dict, remember_me: bool = False) -> str:
     # Add unique ID to avoid collisions across rapid refreshes
     to_encode.update({"jti": secrets.token_urlsafe(16)})
     if remember_me:
-        expire = datetime.utcnow() + timedelta(days=settings.refresh_token_remember_me_days)
+        expire = utcnow() + timedelta(days=settings.refresh_token_remember_me_days)
     else:
-        expire = datetime.utcnow() + timedelta(days=settings.refresh_token_expire_days)
+        expire = utcnow() + timedelta(days=settings.refresh_token_expire_days)
 
     to_encode.update({"exp": expire, "type": "refresh"})
     encoded_jwt = jwt.encode(to_encode, settings.secret_key, algorithm=settings.algorithm)
@@ -53,7 +55,7 @@ def create_refresh_token(data: dict, remember_me: bool = False) -> str:
 def create_id_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     """Create an OpenID Connect ID Token (JWT)"""
     to_encode = data.copy()
-    now = datetime.utcnow()
+    now = utcnow()
     if expires_delta:
         expire = now + expires_delta
     else:
@@ -101,5 +103,9 @@ def hash_token(token: str) -> str:
 
 
 def verify_client_secret(plain_secret: str, hashed_secret: str) -> bool:
-    """Verify a client secret against a hash"""
-    return hash_token(plain_secret) == hashed_secret
+    """Verify a client secret against a hash (constant-time comparison)."""
+    return hmac.compare_digest(hash_token(plain_secret), hashed_secret)
+
+
+# Alias kept for backward compatibility (some call sites use hash_password).
+hash_password = get_password_hash

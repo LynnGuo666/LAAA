@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import Optional, Tuple, Dict, Any, List
 from app.models import User, Token, Session as SessionModel, LoginLog
 from app.utils.security import (
@@ -14,9 +14,13 @@ from app.utils.security import (
 from sqlalchemy.exc import IntegrityError
 from app.utils.device import generate_device_id, get_device_name, parse_device_type
 from app.config import get_settings
+from app.utils.time import utcnow
 import json
 
 settings = get_settings()
+
+# 用于用户不存在时保持常量时间响应:仍跑一次 bcrypt 验证,避免基于响应时序枚举用户名。
+DUMMY_PASSWORD_HASH = "$2b$12$7hCJrIJoByJ9AEiLybrm9Okp2CPh2VB.AbARWEyo9ZqKvWyDtr/nO"
 
 
 class AuthService:
@@ -101,6 +105,8 @@ class AuthService:
         """
         user = db.query(User).filter(User.username == username).first()
         if not user:
+            # 用户不存在也跑一次 bcrypt 校验,使响应时间与"密码错误"分支一致(防时序枚举)
+            verify_password(password, DUMMY_PASSWORD_HASH)
             return None, "user_not_found"
         if not verify_password(password, user.password_hash):
             return None, "invalid_password"
@@ -176,11 +182,11 @@ class AuthService:
         refresh_token = create_refresh_token(token_data, remember_me)
 
         # Calculate expiration
-        access_expires = datetime.utcnow() + timedelta(minutes=settings.access_token_expire_minutes)
+        access_expires = utcnow() + timedelta(minutes=settings.access_token_expire_minutes)
         if remember_me:
-            refresh_expires = datetime.utcnow() + timedelta(days=settings.refresh_token_remember_me_days)
+            refresh_expires = utcnow() + timedelta(days=settings.refresh_token_remember_me_days)
         else:
-            refresh_expires = datetime.utcnow() + timedelta(days=settings.refresh_token_expire_days)
+            refresh_expires = utcnow() + timedelta(days=settings.refresh_token_expire_days)
 
         # Store refresh token
         refresh_token_record = Token(
@@ -205,7 +211,7 @@ class AuthService:
 
         if session_record:
             session_record.refresh_token_hash = hash_token(refresh_token)
-            session_record.last_active = datetime.utcnow()
+            session_record.last_active = utcnow()
             session_record.expires_at = refresh_expires
             session_record.ip_address = safe_ip_address
             session_record.user_agent = safe_user_agent
@@ -328,7 +334,7 @@ class AuthService:
         token_record = db.query(Token).filter(
             Token.token_hash == token_hash_value,
             Token.type == 'refresh',
-            Token.expires_at > datetime.utcnow()
+            Token.expires_at > utcnow()
         ).first()
 
         if not token_record:
@@ -365,7 +371,7 @@ class AuthService:
         new_refresh_token = create_refresh_token(token_data)
 
         # Calculate new expiration
-        refresh_expires = datetime.utcnow() + timedelta(days=settings.refresh_token_expire_days)
+        refresh_expires = utcnow() + timedelta(days=settings.refresh_token_expire_days)
 
         # Update old refresh token record
         for _ in range(3):
@@ -378,7 +384,7 @@ class AuthService:
             ).first()
             if session:
                 session.refresh_token_hash = hash_token(new_refresh_token)
-                session.last_active = datetime.utcnow()
+                session.last_active = utcnow()
                 session.expires_at = refresh_expires
 
             try:

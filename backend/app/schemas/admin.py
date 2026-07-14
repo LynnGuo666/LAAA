@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, ConfigDict
 from typing import Optional, List
 from datetime import datetime
 
@@ -15,8 +15,7 @@ class AdminUserResponse(BaseModel):
     groups: List[str] = []  # Group names
     roles: List[str] = []  # Role names
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class AdminUserUpdate(BaseModel):
@@ -52,8 +51,7 @@ class RoleResponse(BaseModel):
     description: Optional[str] = None
     level: int
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # App Permission Schemas
@@ -137,8 +135,7 @@ class AdminLoginLogResponse(BaseModel):
     is_suspicious: bool = False
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class PaginatedLoginLogsResponse(BaseModel):
@@ -161,8 +158,7 @@ class AdminSessionResponse(BaseModel):
     created_at: datetime
     is_trusted: bool = False
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class AdminPasskeyResponse(BaseModel):
@@ -175,8 +171,7 @@ class AdminPasskeyResponse(BaseModel):
     backup_eligible: bool = False
     aaguid: Optional[str] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class AdminAuthorizationResponse(BaseModel):
@@ -189,8 +184,7 @@ class AdminAuthorizationResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class AdminUserSecurityMethodsResponse(BaseModel):

@@ -2,7 +2,7 @@
 Passkey/WebAuthn schemas
 """
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional, List, Any
 from datetime import datetime
 
@@ -57,8 +57,7 @@ class PasskeyResponse(BaseModel):
     backup_state: bool = False
     aaguid: Optional[str] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class PasskeyCheckResponse(BaseModel):

@@ -1,11 +1,22 @@
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import field_validator
 from functools import lru_cache
 from typing import Optional
 
 
+# 占位/弱密钥黑名单——出现这些值时启动 fail-fast
+_WEAK_SECRET_KEYS = {
+    "your-secret-key-change-this-in-production",
+    "your-secret-key-here",
+    "change-me",
+    "secret",
+    "changeme",
+}
+
+
 class Settings(BaseSettings):
     app_name: str = "Personal OAuth Server"
-    debug: bool = True
+    debug: bool = False
     secret_key: str
     algorithm: str = "HS256"
 
@@ -96,9 +107,16 @@ class Settings(BaseSettings):
     # Env var: FRONTEND_URL
     frontend_url: str = "http://localhost:8000"  # Production: "https://laaa.lynn6.top"
 
-    class Config:
-        env_file = ".env"
-        case_sensitive = False
+    @field_validator("secret_key")
+    @classmethod
+    def _validate_secret_key(cls, v: str) -> str:
+        if len(v) < 32:
+            raise ValueError("SECRET_KEY 必须是≥32字符的随机串")
+        if v in _WEAK_SECRET_KEYS:
+            raise ValueError("SECRET_KEY 不能使用占位/弱密钥,请生成强随机串")
+        return v
+
+    model_config = SettingsConfigDict(env_file=".env", case_sensitive=False)
 
 
 @lru_cache()

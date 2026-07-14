@@ -278,7 +278,8 @@ async def token(
         encoded = auth.split(" ", 1)[1].strip()
         try:
             decoded = base64.b64decode(encoded).decode("utf-8")
-        except Exception:
+        except Exception as e:
+            logger.debug("oauth token: invalid basic auth encoding err=%s", e)
             return None, None
         if ":" not in decoded:
             return None, None
@@ -353,7 +354,8 @@ async def token(
         try:
             user_id = int(payload.get("sub"))
             user = db.query(User).filter(User.id == user_id).first()
-        except Exception:
+        except Exception as e:
+            logger.warning("oauth token: id_token user lookup failed sub=%s err=%s", payload.get("sub"), e)
             user = None
         id_token = create_id_token(
             {

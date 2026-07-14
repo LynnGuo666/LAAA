@@ -1,6 +1,5 @@
 from fastapi import APIRouter, Request
 from app.config import get_settings
-from app.utils.security import get_jwks
 
 settings = get_settings()
 
@@ -29,5 +28,7 @@ async def openid_configuration(request: Request):
 
 @router.get("/.well-known/jwks.json")
 async def jwks():
-    return get_jwks()
+    # 止血:HS256 对称密钥不可安全暴露,JWKS 暂返回空。
+    # RS256 迁移(P0-2)后在此返回 RSA 公钥。
+    return {"keys": []}
 

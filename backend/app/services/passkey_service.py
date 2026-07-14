@@ -4,10 +4,11 @@ Passkey/WebAuthn service for handling credential registration and authentication
 
 import json
 import secrets
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import Optional, Tuple, List
 
 from sqlalchemy.orm import Session
+from app.utils.time import utcnow
 from webauthn import (
     generate_registration_options,
     verify_registration_response,
@@ -96,7 +97,7 @@ class PasskeyService:
 
         # Store challenge
         challenge_b64 = bytes_to_base64url(options.challenge)
-        expires_at = datetime.utcnow() + timedelta(seconds=settings.webauthn_challenge_timeout_seconds)
+        expires_at = utcnow() + timedelta(seconds=settings.webauthn_challenge_timeout_seconds)
 
         # Clean up old challenges for this user
         db.query(WebAuthnChallenge).filter(
@@ -141,7 +142,7 @@ class PasskeyService:
         challenge_record = db.query(WebAuthnChallenge).filter(
             WebAuthnChallenge.user_id == user.id,
             WebAuthnChallenge.type == 'registration',
-            WebAuthnChallenge.expires_at > datetime.utcnow()
+            WebAuthnChallenge.expires_at > utcnow()
         ).first()
 
         if not challenge_record:
@@ -236,7 +237,7 @@ class PasskeyService:
 
         # Store challenge
         challenge_b64 = bytes_to_base64url(options.challenge)
-        expires_at = datetime.utcnow() + timedelta(seconds=settings.webauthn_challenge_timeout_seconds)
+        expires_at = utcnow() + timedelta(seconds=settings.webauthn_challenge_timeout_seconds)
 
         challenge_record = WebAuthnChallenge(
             challenge=challenge_b64,
@@ -288,7 +289,7 @@ class PasskeyService:
         # Get and validate challenge
         challenge_record = db.query(WebAuthnChallenge).filter(
             WebAuthnChallenge.type == 'authentication',
-            WebAuthnChallenge.expires_at > datetime.utcnow()
+            WebAuthnChallenge.expires_at > utcnow()
         ).order_by(WebAuthnChallenge.created_at.desc()).first()
 
         if not challenge_record:
@@ -315,7 +316,7 @@ class PasskeyService:
 
         # Update passkey sign count and last used
         passkey.sign_count = verification.new_sign_count
-        passkey.last_used_at = datetime.utcnow()
+        passkey.last_used_at = utcnow()
 
         db.commit()
 
@@ -361,7 +362,7 @@ class PasskeyService:
     def cleanup_expired_challenges(db: Session) -> int:
         """Clean up expired challenges"""
         result = db.query(WebAuthnChallenge).filter(
-            WebAuthnChallenge.expires_at < datetime.utcnow()
+            WebAuthnChallenge.expires_at < utcnow()
         ).delete()
         db.commit()
         return result

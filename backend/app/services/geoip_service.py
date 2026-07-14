@@ -13,6 +13,9 @@ Requirements:
 
 from typing import Optional, Dict, Any
 from app.config import get_settings
+import logging
+
+logger = logging.getLogger(__name__)
 import os
 
 settings = get_settings()
@@ -190,8 +193,8 @@ class GeoIPService:
                                 city = f"{province}{ip2region_city}"
                         else:
                             city = province or ip2region_city
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.warning("geoip ip2region lookup failed ip=%s err=%s", ip_address, e)
 
             # Fall back to GeoLite2 city info if ip2region didn't provide data
             if not city and response.city.names:
@@ -208,8 +211,9 @@ class GeoIPService:
                 "latitude": str(response.location.latitude) if response.location.latitude else None,
                 "longitude": str(response.location.longitude) if response.location.longitude else None,
             }
-        except Exception:
+        except Exception as e:
             # IP not found in database or other error
+            logger.warning("geoip get_location failed ip=%s err=%s", ip_address, e)
             return None
 
     @staticmethod

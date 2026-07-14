@@ -1,6 +1,5 @@
-from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy import create_engine, event
+from sqlalchemy.orm import declarative_base, sessionmaker
 from app.config import get_settings
 
 settings = get_settings()
@@ -10,6 +9,18 @@ engine = create_engine(
     settings.database_url,
     connect_args={"check_same_thread": False}  # For SQLite
 )
+
+
+# SQLite 并发与耐久性调优:WAL 模式允许读写并发,busy_timeout 避免写锁竞争立即报错,
+# synchronous=NORMAL 在 WAL 下兼顾性能与崩溃安全。
+@event.listens_for(engine, "connect")
+def _set_sqlite_pragmas(dbapi_conn, connection_record):
+    cursor = dbapi_conn.cursor()
+    cursor.execute("PRAGMA journal_mode=WAL")
+    cursor.execute("PRAGMA busy_timeout=5000")
+    cursor.execute("PRAGMA synchronous=NORMAL")
+    cursor.close()
+
 
 # Create SessionLocal class
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

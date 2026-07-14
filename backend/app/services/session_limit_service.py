@@ -8,11 +8,11 @@ terminated to make room for the new login.
 
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
-from datetime import datetime
 from typing import Optional, List, Tuple, Dict, Any
 
 from app.models import User, Session as SessionModel, Token
 from app.config import get_settings
+from app.utils.time import utcnow
 
 settings = get_settings()
 
@@ -29,7 +29,7 @@ class SessionLimitService:
         """
         return db.query(SessionModel).filter(
             SessionModel.user_id == user_id,
-            SessionModel.expires_at > datetime.utcnow(),
+            SessionModel.expires_at > utcnow(),
             SessionModel.kicked_at.is_(None)  # Not kicked
         ).order_by(SessionModel.last_active.asc()).all()
 
@@ -38,7 +38,7 @@ class SessionLimitService:
         """Get the count of active sessions for a user"""
         return db.query(SessionModel).filter(
             SessionModel.user_id == user_id,
-            SessionModel.expires_at > datetime.utcnow(),
+            SessionModel.expires_at > utcnow(),
             SessionModel.kicked_at.is_(None)
         ).count()
 
@@ -125,7 +125,7 @@ class SessionLimitService:
         }
 
         # Mark the session as kicked
-        session.kicked_at = datetime.utcnow()
+        session.kicked_at = utcnow()
         session.kicked_reason = reason
 
         # Delete the associated refresh token
@@ -135,7 +135,7 @@ class SessionLimitService:
             ).delete()
 
         # Expire the session
-        session.expires_at = datetime.utcnow()
+        session.expires_at = utcnow()
 
         db.commit()
 

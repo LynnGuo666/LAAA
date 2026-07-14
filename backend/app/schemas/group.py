@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional, List
 from datetime import datetime
 
@@ -25,8 +25,7 @@ class GroupResponse(GroupBase):
     updated_at: datetime
     member_count: Optional[int] = Field(None, description="成员数量")
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class GroupMembersUpdate(BaseModel):
