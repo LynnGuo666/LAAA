@@ -520,6 +520,9 @@ class VerificationCode(Base):
     attempts = Column(Integer, default=0)
     max_attempts = Column(Integer, default=5)
 
+    # change-email flow: 待验证的新邮箱(验证通过后才写入 users.email)
+    new_email = Column(String(100), nullable=True)
+
     # Status
     is_used = Column(Boolean, default=False)
     expires_at = Column(DateTime, nullable=False)

@@ -419,5 +419,6 @@ class SkipVerificationRequest(BaseModel):
 
 
 class ChangeEmailRequest(BaseModel):
-    """Request to change user email"""
+    """Request to change user email (requires current password confirmation)."""
+    current_password: str = Field(..., min_length=1)
     new_email: EmailStr

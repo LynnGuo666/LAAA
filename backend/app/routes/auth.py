@@ -1,3 +1,6 @@
+import asyncio
+import logging
+from datetime import timedelta
 from typing import Union
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
@@ -52,6 +55,7 @@ from app.utils.device import get_client_ip
 from app.utils.time import utcnow
 
 settings = get_settings()
+logger = logging.getLogger("uvicorn.error")
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 
 
@@ -748,6 +752,32 @@ async def magic_link_login_verify(
     client_ip = get_client_ip(request)
     user_agent = request.headers.get("user-agent", "")
 
+    # Magic-link login 不经密码路径,需主动跑风控评估:
+    # 若启用风控且检测到异常,拒绝直接签发 token,要求改用密码+二次验证登录。
+    if settings.enable_login_anomaly_detection and settings.block_suspicious_login:
+        from app.services.geoip_service import GeoIPService
+        from app.services.risk_service import RiskLevel, RiskService
+
+        geo_info = GeoIPService.get_location(client_ip)
+        risk_assessment = RiskService.assess_password_login_risk(
+            db=db,
+            user=user,
+            ip_address=client_ip,
+            city=geo_info.get("city") if geo_info else None,
+            country=geo_info.get("country") if geo_info else None,
+            device_token=None,
+        )
+        if risk_assessment.risk_level != RiskLevel.NONE:
+            # 高风险:不签发 token,要求用户走密码登录完成二次验证
+            logger.warning(
+                "magic_link_login: risk detected, refusing direct login user=%s risk=%s",
+                user.id, risk_assessment.risk_level.value,
+            )
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="检测到异常登录风险,请使用密码登录并完成二次验证",
+            )
+
     # Create tokens
     result = AuthService.create_tokens(
         db,
@@ -956,13 +986,18 @@ async def verify_email(
     token: str,
     db: Session = Depends(get_db)
 ):
-    """Verify email address using the token from the email link"""
+    """Verify email address using the token from the email link.
+
+    支持两种 purpose:
+    - email_verification: 标记邮箱已验证
+    - change_email: 将暂存的 new_email 写入 users.email 并标记已验证
+    """
     from app.models import VerificationCode
 
-    # Find the verification code
+    # Find the verification code (支持 email_verification 与 change_email 两种 purpose)
     verification_code = db.query(VerificationCode).filter(
         VerificationCode.token == token,
-        VerificationCode.purpose == "email_verification",
+        VerificationCode.purpose.in_(["email_verification", "change_email"]),
         VerificationCode.is_used == False
     ).first()
 
@@ -986,6 +1021,22 @@ async def verify_email(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="用户不存在"
         )
+
+    if verification_code.purpose == "change_email":
+        # change-email 流程:用暂存的新邮箱替换,且确认未被他人占用
+        new_email = verification_code.new_email
+        if not new_email:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="邮箱变更记录无效"
+            )
+        existing = db.query(User).filter(User.email == new_email).first()
+        if existing and existing.id != user.id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="该邮箱已被使用,变更失败"
+            )
+        user.email = new_email
 
     # Mark email as verified
     user.email_verified = True
@@ -1058,13 +1109,38 @@ async def skip_verification(
 
 
 @router.post("/change-email")
+@limiter.limit("5/hour")
 async def change_email(
+    request: Request,
     request_data: ChangeEmailRequest,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Change user email (available in restricted mode)"""
-    # Check if new email is already taken
+    """Change user email.
+
+    安全要求:必须确认当前密码(防 session 劫持后改邮箱接管)。
+    新邮箱不立即生效——发验证链接到新邮箱,验证后才更新;同时通知旧邮箱。
+    """
+    import secrets as _secrets
+
+    from app.models import VerificationCode
+    from app.utils.security import verify_password
+
+    # 1. 确认当前密码(step-up)
+    if not verify_password(request_data.current_password, current_user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="当前密码错误"
+        )
+
+    # 2. 新邮箱不能与当前相同
+    if request_data.new_email == current_user.email:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="新邮箱不能与当前邮箱相同"
+        )
+
+    # 3. 新邮箱不能已被占用
     existing = db.query(User).filter(User.email == request_data.new_email).first()
     if existing and existing.id != current_user.id:
         raise HTTPException(
@@ -1072,10 +1148,66 @@ async def change_email(
             detail="该邮箱已被使用"
         )
 
-    # Update email and reset verification status
-    current_user.email = request_data.new_email
-    current_user.email_verified = False
-    current_user.email_verified_at = None
+    # 4. 频控:pending 的 change_email 请求最多 5/天(复用 email_verification 的日限)
+    now = utcnow()
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    pending_count = db.query(VerificationCode).filter(
+        VerificationCode.user_id == current_user.id,
+        VerificationCode.purpose == "change_email",
+        VerificationCode.created_at >= today_start,
+    ).count()
+    if pending_count >= 5:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="今日邮箱变更请求次数已达上限",
+        )
+
+    # 5. 创建待验证记录(token 发到新邮箱,验证后才真正改邮箱)
+    token = _secrets.token_urlsafe(32)
+    verification_code = VerificationCode(
+        user_id=current_user.id,
+        token=token,
+        purpose="change_email",
+        new_email=request_data.new_email,  # 待生效的新邮箱
+        expires_at=now + timedelta(hours=1),
+        max_attempts=1,
+    )
+    db.add(verification_code)
     db.commit()
 
-    return {"message": "邮箱已更新，请验证新邮箱"}
+    # 6. 发验证链接到新邮箱(非阻塞)
+    try:
+        verify_url = f"{settings.frontend_url}/verify-email/{token}"
+        asyncio.create_task(
+            EmailService.send_email(
+                to_email=request_data.new_email,
+                subject="确认邮箱变更 - LAAA",
+                html_content=(
+                    f"<p>你正在将 LAAA 账户邮箱变更为此地址。</p>"
+                    f"<p><a href=\"{verify_url}\">点击确认邮箱变更</a></p>"
+                    f"<p>该链接 1 小时内有效。若非本人操作请忽略此邮件。</p>"
+                ),
+                text_content=f"确认邮箱变更: {verify_url} (1 小时内有效)",
+            )
+        )
+    except Exception as e:
+        logger.warning("change_email: send verification to new email failed user=%s err=%s", current_user.id, e)
+
+    # 7. 通知旧邮箱(若有)有变更请求
+    if current_user.email and current_user.email_verified:
+        try:
+            asyncio.create_task(
+                EmailService.send_email(
+                    to_email=current_user.email,
+                    subject="邮箱变更通知 - LAAA",
+                    html_content=(
+                        f"<p>你的账户发起了一次邮箱变更请求。</p>"
+                        f"<p>新邮箱:{request_data.new_email}</p>"
+                        f"<p>若非本人操作,请立即修改密码。</p>"
+                    ),
+                )
+            )
+        except Exception as e:
+            logger.warning("change_email: notify old email failed user=%s err=%s", current_user.id, e)
+
+    return {"message": "验证链接已发送到新邮箱,请查收并点击确认以完成邮箱变更"}
