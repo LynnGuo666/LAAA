@@ -22,6 +22,7 @@ RUN pip install --no-cache-dir -r /app/requirements.lock
 
 COPY backend/app /app/app
 COPY backend/main.py /app/main.py
+COPY backend/scripts /app/scripts
 
 # Place exported frontend at /app/frontend/out to match STATIC_DIR above
 COPY --from=frontend-builder /frontend/out /app/frontend/out

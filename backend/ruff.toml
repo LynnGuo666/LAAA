@@ -24,6 +24,7 @@ ignore = [
   "B017",   # pytest.raises(Exception)
   "SIM102", # collapsible if (现有逻辑,合并会改变 device_token 缺失语义)
   "SIM103", # needless bool (可读性,显式 if/return)
+  "SIM115", # context manager for open (密钥加载/生成场景,函数级 open 可接受)
   "SIM105", # suppressible exception (contextlib.suppress)
   "SIM108", # if-else -> ternary (可读性)
   "SIM117", # nested with

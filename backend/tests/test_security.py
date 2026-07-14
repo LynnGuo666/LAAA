@@ -17,8 +17,14 @@ from app.utils.time import utcnow
 
 
 def test_access_token_roundtrip():
-    """access token 签发后能解码,含正确 type/sub。"""
+    """access token (RS256) 签发后能解码,含正确 type/sub/kid header。"""
+    from app.utils.security import keystore
+    keystore.ensure_loaded()
     token = create_access_token({"sub": "42", "scope": "profile"})
+    from jose import jwt
+    header = jwt.get_unverified_header(token)
+    assert header["alg"] == "RS256"
+    assert "kid" in header
     payload = decode_token(token)
     assert payload is not None
     assert payload["sub"] == "42"
@@ -26,9 +32,12 @@ def test_access_token_roundtrip():
     assert payload["scope"] == "profile"
 
 
-def test_refresh_token_has_jti():
-    """refresh token 带 jti。"""
+def test_refresh_token_uses_hs256():
+    """refresh token 仍用 HS256(对称,不对外暴露验证)。"""
     token = create_refresh_token({"sub": "1"})
+    from jose import jwt
+    header = jwt.get_unverified_header(token)
+    assert header["alg"] == "HS256"
     payload = decode_token(token)
     assert payload is not None
     assert payload["type"] == "refresh"
@@ -36,21 +45,21 @@ def test_refresh_token_has_jti():
 
 
 def test_id_token_type():
-    """id token type=id(含 aud/iat)。
-    注:id_token 含 aud claim,python-jose 默认会校验 audience;LAAA 内部不解码
-    id_token(只解码 access/refresh),故 decode_token 不传 audience 会拒。这里用
-    get_unverified_claims 验证 claims 结构,签发正确性由 access token roundtrip 覆盖。"""
+    """id token (RS256) type=id(含 aud/iat),签名能用 JWKS 公钥验证。"""
     from jose import jwt
-
-    from app.config import get_settings
     token = create_id_token({"sub": "1", "aud": "client-x"})
+    header = jwt.get_unverified_header(token)
+    assert header["alg"] == "RS256"
     payload = jwt.get_unverified_claims(token)
     assert payload["type"] == "id"
     assert payload["aud"] == "client-x"
     assert "iat" in payload
-    # 签名有效性:用密钥 + 显式 audience 解码应成功
-    settings = get_settings()
-    verified = jwt.decode(token, settings.secret_key, algorithms=["HS256"], audience="client-x")
+    # 用 JWKS 公钥(按 kid)解码应成功
+    from app.utils.security import keystore
+    keystore.ensure_loaded()
+    pub = keystore.verifying_key(header["kid"])
+    assert pub is not None
+    verified = jwt.decode(token, pub, algorithms=["RS256"], audience="client-x")
     assert verified["sub"] == "1"
 
 

@@ -107,6 +107,14 @@ class Settings(BaseSettings):
     # Env var: FRONTEND_URL
     frontend_url: str = "http://localhost:8000"  # Production: "https://laaa.lynn6.top"
 
+    # JWT signing (RS256 迁移)。access/id token 用非对称签名,JWKS 只暴露公钥。
+    # refresh token 仍用对称 secret_key(不对外暴露验证)。
+    # Env vars: JWT_PRIVATE_KEY_PATH, JWT_PUBLIC_KEY_PATH, JWT_KEY_ID
+    jwt_algorithm: str = "RS256"
+    jwt_private_key_path: str = ""
+    jwt_public_key_path: str = ""
+    jwt_key_id: str = ""  # 可选,留空则用公钥 DER 的 sha256[:16]
+
     @field_validator("secret_key")
     @classmethod
     def _validate_secret_key(cls, v: str) -> str:

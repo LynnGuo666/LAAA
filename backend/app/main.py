@@ -161,10 +161,18 @@ if os.path.exists(static_dir):
         return {"error": "Not found"}
 
 
-# Initialize database on startup
+# Initialize database + load JWT signing keys on startup
 @app.on_event("startup")
 async def startup_event():
     init_db()
+    # 加载 RS256 密钥(若配置了路径);未配置则 access/id token 签发时会 fail
+    from app.utils.security import keystore
+    keystore.ensure_loaded()
+    if not keystore.is_configured:
+        logger.warning(
+            "startup: JWT RS256 keys not configured (JWT_PRIVATE_KEY_PATH/JWT_PUBLIC_KEY_PATH) "
+            "— access/id token issuance will fail"
+        )
     logger.info("startup: db initialized debug=%s", settings.debug)
     logger.info("docs: http://localhost:%s/api/docs", settings.port)
 

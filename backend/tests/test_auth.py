@@ -117,16 +117,24 @@ def test_secret_key_validator_accepts_strong():
     assert len(s.secret_key) == 48
 
 
-def test_jwks_endpoint_returns_empty_keys(client):
-    """JWKS 止血:返回空 keys 数组,不泄露对称密钥(P0-1 回归)。"""
+def test_jwks_endpoint_returns_rsa_keys(client):
+    """JWKS 返回 RSA 公钥(RS256),不泄露对称密钥(P0-2)。
+    RS256 迁移后 keys 非空,但只含公钥(n/e),无 'k'(对称密钥)。"""
     resp = client.get("/.well-known/jwks.json")
     assert resp.status_code == 200
     data = resp.json()
-    assert data == {"keys": []}, f"JWKS must be empty, got: {data}"
+    assert "keys" in data
+    assert len(data["keys"]) >= 1, "JWKS should expose at least one RSA public key"
+    key = data["keys"][0]
+    assert key["kty"] == "RSA"
+    assert key["alg"] == "RS256"
+    assert key["use"] == "sig"
+    assert "kid" in key
+    assert "n" in key and "e" in key  # 公钥参数
 
 
 def test_jwks_response_has_no_secret_material(client):
-    """JWKS 响应体不含 'k' 字段(对称密钥泄露指标)。"""
+    """JWKS 响应体不含 'k' 字段(对称密钥泄露指标)——RS256 核心保证。"""
     resp = client.get("/.well-known/jwks.json")
     body = resp.text
     assert '"k"' not in body, "JWKS must not expose symmetric key material"

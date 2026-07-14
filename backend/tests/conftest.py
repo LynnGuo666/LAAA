@@ -1,6 +1,7 @@
-"""Pytest 配置:测试用独立临时 SQLite + 强 SECRET_KEY,不碰开发库。"""
+"""Pytest 配置:测试用独立临时 SQLite + 强 SECRET_KEY + 临时 RSA 密钥对,不碰开发库。"""
 import os
 import sys
+import tempfile
 
 # 在导入 app 之前设定环境:强密钥 + 临时库 + 关闭风控便于直接测登录
 os.environ.setdefault("SECRET_KEY", "test-secret-key-for-pytest-only-32chars-min!!")
@@ -8,6 +9,13 @@ os.environ.setdefault("DATABASE_URL", "sqlite:///./test_oauth.db")
 os.environ.setdefault("ENABLE_LOGIN_ANOMALY_DETECTION", "false")
 os.environ.setdefault("BLOCK_SUSPICIOUS_LOGIN", "false")
 os.environ.setdefault("SMTP_ENABLED", "false")
+
+# 生成临时 RSA 密钥对供 RS256 测试(测试结束自动清理)
+_KEYDIR = tempfile.mkdtemp(prefix="laaa-test-keys-")
+_PRIV = os.path.join(_KEYDIR, "jwt.pem")
+_PUB = os.path.join(_KEYDIR, "jwt.pub")
+os.environ.setdefault("JWT_PRIVATE_KEY_PATH", _PRIV)
+os.environ.setdefault("JWT_PUBLIC_KEY_PATH", _PUB)
 
 import pytest
 from fastapi.testclient import TestClient
@@ -18,7 +26,13 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 @pytest.fixture(scope="session")
 def app():
-    """创建一次应用 + 初始化 schema,session 内复用。"""
+    """创建一次应用 + 初始化 schema + 生成 RSA 密钥,session 内复用。"""
+    # 生成测试用 RSA 密钥对(若未由外部提供)
+    from app.utils.security import generate_rsa_keypair, keystore
+    if not os.path.exists(_PRIV):
+        generate_rsa_keypair(_PRIV, _PUB)
+    keystore.load(_PRIV, _PUB)
+
     from app.database import engine, init_db
     from app.models import Base
 
@@ -30,6 +44,9 @@ def app():
 
     # 清理测试库
     Base.metadata.drop_all(bind=engine)
+    # 清理临时密钥
+    import shutil
+    shutil.rmtree(_KEYDIR, ignore_errors=True)
 
 
 @pytest.fixture(scope="session")

@@ -42,6 +42,7 @@ click==8.4.2
     # via uvicorn
 cryptography==49.0.0
     # via
+    #   -r backend/requirements.txt
     #   authlib
     #   joserfc
     #   pyopenssl
