@@ -73,6 +73,9 @@ backend/data/GeoLite2-*.mmdb
 *.local
 .cache/
 
+# 本地运行时进程 PID / 运行态文件(./start.sh 写入)
+.run/
+
 # Secrets and keys
 *.pem
 *.key

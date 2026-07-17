@@ -117,6 +117,24 @@ curl http://localhost:8000/api/health   # {"status":"ok"}
 
 ### 方式二:本地开发
 
+推荐用顶层一键脚本,自动处理 venv / 依赖 / `.env` / RS256 密钥 / 数据库迁移 / seed:
+
+```bash
+./start.sh            # 交互式选模式
+./start.sh dev        # dev:前后端分开跑 + 热重载(前端 :3000 / 后端 :8000)
+./start.sh prod       # prod:编译前端静态导出,后端单进程托管(:8000,贴近生产)
+./start.sh build      # 只编译前端(next build → frontend/out/),不起服务
+./start.sh stop       # 停掉本脚本拉起的进程
+```
+
+- **`dev`**:`next dev` 跑前端(:3000 热重载)+ uvicorn 跑后端(:8000,随 `DEBUG` reload),适合日常开发。
+- **`prod`**:`next build` 生成静态导出后,由后端单进程托管(:8000,强制 `DEBUG=False`),形态与 Docker 镜像一致,适合本地预演生产。
+- 首次运行会自动从 `.env.example` 生成 `backend/.env`(注入随机 `SECRET_KEY`)、生成 RS256 密钥对到 `jwt_keys/`、应用迁移并跑 `seed.py`(幂等可重复跑)。
+- 进程 PID 写入 `.run/`(已 gitignore),`CTRL+C` 或 `./start.sh stop` 均可停止。
+
+<details>
+<summary>手动分步(等价于 <code>./start.sh</code> 内部做的事)</summary>
+
 ```bash
 # 后端
 cd backend
@@ -144,6 +162,8 @@ npm run dev            # 开发模式;生产用 npm run build 生成 frontend/ou
 ```
 
 访问 http://localhost:8000。开发时前端可单独跑在 3000 端口(`npm run dev`),通过 `NEXT_PUBLIC_API_URL` 指向后端。
+
+</details>
 
 ---
 
@@ -250,6 +270,7 @@ LAAA/
 ├── docs/                        # oauth-integration.md api-reference.md
 ├── Dockerfile                   # 多阶段:前端构建 + 后端运行
 ├── docker-compose.yml
+├── start.sh                     # 顶层一键启动(dev / prod / build / stop)
 └── DEPLOY.md
 ```
 

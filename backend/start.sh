@@ -13,6 +13,7 @@
 #   ./start.sh           # 起后端
 #   ./start.sh --no-deps # 跳过装依赖(快)
 #   ./start.sh --frontend # 起后端前先 build 前端 STATIC_DIR
+#   ./start.sh --prepare-only # 只做 1~5 准备,不起服务(供顶层 start.sh 复用)
 #
 # 若前端没构建,后端仍能起(API + 已存在的静态文件);如需前端页面,先
 # cd ../frontend && npm run build,或加 --frontend 让脚本代劳。
@@ -27,10 +28,12 @@ r() { printf '\033[31m%s\033[0m\n' "$1"; }
 
 NO_DEPS=0
 BUILD_FRONTEND=0
+PREPARE_ONLY=0
 for arg in "$@"; do
   case "$arg" in
     --no-deps) NO_DEPS=1 ;;
     --frontend) BUILD_FRONTEND=1 ;;
+    --prepare-only) PREPARE_ONLY=1 ;;
     *) ;;
   esac
 done
@@ -42,6 +45,13 @@ if [ ! -d .venv ]; then
 fi
 # shellcheck disable=SC1091
 source .venv/bin/activate
+
+# venv 可能没带 pip(某些发行版/精简构建会这样),用 ensurepip 引导一下
+if ! python -m pip --version >/dev/null 2>&1; then
+  y "→ venv 缺 pip,用 ensurepip 引导"
+  python -m ensurepip --upgrade || { r "✗ 无法安装 pip"; exit 1; }
+  python -m pip install --upgrade pip -q
+fi
 
 # --- 2. 依赖 ---
 if [ "$NO_DEPS" -eq 0 ]; then
@@ -128,6 +138,12 @@ if [ "$BUILD_FRONTEND" -eq 1 ]; then
   else
     y "  未找到 ../frontend,跳过"
   fi
+fi
+
+# 仅准备:迁移/依赖/密钥弄好就退,不起服务(供顶层 start.sh 复用)
+if [ "$PREPARE_ONLY" -eq 1 ]; then
+  g "✓ 准备完成(--prepare-only,不起服务)"
+  exit 0
 fi
 
 # --- 起 ---
