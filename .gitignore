@@ -105,7 +105,6 @@ secrets.json
 *.pyc
 
 # Allow any other local files to be ignored below
-CLAUDE.md
 agent.md
 # end of .gitignore
 backend/data/GeoIP2-CN.mmdb
