@@ -271,10 +271,12 @@ NEXT_PUBLIC_API_URL=http://localhost:8000
 
 ## Deployment
 
-Containerized with a one-shot Docker Compose; images are built and published by GitHub Actions.
+Containerized with Docker Compose. Two compose files cover two use cases:
 
-- **CI:** `.github/workflows/docker-publish.yml` builds on push to `main`/`dev` and tags `v*`, pushes to `ghcr.io/lynnguo666/laaa:latest`. The image **bundles the built frontend and all three GeoIP databases** (downloaded at build time, cached per day) — no external MaxMind license needed.
-- **Compose:** `docker-compose.yml` — `cp backend/.env.example ./env`, edit (at least `SECRET_KEY`), then `docker compose pull && docker compose up -d`. Persists `./oauth.db` and optionally `./data` (to override the bundled GeoIP DBs). Health check hits `/api/health`.
+- **`docker-compose.yml`** — local build + backend code bind mount. The `Dockerfile` is a 3-stage build: (1) `frontend-builder` runs `next build` → static export, (2) `deps` installs Python requirements into a standalone `/install` layer, (3) `runner` is the final image that `COPY --from` the deps layer + frontend `out/` + GeoIP DBs. **Backend `app/` code is NOT copied into the image** — it is bind-mounted at runtime (`./backend/app:/app/app`) and run with `uvicorn --reload`, so backend edits hot-reload without rebuilding. Only frontend changes require `--build`.
+- **`docker-compose.prod.yml`** — pulls the CI-prebuilt `ghcr.io/lynnguo666/laaa:latest` image (which bundles the built frontend + all three GeoIP databases, no MaxMind license needed), no code mount, `DEBUG=False`. For server deployment.
+- **CI:** `.github/workflows/docker-publish.yml` builds on push to `main`/`dev` and tags `v*`, pushes to `ghcr.io/lynnguo666/laaa:latest` (+ branch/tag/sha tags). CI downloads the GeoIP DBs into `backend/data/` before building (cached per day).
+- **Common:** `cp backend/.env.example ./env`, edit (at least `SECRET_KEY`, `JWT_*_PATH`). Both compose files persist `./oauth.db`, `./jwt_keys`, and optionally `./data` (override bundled GeoIP). Entrypoint (`backend/scripts/docker-entrypoint.sh`) runs `alembic upgrade head` then `exec`s the CMD. Health check hits `/api/ready`.
 - **Docs:** see `DEPLOY.md` for the full deployment guide (reverse proxy / HTTPS termination, env overrides, etc.).
 
 ## Testing OAuth Flows

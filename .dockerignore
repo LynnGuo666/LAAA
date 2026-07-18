@@ -32,6 +32,8 @@ env/
 # --- 数据库与本地状态（容器内自建，不带入镜像）---
 backend/oauth.db
 backend/oauth.db-journal
+backend/oauth.db-shm
+backend/oauth.db-wal
 *.sqlite3
 *.db-journal
 

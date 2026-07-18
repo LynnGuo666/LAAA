@@ -84,38 +84,52 @@ LAAA 是一个用 **FastAPI**(后端)+ **Next.js**(前端)自建的身份平台�
 
 ## 🚀 快速开始
 
-### 方式一:Docker(最快)
+### 方式一:Docker 本地构建(开发 / 本地预演)
+
+镜像三阶段构建:前端 `next build` 静态导出 → Python 依赖独立层 → 运行镜像。
+后端代码(`backend/app`)**不进镜像**,而是 bind mount 挂进容器,配合 `uvicorn --reload` 热重载——改后端代码即时生效,无需重建镜像;只有改前端才需要 `--build`。
 
 ```bash
 # 1. 准备配置
 cp backend/.env.example ./env
 # 编辑 ./env,至少设置:
 #   SECRET_KEY=<≥32 字符随机串,必改>
+#   JWT_PRIVATE_KEY_PATH=jwt_keys/jwt_private.pem
+#   JWT_PUBLIC_KEY_PATH=jwt_keys/jwt_public.pem
 #   WEBAUTHN_RP_ID / WEBAUTHN_RP_ORIGIN / FRONTEND_URL / ALLOWED_ORIGINS
 
-# 2. 生成 RS256 签名密钥对(access/id token 用)
-docker run --rm -v "$PWD/jwt_keys:/jwt_keys" \
-  ghcr.io/lynnguo666/laaa:latest \
-  python scripts/generate_jwt_keys.py --out-dir /jwt_keys
-# 在 ./env 补充:
-#   JWT_PRIVATE_KEY_PATH=/app/jwt_keys/jwt_private.pem
-#   JWT_PUBLIC_KEY_PATH=/app/jwt_keys/jwt_public.pem
-# 并在 docker-compose.yml 挂载: - ./jwt_keys:/app/jwt_keys
+# 2. 生成 RS256 签名密钥对(用刚构建的镜像,免本地装依赖)
+docker compose run --rm --no-deps \
+  -v "$PWD/jwt_keys:/jwt_keys" \
+  -v "$PWD/backend/app:/app/app" \
+  laaa python scripts/generate_jwt_keys.py --out-dir /jwt_keys
 
-# 3. 拉起
-docker compose pull
-docker compose up -d
+# 3. 构建并启动(首次或前端改动后加 --build)
+docker compose up -d --build
 
 # 4. 访问
 open http://localhost:8000
 curl http://localhost:8000/api/health   # {"status":"ok"}
 ```
 
-> 镜像由 GitHub Actions 自动构建并推送到 `ghcr.io/lynnguo666/laaa`,**内置前端产物与三套 GeoIP 数据库**,开箱即用。完整部署(反代 / HTTPS / 升级 / 故障排查)见 [DEPLOY.md](DEPLOY.md)。
+日常只改后端代码:`docker compose up -d`(不带 `--build`,镜像层缓存命中,秒起 + reload)。
+看日志 / 停止:`docker compose logs -f laaa` / `docker compose down`。
 
-首次启动自动初始化数据库并创建默认管理员(`admin` / `admin123`,**登录后立即改密码**)。
+### 方式二:Docker 预构建镜像(生产)
 
-### 方式二:本地开发
+用 CI 推到 `ghcr.io` 的镜像(内置前端产物 + 三套 GeoIP,不挂载后端代码):
+
+```bash
+cp backend/.env.example ./env   # 同上配置
+docker compose -f docker-compose.prod.yml pull
+docker compose -f docker-compose.prod.yml up -d
+```
+
+> 镜像由 GitHub Actions 自动构建并推送,完整部署(反代 / HTTPS / 升级 / 故障排查)见 [DEPLOY.md](DEPLOY.md)。
+
+两种方式首次启动都自动初始化数据库并创建默认管理员(`admin` / `admin123`,**登录后立即改密码**)。
+
+### 方式三:本地开发(无 Docker)
 
 推荐用顶层一键脚本,自动处理 venv / 依赖 / `.env` / RS256 密钥 / 数据库迁移 / seed:
 
@@ -268,8 +282,9 @@ LAAA/
 │   ├── lib/                     # api.ts store.ts webauthn.ts …
 │   └── components/              # ui admin security animated-characters
 ├── docs/                        # oauth-integration.md api-reference.md
-├── Dockerfile                   # 多阶段:前端构建 + 后端运行
-├── docker-compose.yml
+├── Dockerfile                   # 三阶段:前端静态导出 + Python 依赖层 + 运行镜像
+├── docker-compose.yml           # 本地构建 + 后端代码挂载(reload,开发/预演)
+├── docker-compose.prod.yml      # 预构建镜像(生产,不挂载代码)
 ├── start.sh                     # 顶层一键启动(dev / prod / build / stop)
 └── DEPLOY.md
 ```

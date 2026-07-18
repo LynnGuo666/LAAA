@@ -1,0 +1,46 @@
+# LAAA 生产部署编排 —— 使用 CI 预构建镜像
+#
+# 与本地构建版 docker-compose.yml 的区别:这里 pull ghcr.io 上的预构建镜像,
+# 不本地 build,也不挂载后端代码(镜像内已含完整应用)。适合服务器部署。
+#
+# 镜像由 .github/workflows/docker-publish.yml 构建并推送到 ghcr.io。
+# owner 取仓库所有者的小写形式(GITHUB_REPOSITORY_OWNER,,)。
+# 当前仓库为 LynnGuo666/LAAA → ghcr.io/lynnguo666/laaa
+# 若你的 fork owner 不同,把下面的镜像名改为 ghcr.io/<你的小写owner>/laaa。
+#
+# 用法:
+#   1. 准备配置:cp backend/.env.example ./env  (至少含 SECRET_KEY / DATABASE_URL)
+#   2. docker compose -f docker-compose.prod.yml pull
+#   3. docker compose -f docker-compose.prod.yml up -d
+#   4. 访问 http://<host>:8000
+#
+# 数据持久化:
+#   - ./oauth.db   → /app/oauth.db   (SQLite)
+#   - ./jwt_keys   → /app/jwt_keys   (RS256 密钥对)
+#   - ./data       → /app/data       (可选:覆盖镜像内置 GeoIP)
+
+services:
+  laaa:
+    image: ghcr.io/lynnguo666/laaa:latest
+    container_name: laaa
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./env
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8000
+      - STATIC_DIR=/app/frontend/out
+      - DATABASE_URL=sqlite:///./oauth.db
+      - DEBUG=False
+    volumes:
+      - ./oauth.db:/app/oauth.db
+      - ./jwt_keys:/app/jwt_keys
+      - ./data:/app/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/api/ready',timeout=5).status==200 else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s

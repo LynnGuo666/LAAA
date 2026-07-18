@@ -1,23 +1,28 @@
 # LAAA 部署指南
 
-LAAA 是 FastAPI（后端）+ Next.js 静态导出（前端）的单体应用：后端从 `/app/frontend/out` 提供前端静态文件，并内置 GeoIP 数据库用于登录地理位置/异常检测。镜像由 GitHub Actions 自动构建并推送到 ghcr.io，**镜像自带前端产物和 GeoIP 数据库**，开箱即用。
+LAAA 是 FastAPI（后端）+ Next.js 静态导出（前端）的单体应用。提供两套 compose 编排：
 
-本文档面向**部署方**（在服务器上运行镜像的人），不涉及开发环境。若你只是想本地跑起来开发或预演,用仓库根目录的 `./start.sh dev|prod` 一键脚本即可,详见 [README.md](README.md) 的「方式二:本地开发」。
+- **`docker-compose.yml`** — 本地构建 + 后端代码 bind mount + `uvicorn --reload`。改后端代码即时生效,适合开发与本地预演。
+- **`docker-compose.prod.yml`** — 拉取 CI 预构建镜像(`ghcr.io/lynnguo666/laaa`),镜像内置前端产物和三套 GeoIP 数据库,不挂载代码,适合服务器部署。
+
+两种形态的后端都从 `/app/frontend/out` 提供前端静态文件,并内置 GeoIP 用于登录地理位置/异常检测。
+
+本文档面向**部署方**（在服务器上运行镜像的人）。若你只是想本地跑起来开发,用仓库根目录的 `./start.sh dev|prod` 一键脚本(无 Docker)即可,详见 [README.md](README.md)。
 
 ---
 
 ## 前置条件
 
 - Docker 20+ 与 Docker Compose v2（`docker compose` 子命令）
-- 一台能访问 ghcr.io 的服务器（拉取镜像）
-- 一个反向代理（Nginx / Caddy / Traefik 等）做 HTTPS 终止——除非你只在本地试用
+- 生产部署:一台能访问 ghcr.io 的服务器（拉取镜像）
+- 生产部署:一个反向代理（Nginx / Caddy / Traefik 等）做 HTTPS 终止——除非你只在本地试用
 
 ---
 
-## 一、最快上手（本地试用）
+## 一、最快上手（本地试用：本地构建 + 代码挂载）
 
 ```bash
-# 1. 克隆（或只需 docker-compose.yml + env 两个文件）
+# 1. 克隆
 git clone https://github.com/LynnGuo666/LAAA.git
 cd LAAA
 
@@ -32,21 +37,24 @@ cp backend/.env.example ./env
 #   WEBAUTHN_RP_ID=localhost
 #   WEBAUTHN_RP_ORIGIN=http://localhost:8000
 
-# 3. 生成 RS256 签名密钥对(access/id token 用,只生成一次,随卷持久化)
-#    任意能跑 python + cryptography 的环境即可;镜像内也带这个脚本:
+# 3. 生成 RS256 签名密钥对(只生成一次,随卷持久化)
+#    用本地构建的镜像跑脚本(免本地装依赖),需挂载 backend/app 让脚本能 import:
 mkdir jwt_keys
-docker run --rm -v "$PWD/jwt_keys:/jwt_keys" \
-  ghcr.io/lynnguo666/laaa:latest \
-  python scripts/generate_jwt_keys.py --out-dir /jwt_keys
+docker compose run --rm --no-deps \
+  -v "$PWD/jwt_keys:/jwt_keys" \
+  -v "$PWD/backend/app:/app/app" \
+  laaa python scripts/generate_jwt_keys.py --out-dir /jwt_keys
 
-# 4. 拉起
-docker compose pull
-docker compose up -d
+# 4. 构建并启动(首次或前端改动后加 --build)
+docker compose up -d --build
 
 # 5. 访问
 open http://localhost:8000        # 首页
 curl http://localhost:8000/api/health   # 应返回 {"status":"ok"}
 ```
+
+日常只改后端代码:`docker compose up -d`(不带 `--build`,镜像层缓存命中,秒起 + reload)。
+看日志 / 停止:`docker compose logs -f laaa` / `docker compose down`。
 
 > ⚠️ **必须生成 RS256 密钥对**。access token / id token 用 RS256 非对称签名,未配置密钥时登录与 OAuth 签发 token 会失败。`jwt_keys/` 已由 compose 挂载到容器 `/app/jwt_keys`,私钥不入镜像、不进 git。
 
@@ -56,6 +64,8 @@ curl http://localhost:8000/api/health   # 应返回 {"status":"ok"}
 ---
 
 ## 二、生产部署
+
+生产用 `docker-compose.prod.yml`,拉取 CI 预构建镜像(内置前端 + GeoIP,不挂载后端代码,`DEBUG=False`)。
 
 ### 1. 准备配置
 
@@ -67,7 +77,7 @@ curl http://localhost:8000/api/health   # 应返回 {"status":"ok"}
 | `JWT_PRIVATE_KEY_PATH` / `JWT_PUBLIC_KEY_PATH` | RS256 密钥对(access/id token),**必配** | `jwt_keys/jwt_private.pem` 等(见上方生成步骤) |
 | `OIDC_ISSUER` | OIDC issuer，反代后**必须显式设**避免 http/内网地址 | `https://laaa.example.com` |
 | `DATABASE_URL` | SQLite 路径，保持默认即可 | `sqlite:///./oauth.db` |
-| `DEBUG` | 生产置 `False` | `False` |
+| `DEBUG` | 生产置 `False`(prod compose 已强制) | `False` |
 | `ALLOWED_ORIGINS` | 前端来源（逗号分隔） | `https://laaa.example.com` |
 | `FRONTEND_URL` | 邮件魔法链接里的前端地址 | `https://laaa.example.com` |
 | `WEBAUTHN_RP_ID` | Passkey 依赖方 ID = 域名 | `laaa.example.com` |
@@ -75,28 +85,31 @@ curl http://localhost:8000/api/health   # 应返回 {"status":"ok"}
 | `ALLOW_OPEN_REGISTRATION` | 是否开放注册 | `false` |
 | `SMTP_*` | 邮件（验证码/魔法链接），见 `.env.example` 注释 | 按服务商填 |
 
-> `docker-compose.yml` 已把 `HOST`/`PORT`/`STATIC_DIR`/`DATABASE_URL` 设为容器内默认，`./env` 不填也行；但 `SECRET_KEY`、`JWT_PRIVATE_KEY_PATH`/`JWT_PUBLIC_KEY_PATH`、`OIDC_ISSUER` 和域名相关项**必须**显式设置。
+> `docker-compose.prod.yml` 已把 `HOST`/`PORT`/`STATIC_DIR`/`DATABASE_URL`/`DEBUG` 设为容器内默认，`./env` 不填也行；但 `SECRET_KEY`、`JWT_PRIVATE_KEY_PATH`/`JWT_PUBLIC_KEY_PATH`、`OIDC_ISSUER` 和域名相关项**必须**显式设置。
 
 ### 2. 数据持久化
 
-`docker-compose.yml` 挂了三个卷，**不要删**：
+`docker-compose.prod.yml`(及本地版)挂了三个卷，**不要删**：
 
 - `./oauth.db:/app/oauth.db` — SQLite 数据库。容器升级/重建后用户、会话、应用配置全靠它保留。
 - `./jwt_keys:/app/jwt_keys` — RS256 JWT 签名密钥对。私钥用于签发 access/id token，**不入镜像、不进 git**，随卷持久化（密钥丢了所有已签发 token 立即失效，用户需重新登录；可重新生成但 RP 侧 JWKS 缓存会过期自动刷新）。
 - `./data:/app/data` — 可选。若想用**自有** GeoIP 数据库覆盖镜像内置的，把 `ip2region.xdb` / `GeoIP2-CN.mmdb` / `GeoLite2-City.mmdb` 放进 `./data/` 即可；不放则用镜像自带的。
+
+> 本地构建版还多挂一个 `./backend/app:/app/app` —— 后端代码 bind mount,配合 `--reload` 热重载。生产版不挂此项,代码已在镜像内。
 
 > 首次 `up` 前无需手动创建 `oauth.db`/`data`，compose 会自动建空目录/空文件。SQLite 会在首次启动时由应用自动建表。`jwt_keys/` 须先按上方步骤生成密钥对再 up。
 
 ### 3. 拉起与升级
 
 ```bash
-docker compose pull          # 拉取最新镜像
-docker compose up -d         # 后台启动/重建
-docker compose logs -f laaa  # 看日志
-docker compose down          # 停止（保留数据）
+# 生产
+docker compose -f docker-compose.prod.yml pull          # 拉取最新镜像
+docker compose -f docker-compose.prod.yml up -d         # 后台启动/重建
+docker compose -f docker-compose.prod.yml logs -f laaa  # 看日志
+docker compose -f docker-compose.prod.yml down          # 停止（保留数据）
 ```
 
-**升级**：`docker compose pull && docker compose up -d`，`oauth.db` 会保留。
+**升级**：`docker compose -f docker-compose.prod.yml pull && docker compose -f docker-compose.prod.yml up -d`，`oauth.db` 会保留。
 
 ---
 
@@ -180,7 +193,7 @@ GitHub Actions（`.github/workflows/docker-publish.yml`）在以下情况自动�
 - `ghcr.io/lynnguo666/laaa:<分支名或tag名>` — 如 `dev`、`main`、`v1.0.0`
 - `ghcr.io/lynnguo666/laaa:<commit sha>` — 精确版本
 
-> owner 取自仓库所有者小写形式。如果你 fork 了本仓库，把 `docker-compose.yml` 里的镜像名改为 `ghcr.io/<你的小写owner>/laaa`。
+> owner 取自仓库所有者小写形式。如果你 fork 了本仓库，把 `docker-compose.prod.yml` 里的镜像名改为 `ghcr.io/<你的小写owner>/laaa`。
 
 ---
 
@@ -214,3 +227,5 @@ GitHub Actions（`.github/workflows/docker-publish.yml`）在以下情况自动�
 | 升级后数据丢失 | `./oauth.db` 没正确挂载，检查 `docker compose config` 里 volumes |
 | 升级后所有用户被踢下线 | `./jwt_keys` 未持久化或被重新生成，密钥变了旧 token 全部失效（预期行为）；保留好 `jwt_keys` 卷即可避免 |
 | 拉不到镜像 | ghcr.io 镜像默认是 private；到 GitHub 包设置页改 public，或用 `docker login ghcr.io` 拉取 |
+| 本地构建版改后端代码不生效 | 确认 `docker-compose.yml` 挂了 `./backend/app:/app/app`,且 `command` 带 `--reload --reload-dir /app/app`;`docker compose up -d` 不带 `--build` 即可(代码是挂载的,无需重建) |
+| 本地构建版前端改动不生效 | 前端静态产物烘焙在镜像里,改前端后必须 `docker compose up -d --build` 重建镜像 |

@@ -1,24 +1,32 @@
-# LAAA 一键部署编排
+# LAAA 本地构建 + 后端代码挂载编排
 #
-# 镜像由 .github/workflows/docker-publish.yml 构建并推送到 ghcr.io。
-# owner 取仓库所有者的小写形式（GITHUB_REPOSITORY_OWNER,,）。
-# 当前仓库为 LynnGuo666/LAAA → ghcr.io/lynnguo666/laaa
-# 若你的 fork owner 不同，请把下面的镜像名改为 ghcr.io/<你的小写owner>/laaa。
+# 形态:本地 docker build 构建镜像(固化依赖 + 前端静态产物 + GeoIP),
+#       后端代码 (backend/app) 用 bind mount 挂进容器,uvicorn --reload 热重载。
+#       改后端代码即时生效,无需重建镜像;改前端才需要重 build。
 #
-# 用法：
-#   1. 准备配置：cp backend/.env.example ./env  （或手写，至少含 SECRET_KEY / DATABASE_URL）
-#   2. docker compose pull
-#   3. docker compose up -d
-#   4. 访问 http://<host>:8000
+# 用法:
+#   1. 准备配置:cp backend/.env.example ./env   (至少含 SECRET_KEY / DATABASE_URL)
+#   2. 首次或前端改动后构建镜像:docker compose up -d --build
+#   3. 仅后端改动:docker compose up -d  (不用 --build,镜像层有缓存)
+#   4. 访问 http://localhost:8000
+#   5. 看日志:docker compose logs -f laaa
+#   6. 停止:docker compose down
 #
-# 数据持久化：
-#   - ./oauth.db   挂载为容器内 /app/oauth.db（SQLite，含全部用户/会话/应用数据）
-#   - ./data       挂载为容器内 /app/data   （可选：用自有 GeoIP 数据库覆盖镜像内置的）
-# 首次 up 前无需手动创建文件，compose 会自动创建空目录/占位文件。
+# 数据持久化:
+#   - ./oauth.db   → /app/oauth.db   (SQLite,用户/会话/应用数据)
+#   - ./jwt_keys   → /app/jwt_keys   (RS256 签名密钥对,私钥不入镜像/git)
+#   - ./data       → /app/data       (可选:覆盖镜像内置 GeoIP 库)
+#
+# 后端代码挂载:
+#   - ./backend/app → /app/app  (bind mount,配合 uvicorn --reload 热重载)
+#   注意:backend/app 是挂载的,镜像里没有 COPY 它 —— 代码改在宿主机即可生效。
 
 services:
   laaa:
-    image: ghcr.io/lynnguo666/laaa:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: laaa:dev
     container_name: laaa
     restart: unless-stopped
     ports:
@@ -26,25 +34,29 @@ services:
     env_file:
       - ./env
     environment:
-      # 这些项即使 ./env 没给也有合理默认，但生产建议显式覆盖。
+      # 即使 ./env 没给也有合理默认;生产建议显式覆盖。
       - HOST=0.0.0.0
       - PORT=8000
       - STATIC_DIR=/app/frontend/out
       - DATABASE_URL=sqlite:///./oauth.db
+      - DEBUG=True
     volumes:
-      # 数据库持久化：容器重建/升级后用户、会话、应用配置不丢
+      # 后端代码 bind mount + 热重载(改 backend/app 即时生效,无需重 build)
+      - ./backend/app:/app/app
+      # 数据库持久化
       - ./oauth.db:/app/oauth.db
-      # RS256 JWT 签名密钥对(access/id token 用)。先用
-      #   python scripts/generate_jwt_keys.py --out-dir ./jwt_keys
-      # 生成,再挂载进来;.env 里 JWT_PRIVATE_KEY_PATH=jwt_keys/jwt_private.pem
-      # 私钥不入镜像、不进 git,随数据卷持久化。
+      # RS256 JWT 签名密钥对。先生成:
+      #   python backend/scripts/generate_jwt_keys.py --out-dir ./jwt_keys
+      # 再在 ./env 设 JWT_PRIVATE_KEY_PATH=jwt_keys/jwt_private.pem
       - ./jwt_keys:/app/jwt_keys
-      # 可选：放自有 GeoIP 库覆盖镜像内置；不放则用镜像自带的（CI 已下载）
+      # 可选:自有 GeoIP 库覆盖镜像内置
       - ./data:/app/data
+    # 覆盖 CMD 加 --reload,让后端代码热重载(entrypoint 仍先跑迁移)
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir /app/app
     healthcheck:
       # 打 readiness 端点(深度检查 DB),而非浅 liveness,避免容器假活
       test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/api/ready',timeout=5).status==200 else 1)"]
       interval: 30s
       timeout: 5s
       retries: 3
-      start_period: 15s
+      start_period: 20s
