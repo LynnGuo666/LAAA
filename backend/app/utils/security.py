@@ -73,11 +73,20 @@ class KeyStore:
         if self.keys:
             return
         if settings.jwt_private_key_path or settings.jwt_public_key_path:
-            self.load(
-                settings.jwt_private_key_path,
-                settings.jwt_public_key_path,
-                settings.jwt_key_id or None,
-            )
+            try:
+                self.load(
+                    settings.jwt_private_key_path,
+                    settings.jwt_public_key_path,
+                    settings.jwt_key_id or None,
+                )
+            except FileNotFoundError as e:
+                logger.error(
+                    "JWT key file not found: %s. "
+                    "Set JWT_PRIVATE_KEY_PATH/JWT_PUBLIC_KEY_PATH to the correct "
+                    "path, or mount ./jwt_keys and let docker-entrypoint.sh generate "
+                    "them on first boot.",
+                    e,
+                )
 
     @property
     def is_configured(self) -> bool:

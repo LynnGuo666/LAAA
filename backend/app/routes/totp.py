@@ -23,6 +23,7 @@ from app.services.totp_service import (
     InvalidTOTPCodeError,
     TOTPAlreadyEnabledError,
     TOTPNotEnabledError,
+    TOTPSecretCorruptedError,
     TOTPService,
 )
 from app.utils.security import verify_password
@@ -97,6 +98,12 @@ async def verify_totp_setup(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="验证码错误，请检查时间同步"
+        )
+    except TOTPSecretCorruptedError:
+        # 密钥已损坏并被自动清除——调用方需重新走 /setup 流程
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="TOTP 密钥已损坏，请重新设置"
         )
 
 

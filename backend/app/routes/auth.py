@@ -41,6 +41,7 @@ from app.services.totp_service import (
     InvalidBackupCodeError,
     InvalidTOTPCodeError,
     TOTPNotEnabledError,
+    TOTPSecretCorruptedError,
     TOTPService,
 )
 from app.services.verification_service import (
@@ -490,6 +491,12 @@ async def verify_totp(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="验证码错误"
+        )
+    except TOTPSecretCorruptedError:
+        # 已启用的记录必须保留，避免认证降级；需通过受信任的恢复流程重置。
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="TOTP 密钥已损坏，请通过账户恢复流程重置"
         )
 
     # Mark verification step as complete

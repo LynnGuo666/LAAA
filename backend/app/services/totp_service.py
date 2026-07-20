@@ -15,7 +15,7 @@ from typing import List, Optional, Tuple
 
 import pyotp
 import qrcode
-from cryptography.fernet import Fernet
+from cryptography.fernet import Fernet, InvalidToken
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
@@ -51,6 +51,16 @@ class InvalidBackupCodeError(TOTPError):
     pass
 
 
+class TOTPSecretCorruptedError(TOTPError):
+    """Stored TOTP secret cannot be decrypted (key rotated / data corrupted).
+
+    The caller should treat the TOTP record as unrecoverable. Incomplete setup
+    records can be deleted for re-enrollment, but enabled records must remain
+    in place to avoid silently disabling the second factor.
+    """
+    pass
+
+
 class TOTPService:
     """Service for managing TOTP authentication"""
 
@@ -80,9 +90,34 @@ class TOTPService:
 
     @classmethod
     def decrypt_secret(cls, encrypted_secret: str) -> str:
-        """Decrypt a stored TOTP secret"""
+        """Decrypt a stored TOTP secret.
+
+        Raises TOTPSecretCorruptedError if the ciphertext cannot be decrypted
+        (e.g. SECRET_KEY was rotated after this secret was encrypted).
+        """
         fernet = cls._get_fernet()
-        return fernet.decrypt(encrypted_secret.encode()).decode()
+        try:
+            return fernet.decrypt(encrypted_secret.encode()).decode()
+        except (InvalidToken, ValueError) as e:
+            # InvalidToken: signature/timestamp mismatch (key rotated or tampered).
+            # ValueError: malformed ciphertext (truncated / bad base64 padding).
+            # Both mean the record is unrecoverable — caller must re-enroll.
+            logger.error(
+                "TOTP secret failed to decrypt (%s); record must be re-enrolled",
+                type(e).__name__,
+            )
+            raise TOTPSecretCorruptedError("TOTP 密钥已损坏,请重新设置") from e
+
+    @classmethod
+    def _purge_corrupted_totp(cls, db: Session, user: User) -> None:
+        """Delete an unrecoverable TOTP record so the user can re-enroll."""
+        if user.totp is not None:
+            db.delete(user.totp)
+            db.commit()
+            logger.warning(
+                f"Purged corrupted TOTP record for user {user.id} "
+                "(user must re-enroll TOTP)"
+            )
 
     @staticmethod
     def get_provisioning_uri(secret: str, username: str, issuer: Optional[str] = None) -> str:
@@ -226,7 +261,11 @@ class TOTPService:
             raise TOTPAlreadyEnabledError("TOTP 已启用")
 
         # Decrypt and verify
-        secret = cls.decrypt_secret(user.totp.secret_encrypted)
+        try:
+            secret = cls.decrypt_secret(user.totp.secret_encrypted)
+        except TOTPSecretCorruptedError:
+            cls._purge_corrupted_totp(db, user)
+            raise
         if not cls.verify_totp(secret, code):
             raise InvalidTOTPCodeError("验证码错误")
 
@@ -270,7 +309,11 @@ class TOTPService:
         if not user.totp or not user.totp.is_enabled:
             raise TOTPNotEnabledError("TOTP 未启用")
 
-        secret = cls.decrypt_secret(user.totp.secret_encrypted)
+        try:
+            secret = cls.decrypt_secret(user.totp.secret_encrypted)
+        except TOTPSecretCorruptedError:
+            # 已启用的二次验证记录必须保留，避免解密失败导致认证降级。
+            raise
         if not cls.verify_totp(secret, code):
             raise InvalidTOTPCodeError("验证码错误")
 

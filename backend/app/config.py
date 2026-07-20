@@ -109,10 +109,12 @@ class Settings(BaseSettings):
 
     # JWT signing (RS256 迁移)。access/id token 用非对称签名,JWKS 只暴露公钥。
     # refresh token 仍用对称 secret_key(不对外暴露验证)。
-    # Env vars: JWT_PRIVATE_KEY_PATH, JWT_PUBLIC_KEY_PATH, JWT_KEY_ID
+    # 默认指向 jwt_keys/(相对工作目录)。开发 = backend/jwt_keys/,
+    # 容器 = /app/jwt_keys/(compose 挂载 ./jwt_keys → /app/jwt_keys)。
+    # 想换路径/用 docker secrets 注入时再在 .env 显式覆盖。
     jwt_algorithm: str = "RS256"
-    jwt_private_key_path: str = ""
-    jwt_public_key_path: str = ""
+    jwt_private_key_path: str = "jwt_keys/jwt_private.pem"
+    jwt_public_key_path: str = "jwt_keys/jwt_public.pem"
     jwt_key_id: str = ""  # 可选,留空则用公钥 DER 的 sha256[:16]
 
     # Rate limiting storage (slowapi)。单实例留空用内存;多 worker 设 redis://...

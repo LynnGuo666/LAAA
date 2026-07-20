@@ -11,15 +11,34 @@
 然后在 .env 设置:
     JWT_PRIVATE_KEY_PATH=/path/to/jwt_private.pem
     JWT_PUBLIC_KEY_PATH=/path/to/jwt_public.pem
+
+注:本脚本只做密钥生成,不依赖应用配置——直接用 cryptography 生成 RSA,
+避免 docker-entrypoint.sh 在迁移/配置未就绪阶段调用时触发 Settings 校验失败。
 """
 import argparse
 import os
 import sys
 
-# 允许直接从 backend/ 运行
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
 
-from app.utils.security import generate_rsa_keypair
+
+def generate(private_path: str, public_path: str) -> None:
+    priv = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    os.makedirs(os.path.dirname(private_path) or ".", exist_ok=True)
+    with open(private_path, "wb") as f:
+        f.write(priv.private_bytes(
+            serialization.Encoding.PEM,
+            serialization.PrivateFormat.PKCS8,
+            serialization.NoEncryption(),
+        ))
+    os.chmod(private_path, 0o600)
+    pub = priv.public_key()
+    with open(public_path, "wb") as f:
+        f.write(pub.public_bytes(
+            serialization.Encoding.PEM,
+            serialization.PublicFormat.SubjectPublicKeyInfo,
+        ))
 
 
 def main():
@@ -28,7 +47,6 @@ def main():
     args = parser.parse_args()
 
     out_dir = os.path.abspath(args.out_dir)
-    os.makedirs(out_dir, exist_ok=True)
     priv = os.path.join(out_dir, "jwt_private.pem")
     pub = os.path.join(out_dir, "jwt_public.pem")
 
@@ -37,14 +55,13 @@ def main():
         print("   如需重新生成,请先删除旧文件。", file=sys.stderr)
         sys.exit(1)
 
-    generate_rsa_keypair(priv, pub)
-    os.chmod(priv, 0o600)  # 私钥仅所有者可读写
+    generate(priv, pub)
 
-    print(f"✅ 已生成 RSA-2048 密钥对:")
+    print("✅ 已生成 RSA-2048 密钥对:")
     print(f"   私钥: {priv}  (chmod 600,严禁提交/泄露)")
     print(f"   公钥: {pub}   (可暴露,JWKS 端点会发布)")
     print()
-    print("在 .env 中配置:")
+    print("在 .env 中配置(默认值已指向 jwt_keys/,通常无需手动设置):")
     print(f"   JWT_PRIVATE_KEY_PATH={priv}")
     print(f"   JWT_PUBLIC_KEY_PATH={pub}")
 
