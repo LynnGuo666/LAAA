@@ -2,7 +2,7 @@ import base64
 import hashlib
 import logging
 from typing import Optional, Tuple
-from urllib.parse import quote
+from urllib.parse import quote, urlencode
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request, status
 from fastapi.responses import JSONResponse, RedirectResponse
@@ -22,6 +22,20 @@ settings = get_settings()
 router = APIRouter(prefix="/api/oauth", tags=["OAuth 2.0"])
 # Use uvicorn's configured logger so messages always show up in container logs.
 logger = logging.getLogger("uvicorn.error")
+
+
+def _build_redirect_url(base_url: str, params: dict) -> str:
+    """构造带 query 的跳转 URL。
+
+    - 正确处理 base_url 已带 query 的情况(用 & 而非 ? 拼接)
+    - 所有值经 urlencode 编码(state 含 &/# 时不会注入/截断参数)
+    - 值为 None 的键跳过
+    """
+    pairs = {k: v for k, v in params.items() if v is not None}
+    if not pairs:
+        return base_url
+    sep = "&" if "?" in base_url else "?"
+    return f"{base_url}{sep}{urlencode(pairs)}"
 
 
 @router.get("/client/{client_id}")
@@ -82,14 +96,22 @@ async def authorize_get(
     # Check if user is logged in
     if not current_user:
         # Redirect to login page with return URL
-        return_url = f"/oauth/authorize?response_type={response_type}&client_id={client_id}&redirect_uri={redirect_uri}&scope={scope}"
-        if state:
-            return_url += f"&state={state}"
-        if nonce:
-            return_url += f"&nonce={quote(nonce, safe='')}"
-        if code_challenge:
-            return_url += f"&code_challenge={code_challenge}&code_challenge_method={code_challenge_method or 'S256'}"
-        login_url = f"/login?redirect={quote(return_url, safe='')}"
+        return_url = _build_redirect_url(
+            "/oauth/authorize",
+            {
+                "response_type": response_type,
+                "client_id": client_id,
+                "redirect_uri": redirect_uri,
+                "scope": scope,
+                "state": state,
+                "nonce": nonce,
+                "code_challenge": code_challenge,
+                "code_challenge_method": (
+                    code_challenge_method or "S256" if code_challenge else None
+                ),
+            },
+        )
+        login_url = _build_redirect_url("/login", {"redirect": return_url})
         return RedirectResponse(url=login_url, status_code=302)
 
     # Check if user has access to this client based on group permissions
@@ -126,9 +148,7 @@ async def authorize_get(
         )
 
         # Redirect back with code
-        redirect_url = f"{redirect_uri}?code={code}"
-        if state:
-            redirect_url += f"&state={state}"
+        redirect_url = _build_redirect_url(redirect_uri, {"code": code, "state": state})
 
         if is_api_call:
             return {"redirect_url": redirect_url}
@@ -149,9 +169,16 @@ async def authorize_get(
         }
 
     # For direct browser access, redirect to frontend authorize page
-    frontend_url = f"/oauth/authorize?response_type={response_type}&client_id={client_id}&redirect_uri={redirect_uri}&scope={scope}"
-    if state:
-        frontend_url += f"&state={state}"
+    frontend_url = _build_redirect_url(
+        "/oauth/authorize",
+        {
+            "response_type": response_type,
+            "client_id": client_id,
+            "redirect_uri": redirect_uri,
+            "scope": scope,
+            "state": state,
+        },
+    )
     return RedirectResponse(url=frontend_url, status_code=302)
 
 
@@ -210,9 +237,9 @@ async def authorize_post(
 
     # Handle denial
     if action == "deny":
-        redirect_url = f"{redirect_uri}?error=access_denied"
-        if state:
-            redirect_url += f"&state={state}"
+        redirect_url = _build_redirect_url(
+            redirect_uri, {"error": "access_denied", "state": state}
+        )
         if is_api_call:
             return {"redirect_url": redirect_url}
         return RedirectResponse(url=redirect_url, status_code=302)
@@ -232,9 +259,7 @@ async def authorize_post(
         )
 
         # Redirect back with code
-        redirect_url = f"{redirect_uri}?code={code}"
-        if state:
-            redirect_url += f"&state={state}"
+        redirect_url = _build_redirect_url(redirect_uri, {"code": code, "state": state})
 
         if is_api_call:
             return {"redirect_url": redirect_url}
@@ -246,8 +271,8 @@ async def authorize_post(
 @router.post("/token")
 @limiter.limit("10/minute")
 async def token(
+    request: Request,
     db: Session = Depends(get_db),
-    request: Request = None
 ):
     """OAuth token endpoint"""
     def oauth_error(
@@ -393,16 +418,20 @@ async def token(
 
         # OIDC 完整性 claims:
         # - nonce:请求时透传,回填防重放
-        # - c_hash:授权码 hash 的左半,RP 校验 id_token 与 code 绑定
         # - at_hash:access_token hash 的左半,RP 校验 id_token 与 access_token 绑定
+        # claims 按 scope 过滤(与 userinfo 的披露策略一致):
+        # 仅授权 profile 才给 username/avatar,仅授权 email 才给 email
+        granted_scopes = set((payload.get("scope") or "").split())
         id_claims = {
             "sub": payload.get("sub"),
             "aud": payload.get("client_id"),
             "iss": issuer or None,
-            "username": getattr(user, "username", None),
-            "email": getattr(user, "email", None),
-            "avatar": getattr(user, "avatar", None),
         }
+        if "profile" in granted_scopes:
+            id_claims["username"] = getattr(user, "username", None)
+            id_claims["avatar"] = getattr(user, "avatar", None)
+        if "email" in granted_scopes:
+            id_claims["email"] = getattr(user, "email", None)
         if nonce:
             id_claims["nonce"] = nonce
         # at_hash = base64url(sha256(access_token)[0:16])

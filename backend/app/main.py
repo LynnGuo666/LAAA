@@ -38,9 +38,13 @@ async def lifespan(app: FastAPI):
             "startup: JWT RS256 keys not configured (JWT_PRIVATE_KEY_PATH/JWT_PUBLIC_KEY_PATH) "
             "— access/id token issuance will fail"
         )
+    # 后台清理任务:每小时清过期 token/验证码/challenge + 归档超期登录日志
+    from app.services.maintenance_service import start_maintenance_task
+    maintenance_task = start_maintenance_task()
     logger.info("startup: db initialized debug=%s", settings.debug)
     logger.info("docs: http://localhost:%s/api/docs", settings.port)
     yield
+    maintenance_task.cancel()
     logger.info("shutdown: cleaning up")
 
 

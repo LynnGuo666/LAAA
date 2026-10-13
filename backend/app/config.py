@@ -82,6 +82,8 @@ class Settings(BaseSettings):
     smtp_from_name: str = "LAAA OAuth Server"
     smtp_use_tls: bool = True  # STARTTLS (port 587)
     smtp_use_ssl: bool = False  # SSL/TLS (port 465)
+    # SMTP 证书校验:默认校验(防中间人截获凭据);仅对证书异常的旧服务器关闭
+    smtp_verify_tls: bool = True
 
     # Risk-based verification settings
     # Env vars: RISK_SCORE_MEDIUM, RISK_SCORE_HIGH

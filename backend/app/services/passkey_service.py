@@ -171,6 +171,8 @@ class PasskeyService:
             transports_json = json.dumps(response_data['transports'])
 
         # Create passkey record
+        # backup_eligible: authenticator 是否支持多设备同步(credential_device_type == multiDevice)
+        # backup_state:   当前凭据是否已同步备份(credential_backed_up)
         passkey = Passkey(
             user_id=user.id,
             credential_id=bytes_to_base64url(verification.credential_id),
@@ -178,8 +180,10 @@ class PasskeyService:
             name=name,
             sign_count=verification.sign_count,
             transports=transports_json,
-            backup_eligible=getattr(verification, 'credential_backed_up', False),
-            backup_state=getattr(verification, 'credential_backed_up', False),
+            backup_eligible=(
+                getattr(verification, 'credential_device_type', None) == 'multiDevice'
+            ),
+            backup_state=bool(getattr(verification, 'credential_backed_up', False)),
             aaguid=str(verification.aaguid) if verification.aaguid else None,
         )
         db.add(passkey)
@@ -285,11 +289,23 @@ class PasskeyService:
         if not user or user.status != 'active':
             raise ValueError("User not found or inactive")
 
-        # Get and validate challenge
-        challenge_record = db.query(WebAuthnChallenge).filter(
+        # Get and validate challenge。
+        # 带 username 的认证 challenge 已绑定 user_id(并发认证时 A 的响应不会
+        # 消费 B 的 challenge);discoverable(不带 username)的 challenge
+        # user_id 为 NULL,按 NULL 匹配。
+        challenge_filters = [
             WebAuthnChallenge.type == 'authentication',
-            WebAuthnChallenge.expires_at > utcnow()
-        ).order_by(WebAuthnChallenge.created_at.desc()).first()
+            WebAuthnChallenge.expires_at > utcnow(),
+        ]
+        if passkey.user_id is not None:
+            challenge_filters.append(
+                WebAuthnChallenge.user_id == passkey.user_id
+            )
+        else:
+            challenge_filters.append(WebAuthnChallenge.user_id.is_(None))
+        challenge_record = db.query(WebAuthnChallenge).filter(*challenge_filters).order_by(
+            WebAuthnChallenge.created_at.desc()
+        ).first()
 
         if not challenge_record:
             raise ValueError("Challenge expired or not found")

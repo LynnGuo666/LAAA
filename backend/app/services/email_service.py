@@ -415,10 +415,12 @@ class EmailService:
             msg.attach(MIMEText(html_content, "html", "utf-8"))
 
             # Send email
-            # Create SSL context that doesn't verify certificates (for some SMTP servers)
+            # 默认校验证书(防止 SMTP 凭据被中间人截获);
+            # SMTP_VERIFY_TLS=false 可为证书异常的旧服务器关闭(不推荐)
             tls_context = ssl.create_default_context()
-            tls_context.check_hostname = False
-            tls_context.verify_mode = ssl.CERT_NONE
+            if not settings.smtp_verify_tls:
+                tls_context.check_hostname = False
+                tls_context.verify_mode = ssl.CERT_NONE
 
             if settings.smtp_use_ssl:
                 # Direct SSL connection (port 465)

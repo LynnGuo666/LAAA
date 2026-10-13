@@ -214,6 +214,10 @@ class Client(Base):
 
 class UserAuthorization(Base):
     __tablename__ = 'user_authorizations'
+    __table_args__ = (
+        # 一个用户对一个客户端只应有一条授权记录(防并发查-插产生重复行)
+        UniqueConstraint('user_id', 'client_id', name='uq_user_client_authorization'),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
@@ -477,7 +481,7 @@ class LoginLog(Base):
 
     # GeoIP location
     country = Column(String(100), nullable=True)
-    city = Column(String(100), nullable=True)
+    city = Column(String(100), nullable=True, index=True)  # is_known_city 风控按 city 查询
     latitude = Column(String(20), nullable=True)
     longitude = Column(String(20), nullable=True)
 
