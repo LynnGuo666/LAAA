@@ -42,8 +42,9 @@ class UserCreate(UserBase):
 
 
 class UserUpdate(BaseModel):
-    email: Optional[EmailStr] = None
     avatar: Optional[str] = None
+    # 注意:不允许通过此接口改 email —— 邮箱变更必须走
+    # /api/auth/change-email(密码确认 + 双向验证邮件),防止绕过验证流。
 
 
 class UserResponse(UserBase):

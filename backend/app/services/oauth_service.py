@@ -178,17 +178,31 @@ class OAuthService:
                 logger.info("oauth exchange_code: invalid client_secret client_id=%s", client_id)
                 return None
 
-        # Get authorization code
+        # Get authorization code(绑定 client:RFC 6749 §4.1.3,授权码必须兑换给签发它的 client)
         code_hash = hash_token(code)
         token = db.query(Token).filter(
             Token.token_hash == code_hash,
             Token.type == 'authorization_code',
+            Token.client_id == client.id,
             Token.expires_at > utcnow()
         ).first()
 
         if not token:
             logger.info(
-                "oauth exchange_code: code not found/expired client_id=%s code_hash=%s",
+                "oauth exchange_code: code not found/expired/wrong-client client_id=%s code_hash=%s",
+                client_id,
+                OAuthService._short_hash(code),
+            )
+            return None
+
+        # 单次使用:条件 UPDATE 抢占,并发兑换只有一个能成功(TOCTOU 竞态防护)
+        claimed = db.query(Token).filter(
+            Token.id == token.id,
+            Token.type == 'authorization_code'
+        ).update({"type": "authorization_code_claimed"})
+        if not claimed:
+            logger.info(
+                "oauth exchange_code: code already claimed client_id=%s code_hash=%s",
                 client_id,
                 OAuthService._short_hash(code),
             )
@@ -243,7 +257,7 @@ class OAuthService:
         )
         db.add(refresh_token_record)
 
-        # Delete authorization code (one-time use)
+        # Delete authorization code (one-time use;已先置 claimed 防并发兑换)
         db.delete(token)
 
         # Update last_used_at for authorization
@@ -407,6 +421,14 @@ class OAuthService:
             return None
 
         user = db.query(User).filter(User.id == user_id, User.status == 'active').first()
+        if user is None:
+            return None
+
+        # 校验 token_version:改密/封禁后 tv 不匹配则拒绝
+        # (与 get_current_user 一致,防止 userinfo/introspect 旁路使用已吊销 token)
+        if payload.get("tv", 0) != user.token_version:
+            return None
+
         return user
 
     @staticmethod

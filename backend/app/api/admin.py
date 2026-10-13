@@ -189,7 +189,11 @@ async def update_user(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="邮箱已被使用"
             )
-        user.email = user_data.email
+        # 管理员换绑邮箱同样要重新验证:保留 verified 标志会让
+        # 未验证邮箱直接获得 magic-link 登录能力
+        if user_data.email != user.email:
+            user.email = user_data.email
+            user.email_verified = False
 
     if user_data.avatar is not None:
         user.avatar = user_data.avatar

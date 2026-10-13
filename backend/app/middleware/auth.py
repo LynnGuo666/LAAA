@@ -114,6 +114,14 @@ def get_optional_user(
         return None
 
     user = db.query(User).filter(User.id == user_id, User.status == 'active').first()
+    if user is None:
+        return None
+
+    # 校验 token_version:改密/封禁后 tv 不匹配则拒绝
+    # (与 get_current_user 一致,防止 OAuth authorize 旁路使用已吊销 token)
+    if payload.get("tv", 0) != user.token_version:
+        return None
+
     return user
 
 

@@ -177,40 +177,53 @@ if os.path.exists(static_dir):
         if full_path.startswith("api/"):
             return {"error": "Not found"}
 
+        def _resolve(rel: str):
+            """把相对路径安全解析到 static_dir 内;穿越出目录返回 None。
+
+            full_path 来自 URL path 参数,FastAPI 只做 URL 解码、不做点段归一,
+            `..%2f..%2fbackend%2f.env` 会原样进入 os.path.join。
+            realpath 消解符号链接后再校验公共前缀,双保险。
+            """
+            root = os.path.realpath(static_dir)
+            candidate = os.path.realpath(os.path.join(static_dir, rel))
+            if candidate != root and not candidate.startswith(root + os.sep):
+                return None
+            return candidate if os.path.isfile(candidate) else None
+
         # Root path
         if full_path == "" or full_path == "/":
-            index_path = os.path.join(static_dir, "index.html")
-            if os.path.isfile(index_path):
+            index_path = _resolve("index.html")
+            if index_path:
                 return FileResponse(index_path)
 
         # Try to serve the exact file first
-        file_path = os.path.join(static_dir, full_path)
-        if os.path.isfile(file_path):
+        file_path = _resolve(full_path)
+        if file_path:
             return FileResponse(file_path)
 
         # Try with /index.html for directories (Next.js static export pattern)
-        dir_index = os.path.join(static_dir, full_path, "index.html")
-        if os.path.isfile(dir_index):
+        dir_index = _resolve(full_path + "/index.html")
+        if dir_index:
             return FileResponse(dir_index)
 
         # Try with .html extension
-        html_path = os.path.join(static_dir, full_path + ".html")
-        if os.path.isfile(html_path):
+        html_path = _resolve(full_path + ".html")
+        if html_path:
             return FileResponse(html_path)
 
         # Remove trailing slash and try again
         if full_path.endswith("/"):
             no_slash = full_path.rstrip("/")
-            html_path = os.path.join(static_dir, no_slash + ".html")
-            if os.path.isfile(html_path):
+            html_path = _resolve(no_slash + ".html")
+            if html_path:
                 return FileResponse(html_path)
-            dir_index = os.path.join(static_dir, no_slash, "index.html")
-            if os.path.isfile(dir_index):
+            dir_index = _resolve(no_slash + "/index.html")
+            if dir_index:
                 return FileResponse(dir_index)
 
         # Fallback to index.html for client-side routing
-        index_path = os.path.join(static_dir, "index.html")
-        if os.path.isfile(index_path):
+        index_path = _resolve("index.html")
+        if index_path:
             return FileResponse(index_path)
 
         return {"error": "Not found"}

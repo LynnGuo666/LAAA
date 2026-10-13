@@ -337,8 +337,12 @@ class VerificationService:
             CodeInvalidError: If link is invalid
             DeviceMismatchError: If device does not match
         """
+        # 只接受 magic-link 登录用途的 token:
+        # email_verification / change_email 的 token 也能通过纯 token 查询命中,
+        # 不限定 purpose 会让"邮箱验证链接"变成免密登录后门。
         verification_code = db.query(VerificationCode).filter(
-            VerificationCode.token == token
+            VerificationCode.token == token,
+            VerificationCode.purpose.in_(["magic_link", "magic_link_login"])
         ).first()
 
         if not verification_code:

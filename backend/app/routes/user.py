@@ -56,15 +56,9 @@ async def update_profile(
     db: Session = Depends(get_db)
 ):
     """Update current user profile"""
-    if user_data.email:
-        # Check if email is already taken
-        existing = db.query(User).filter(
-            User.email == user_data.email,
-            User.id != current_user.id
-        ).first()
-        if existing:
-            raise HTTPException(status_code=400, detail="Email already taken")
-        current_user.email = user_data.email
+    # 邮箱变更已移除:必须走 /api/auth/change-email(密码确认 + 双向验证邮件)
+    if getattr(user_data, "email", None):
+        raise HTTPException(status_code=400, detail="邮箱变更请使用密码确认流程")
 
     if user_data.avatar is not None:
         current_user.avatar = user_data.avatar

@@ -755,6 +755,13 @@ async def magic_link_login_verify(
             detail="用户不存在"
         )
 
+    # 被封禁用户不得通过 magic link 登录(与密码/passkey 路径一致)
+    if user.status != 'active':
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="账户已被停用,请联系管理员"
+        )
+
     # Get client info
     client_ip = get_client_ip(request)
     user_agent = request.headers.get("user-agent", "")
@@ -1183,8 +1190,9 @@ async def change_email(
     db.commit()
 
     # 6. 发验证链接到新邮箱(非阻塞)
+    # 注意用 query 参数格式,与注册验证链接一致——前端 verify-email 页只读 searchParams
     try:
-        verify_url = f"{settings.frontend_url}/verify-email/{token}"
+        verify_url = f"{settings.frontend_url}/verify-email?token={token}"
         asyncio.create_task(
             EmailService.send_email(
                 to_email=request_data.new_email,
