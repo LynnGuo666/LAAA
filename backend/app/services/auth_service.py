@@ -1,4 +1,5 @@
 import json
+import secrets
 from datetime import timedelta
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -6,7 +7,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
-from app.models import LoginLog, Token, User
+from app.models import KnownDevice, LoginLog, Token, User
 from app.models import Session as SessionModel
 from app.utils.device import generate_device_id, get_device_name, parse_device_type
 from app.utils.security import (
@@ -171,8 +172,9 @@ class AuthService:
         from app.models import Client
         client = db.query(Client).filter(Client.client_id == client_id).first()
         if not client:
-            # Fallback for internal auth or legacy data
-            client = db.query(Client).first()
+            # internal/未知 client 均不再静默 fallback 到任意已注册应用
+            # (init_db 已确保 internal 存在,见 database.py)
+            raise ValueError(f"Client not found: {client_id}")
 
         # Create JWT tokens
         token_data = {
@@ -191,12 +193,12 @@ class AuthService:
         else:
             refresh_expires = utcnow() + timedelta(days=settings.refresh_token_expire_days)
 
-        # Store refresh token
+        # Store refresh token(client 在上方已确保存在,不再有 else 1 兜底)
         refresh_token_record = Token(
             token_hash=hash_token(refresh_token),
             type='refresh',
             user_id=user.id,
-            client_id=client.id if client else 1,
+            client_id=client.id,
             scope=scope,
             expires_at=refresh_expires
         )
@@ -246,6 +248,31 @@ class AuthService:
                 city=geo_info.get('city') if geo_info else None
             )
             db.add(session_record)
+
+        # 记住该设备(与 session 存活解耦):下次登录不再判为新设备
+        if device_token:
+            known = db.query(KnownDevice).filter(
+                KnownDevice.user_id == user.id,
+                KnownDevice.device_token == device_token
+            ).first()
+            if known:
+                known.last_seen = utcnow()
+                known.ip_address = safe_ip_address
+                if geo_info:
+                    known.country = geo_info.get('country')
+                    known.city = geo_info.get('city')
+                if device_name:
+                    known.device_name = device_display_name
+            else:
+                db.add(KnownDevice(
+                    user_id=user.id,
+                    device_token=device_token,
+                    device_name=device_display_name,
+                    device_type=device_type,
+                    ip_address=safe_ip_address,
+                    country=geo_info.get('country') if geo_info else None,
+                    city=geo_info.get('city') if geo_info else None,
+                ))
 
         db.commit()
 
@@ -370,10 +397,19 @@ class AuthService:
         if device_id:
             token_data["device_id"] = device_id
         new_access_token = create_access_token(token_data, token_version=user.token_version)
-        new_refresh_token = create_refresh_token(token_data)
+
+        # 保持"记住我"的时限语义:原 token 剩余寿命超过普通时限时按 remember_me 轮换,
+        # 避免勾选"记住我"(30 天)的用户一刷新就被降级为 7 天
+        remember = (token_record.expires_at - utcnow()) > timedelta(
+            days=settings.refresh_token_expire_days
+        )
+        new_refresh_token = create_refresh_token(token_data, remember)
 
         # Calculate new expiration
-        refresh_expires = utcnow() + timedelta(days=settings.refresh_token_expire_days)
+        refresh_expires = utcnow() + timedelta(
+            days=settings.refresh_token_remember_me_days if remember
+            else settings.refresh_token_expire_days
+        )
 
         # Update old refresh token record
         for _ in range(3):

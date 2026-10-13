@@ -1,7 +1,7 @@
 import asyncio
 import logging
 from datetime import timedelta
-from typing import Union
+from typing import Optional, Union
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.responses import JSONResponse
@@ -259,7 +259,8 @@ async def login(
 
 
 @router.post("/refresh", response_model=TokenResponse)
-async def refresh(refresh_data: RefreshTokenRequest, db: Session = Depends(get_db)):
+@limiter.limit("10/minute")
+async def refresh(refresh_data: RefreshTokenRequest, request: Request, db: Session = Depends(get_db)):
     """Refresh access token"""
     result = AuthService.refresh_access_token(
         db,
@@ -426,8 +427,10 @@ async def send_email_verification_code(
 
 
 @router.post("/verify/email-code")
+@limiter.limit("10/minute")
 async def verify_email_code(
     request_data: VerifyEmailCodeRequest,
+    request: Request,
     db: Session = Depends(get_db)
 ):
     """Verify email verification code"""
@@ -466,8 +469,10 @@ async def verify_email_code(
 
 
 @router.post("/verify/totp")
+@limiter.limit("10/minute")
 async def verify_totp(
     request_data: VerifyTOTPRequest,
+    request: Request,
     db: Session = Depends(get_db)
 ):
     """Verify TOTP code"""
@@ -511,8 +516,10 @@ async def verify_totp(
 
 
 @router.post("/verify/backup-code")
+@limiter.limit("10/minute")
 async def verify_backup_code(
     request_data: VerifyBackupCodeRequest,
+    request: Request,
     db: Session = Depends(get_db)
 ):
     """Verify TOTP backup code"""
@@ -718,11 +725,15 @@ async def magic_link_login_verify(
     token: str,
     request: Request,
     response: Response,
+    device_id: Optional[str] = None,
     db: Session = Depends(get_db)
 ):
     """Verify magic link for independent login"""
     # Get device token from cookie
     device_token = request.cookies.get("magic_link_device")
+    # 持久设备码(localStorage 的 laaa_device_token):传给风控与会话创建,
+    # 避免每次 magic-link 登录都被判为新设备
+    persistent_device_token = device_id[:64] if device_id else None
 
     try:
         verification_code, device_matched = await VerificationService.verify_magic_link(
@@ -768,18 +779,19 @@ async def magic_link_login_verify(
 
     # Magic-link login 不经密码路径,需主动跑风控评估:
     # 若启用风控且检测到异常,拒绝直接签发 token,要求改用密码+二次验证登录。
+    from app.services.geoip_service import GeoIPService
+
+    geo_info = GeoIPService.get_location(client_ip)
     if settings.enable_login_anomaly_detection and settings.block_suspicious_login:
-        from app.services.geoip_service import GeoIPService
         from app.services.risk_service import RiskLevel, RiskService
 
-        geo_info = GeoIPService.get_location(client_ip)
         risk_assessment = RiskService.assess_password_login_risk(
             db=db,
             user=user,
             ip_address=client_ip,
             city=geo_info.get("city") if geo_info else None,
             country=geo_info.get("country") if geo_info else None,
-            device_token=None,
+            device_token=persistent_device_token,
         )
         if risk_assessment.risk_level != RiskLevel.NONE:
             # 高风险:不签发 token,要求用户走密码登录完成二次验证
@@ -800,14 +812,14 @@ async def magic_link_login_verify(
         scope="profile email",
         remember_me=False,
         device_name=None,
-        device_token=None,
+        device_token=persistent_device_token,
         ip_address=client_ip,
         user_agent=user_agent,
         login_method="magic_link"
     )
 
     # Record successful login
-    geo_info = GeoIPService.get_location(client_ip)
+    geo_info = geo_info if geo_info else GeoIPService.get_location(client_ip)
     AuthService.record_login_log(
         db,
         user=user,

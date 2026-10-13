@@ -26,6 +26,32 @@ api.interceptors.request.use(
   }
 );
 
+// Module-level singleton refresh promise.
+// The backend rotates refresh tokens, so concurrent 401s MUST share a single
+// refresh request — parallel refreshes would invalidate each other's tokens
+// and log the user out randomly.
+let refreshPromise: Promise<{ access_token: string; refresh_token: string }> | null = null;
+
+function refreshAccessToken(refreshToken: string) {
+  if (!refreshPromise) {
+    // Use raw axios (not the `api` instance) to avoid interceptor recursion.
+    refreshPromise = axios
+      .post(`${API_URL}/api/auth/refresh`, {
+        refresh_token: refreshToken,
+      })
+      .then((response) => {
+        const { access_token, refresh_token } = response.data;
+        localStorage.setItem('access_token', access_token);
+        localStorage.setItem('refresh_token', refresh_token);
+        return { access_token, refresh_token };
+      })
+      .finally(() => {
+        refreshPromise = null;
+      });
+  }
+  return refreshPromise;
+}
+
 // Response interceptor to handle token refresh
 api.interceptors.response.use(
   (response) => response,
@@ -38,8 +64,8 @@ api.interceptors.response.use(
       const code = error.code; // 'ERR_NETWORK' | 'ECONNABORTED' | ...
       const message =
         code === 'ECONNABORTED'
-          ? '请求超时,请检查网络后重试'
-          : '网络错误,无法连接到服务器';
+          ? '请求超时，请检查网络后重试'
+          : '网络错误，无法连接到服务器';
       return Promise.reject(
         Object.assign(new Error(message), { code, isNetworkError: true })
       );
@@ -52,13 +78,7 @@ api.interceptors.response.use(
       const refreshToken = localStorage.getItem('refresh_token');
       if (refreshToken) {
         try {
-          const response = await axios.post(`${API_URL}/api/auth/refresh`, {
-            refresh_token: refreshToken,
-          });
-
-          const { access_token, refresh_token } = response.data;
-          localStorage.setItem('access_token', access_token);
-          localStorage.setItem('refresh_token', refresh_token);
+          const { access_token } = await refreshAccessToken(refreshToken);
 
           // Retry original request with new token
           originalRequest.headers.Authorization = `Bearer ${access_token}`;
@@ -454,7 +474,10 @@ export const verificationApi = {
 
   // Magic Link independent login - verify
   verifyMagicLinkLogin: (token: string) =>
-    axios.get(`${API_URL}/api/auth/magic-link/login/${token}`, { withCredentials: true }),
+    axios.get(`${API_URL}/api/auth/magic-link/login/${token}`, {
+      withCredentials: true,
+      params: { device_id: getDeviceToken() },
+    }),
 
   // Skip verification (enter restricted mode)
   skipVerification: (sessionToken: string) =>

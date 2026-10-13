@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Table, Text
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Table, Text, UniqueConstraint
 from sqlalchemy.orm import relationship
 
 from app.database import Base
@@ -278,6 +278,32 @@ class Session(Base):
 
     # Relationships
     user = relationship('User', back_populates='sessions')
+
+
+class KnownDevice(Base):
+    """已知设备(与 session 存活解耦的设备信任记忆)。
+
+    sessions 行会因登出/过期/踢除被删除,若"已知设备"判定依赖 session 存活,
+    单设备用户每次登出后都会被风控当成新设备、强制两步验证。
+    本表在登录成功时 upsert,只有用户主动"忘记此设备"时才删除。
+    """
+    __tablename__ = 'known_devices'
+    __table_args__ = (
+        UniqueConstraint('user_id', 'device_token', name='uq_known_device_user_token'),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
+    device_token = Column(String(64), nullable=False, index=True)  # 客户端 localStorage 持久令牌
+    device_name = Column(String(100), nullable=True)
+    device_type = Column(String(50), nullable=True)
+    first_seen = Column(DateTime, default=utcnow, nullable=False)
+    last_seen = Column(DateTime, default=utcnow, nullable=False)
+    ip_address = Column(String(50), nullable=True)
+    country = Column(String(100), nullable=True)
+    city = Column(String(100), nullable=True)
+
+    user = relationship('User', backref='known_devices')
 
 
 class Role(Base):

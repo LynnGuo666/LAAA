@@ -140,3 +140,43 @@ def init_db():
     finally:
         db.close()
 
+    _ensure_internal_client()
+
+
+def _ensure_internal_client():
+    """确保 internal OAuth 客户端存在(幂等)。
+
+    seed.py 也会创建,但测试环境/精简部署可能不跑 seed;
+    登录链路依赖它,缺失会让所有登录 500。
+    secret 固定为 seed.py 的默认值,便于环境间一致;
+    生产环境应通过 admin 界面轮换。
+    """
+    import json as _json
+
+    from app.models import Client
+    from app.utils.security import hash_token
+
+    db = SessionLocal()
+    try:
+        if db.query(Client).filter(Client.client_id == 'internal').first():
+            return
+        print("🔧 创建 internal OAuth 客户端...")
+        db.add(Client(
+            client_id='internal',
+            name='内部客户端',
+            description='LAAA 自身登录流程使用的内置客户端',
+            client_secret_hash=hash_token('internal_secret_change_this'),
+            redirect_uris=_json.dumps(['http://localhost:3000/callback']),
+            allowed_scopes=_json.dumps(['profile', 'email', 'openid']),
+            trusted=True,
+            default_access=True,
+            owner_id=1,  # 首个用户(admin);owner_id 非空约束的最小满足
+        ))
+        db.commit()
+        print("✅ internal 客户端已就绪")
+    except Exception as e:
+        db.rollback()
+        print(f"⚠️  创建 internal 客户端失败: {e}")
+    finally:
+        db.close()
+

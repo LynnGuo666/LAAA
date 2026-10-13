@@ -130,14 +130,26 @@ def admin_token(client, seed_admin):
 
 @pytest.fixture
 def internal_client(db_session, seed_admin):
-    """创建 trusted internal OAuth client,返回 (client_id, client_secret)。"""
+    """创建 trusted internal OAuth client,返回 (client_id, client_secret)。
+
+    init_db/seed 也会创建 internal(默认 secret 为 internal_secret_change_this);
+    测试需要确定的 secret,因此已存在时重置 secret 与字段,保证幂等。
+    """
     import json
 
     from app.models import Client
     from app.utils.security import hash_token
 
     client = db_session.query(Client).filter(Client.client_id == "internal").first()
-    if not client:
+    if client:
+        # init_db 已建:重置为测试期望值,避免 secret 不确定
+        client.client_secret_hash = hash_token("internal_secret")
+        client.redirect_uris = json.dumps(["http://localhost:3000/callback"])
+        client.allowed_scopes = json.dumps(["profile", "email", "openid"])
+        client.trusted = True
+        client.default_access = True
+        db_session.commit()
+    else:
         client = Client(
             client_id="internal",
             client_secret_hash=hash_token("internal_secret"),

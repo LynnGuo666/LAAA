@@ -12,7 +12,7 @@ from typing import Any, Dict, List, Optional
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
-from app.models import LoginLog, User
+from app.models import KnownDevice, LoginLog, User
 from app.models import Session as UserSession
 
 settings = get_settings()
@@ -160,11 +160,23 @@ class RiskService:
 
     @staticmethod
     def is_known_device_token(db: Session, user_id: int, device_token: Optional[str]) -> bool:
-        """Check if the device token is known for this user"""
+        """Check if the device token is known for this user.
+
+        优先查 known_devices 表(与 session 存活解耦):session 会因登出被删,
+        若只查 sessions,单设备用户每次登出后都会被判为新设备、强制两步验证。
+        存量兼容:旧库里 known_devices 为空时回落到 sessions 查询。
+        """
         if not device_token:
             return False
 
-        # Check sessions for this device token
+        known = db.query(KnownDevice).filter(
+            KnownDevice.user_id == user_id,
+            KnownDevice.device_token == device_token
+        ).first()
+        if known:
+            return True
+
+        # 回落:老用户首次登录时 known_devices 可能还没有记录
         existing = db.query(UserSession).filter(
             UserSession.user_id == user_id,
             UserSession.device_token == device_token,
