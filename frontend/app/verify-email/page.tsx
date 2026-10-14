@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Button, Spinner } from '@heroui/react';
 import { authApi } from '@/lib/api';
+import { extractErrorMessage } from '@/lib/errors';
 import { CheckCircle, XCircle, Mail } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { cn } from '@heroui/react';
@@ -136,7 +137,7 @@ function VerifyEmailContent() {
         setStatus('success');
       } catch (err: any) {
         setStatus('error');
-        setErrorMessage(err.response?.data?.detail || '验证失败，请重试');
+        setErrorMessage(extractErrorMessage(err, '验证失败，请重试'));
       }
     };
 

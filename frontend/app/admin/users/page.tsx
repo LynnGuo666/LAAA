@@ -22,6 +22,7 @@ import { renderStatusChip, renderStatusSelect } from '@/lib/admin-utils'
 import { hasPermission } from '@/lib/authz'
 import { formatDate } from '@/lib/date'
 import { useAuthStore } from '@/lib/store'
+import { extractErrorMessage } from '@/lib/errors';
 
 interface User {
   id: number
@@ -121,7 +122,7 @@ export default function UsersPage() {
       if (seq !== loadSeqRef.current) return
       setUsers([])
       setTotal(0)
-      setPageError(err.response?.data?.detail || '加载用户列表失败')
+      setPageError(extractErrorMessage(err, '加载用户列表失败'))
     } finally {
       if (seq === loadSeqRef.current) setLoading(false)
     }
@@ -202,7 +203,7 @@ export default function UsersPage() {
       resetCreateModal()
       await loadUsers()
     } catch (err: any) {
-      setCreateError(err.response?.data?.detail || '创建用户失败')
+      setCreateError(extractErrorMessage(err, '创建用户失败'))
     } finally {
       setCreatingUser(false)
     }
@@ -238,7 +239,7 @@ export default function UsersPage() {
       resetEditModal()
       await loadUsers()
     } catch (err: any) {
-      setEditError(err.response?.data?.detail || '更新用户失败')
+      setEditError(extractErrorMessage(err, '更新用户失败'))
     } finally {
       setUpdatingUser(false)
     }
@@ -261,7 +262,7 @@ export default function UsersPage() {
       await adminApi.deleteUser(targetUser.id)
       await loadUsers()
     } catch (err: any) {
-      setPageError(err.response?.data?.detail || '删除用户失败')
+      setPageError(extractErrorMessage(err, '删除用户失败'))
     } finally {
       setDeletingUserId(null)
     }
@@ -318,7 +319,7 @@ export default function UsersPage() {
       resetGroupsModal()
       await loadUsers()
     } catch (err: any) {
-      setGroupsError(err.response?.data?.detail || '更新用户组失败')
+      setGroupsError(extractErrorMessage(err, '更新用户组失败'))
     } finally {
       setSavingGroups(false)
     }
@@ -335,7 +336,7 @@ export default function UsersPage() {
       resetRolesModal()
       await loadUsers()
     } catch (err: any) {
-      setRolesError(err.response?.data?.detail || '更新用户角色失败')
+      setRolesError(extractErrorMessage(err, '更新用户角色失败'))
     } finally {
       setSavingRoles(false)
     }

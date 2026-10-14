@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { AlertDialog, Button, Input, toast } from '@heroui/react';
 import { totpApi } from '@/lib/api';
-import type { AxiosError } from 'axios';
+import { extractErrorMessage } from '@/lib/errors';
 
 interface TotpStatus {
   enabled: boolean;
@@ -15,10 +15,6 @@ interface TotpSetupData {
   secret: string;
   qr_code: string;
   issuer: string;
-}
-
-interface ApiErrorData {
-  detail?: string;
 }
 
 interface TotpManageModalProps {
@@ -51,8 +47,8 @@ export function TotpManageModal({ isOpen, onOpenChange, onStatusUpdated }: TotpM
   }, [isOpen]);
 
   const getErrorMessage = (err: unknown, fallback: string) => {
-    const error = err as AxiosError<ApiErrorData>;
-    return error.response?.data?.detail || error.message || fallback;
+    // 兼容 422 数组形态 detail 等结构，统一走共享工具（lib/errors.ts）
+    return extractErrorMessage(err, fallback);
   };
 
   const loadStatus = async () => {

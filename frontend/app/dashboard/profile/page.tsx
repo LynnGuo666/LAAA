@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useAuthStore } from '@/lib/store';
 import { userApi } from '@/lib/api';
 import { formatDate } from '@/lib/date';
+import { extractErrorMessage } from '@/lib/errors';
 import { Alert, Button, Card, Description, Input, Label, TextField } from '@heroui/react';
 
 export default function ProfilePage() {
@@ -25,7 +26,7 @@ export default function ProfilePage() {
       setUser(response.data);
       setMessage('个人资料已更新');
     } catch (err: any) {
-      setMessage('错误：' + (err.response?.data?.detail || '更新个人资料失败'));
+      setMessage('错误：' + extractErrorMessage(err, '更新个人资料失败'));
     } finally {
       setLoading(false);
     }

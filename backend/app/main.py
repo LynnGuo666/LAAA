@@ -75,18 +75,23 @@ app.add_middleware(SecurityHeadersMiddleware)
 
 @app.exception_handler(RequestValidationError)
 async def request_validation_error_handler(request: Request, exc: RequestValidationError):
-    # exc.errors() 的 ctx 里可能含 ValueError 等不可 JSON 序列化的对象,转成 str 再返回;
-    # 每项的 input 字段是用户原始输入(可能是明文密码),绝不能进日志或响应体
+    # 响应体归一化为人类可读:每项只保留 msg/loc。
+    # - input 字段是用户原始输入(可能是明文密码),绝不能进日志或响应体
+    # - ctx 里可能含 ValueError 等不可 JSON 序列化的对象
+    # - "Value error, " 是 pydantic 对自定义校验器的包装前缀,对用户无意义,剥离
+    # 前端 lib/errors.ts 的 extractErrorMessage 兼容此数组形态(取首项 msg)。
     safe_errors = []
     for err in exc.errors():
-        e = dict(err)
-        e.pop("input", None)
-        ctx = e.get("ctx")
-        if ctx and "error" in ctx:
-            e["ctx"] = {k: (str(v) if k == "error" else v) for k, v in ctx.items()}
-        safe_errors.append(e)
+        msg = str(err.get("msg", "参数校验失败"))
+        if msg.startswith("Value error, "):
+            msg = msg[len("Value error, "):]
+        loc = [str(seg) for seg in err.get("loc", []) if isinstance(seg, (str, int))]
+        safe_errors.append({"msg": msg, "loc": loc, "type": err.get("type", "")})
     logger.warning("validation error path=%s errors=%s", request.url.path, safe_errors)
-    return JSONResponse(status_code=422, content={"detail": safe_errors})
+    return JSONResponse(
+        status_code=422,
+        content={"detail": [{"msg": e["msg"], "loc": e["loc"]} for e in safe_errors]},
+    )
 
 
 @app.exception_handler(StarletteHTTPException)

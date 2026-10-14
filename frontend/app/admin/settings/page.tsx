@@ -13,6 +13,7 @@ import {
 import { siteApi } from '@/lib/api'
 import { hasPermission } from '@/lib/authz'
 import { useAuthStore } from '@/lib/store'
+import { extractErrorMessage } from '@/lib/errors';
 
 export default function SiteSettingsPage() {
   const user = useAuthStore((state) => state.user)
@@ -41,7 +42,7 @@ export default function SiteSettingsPage() {
         setSiteName(response.data?.site_name || '')
       })
       .catch((err) => {
-        setError(err.response?.data?.detail || '加载站点配置失败')
+        setError(extractErrorMessage(err, '加载站点配置失败'))
       })
       .finally(() => {
         setLoading(false)
@@ -65,7 +66,7 @@ export default function SiteSettingsPage() {
       setSiteName(response.data?.site_name || trimmedName)
       setSuccess('站点设置已保存')
     } catch (err: any) {
-      setError(err.response?.data?.detail || '保存失败')
+      setError(extractErrorMessage(err, '保存失败'))
     } finally {
       setSaving(false)
     }

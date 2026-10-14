@@ -28,6 +28,7 @@ import { useConfirmDialog } from '@/components/ui/confirm-dialog-provider'
 import { clientApi } from '@/lib/api'
 import { hasPermission } from '@/lib/authz'
 import { useAuthStore } from '@/lib/store'
+import { extractErrorMessage } from '@/lib/errors';
 
 interface Client {
   id: number
@@ -74,7 +75,7 @@ export default function AppsPage() {
       const response = await clientApi.list()
       setClients(response.data)
     } catch (err: any) {
-      setPageError(err.response?.data?.detail || '加载应用列表失败')
+      setPageError(extractErrorMessage(err, '加载应用列表失败'))
       setClients([])
     } finally {
       setLoading(false)
@@ -143,7 +144,7 @@ export default function AppsPage() {
       await loadClients()
       toast('应用已创建')
     } catch (err: any) {
-      setFormError(err.response?.data?.detail || '创建应用失败')
+      setFormError(extractErrorMessage(err, '创建应用失败'))
     } finally {
       setCreating(false)
     }
@@ -167,7 +168,7 @@ export default function AppsPage() {
       await loadClients()
       toast('应用已删除')
     } catch (err: any) {
-      setPageError(err.response?.data?.detail || '删除应用失败')
+      setPageError(extractErrorMessage(err, '删除应用失败'))
     } finally {
       setDeletingClientId(null)
     }
@@ -196,7 +197,7 @@ export default function AppsPage() {
       setCopyStatus(null)
       toast('密钥已重置')
     } catch (err: any) {
-      setPageError(err.response?.data?.detail || '重置密钥失败')
+      setPageError(extractErrorMessage(err, '重置密钥失败'))
     } finally {
       setResettingClientId(null)
     }

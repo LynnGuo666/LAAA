@@ -26,6 +26,7 @@ import { adminApi, groupApi } from '@/lib/api'
 import { hasPermission } from '@/lib/authz'
 import { formatDateTime } from '@/lib/date'
 import { useAuthStore } from '@/lib/store'
+import { extractErrorMessage } from '@/lib/errors';
 
 interface Group {
   id: number
@@ -95,7 +96,7 @@ export default function InvitesPage() {
       setInvites(Array.isArray(data?.items) ? data.items : [])
       setTotal(typeof data?.total === 'number' ? data.total : 0)
     } catch (err: any) {
-      setError(err.response?.data?.detail || '加载邀请码失败')
+      setError(extractErrorMessage(err, '加载邀请码失败'))
       setInvites([])
       setTotal(0)
     } finally {
@@ -156,7 +157,7 @@ export default function InvitesPage() {
       })
       toast('邀请码已生成')
     } catch (err: any) {
-      setError(err.response?.data?.detail || '创建邀请码失败')
+      setError(extractErrorMessage(err, '创建邀请码失败'))
     } finally {
       setCreating(false)
     }
@@ -189,7 +190,7 @@ export default function InvitesPage() {
       }
       toast('邀请码已停用')
     } catch (err: any) {
-      setError(err.response?.data?.detail || '停用邀请码失败')
+      setError(extractErrorMessage(err, '停用邀请码失败'))
     }
   }
 

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { userApi } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { isAdmin } from '@/lib/authz';
+import { extractErrorMessage } from '@/lib/errors';
 import { Alert, Button, Card, Spinner } from '@heroui/react';
 import { ExternalLink } from 'lucide-react';
 
@@ -35,7 +36,7 @@ export default function MyAppsPage() {
       const res = await userApi.listApps();
       setApps(Array.isArray(res.data) ? res.data : []);
     } catch (err: any) {
-      setError(err.response?.data?.detail || '加载应用列表失败');
+      setError(extractErrorMessage(err, '加载应用列表失败'));
       setApps([]);
     } finally {
       setLoading(false);

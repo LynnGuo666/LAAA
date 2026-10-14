@@ -8,6 +8,7 @@ import { useConfirmDialog } from '@/components/ui/confirm-dialog-provider';
 import { verificationApi, authApi } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { isSafeRedirect } from '@/lib/authz';
+import { extractErrorMessage } from '@/lib/errors';
 import { Mail, ShieldCheck, KeyRound, ChevronRight, ArrowLeft, Check } from 'lucide-react';
 import {
   isWebAuthnSupported,
@@ -90,13 +91,13 @@ export default function VerifyPage() {
         setStep('select'); setSuccess(`${METHOD_NAMES[method]} 验证成功，请继续完成下一步验证`);
         setEmailCode(''); setTotpCode(''); setBackupCode(''); setEmailCodeSent(false);
       }
-    } catch (err: any) { setError(err.response?.data?.detail || '验证失败'); } finally { setLoading(false); }
+    } catch (err: any) { setError(extractErrorMessage(err, '验证失败')); } finally { setLoading(false); }
   };
 
   const handleSendEmailCode = async () => {
     if (!session) return; setLoading(true); setError('');
     try { await verificationApi.sendEmailCode(session.session_token); setEmailCodeSent(true); setEmailCooldown(60); setSuccess('验证码已发送到您的邮箱'); }
-    catch (err: any) { setError(err.response?.data?.detail || '发送失败'); }
+    catch (err: any) { setError(extractErrorMessage(err, '发送失败')); }
     finally { setLoading(false); }
   };
 
@@ -115,7 +116,7 @@ export default function VerifyPage() {
       if (restricted) useAuthStore.getState().setRestrictedSession(true);
       sessionStorage.removeItem('verification_session');
       router.push(isSafeRedirect(session.redirect) ? session.redirect : '/dashboard');
-    } catch (err: any) { setError(err.response?.data?.detail || '跳过失败'); } finally { setSkipping(false); }
+    } catch (err: any) { setError(extractErrorMessage(err, '跳过失败')); } finally { setSkipping(false); }
   };
 
   if (!session) return <PageLoadingState />;

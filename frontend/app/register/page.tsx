@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { authApi } from '@/lib/api';
+import { extractErrorMessage } from '@/lib/errors';
 import { Alert, Button, Description, Input, Label, Spinner, TextField } from '@heroui/react';
 
 function RegisterContent() {
@@ -65,7 +66,7 @@ function RegisterContent() {
       // Redirect to login
       router.push('/login?registered=true');
     } catch (err: any) {
-      setError(err.response?.data?.detail || '注册失败，请重试');
+      setError(extractErrorMessage(err, '注册失败，请重试'));
     } finally {
       setLoading(false);
     }

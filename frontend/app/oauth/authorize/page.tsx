@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Button, Card, Spinner, toast } from '@heroui/react';
 import { authApi, API_URL } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
+import { extractErrorMessage } from '@/lib/errors';
 import { EntityAvatar } from '@/components/admin/admin-ui';
 import axios from 'axios';
 import { AlertTriangle, Ban, Check } from 'lucide-react';
@@ -118,14 +119,14 @@ function AuthorizeContent() {
       if (err.response?.status === 403) {
         // 权限被拒绝
         setAccessDenied(true);
-        setError(err.response?.data?.detail || '您没有权限访问此应用');
+        setError(extractErrorMessage(err, '您没有权限访问此应用'));
       } else if (err.response?.status === 401) {
         // Token 过期，重新登录
         const returnUrl = `/oauth/authorize?${searchParams.toString()}`;
         router.push(`/login?redirect=${encodeURIComponent(returnUrl)}`);
         return;
       } else {
-        setError(err.response?.data?.detail || '授权请求失败');
+        setError(extractErrorMessage(err, '授权请求失败'));
       }
       setLoading(false);
     }
@@ -176,7 +177,7 @@ function AuthorizeContent() {
     } catch (err: any) {
       if (err.response?.status === 403) {
         setAccessDenied(true);
-        setError(err.response?.data?.detail || '您没有权限访问此应用');
+        setError(extractErrorMessage(err, '您没有权限访问此应用'));
       } else if (err.response?.status === 401) {
         // Token 过期，重新登录
         const returnUrl = `/oauth/authorize?${searchParams.toString()}`;
@@ -184,7 +185,7 @@ function AuthorizeContent() {
         router.push(`/login?redirect=${encodeURIComponent(returnUrl)}`);
         return;
       } else {
-        toast('授权失败: ' + (err.response?.data?.detail || '未知错误'));
+        toast('授权失败: ' + extractErrorMessage(err, '未知错误'));
       }
       setSubmitting(null);
     }

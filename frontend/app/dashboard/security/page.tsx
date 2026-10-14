@@ -5,6 +5,7 @@ import { AlertDialog, Alert, Button, Card, Chip, Input, Label, Table, Tabs, Text
 import { userApi, totpApi, passkeyApi } from '@/lib/api';
 import { formatDateTime } from '@/lib/date';
 import { useAuthStore } from '@/lib/store';
+import { extractErrorMessage } from '@/lib/errors';
 import { useConfirmDialog } from '@/components/ui/confirm-dialog-provider';
 import { TotpManageModal } from '@/components/security/TotpManageModal';
 import { PageLoadingState } from '@/components/ui/loading';
@@ -74,10 +75,9 @@ interface ApiErrorLike {
 
 type SecurityTabKey = 'totp' | 'sessions' | 'password' | 'history' | 'passkeys';
 
+// 兼容 422 数组形态 detail 等结构，统一走共享工具（lib/errors.ts）
 function getApiErrorMessage(err: unknown, fallback: string): string {
-  if (!err || typeof err !== 'object') return fallback;
-  const error = err as ApiErrorLike;
-  return error.response?.data?.detail || error.message || fallback;
+  return extractErrorMessage(err, fallback);
 }
 
 export default function SecurityPage() {
@@ -377,7 +377,7 @@ export default function SecurityPage() {
       setNewPassword('');
       setConfirmPassword('');
     } catch (err: any) {
-      setPasswordError(err.response?.data?.detail || '修改密码失败');
+      setPasswordError(extractErrorMessage(err, '修改密码失败'));
     } finally {
       setChangingPassword(false);
     }

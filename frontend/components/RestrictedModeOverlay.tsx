@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Alert, Button, Input, Label, Spinner } from '@heroui/react';
 import { authApi, totpApi, passkeyApi } from '@/lib/api';
 import { User, useAuthStore } from '@/lib/store';
+import { extractErrorMessage } from '@/lib/errors';
 import {
   AlertTriangle,
   Mail,
@@ -116,7 +117,7 @@ export default function RestrictedModeOverlay({ user, onComplete }: RestrictedMo
       setEmailCooldown(60);
       setSuccess('验证邮件已发送，请检查您的邮箱');
     } catch (err: any) {
-      setError(err.response?.data?.detail || '发送失败，请稍后重试');
+      setError(extractErrorMessage(err, '发送失败，请稍后重试'));
     } finally {
       setLoading(false);
     }
@@ -138,7 +139,7 @@ export default function RestrictedModeOverlay({ user, onComplete }: RestrictedMo
       setNewEmail('');
       onComplete(); // Refresh user data
     } catch (err: any) {
-      setError(err.response?.data?.detail || '修改失败');
+      setError(extractErrorMessage(err, '修改失败'));
     } finally {
       setLoading(false);
     }
@@ -154,7 +155,7 @@ export default function RestrictedModeOverlay({ user, onComplete }: RestrictedMo
       setTotpSetupData(response.data);
       setCurrentStep('totp');
     } catch (err: any) {
-      setError(err.response?.data?.detail || '开始设置失败');
+      setError(extractErrorMessage(err, '开始设置失败'));
     } finally {
       setLoading(false);
     }
@@ -177,7 +178,7 @@ export default function RestrictedModeOverlay({ user, onComplete }: RestrictedMo
       setTotpEnabled(true);
       setSuccess('身份验证器已启用！');
     } catch (err: any) {
-      setError(err.response?.data?.detail || '验证码错误');
+      setError(extractErrorMessage(err, '验证码错误'));
     } finally {
       setLoading(false);
     }
@@ -228,7 +229,7 @@ export default function RestrictedModeOverlay({ user, onComplete }: RestrictedMo
       if (err.name === 'NotAllowedError') {
         setError('操作已取消');
       } else {
-        setError(err.response?.data?.detail || '绑定失败');
+        setError(extractErrorMessage(err, '绑定失败'));
       }
     } finally {
       setPasskeyRegistering(false);

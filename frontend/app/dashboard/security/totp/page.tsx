@@ -7,6 +7,7 @@ import { Alert, AlertDialog, Button, Input, Spinner } from '@heroui/react';
 import { ChevronLeft, AlertTriangle, ShieldCheck } from 'lucide-react';
 import { totpApi } from '@/lib/api';
 import { formatDate } from '@/lib/date';
+import { extractErrorMessage } from '@/lib/errors';
 
 interface TOTPStatus {
   enabled: boolean;
@@ -64,7 +65,7 @@ export default function TOTPSetupPage() {
       const response = await totpApi.setup();
       setSetupData(response.data);
     } catch (err: any) {
-      setError(err.response?.data?.detail || '开始设置失败');
+      setError(extractErrorMessage(err, '开始设置失败'));
     } finally {
       setLoading(false);
     }
@@ -91,7 +92,7 @@ export default function TOTPSetupPage() {
       const statusResponse = await totpApi.getStatus();
       setStatus(statusResponse.data);
     } catch (err: any) {
-      setError(err.response?.data?.detail || '验证码错误');
+      setError(extractErrorMessage(err, '验证码错误'));
     } finally {
       setVerifying(false);
     }
@@ -116,7 +117,7 @@ export default function TOTPSetupPage() {
       const statusResponse = await totpApi.getStatus();
       setStatus(statusResponse.data);
     } catch (err: any) {
-      setError(err.response?.data?.detail || '禁用失败');
+      setError(extractErrorMessage(err, '禁用失败'));
     } finally {
       setDisabling(false);
     }
@@ -143,7 +144,7 @@ export default function TOTPSetupPage() {
       const statusResponse = await totpApi.getStatus();
       setStatus(statusResponse.data);
     } catch (err: any) {
-      setError(err.response?.data?.detail || '生成失败');
+      setError(extractErrorMessage(err, '生成失败'));
     } finally {
       setRegenerating(false);
     }

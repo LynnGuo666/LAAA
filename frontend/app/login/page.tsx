@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { authApi, passkeyApi, API_URL } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { isSafeRedirect } from '@/lib/authz';
+import { extractErrorMessage } from '@/lib/errors';
 import { PageLoadingState } from '@/components/ui/loading';
 import axios from 'axios';
 import {
@@ -209,7 +210,7 @@ function LoginContent() {
         router.push('/login/verify');
         return;
       }
-      const errorMsg = err.response?.data?.detail || err.message || '登录失败，请重试';
+      const errorMsg = extractErrorMessage(err, '登录失败，请重试');
       setError(errorMsg);
       toast.danger(errorMsg);
     } finally {
@@ -281,12 +282,11 @@ function LoginContent() {
       if (err.name === 'NotAllowedError') {
         setError('用户取消了操作');
         toast.warning('用户取消了操作');
-      } else if (err.response?.data?.detail) {
-        setError(err.response.data.detail);
-        toast.danger(err.response.data.detail);
       } else {
-        setError('通行密钥登录失败，请重试');
-        toast.danger('通行密钥登录失败，请重试');
+        // 统一走错误归一化工具（422 数组 / 结构化对象 / 网络错误都能得到字符串）
+        const message = extractErrorMessage(err, '通行密钥登录失败，请重试');
+        setError(message);
+        toast.danger(message);
       }
     } finally {
       setPasskeyLoading(false);

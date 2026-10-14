@@ -32,6 +32,7 @@ import { renderStatusChip, renderStatusSelect } from '@/lib/admin-utils'
 import { hasPermission } from '@/lib/authz'
 import { formatDateTime } from '@/lib/date'
 import { useAuthStore } from '@/lib/store'
+import { extractErrorMessage } from '@/lib/errors';
 
 interface User {
   id: number
@@ -174,7 +175,7 @@ function UserDetailContent() {
       })
     } catch (err: any) {
       setUser(null)
-      setError(err.response?.data?.detail || '加载用户失败')
+      setError(extractErrorMessage(err, '加载用户失败'))
     } finally {
       setLoading(false)
     }
@@ -324,7 +325,7 @@ function UserDetailContent() {
       await loadUser()
       toast('用户信息已更新')
     } catch (err: any) {
-      setModalError(err.response?.data?.detail || '更新失败')
+      setModalError(extractErrorMessage(err, '更新失败'))
     } finally {
       setSavingEdit(false)
     }
@@ -352,7 +353,7 @@ function UserDetailContent() {
       await loadUser()
       toast('用户组已更新')
     } catch (err: any) {
-      setModalError(err.response?.data?.detail || '更新用户组失败')
+      setModalError(extractErrorMessage(err, '更新用户组失败'))
     } finally {
       setSavingGroups(false)
     }
@@ -380,7 +381,7 @@ function UserDetailContent() {
       await loadUser()
       toast('角色已更新')
     } catch (err: any) {
-      setModalError(err.response?.data?.detail || '更新角色失败')
+      setModalError(extractErrorMessage(err, '更新角色失败'))
     } finally {
       setSavingRoles(false)
     }
@@ -402,7 +403,7 @@ function UserDetailContent() {
       await loadSessions()
       toast('会话已登出')
     } catch (err: any) {
-      setError(err.response?.data?.detail || '操作失败')
+      setError(extractErrorMessage(err, '操作失败'))
     }
   }
 
@@ -422,7 +423,7 @@ function UserDetailContent() {
       toast(response.data.message)
       await loadSessions()
     } catch (err: any) {
-      setError(err.response?.data?.detail || '操作失败')
+      setError(extractErrorMessage(err, '操作失败'))
     }
   }
 

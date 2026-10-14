@@ -27,6 +27,7 @@ import { useConfirmDialog } from '@/components/ui/confirm-dialog-provider'
 import { adminApi, clientApi, groupApi, groupAppApi } from '@/lib/api'
 import { hasPermission } from '@/lib/authz'
 import { useAuthStore } from '@/lib/store'
+import { extractErrorMessage } from '@/lib/errors';
 
 interface Group {
   id: number
@@ -103,7 +104,7 @@ export default function GroupsPage() {
       const response = await groupApi.list()
       setGroups(Array.isArray(response.data) ? response.data : [])
     } catch (err: any) {
-      setPageError(err.response?.data?.detail || '加载用户组失败')
+      setPageError(extractErrorMessage(err, '加载用户组失败'))
       setGroups([])
     } finally {
       setLoading(false)
@@ -209,7 +210,7 @@ export default function GroupsPage() {
       await Promise.all([loadGroups(), loadUsers()])
       toast('用户组已创建')
     } catch (err: any) {
-      setPageError(err.response?.data?.detail || '创建用户组失败')
+      setPageError(extractErrorMessage(err, '创建用户组失败'))
     } finally {
       setCreatingGroup(false)
     }
@@ -231,7 +232,7 @@ export default function GroupsPage() {
       await Promise.all([loadGroups(), loadUsers()])
       toast('用户组信息已保存')
     } catch (err: any) {
-      setPanelError(err.response?.data?.detail || '更新用户组失败')
+      setPanelError(extractErrorMessage(err, '更新用户组失败'))
     } finally {
       setSavingMeta(false)
     }
@@ -260,7 +261,7 @@ export default function GroupsPage() {
       await Promise.all([loadUsers(), loadGroups()])
       toast('成员已添加')
     } catch (err: any) {
-      setPanelError(err.response?.data?.detail || '添加成员失败')
+      setPanelError(extractErrorMessage(err, '添加成员失败'))
     } finally {
       setSavingMembers(false)
     }
@@ -275,7 +276,7 @@ export default function GroupsPage() {
       await Promise.all([loadUsers(), loadGroups()])
       toast('成员已移除')
     } catch (err: any) {
-      setPanelError(err.response?.data?.detail || '移除成员失败')
+      setPanelError(extractErrorMessage(err, '移除成员失败'))
     }
   }
 
@@ -321,7 +322,7 @@ export default function GroupsPage() {
       })
       toast('应用权限已保存')
     } catch (err: any) {
-      setPanelError(err.response?.data?.detail || '更新应用权限失败')
+      setPanelError(extractErrorMessage(err, '更新应用权限失败'))
     } finally {
       setSavingApps(false)
     }
@@ -349,7 +350,7 @@ export default function GroupsPage() {
       await Promise.all([loadGroups(), loadUsers()])
       toast('用户组已删除')
     } catch (err: any) {
-      setPanelError(err.response?.data?.detail || '删除用户组失败')
+      setPanelError(extractErrorMessage(err, '删除用户组失败'))
     } finally {
       setDeletingGroup(false)
     }

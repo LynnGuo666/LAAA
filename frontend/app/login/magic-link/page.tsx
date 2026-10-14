@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Alert, Button, Spinner, toast } from '@heroui/react';
 import Link from 'next/link';
 import { verificationApi, authApi } from '@/lib/api';
+import { extractErrorMessage } from '@/lib/errors';
 import { useAuthStore } from '@/lib/store';
 import { isSafeRedirect } from '@/lib/authz';
 import { CheckCircle, AlertTriangle, XCircle } from 'lucide-react';
@@ -109,7 +110,8 @@ function MagicLinkContent() {
     } catch (err: any) {
       console.error('Magic link verification failed:', err);
 
-      const errorDetail = err.response?.data?.detail || '';
+      // detail 可能是字符串 / 422 数组 / 结构化对象，统一提取为字符串再做分支判断
+      const errorDetail = extractErrorMessage(err, '');
 
       if (errorDetail.includes('device') || errorDetail.includes('设备')) {
         setStatus('device_mismatch');

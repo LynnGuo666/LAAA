@@ -17,6 +17,7 @@ import {
 import { clientApi } from '@/lib/api'
 import { hasPermission } from '@/lib/authz'
 import { useAuthStore } from '@/lib/store'
+import { extractErrorMessage } from '@/lib/errors';
 
 interface Client {
   id: number
@@ -66,7 +67,7 @@ function AppEditContent() {
         default_access: data.default_access,
       })
     } catch (err: any) {
-      setError(err.response?.data?.detail || '加载应用失败')
+      setError(extractErrorMessage(err, '加载应用失败'))
     } finally {
       setLoading(false)
     }
@@ -105,7 +106,7 @@ function AppEditContent() {
       toast('应用已更新')
       router.push('/admin/apps')
     } catch (err: any) {
-      setFormError(err.response?.data?.detail || '更新应用失败')
+      setFormError(extractErrorMessage(err, '更新应用失败'))
     } finally {
       setSaving(false)
     }

@@ -19,6 +19,7 @@ import {
 import { adminApi, clientApi } from '@/lib/api'
 import { hasPermission } from '@/lib/authz'
 import { useAuthStore } from '@/lib/store'
+import { extractErrorMessage } from '@/lib/errors';
 
 type DashboardStats = {
   apps: number
@@ -106,7 +107,7 @@ export default function AdminDashboardPage() {
           users: usersResponse.data.total || 0,
         })
       } catch (err: any) {
-        setError(err.response?.data?.detail || '加载管理统计失败')
+        setError(extractErrorMessage(err, '加载管理统计失败'))
       } finally {
         setLoading(false)
       }

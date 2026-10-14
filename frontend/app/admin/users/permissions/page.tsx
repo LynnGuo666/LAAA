@@ -26,6 +26,7 @@ import { AdminSimplePagination } from '@/components/admin/pagination'
 import { adminApi } from '@/lib/api'
 import { hasPermission } from '@/lib/authz'
 import { useAuthStore } from '@/lib/store'
+import { extractErrorMessage } from '@/lib/errors';
 
 interface ComputedAppPermission {
   app_id: number
@@ -82,7 +83,7 @@ function UserPermissionsContent() {
     } catch (err: any) {
       if (seq !== loadSeqRef.current) return
       setData(null)
-      setError(err.response?.data?.detail || '加载权限信息失败')
+      setError(extractErrorMessage(err, '加载权限信息失败'))
     } finally {
       if (seq === loadSeqRef.current) setLoading(false)
     }
@@ -109,7 +110,7 @@ function UserPermissionsContent() {
       )
       await loadPermissions()
     } catch (err: any) {
-      setError(err.response?.data?.detail || '更新权限失败')
+      setError(extractErrorMessage(err, '更新权限失败'))
     } finally {
       setUpdating(null)
     }
