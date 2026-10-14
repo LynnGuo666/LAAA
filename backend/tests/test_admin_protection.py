@@ -191,3 +191,97 @@ def test_super_admin_can_assign_admin_role(client, db_session, make_user, admin_
     )
     assert resp.status_code == 200, resp.text
     assert "admin" in resp.json()["roles"]
+
+
+# ============================================================================
+# 修复 2:最后一名管理员保护
+# ============================================================================
+
+def _assert_single_admin(db):
+    """前置断言:当前全站只有 seed_admin 一个活跃管理员。
+
+    本文件是字母序第一个测试文件,且 make_user 产出的用户都会被工厂
+    teardown 清理,该前提在批内稳定成立;若失效则测试自身会在此报警。
+    """
+    from app.models import Role, User, user_roles
+    from app.routes.admin import _has_active_admins
+
+    admin_role = db.query(Role).filter(Role.name == "admin").first()
+    holders = [
+        row[0] for row in db.execute(
+            user_roles.select().where(user_roles.c.role_id == admin_role.id)
+        ).fetchall()
+    ]
+    active_holders = db.query(User.id).filter(
+        User.id.in_(holders), User.status == "active"
+    ).count()
+    assert _has_active_admins(db) is True
+    assert active_holders == 1, f"前置失效:活跃 admin 角色持有者 {active_holders} 个"
+
+
+def test_last_admin_cannot_remove_own_admin_role(client, db_session, seed_admin, admin_token):
+    """唯一管理员移除自己的 admin 角色 → 400(防系统锁死)。"""
+    _assert_single_admin(db_session)
+
+    resp = client.put(
+        f"/api/admin/users/{seed_admin.id}/roles",
+        headers={"Authorization": f"Bearer {admin_token}"},
+        json={"role_ids": []},
+    )
+    assert resp.status_code == 400, resp.text
+    assert "最后一名管理员" in resp.json()["detail"]
+    # 回滚生效:admin 角色仍在
+    db_session.expire_all()
+    assert seed_admin.has_role("admin")
+
+
+def test_admin_role_removal_allowed_with_second_admin(client, db_session, make_user, seed_admin):
+    """存在第二个管理员时移除自己的 admin 角色 → 200。"""
+    from app.models import Role
+
+    second = make_user(username_prefix="adm2")
+    admin_role = db_session.query(Role).filter(Role.name == "admin").first()
+    second.roles.append(admin_role)
+    db_session.commit()
+    headers = _login(client, second.username)
+
+    resp = client.put(
+        f"/api/admin/users/{second.id}/roles",
+        headers=headers,
+        json={"role_ids": []},
+    )
+    assert resp.status_code == 200, resp.text
+    db_session.expire_all()
+    assert not second.has_role("admin")
+
+
+def test_last_admin_cannot_be_suspended(client, db_session, seed_admin, admin_token):
+    """把唯一活跃管理员 status 改为 suspended → 400。"""
+    _assert_single_admin(db_session)
+
+    resp = client.put(
+        f"/api/admin/users/{seed_admin.id}",
+        headers={"Authorization": f"Bearer {admin_token}"},
+        json={"status": "suspended"},
+    )
+    assert resp.status_code == 400, resp.text
+    assert "最后一名" in resp.json()["detail"]
+    db_session.expire_all()
+    assert seed_admin.status == "active"
+
+
+def test_last_admin_cannot_be_deleted(client, db_session, make_user, seed_admin):
+    """删除唯一活跃管理员 → 400(操作者为持有 admin.roles 的同级自定义角色)。"""
+    _assert_single_admin(db_session)
+
+    operator = _give_role(db_session, make_user(username_prefix="op"),
+                          _make_role(db_session, level=100, perm_codes=["admin.users", "admin.roles"]))
+    headers = _login(client, operator.username)
+
+    resp = client.delete(f"/api/admin/users/{seed_admin.id}", headers=headers)
+    assert resp.status_code == 400, resp.text
+    assert "最后一名" in resp.json()["detail"]
+    db_session.expire_all()
+    assert db_session.query(type(seed_admin)).filter(
+        type(seed_admin).id == seed_admin.id).first() is not None
+

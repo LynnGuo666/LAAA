@@ -11,10 +11,12 @@ from app.models import (
     Group,
     LoginLog,
     Passkey,
+    Permission,
     Role,
     Session,
     User,
     UserAuthorization,
+    role_permissions,
     user_groups,
     user_roles,
 )
@@ -73,6 +75,35 @@ def _ensure_role_level_allowed(operator: User, target: User) -> None:
             status_code=status.HTTP_403_FORBIDDEN,
             detail="无权操作同级或更高等级的管理员",
         )
+
+
+def _has_active_admins(db: DBSession) -> bool:
+    """全站是否仍有活跃用户持有 admin 角色或 admin.* 权限。
+
+    用于「最后一名管理员」保护:任何会使该计数归零的变更(移除角色/
+    停用/删除)都必须拒绝,否则系统将无法再被管理(锁死)。
+    调用方需保证变更已在当前事务中可见(autoflush 会在查询时落盘)。
+    """
+    admin_role_ids = db.query(Role.id).filter(Role.name == "admin")
+    wildcard_role_ids = (
+        db.query(Role.id)
+        .join(role_permissions, role_permissions.c.role_id == Role.id)
+        .join(Permission, Permission.id == role_permissions.c.permission_id)
+        .filter(Permission.code == "admin.*")
+    )
+    count = (
+        db.query(User.id)
+        .filter(User.status == "active")
+        .join(user_roles, user_roles.c.user_id == User.id)
+        .filter(
+            or_(
+                user_roles.c.role_id.in_(admin_role_ids),
+                user_roles.c.role_id.in_(wildcard_role_ids),
+            )
+        )
+        .count()
+    )
+    return count > 0
 
 
 @router.get("/users", response_model=PaginatedUsersResponse)
@@ -222,6 +253,7 @@ async def update_user(
         _ensure_role_level_allowed(current_user, user)
 
     # 更新字段
+    was_active = user.status == "active"
     if user_data.email is not None:
         # 检查邮箱是否已被其他用户使用
         existing = db.query(User).filter(
@@ -253,6 +285,21 @@ async def update_user(
         from app.models import Token as TokenModel
         db.query(TokenModel).filter(TokenModel.user_id == user.id, TokenModel.type == 'refresh').delete()
         db.query(SessionModel).filter(SessionModel.user_id == user.id).delete()
+
+    # 最后一名管理员保护:停用唯一活跃管理员会导致系统无法管理
+    # (SessionLocal autoflush=False,需显式 flush 让状态变更对查询可见)
+    if (
+        user_data.status is not None
+        and user_data.status != "active"
+        and was_active
+    ):
+        db.flush()
+        if not _has_active_admins(db):
+            db.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="不能停用最后一名活跃管理员，否则系统将无法管理"
+            )
 
     db.commit()
     db.refresh(user)
@@ -297,6 +344,16 @@ async def delete_user(
     _ensure_role_level_allowed(current_user, user)
 
     db.delete(user)
+    db.flush()  # autoflush=False:让删除对下面的计数查询可见
+
+    # 最后一名管理员保护:删除唯一活跃管理员会导致系统无法管理
+    if not _has_active_admins(db):
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="不能删除最后一名活跃管理员，否则系统将无法管理"
+        )
+
     db.commit()
 
     return None
@@ -393,6 +450,15 @@ async def update_user_roles(
     # 添加新的角色关联
     for role in new_roles:
         db.execute(user_roles.insert().values(user_id=user_id, role_id=role.id))
+
+    # 最后一名管理员保护:变更后全站不得没有任何活跃管理员,
+    # 否则系统将无法再被管理(锁死)
+    if not _has_active_admins(db):
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="不能移除最后一名管理员，否则系统将无法管理"
+        )
 
     db.commit()
     db.refresh(user)
