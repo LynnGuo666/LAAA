@@ -12,7 +12,7 @@
  * 纯客户端组件，用 GSAP 做平滑过渡 + requestAnimationFrame 驱动眼球追踪。
  */
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import gsap from 'gsap';
 
 interface AnimatedCharactersProps {
@@ -97,6 +97,16 @@ export default function AnimatedCharacters({
   const yellowFaceRef = useRef<HTMLDivElement>(null);
   const yellowMouthRef = useRef<HTMLDivElement>(null);
 
+  // 尊重系统"减弱动态效果"设置：开启时停掉所有装饰动画，且支持运行时切换
+  const [reducedMotion, setReducedMotion] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const update = () => setReducedMotion(mq.matches);
+    update();
+    mq.addEventListener('change', update);
+    return () => mq.removeEventListener('change', update);
+  }, []);
+
   // quickTo 实例跨 effect 共享（rAF 循环与状态切换都需要）
   const qtRef = useRef<Record<string, gsap.QuickToFunc> | null>(null);
   // 最新的 props 塞进 ref，rAF 循环里读取，避免每次 props 变都重启循环
@@ -127,6 +137,7 @@ export default function AnimatedCharacters({
     const orangeFace = orangeFaceRef.current;
     const yellowFace = yellowFaceRef.current;
     const yellowMouth = yellowMouthRef.current;
+    if (reducedMotion) return;
     if (
       !container || !purple || !black || !orange || !yellow ||
       !purpleFace || !blackFace || !orangeFace || !yellowFace || !yellowMouth
@@ -278,10 +289,11 @@ export default function AnimatedCharacters({
       cancelAnimationFrame(rafId);
       qtRef.current = null;
     };
-  }, []);
+  }, [reducedMotion]);
 
   // 随机眨眼（紫、黑小人）
   useEffect(() => {
+    if (reducedMotion) return;
     const targets: { eyeballs: HTMLElement[]; size: number }[] = [];
     if (purpleRef.current) {
       targets.push({
@@ -314,7 +326,7 @@ export default function AnimatedCharacters({
     });
 
     return () => timers.forEach(clearTimeout);
-  }, []);
+  }, [reducedMotion]);
 
   // 状态切换：对视 / 捂眼 / 避嫌
   useEffect(() => {
@@ -364,7 +376,7 @@ export default function AnimatedCharacters({
 
   // 显示密码时，紫色小人周期性偷瞄一眼
   useEffect(() => {
-    if (!isShowing) return;
+    if (reducedMotion || !isShowing) return;
     const purplePupils = purpleRef.current?.querySelectorAll<HTMLElement>('.eyeball-pupil') ?? [];
     if (purplePupils.length === 0) return;
     const timers: ReturnType<typeof setTimeout>[] = [];
@@ -385,10 +397,10 @@ export default function AnimatedCharacters({
     };
     schedulePeek();
     return () => timers.forEach(clearTimeout);
-  }, [isShowing]);
+  }, [reducedMotion, isShowing]);
 
   return (
-    <div ref={containerRef} style={{ position: 'relative', width: 550, height: 400 }}>
+    <div ref={containerRef} aria-hidden="true" style={{ position: 'relative', width: 550, height: 400 }}>
       {/* 紫色小人（最高，主偷看者） */}
       <div
         ref={purpleRef}
