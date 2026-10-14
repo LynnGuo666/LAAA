@@ -129,3 +129,39 @@ def test_api_prefix_returns_404(client):
     assert resp.status_code == 404, resp.text
     assert resp.json() == {"detail": "Not found"}
     assert "text/html" not in resp.headers.get("content-type", "")
+
+
+# ---------------------------------------------------------------------------
+# X-Request-ID 白名单(批次 8 修复 10)
+# ---------------------------------------------------------------------------
+
+def test_request_id_valid_inbound_is_reused(client):
+    """合法入站 X-Request-ID(字母/数字/连字符,≤64)原样回显,便于链路追踪。"""
+    resp = client.get("/api/health", headers={"X-Request-ID": "trace-abc-123"})
+    assert resp.headers.get("X-Request-ID") == "trace-abc-123"
+
+
+def test_request_id_invalid_inbound_is_regenerated(client):
+    """非法入站 ID(注入字符/超长/空)不透传,重新生成合法 UUID。
+
+    该头会回显到响应并进入日志,放行任意内容等于给日志注入开后门。
+    """
+    for evil in (
+        "bad id with spaces",
+        "crlf-inject\r\nX-Fake: 1",
+        "x" * 65,           # 超长
+        "../../etc/passwd",
+        "id\x00null",
+    ):
+        resp = client.get("/api/health", headers={"X-Request-ID": evil})
+        got = resp.headers.get("X-Request-ID", "")
+        # 重新生成的是 UUID 形态,且绝不等同于恶意入站值
+        assert got != evil
+        assert len(got) == 36 and got.count("-") == 4, (evil, got)
+
+
+def test_request_id_generated_when_absent(client):
+    """无入站头 → 生成 UUID 回显。"""
+    resp = client.get("/api/health")
+    got = resp.headers.get("X-Request-ID", "")
+    assert len(got) == 36 and got.count("-") == 4, got

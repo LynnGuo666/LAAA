@@ -9,12 +9,18 @@
 便于采集到 ELK/Loki。env 开关,默认不引入性能开销。
 """
 import logging
+import re
 import sys
 import uuid
 
 from app.config import get_settings
 
 settings = get_settings()
+
+# 入站 X-Request-ID 白名单:字母/数字/连字符,1-64 位。
+# 不合法的入站 ID 一律重新生成——该头会回显到响应并进入日志,
+# 放行任意内容等于给日志注入(CRLF/控制符/超长串)开后门。
+_REQUEST_ID_PATTERN = re.compile(r"^[A-Za-z0-9-]{1,64}$")
 
 
 def configure_logging() -> None:
@@ -79,9 +85,14 @@ class RequestIdMiddleware:
             await self.app(scope, receive, send)
             return
 
-        # 从入站头取 request_id,否则生成
+        # 从入站头取 request_id,否则生成;入站 ID 必须匹配白名单
+        # (^[A-Za-z0-9-]{1,64}$),不合法(含注入字符/超长)则重新生成
         headers = dict(scope.get("headers") or [])
-        request_id = headers.get(self.HEADER.lower().encode(), b"").decode() or str(uuid.uuid4())
+        inbound_id = headers.get(self.HEADER.lower().encode(), b"").decode(errors="replace")
+        if _REQUEST_ID_PATTERN.fullmatch(inbound_id):
+            request_id = inbound_id
+        else:
+            request_id = str(uuid.uuid4())
 
         # 注入到 scope state 供下游访问
         if "state" not in scope:
