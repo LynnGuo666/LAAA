@@ -216,7 +216,7 @@ Schema is managed by Alembic — see the migration files under `backend/alembic/
 **Default seed data** (`seed.py`):
 - Roles: `admin`, `user`, `guest` (with permissions `admin.*`, `admin.users`, `admin.roles`, `admin.groups`, `admin.clients`)
 - Admin user: `admin` / `admin123`
-- Internal OAuth client: `client_id=internal`, `client_secret=internal_secret_change_this`
+- Internal OAuth client: `client_id=internal`，secret 随机生成（seed 输出一次）或经 `INTERNAL_CLIENT_SECRET` 环境变量指定；存量库若仍是历史默认值，非 DEBUG 启动会自动轮换
 - Default groups: "所有用户" (default), "开发者", "测试用户"
 
 `init_db()` in `database.py` also bootstraps admin permissions on startup if missing.
