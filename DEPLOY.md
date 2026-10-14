@@ -84,6 +84,7 @@ curl http://localhost:8000/api/health   # 应返回 {"status":"ok"}
 | `WEBAUTHN_RP_ID` | Passkey 依赖方 ID = 域名 | `laaa.example.com` |
 | `WEBAUTHN_RP_ORIGIN` | Passkey 来源 | `https://laaa.example.com` |
 | `ALLOW_OPEN_REGISTRATION` | 是否开放注册 | `false` |
+| `BOOTSTRAP_ALLOW_FIRST_USER` | ⚠️ **首个自注册用户免邀请码直接进入系统**（用于初始化部署，随后应手动提升为管理员）。**初始化完成后务必改为 `false`**，否则一旦用户表被清空，任何人都能通过注册页重新获得初始访问权 | 初始化期 `true` → 之后 `false` |
 | `SMTP_*` | 邮件（验证码/魔法链接），见 `.env.example` 注释 | 按服务商填 |
 
 > `docker-compose.prod.yml` 已把 `HOST`/`PORT`/`STATIC_DIR`/`DATABASE_URL`/`DEBUG` 设为容器内默认，`./env` 不填也行；但 `SECRET_KEY`、`JWT_PRIVATE_KEY_PATH`/`JWT_PUBLIC_KEY_PATH`、`OIDC_ISSUER` 和域名相关项**必须**显式设置。
