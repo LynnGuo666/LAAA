@@ -242,7 +242,8 @@ class Token(Base):
     code_hash = Column(String(255), nullable=True, index=True)
     # 轮换时旧 token 标记 revoked_at(不再删除,保留供重放检测判定)
     revoked_at = Column(DateTime, nullable=True)
-    expires_at = Column(DateTime, nullable=False)
+    # maintenance 每小时按过期时间扫描清理,加索引
+    expires_at = Column(DateTime, nullable=False, index=True)
     created_at = Column(DateTime, default=utcnow)
 
     # Relationships
@@ -259,7 +260,8 @@ class Session(Base):
     device_name = Column(String(100), nullable=True)
     device_type = Column(String(50), nullable=True)  # web, mobile, desktop
     device_token = Column(String(64), nullable=True, index=True)  # Device token from localStorage for strict device identification
-    refresh_token_hash = Column(String(255), nullable=True)
+    # refresh token 高频反查(refresh 轮换/登出/会话识别),加索引
+    refresh_token_hash = Column(String(255), nullable=True, index=True)
     ip_address = Column(String(50), nullable=True)
     user_agent = Column(Text, nullable=True)
     last_active = Column(DateTime, default=utcnow)
@@ -437,7 +439,8 @@ class WebAuthnChallenge(Base):
     challenge = Column(String(128), unique=True, nullable=False, index=True)  # Base64URL encoded
     type = Column(String(20), nullable=False)  # 'registration' or 'authentication'
     user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=True)  # NULL for authentication
-    expires_at = Column(DateTime, nullable=False)
+    # maintenance 每小时按过期时间扫描清理,加索引
+    expires_at = Column(DateTime, nullable=False, index=True)
     created_at = Column(DateTime, default=utcnow)
 
 
@@ -546,7 +549,8 @@ class VerificationCode(Base):
 
     # Status
     is_used = Column(Boolean, default=False)
-    expires_at = Column(DateTime, nullable=False)
+    # maintenance 每小时按过期时间扫描清理,加索引
+    expires_at = Column(DateTime, nullable=False, index=True)
     created_at = Column(DateTime, default=utcnow)
     used_at = Column(DateTime, nullable=True)
 
