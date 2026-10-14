@@ -38,25 +38,45 @@ elif [ -n "$DB_FILE" ]; then
   echo "(entrypoint) 数据库文件已存在: $DB_FILE"
 fi
 
-# --- 1. 应用 Alembic 迁移 ---
-# 初始迁移 upgrade() 为空(pass),表由 seed.py / 应用 startup 的 create_all 建立;
-# 这里负责后续增量迁移(加列等)并给已有库标记基线。
-# 迁移失败一律退出:带旧 schema 起服务,代码与表结构错配,比停机更危险。
-echo "(entrypoint) applying database migrations (alembic upgrade head)..."
-if ! ALEMBIC_LOG="$(alembic upgrade head 2>&1)"; then
-  echo "(entrypoint) ERROR: alembic upgrade head 失败,拒绝启动。" >&2
-  if [ "$DB_EMPTY" -eq 1 ]; then
-    echo "(entrypoint)   全新空库上迁移失败属于异常,请检查下方 alembic 输出。" >&2
-  else
+# --- 1. 数据库 schema ---
+# 历史背景:初始迁移 upgrade() 为空(pass),整条迁移链是"空壳基线 + 增量"——
+# 在全新空库上直接 alembic upgrade head 会在第 2 个迁移(ALTER clients)崩掉
+# "no such table"。因此分两条路径:
+#   - 空库:用应用自身的 create_all 建全量表结构,再 alembic stamp head
+#     标记基线(后续增量迁移从 head 继续)
+#   - 已有库:正常 alembic upgrade head 应用增量
+# 两条路径失败都拒绝启动:带旧/错 schema 起服务比停机更危险。
+if [ "$DB_EMPTY" -eq 1 ]; then
+  echo "(entrypoint) 全新数据库 —— create_all 建表 + alembic stamp head..."
+  if ! BOOTSTRAP_LOG="$(python - <<'PY'
+from app.database import engine
+from app.models import Base
+Base.metadata.create_all(bind=engine)
+PY
+  )"; then
+    echo "(entrypoint) ERROR: create_all 失败,拒绝启动。" >&2
+    printf '%s\n' "$BOOTSTRAP_LOG" >&2
+    exit 1
+  fi
+  if ! ALEMBIC_LOG="$(alembic stamp head 2>&1)"; then
+    echo "(entrypoint) ERROR: alembic stamp head 失败,拒绝启动。" >&2
+    printf '%s\n' "$ALEMBIC_LOG" >&2
+    exit 1
+  fi
+  echo "(entrypoint) 空库初始化完成(表结构 = 当前模型,迁移基线 = head)"
+else
+  echo "(entrypoint) applying database migrations (alembic upgrade head)..."
+  if ! ALEMBIC_LOG="$(alembic upgrade head 2>&1)"; then
+    echo "(entrypoint) ERROR: alembic upgrade head 失败,拒绝启动。" >&2
     echo "(entrypoint)   已有数据的库迁移失败,继续启动会有 schema 错配风险。" >&2
     echo "(entrypoint)   建议先备份数据库文件,再根据下方输出排查。" >&2
+    echo "(entrypoint) --- alembic output ---" >&2
+    printf '%s\n' "$ALEMBIC_LOG" >&2
+    exit 1
   fi
-  echo "(entrypoint) --- alembic output ---" >&2
-  printf '%s\n' "$ALEMBIC_LOG" >&2
-  exit 1
-fi
-if [ -n "$ALEMBIC_LOG" ]; then
-  printf '%s\n' "$ALEMBIC_LOG" | sed 's/^/(alembic) /'
+  if [ -n "$ALEMBIC_LOG" ]; then
+    printf '%s\n' "$ALEMBIC_LOG" | sed 's/^/(alembic) /'
+  fi
 fi
 
 # --- 2. 空库 seed(users 表不存在或无记录 → 跑 seed.py) ---
