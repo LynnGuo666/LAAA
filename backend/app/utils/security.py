@@ -54,14 +54,14 @@ class KeyStore:
     ) -> None:
         """加载私钥(签发)+ 公钥(验证)。无私钥路径时只加载公钥(仅验证模式)。"""
         if public_key_path:
-            pub = serialization.load_pem_public_key(open(public_key_path, "rb").read())
+            with open(public_key_path, "rb") as f:
+                pub = serialization.load_pem_public_key(f.read())
             kid = explicit_kid or self._kid(pub)
             self.keys[kid] = (None, pub)
 
         if private_key_path:
-            priv = serialization.load_pem_private_key(
-                open(private_key_path, "rb").read(), password=None
-            )
+            with open(private_key_path, "rb") as f:
+                priv = serialization.load_pem_private_key(f.read(), password=None)
             pub = priv.public_key()
             kid = explicit_kid or self._kid(pub)
             self.keys[kid] = (priv, pub)

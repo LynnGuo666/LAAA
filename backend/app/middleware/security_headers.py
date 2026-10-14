@@ -13,29 +13,30 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.config import get_settings
 
+# CSP 字符串模块级预计算:配置在进程生命周期内不变,无需每个请求重建
+_settings = get_settings()
+_API_ORIGIN = _settings.frontend_url or ""
+CSP = (
+    "default-src 'self'; "
+    "script-src 'self' 'unsafe-inline'; "
+    "style-src 'self' 'unsafe-inline'; "
+    "img-src 'self' data: blob:; "
+    "font-src 'self' data:; "
+    f"connect-src 'self'{f' {_API_ORIGIN}' if _API_ORIGIN else ''}; "
+    "frame-ancestors 'none'; "
+    "base-uri 'self'; "
+    "object-src 'none'; "
+    "form-action 'self'; "
+    "upgrade-insecure-requests"
+)
+
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         response = await call_next(request)
-        settings = get_settings()
-
-        api_origin = settings.frontend_url or ""
-        csp = (
-            "default-src 'self'; "
-            "script-src 'self' 'unsafe-inline'; "
-            "style-src 'self' 'unsafe-inline'; "
-            "img-src 'self' data: blob:; "
-            "font-src 'self' data:; "
-            f"connect-src 'self'{f' {api_origin}' if api_origin else ''}; "
-            "frame-ancestors 'none'; "
-            "base-uri 'self'; "
-            "object-src 'none'; "
-            "form-action 'self'; "
-            "upgrade-insecure-requests"
-        )
 
         response.headers.setdefault("X-Content-Type-Options", "nosniff")
         response.headers.setdefault("X-Frame-Options", "DENY")
         response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
-        response.headers.setdefault("Content-Security-Policy", csp)
+        response.headers.setdefault("Content-Security-Policy", CSP)
         return response

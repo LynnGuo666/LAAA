@@ -5,7 +5,6 @@ This service provides asynchronous email sending capabilities using aiosmtplib.
 Supports both plain text and HTML emails with Jinja2 templating.
 """
 
-import asyncio
 import logging
 import ssl
 from datetime import datetime
@@ -630,33 +629,3 @@ class EmailService:
         )
 
         return await cls.send_email(to_email, subject, html_content)
-
-
-# Background task helper for non-async contexts
-def send_email_background(
-    to_email: str,
-    subject: str,
-    html_content: str,
-    text_content: Optional[str] = None
-):
-    """
-    Send email in background (for use in sync contexts).
-    Creates a new event loop if needed.
-    """
-    try:
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
-            # If we're in an async context, create a task
-            asyncio.create_task(
-                EmailService.send_email(to_email, subject, html_content, text_content)
-            )
-        else:
-            # If we're in a sync context, run the coroutine
-            loop.run_until_complete(
-                EmailService.send_email(to_email, subject, html_content, text_content)
-            )
-    except RuntimeError:
-        # No event loop, create one
-        asyncio.run(
-            EmailService.send_email(to_email, subject, html_content, text_content)
-        )
