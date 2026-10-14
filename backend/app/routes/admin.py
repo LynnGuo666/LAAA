@@ -45,6 +45,36 @@ from app.utils.time import utcnow
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
 
+def _max_role_level(user: User) -> int:
+    """取用户所有角色的最高 level(无角色视为 0)。"""
+    return max((role.level or 0 for role in user.roles), default=0)
+
+
+def _ensure_role_level_allowed(operator: User, target: User) -> None:
+    """敏感管理操作(改密/改状态/改邮箱/删除/改角色)的角色等级保护。
+
+    威胁模型:仅持有 admin.users 的 user_manager 类角色被攻破后,若无等级
+    保护,可直接重置 level=100 超管的密码完成完全提权。规则:
+    - 操作者不持有 admin.roles(含 admin.* 通配):不得操作同级或更高等级
+      的用户(同级互相改密同样是接管链);
+    - 持有 admin.roles:视为已授权管理角色体系,可操作同级,但仍不得
+      操作更高等级。
+    """
+    target_level = _max_role_level(target)
+    operator_level = _max_role_level(operator)
+    if operator.has_permission("admin.roles"):
+        if target_level > operator_level:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="无权操作更高等级的管理员",
+            )
+    elif target_level >= operator_level:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="无权操作同级或更高等级的管理员",
+        )
+
+
 @router.get("/users", response_model=PaginatedUsersResponse)
 async def list_users(
     skip: int = Query(0, ge=0),
@@ -172,7 +202,7 @@ async def update_user(
     user_id: int,
     user_data: AdminUserUpdate,
     db: DBSession = Depends(get_db),
-    _: User = Depends(require_permission('admin.users'))
+    current_user: User = Depends(require_permission('admin.users'))
 ):
     """更新用户信息（管理员）"""
     user = db.query(User).filter(User.id == user_id).first()
@@ -181,6 +211,15 @@ async def update_user(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="用户不存在"
         )
+
+    # 敏感字段(密码/状态/邮箱)变更前做角色等级保护,
+    # 防止低权管理员(user_manager 类角色)操纵同级或更高等级的管理员
+    if (
+        user_data.password is not None
+        or user_data.status is not None
+        or user_data.email is not None
+    ):
+        _ensure_role_level_allowed(current_user, user)
 
     # 更新字段
     if user_data.email is not None:
@@ -254,6 +293,9 @@ async def delete_user(
             detail="用户不存在"
         )
 
+    # 删除用户前做角色等级保护(删除是最高强度的敏感操作)
+    _ensure_role_level_allowed(current_user, user)
+
     db.delete(user)
     db.commit()
 
@@ -312,7 +354,7 @@ async def update_user_roles(
     user_id: int,
     roles_data: AdminUserRolesUpdate,
     db: DBSession = Depends(get_db),
-    _: User = Depends(require_permission('admin.roles'))
+    current_user: User = Depends(require_permission('admin.roles'))
 ):
     """更新用户的角色（管理员）"""
     user = db.query(User).filter(User.id == user_id).first()
@@ -322,10 +364,11 @@ async def update_user_roles(
             detail="用户不存在"
         )
 
-    # 删除用户现有的所有角色关联
-    db.execute(user_roles.delete().where(user_roles.c.user_id == user_id))
+    # 角色等级保护:不得对更高等级的用户改角色(可操作同级)
+    _ensure_role_level_allowed(current_user, user)
 
-    # 添加新的角色关联
+    # 先校验所有角色存在,再校验等级(避免部分写入后才发现非法)
+    new_roles = []
     for role_id in roles_data.role_ids:
         role = db.query(Role).filter(Role.id == role_id).first()
         if not role:
@@ -333,8 +376,23 @@ async def update_user_roles(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"角色 ID {role_id} 不存在"
             )
+        new_roles.append(role)
 
-        db.execute(user_roles.insert().values(user_id=user_id, role_id=role_id))
+    # 不得授予超过操作者等级的角色(防 admin.roles 持有者暗中制造超管)
+    operator_level = _max_role_level(current_user)
+    for role in new_roles:
+        if (role.level or 0) > operator_level:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"无权授予高于自身等级的角色（{role.name}）"
+            )
+
+    # 删除用户现有的所有角色关联
+    db.execute(user_roles.delete().where(user_roles.c.user_id == user_id))
+
+    # 添加新的角色关联
+    for role in new_roles:
+        db.execute(user_roles.insert().values(user_id=user_id, role_id=role.id))
 
     db.commit()
     db.refresh(user)
