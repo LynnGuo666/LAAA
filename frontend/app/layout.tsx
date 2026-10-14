@@ -1,9 +1,16 @@
 import './globals.css'
 import type { Metadata } from 'next'
-import { Agentation } from 'agentation'
+import dynamic from 'next/dynamic'
 import { ConfirmDialogProvider } from '@/components/ui/confirm-dialog-provider'
 import { AuthBootstrap } from '@/components/AuthBootstrap'
 import ToastProvider from './toast-provider'
+
+// agentation 仅在开发模式按需动态加载:NODE_ENV 会在构建期被内联,
+// 生产构建下整个分支成为死代码被 tree-shake,不进任何 chunk。
+const Agentation =
+  process.env.NODE_ENV === 'development'
+    ? dynamic(() => import('agentation').then((m) => m.Agentation))
+    : null
 
 export const metadata: Metadata = {
   title: 'OAuth Server',
@@ -31,7 +38,7 @@ export default function RootLayout({
           <ConfirmDialogProvider>
             <AuthBootstrap>{children}</AuthBootstrap>
           </ConfirmDialogProvider>
-          {process.env.NODE_ENV === 'development' && <Agentation />}
+          {Agentation ? <Agentation /> : null}
         </ToastProvider>
       </body>
     </html>
