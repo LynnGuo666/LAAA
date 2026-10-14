@@ -94,6 +94,11 @@ class User(Base):
     # (access token 签发时写入 tv,decode 时校验是否匹配)
     token_version = Column(Integer, default=0)
 
+    # 首登/重置后强制改密:seed 默认管理员、bootstrap 首个自注册超管、
+    # 管理员重置他人密码时置 True;用户自己改密成功后置 False。
+    # 前端据此强引导跳转改密(非死锁拦截)。
+    must_change_password = Column(Boolean, default=False, nullable=False, server_default='0')
+
     # Relationships
     roles = relationship('Role', secondary=user_roles, back_populates='users')
     groups = relationship('Group', secondary=user_groups, back_populates='users')

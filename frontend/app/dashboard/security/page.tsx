@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { AlertDialog, Alert, Button, Card, Chip, Description, Input, Label, Table, Tabs, TextField, toast } from '@heroui/react';
-import { userApi, totpApi, passkeyApi } from '@/lib/api';
+import { authApi, userApi, totpApi, passkeyApi } from '@/lib/api';
 import { formatDateTime } from '@/lib/date';
 import { useAuthStore } from '@/lib/store';
 import { extractErrorMessage } from '@/lib/errors';
@@ -84,7 +84,7 @@ function getApiErrorMessage(err: unknown, fallback: string): string {
 
 export default function SecurityPage() {
   const confirmDialog = useConfirmDialog();
-  const { user } = useAuthStore();
+  const { user, setUser } = useAuthStore();
   const [totpStatus, setTotpStatus] = useState<TOTPStatus | null>(null);
   const [loginHistory, setLoginHistory] = useState<LoginLog[]>([]);
   const [sessions, setSessions] = useState<Session[]>([]);
@@ -392,6 +392,14 @@ export default function SecurityPage() {
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
+      // 改密成功后刷新用户信息:清除 must_change_password 标志
+      // (首登/管理员重置后的强引导提示条随之消失)
+      try {
+        const meRes = await authApi.getMe();
+        setUser(meRes.data);
+      } catch {
+        // 刷新失败不影响主流程;下次 getMe 会拿到最新标志
+      }
     } catch (err: any) {
       setPasswordError(extractErrorMessage(err, '修改密码失败'));
     } finally {
@@ -590,6 +598,14 @@ export default function SecurityPage() {
 
           <Tabs.Panel id="password" className="pt-4">
         <h2 className="text-lg sm:text-xl font-semibold text-foreground mb-4">密码安全</h2>
+        {user?.must_change_password && (
+          <Alert status="warning" className="mb-4 max-w-md">
+            <Alert.Indicator />
+            <Alert.Content><Alert.Description>
+              当前密码为初始密码或由管理员重置，请立即修改密码。修改成功前，系统会在各页面持续提醒。
+            </Alert.Description></Alert.Content>
+          </Alert>
+        )}
         <form onSubmit={handleChangePassword} className="space-y-4 max-w-md">
           {passwordError && (
             <Alert status="danger">

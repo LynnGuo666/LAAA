@@ -102,6 +102,7 @@ async def get_profile(current_user: User = Depends(get_current_user), db: Sessio
         id=current_user.id,
         username=current_user.username,
         email=current_user.email,
+        email_verified=current_user.email_verified,
         avatar=current_user.avatar,
         status=current_user.status,
         created_at=current_user.created_at,
@@ -109,6 +110,7 @@ async def get_profile(current_user: User = Depends(get_current_user), db: Sessio
         roles=roles,
         permissions=permissions,
         is_admin=is_admin,
+        must_change_password=bool(current_user.must_change_password),
     )
 
 
@@ -136,6 +138,7 @@ async def update_profile(
         id=current_user.id,
         username=current_user.username,
         email=current_user.email,
+        email_verified=current_user.email_verified,
         avatar=current_user.avatar,
         status=current_user.status,
         created_at=current_user.created_at,
@@ -143,6 +146,7 @@ async def update_profile(
         roles=roles,
         permissions=permissions,
         is_admin=is_admin,
+        must_change_password=bool(current_user.must_change_password),
     )
 
 
@@ -457,6 +461,8 @@ async def change_password(
     # Update password
     current_user.password_hash = await get_password_hash_async(password_data.new_password)
     current_user.updated_at = utcnow()
+    # 用户本人完成改密:清除首登/重置后的强制改密标志
+    current_user.must_change_password = False
     # 吊销所有现有 token:token_version+1 使旧 access token 立即失效,
     # 删除 refresh token 记录和 session(被窃的 refresh 也无法换新)
     current_user.token_version = (current_user.token_version or 0) + 1

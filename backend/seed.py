@@ -76,7 +76,9 @@ def create_default_admin(db: Session):
             username="admin",
             email="admin@example.com",
             password_hash=get_password_hash("admin123"),
-            status="active"
+            status="active",
+            # 默认口令是公开知识:首登强制改密(前端强引导,改密成功后清除)
+            must_change_password=True,
         )
         db.add(admin)
         db.commit()

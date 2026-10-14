@@ -14,6 +14,8 @@ export interface User {
   permissions?: string[];
   is_admin?: boolean;
   is_restricted?: boolean;
+  /** 首登/被重置密码后强制改密（后端 User.must_change_password） */
+  must_change_password?: boolean;
 }
 
 interface AuthState {

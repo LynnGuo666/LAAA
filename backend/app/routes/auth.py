@@ -323,7 +323,8 @@ async def login(
         expires_in=settings.access_token_expire_minutes * 60,
         kicked_session=result.get("kicked_session"),
         is_suspicious=result.get("is_suspicious", False),
-        anomalies=result.get("anomalies", [])
+        anomalies=result.get("anomalies", []),
+        must_change_password=bool(user.must_change_password),
     )
 
 
@@ -406,6 +407,7 @@ async def get_current_user_info(
         permissions=permissions,
         is_admin=is_admin,
         is_restricted=current_user.is_restricted,
+        must_change_password=bool(current_user.must_change_password),
     )
 
 

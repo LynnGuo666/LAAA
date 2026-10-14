@@ -186,6 +186,13 @@ function LoginContent() {
       // laaa_refresh / authorize_token，前端不再写 localStorage / cookie）
       setAuth(user, access_token, refresh_token);
 
+      // 首登/被重置密码后的强制改密:强引导直达改密页(非死锁拦截,
+      // 用户仍可离开;dashboard 顶部提示条会持续提醒)
+      if (user.must_change_password) {
+        router.push('/dashboard/security#password');
+        return;
+      }
+
       // 如果有安全提示，延迟跳转让用户看到提示
       const redirectDelay = (kicked_session || is_suspicious) ? 2000 : 0;
 
@@ -263,6 +270,12 @@ function LoginContent() {
 
       // Set auth state（token 只存内存，持久化由后端 HttpOnly cookie 负责）
       setAuth(user, access_token, refresh_token);
+
+      // 首登/被重置密码后的强制改密:与密码登录同策略,强引导直达改密页
+      if (user.must_change_password) {
+        router.push('/dashboard/security#password');
+        return;
+      }
 
       // Redirect
       router.push(isSafeRedirect(redirectUrl) ? redirectUrl : '/dashboard');

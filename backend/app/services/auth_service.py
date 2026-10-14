@@ -60,11 +60,20 @@ class AuthService:
         if existing:
             raise ValueError("Username or email already exists")
 
+        # bootstrap 首用户(免邀请注册,通常是部署者本人/将成为超管):
+        # 标记首登强制改密,与 seed 默认管理员同策略
+        is_bootstrap_first_user = (
+            existing_user_count == 0
+            and not settings.allow_open_registration
+            and settings.bootstrap_allow_first_user
+        )
+
         # Create user
         user = User(
             username=username,
             email=email,
-            password_hash=await get_password_hash_async(password)
+            password_hash=await get_password_hash_async(password),
+            must_change_password=is_bootstrap_first_user,
         )
         db.add(user)
         db.flush()

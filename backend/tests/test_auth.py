@@ -228,3 +228,71 @@ def test_refresh_invalid_token_keeps_generic_detail(client):
     resp = client.post("/api/auth/refresh", json={"refresh_token": "garbage.token.value"})
     assert resp.status_code == 401
     assert resp.json()["detail"] == "Invalid or expired refresh token"
+
+
+# ---------------------------------------------------------------------------
+# must_change_password:首登/重置后强制改密(批次 8 修复 6)
+# ---------------------------------------------------------------------------
+
+def test_login_response_carries_must_change_password(client, db_session, make_user):
+    """置标志的用户登录 → 登录响应与 /api/auth/me 均带 must_change_password=true。"""
+    user = make_user()
+    user.must_change_password = True
+    db_session.commit()
+
+    login = client.post("/api/auth/login", json={
+        "username": user.username, "password": "Passw0rd!",
+    })
+    assert login.status_code == 200, login.text
+    assert login.json()["must_change_password"] is True
+
+    token = login.json()["access_token"]
+    me = client.get("/api/auth/me", headers={"Authorization": f"Bearer {token}"})
+    assert me.status_code == 200
+    assert me.json()["must_change_password"] is True
+
+
+def test_change_password_clears_must_change_password(client, db_session, make_user):
+    """用户本人改密成功 → 标志清除,再次登录不再提示。"""
+    user = make_user()
+    user.must_change_password = True
+    db_session.commit()
+
+    login = client.post("/api/auth/login", json={
+        "username": user.username, "password": "Passw0rd!",
+    })
+    token = login.json()["access_token"]
+
+    resp = client.put(
+        "/api/user/password",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"current_password": "Passw0rd!", "new_password": "FreshNewPass456!"},
+    )
+    assert resp.status_code == 200, resp.text
+
+    login2 = client.post("/api/auth/login", json={
+        "username": user.username, "password": "FreshNewPass456!",
+    })
+    assert login2.status_code == 200
+    assert login2.json()["must_change_password"] is False
+
+
+def test_admin_reset_password_sets_must_change_password(
+    client, admin_token, db_session, make_user
+):
+    """管理员重置他人密码 → 目标用户被置强制改密标志。"""
+    user = make_user()
+    assert user.must_change_password is False
+
+    resp = client.put(
+        f"/api/admin/users/{user.id}",
+        headers={"Authorization": f"Bearer {admin_token}"},
+        json={"password": "AdminReset789!x"},
+    )
+    assert resp.status_code == 200, resp.text
+
+    login = client.post("/api/auth/login", json={
+        "username": user.username, "password": "AdminReset789!x",
+    })
+    assert login.status_code == 200, login.text
+    assert login.json()["must_change_password"] is True

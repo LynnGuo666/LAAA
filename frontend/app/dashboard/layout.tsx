@@ -109,6 +109,25 @@ export default function DashboardLayout({
 
   return (
     <div className="min-h-screen bg-background">
+      {/* 首登/被重置密码后的强制改密提醒（非死锁拦截，仅强引导） */}
+      {user.must_change_password && normalizedPathname !== '/dashboard/security' && (
+        <div className="bg-warning/10 border-b border-warning/40">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-col sm:flex-row sm:items-center gap-3">
+            <p className="text-sm text-foreground flex-1">
+              <span className="font-medium">安全提醒：</span>
+              当前密码为初始密码或由管理员重置，请尽快修改密码以保护账户安全。
+            </p>
+            <Button
+              variant="primary"
+              size="sm"
+              onPress={() => router.push('/dashboard/security#password')}
+            >
+              立即修改密码
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Navigation */}
       <nav className="bg-background shadow-sm border-b border-border">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

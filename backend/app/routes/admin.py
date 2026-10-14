@@ -285,6 +285,8 @@ async def update_user(
         user.password_hash = await get_password_hash_async(user_data.password)
         # 管理员重置密码:吊销该用户所有现有 token(同改密逻辑)
         user.token_version = (user.token_version or 0) + 1
+        # 临时密码应由用户本人尽快更换:置强制改密标志(前端强引导)
+        user.must_change_password = True
         from app.models import Session as SessionModel
         from app.models import Token as TokenModel
         db.query(TokenModel).filter(TokenModel.user_id == user.id, TokenModel.type == 'refresh').delete()

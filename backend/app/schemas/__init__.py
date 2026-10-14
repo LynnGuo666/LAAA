@@ -63,6 +63,8 @@ class UserMeResponse(UserResponse):
     permissions: List[str] = []
     is_admin: bool = False
     is_restricted: bool = False  # 受限模式：需要完成邮箱验证 + 二次验证
+    # 首登/被重置密码后强制改密(前端据此强引导跳转改密页)
+    must_change_password: bool = False
 
 
 # Auth Schemas
@@ -86,6 +88,8 @@ class TokenResponseExtended(TokenResponse):
     kicked_session: Optional[Dict[str, Any]] = None  # Info about kicked session if any
     is_suspicious: bool = False  # Whether login is suspicious
     anomalies: List[Dict[str, Any]] = []  # List of detected anomalies
+    # 首登/被重置密码后强制改密(前端据此强引导跳转改密页)
+    must_change_password: bool = False
 
 
 class RefreshTokenRequest(BaseModel):
