@@ -44,6 +44,12 @@ export function TotpManageModal({ isOpen, onOpenChange, onStatusUpdated }: TotpM
     setPassword('');
     setVerificationCode('');
     setView('main');
+    // 清掉上次会话残留的 setup/备用码展示态:重开时后端 pending secret
+    // 可能已失效,旧二维码继续展示会误导用户扫描;重新走「开始设置」
+    // 会校验密码并签发新的 pending secret
+    setSetupData(null);
+    setShowBackupCodes(false);
+    setBackupCodes([]);
     void loadStatus();
   }, [isOpen]);
 

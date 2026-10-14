@@ -91,7 +91,17 @@ export default function VerifyPage() {
         setStep('select'); setSuccess(`${METHOD_NAMES[method]} 验证成功，请继续完成下一步验证`);
         setEmailCode(''); setTotpCode(''); setBackupCode(''); setEmailCodeSent(false);
       }
-    } catch (err: any) { setError(extractErrorMessage(err, '验证失败')); } finally { setLoading(false); }
+    } catch (err: any) {
+      // 验证会话过期(410)/不存在(404):本地状态已无意义,回收并回登录页,
+      // 避免停留在失效页面上仍可点按钮反复撞 410
+      if (err?.response?.status === 410 || err?.response?.status === 404) {
+        sessionStorage.removeItem('verification_session');
+        toast.danger('验证会话已过期，请重新登录');
+        router.push('/login');
+        return;
+      }
+      setError(extractErrorMessage(err, '验证失败'));
+    } finally { setLoading(false); }
   };
 
   const handleSendEmailCode = async () => {
