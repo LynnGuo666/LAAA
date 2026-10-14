@@ -9,7 +9,7 @@ from app.models import InviteCode, User
 from app.schemas.invite import InviteCodeCreate, InviteCodeResponse, InviteCodeUpdate
 from app.services.invite_service import InviteService
 
-router = APIRouter()
+router = APIRouter(prefix="/api/admin/invites", tags=["admin"])
 
 
 @router.get("/", response_model=List[InviteCodeResponse])

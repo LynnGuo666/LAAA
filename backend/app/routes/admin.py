@@ -42,7 +42,7 @@ from app.services.session_limit_service import SessionLimitService
 from app.utils.security import get_password_hash
 from app.utils.time import utcnow
 
-router = APIRouter()
+router = APIRouter(prefix="/api/admin", tags=["admin"])
 
 
 @router.get("/users", response_model=PaginatedUsersResponse)

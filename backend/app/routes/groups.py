@@ -14,7 +14,7 @@ from app.schemas.admin import (
 from app.schemas.group import GroupCreate, GroupMembersUpdate, GroupResponse, GroupUpdate
 from app.services.group_service import GroupService
 
-router = APIRouter()
+router = APIRouter(prefix="/api/groups", tags=["groups"])
 
 
 @router.post('/', response_model=GroupResponse, status_code=status.HTTP_201_CREATED)
