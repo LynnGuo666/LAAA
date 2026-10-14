@@ -2,7 +2,7 @@ import base64
 import hashlib
 import logging
 from typing import Optional, Tuple
-from urllib.parse import quote, urlencode
+from urllib.parse import urlencode
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request, status
 from fastapi.responses import JSONResponse, RedirectResponse

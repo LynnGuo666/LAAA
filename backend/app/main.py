@@ -70,6 +70,7 @@ app.add_middleware(RequestIdMiddleware)
 
 # 全局安全响应头(CSP/XFO/nosniff 等)——静态导出只能由后端注入
 from app.middleware.security_headers import SecurityHeadersMiddleware
+
 app.add_middleware(SecurityHeadersMiddleware)
 
 @app.exception_handler(RequestValidationError)

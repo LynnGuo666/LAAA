@@ -127,10 +127,10 @@ def make_session(db, user, device_id, *, last_active=None, refresh_token_hash=No
     device_id 必须(测试内)唯一——表上有 unique 约束。
     kicked=True 时设置 kicked_at;expires_days 控制过期时间(负数可造已过期会话)。
     """
+    from datetime import datetime, timezone
+
     from app.models import Session as DbSession
     from app.utils.security import hash_token
-
-    from datetime import datetime, timezone
 
     kwargs = {}
     if kicked:

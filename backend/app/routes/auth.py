@@ -131,7 +131,6 @@ async def register(request: Request, user_data: UserCreate, db: Session = Depend
 
         # Send verification email (non-blocking)
         try:
-            import asyncio
             import secrets
             from datetime import timedelta
 
