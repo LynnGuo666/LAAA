@@ -308,6 +308,39 @@ class AuthService:
         }
 
     @staticmethod
+    def create_restricted_access_token(
+        user: User,
+        client_id: str = "internal",
+        scope: str = "profile email",
+    ) -> Dict[str, Any]:
+        """签发受限会话 token(跳过验证登录专用)。
+
+        与 create_tokens 的区别(均为有意为之,勿"补齐"):
+        - 只签发 access token,不签发 refresh token——受限会话不可续期,
+          到期(RESTRICTED_ACCESS_TOKEN_EXPIRE_MINUTES,默认 5 分钟)即终止;
+        - JWT payload 带 restricted=true claim,敏感端点由
+          require_unrestricted 拒绝(改密/TOTP/删 passkey/会话吊销等);
+        - 不创建 Token / Session / KnownDevice 记录——受限会话不占会话名额,
+          也不把当前设备标记为已知设备(否则攻击者借 skip 洗白设备,
+          下次登录风控降级为 NONE 即可拿到完整 token,受限防线形同虚设)。
+        """
+        token_data = {
+            "sub": str(user.id),
+            "scope": scope,
+            "client_id": client_id,
+            "restricted": True,
+        }
+        access_token = create_access_token(
+            token_data,
+            expires_delta=timedelta(minutes=settings.restricted_access_token_expire_minutes),
+            token_version=user.token_version,
+        )
+        return {
+            "access_token": access_token,
+            "expires_in": settings.restricted_access_token_expire_minutes * 60,
+        }
+
+    @staticmethod
     def record_login_log(
         db: Session,
         user: Optional[User],

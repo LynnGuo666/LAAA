@@ -25,6 +25,10 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 15
     refresh_token_expire_days: int = 7
     refresh_token_remember_me_days: int = 30
+    # 受限会话(跳过验证登录)的 access token 时效:短 TTL + 无 refresh,
+    # 敏感端点由 require_unrestricted 拒绝(middleware/auth.py)
+    # Env var: RESTRICTED_ACCESS_TOKEN_EXPIRE_MINUTES
+    restricted_access_token_expire_minutes: int = 5
 
     allowed_origins: str = "http://localhost:3000,http://localhost:8000"
 

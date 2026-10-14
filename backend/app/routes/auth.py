@@ -22,6 +22,7 @@ from app.schemas import (
     SendEmailCodeRequest,
     SendMagicLinkRequest,
     SkipVerificationRequest,
+    SkipVerificationResponse,
     TokenResponse,
     TokenResponseExtended,
     UserCreate,
@@ -95,10 +96,18 @@ def _set_auth_cookies(response: Response, access_token: str, refresh_token: str,
         samesite="strict",
         path="/api/auth",
     )
+    _set_authorize_cookie(response, access_token, settings.access_token_expire_minutes * 60)
+
+
+def _set_authorize_cookie(response: Response, access_token: str, max_age_seconds: int) -> None:
+    """仅设置 authorize_token cookie(受限会话等无 refresh token 的登录形态)。
+
+    寿命由调用方传入:普通登录 = access TTL;受限会话 = 受限 TTL。
+    """
     response.set_cookie(
         key="authorize_token",
         value=access_token,
-        max_age=settings.access_token_expire_minutes * 60,
+        max_age=max_age_seconds,
         httponly=True,
         secure=settings.cookie_secure,
         samesite="lax",
@@ -1174,14 +1183,30 @@ async def verify_email(
 
 # ==================== Skip Verification & Change Email ====================
 
-@router.post("/verify/skip")
+@router.post("/verify/skip", response_model=SkipVerificationResponse)
 async def skip_verification(
     request_data: SkipVerificationRequest,
     response: Response,
     db: Session = Depends(get_db)
 ):
-    """Skip risk verification and login in restricted mode"""
+    """Skip risk verification and login in restricted mode.
+
+    受限会话设计(封死"偷到密码 → login 202 → skip → 改密/删 2FA"的接管链):
+    - 高风险(risk_level=high)登录一律拒绝跳过,必须完成验证;
+    - 只签发短 TTL 受限 access token(JWT 带 restricted=true claim),
+      不签发 refresh token(不可续期,到期即终止);
+    - 不写 Session/Token/KnownDevice——受限会话不洗白设备信任度,
+      攻击者下次登录仍会被要求验证;
+    - 敏感端点由 require_unrestricted 拒绝受限会话(见 middleware/auth.py)。
+    """
     verification_session = _get_valid_verification_session(db, request_data.session_token)
+
+    # 高风险登录必须完成验证,不允许跳过(偷凭据 + 高危环境的组合只能走完整验证)
+    if verification_session.risk_level == "high":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="高风险登录必须完成安全验证，不能跳过"
+        )
 
     user = db.query(User).filter(User.id == verification_session.user_id).first()
     if not user:
@@ -1190,23 +1215,19 @@ async def skip_verification(
             detail="用户不存在"
         )
 
-    # Create tokens (user will be in restricted mode, handled by frontend)
-    result = AuthService.create_tokens(
-        db,
+    # 只签发受限 token(短 TTL + restricted claim,无 refresh)
+    result = AuthService.create_restricted_access_token(
         user=user,
         client_id="internal",
         scope="profile email",
-        remember_me=verification_session.remember_me,
-        device_name=verification_session.device_name,
-        device_token=verification_session.device_token,
-        ip_address=verification_session.ip_address,
-        user_agent=verification_session.user_agent,
-        login_method="password"
     )
 
-    # 受限模式登录同样设置认证 cookie
-    _set_auth_cookies(response, result["access_token"], result["refresh_token"],
-                      remember_me=verification_session.remember_me)
+    # 受限会话只设置 authorize_token cookie(寿命=受限 TTL);
+    # 不设置 laaa_refresh——没有 refresh token 可供续期
+    _set_authorize_cookie(
+        response, result["access_token"],
+        settings.restricted_access_token_expire_minutes * 60
+    )
 
     # Record login log (mark as suspicious since verification was skipped)
     geo_info = GeoIPService.get_location(verification_session.ip_address)
@@ -1226,12 +1247,12 @@ async def skip_verification(
     db.delete(verification_session)
     db.commit()
 
-    return {
-        "access_token": result["access_token"],
-        "refresh_token": result["refresh_token"],
-        "token_type": "bearer",
-        "expires_in": settings.access_token_expire_minutes * 60
-    }
+    return SkipVerificationResponse(
+        restricted=True,
+        access_token=result["access_token"],
+        refresh_token=None,
+        expires_in=result["expires_in"],
+    )
 
 
 @router.post("/change-email")

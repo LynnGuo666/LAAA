@@ -419,6 +419,21 @@ class SkipVerificationRequest(BaseModel):
     session_token: str
 
 
+class SkipVerificationResponse(BaseModel):
+    """跳过验证进入受限模式的响应。
+
+    只签发短 TTL 的受限 access token(带 restricted claim):
+    - 无 refresh token,受限会话不可续期,到期即终止;
+    - expires_in 为受限 TTL(RESTRICTED_ACCESS_TOKEN_EXPIRE_MINUTES),
+      与普通 access token 的 15 分钟不同,前端需按此计时。
+    """
+    restricted: bool = True
+    access_token: str
+    refresh_token: Optional[str] = None
+    token_type: str = "bearer"
+    expires_in: int
+
+
 class ChangeEmailRequest(BaseModel):
     """Request to change user email (requires current password confirmation)."""
     current_password: str = Field(..., min_length=1)
