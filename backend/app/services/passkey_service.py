@@ -113,14 +113,19 @@ class PasskeyService:
         db.add(challenge_record)
         db.commit()
 
-        return json.loads(options_to_json(options))
+        result = json.loads(options_to_json(options))
+        # challenge 绑定:verify 请求回传该 id,按 id+user 精确取对应 challenge
+        # (浏览器端 parseRegistrationOptions 透传未知字段,不影响 WebAuthn 仪式)
+        result['challenge_id'] = challenge_record.id
+        return result
 
     @staticmethod
     def verify_registration(
         db: Session,
         user: User,
         credential_data: dict,
-        name: str
+        name: str,
+        challenge_id: Optional[int] = None
     ) -> Passkey:
         """
         Verify WebAuthn registration response and store credential.
@@ -130,6 +135,8 @@ class PasskeyService:
             user: The authenticated user
             credential_data: The credential response from the client
             name: User-provided name for the passkey
+            challenge_id: options 响应回传的 challenge 记录 id;
+                提供时按 id+user 精确匹配(并发注册互不干扰)。
 
         Returns:
             The created Passkey object
@@ -138,11 +145,16 @@ class PasskeyService:
             ValueError: If verification fails
         """
         # Get and validate challenge
-        challenge_record = db.query(WebAuthnChallenge).filter(
-            WebAuthnChallenge.user_id == user.id,
+        # 注册是已认证端点且 challenge 绑定 user_id,风险低于匿名认证流程;
+        # 未回传 challenge_id 时保持「取该用户最新一条」的旧行为以兼容。
+        challenge_filters = [
             WebAuthnChallenge.type == 'registration',
-            WebAuthnChallenge.expires_at > utcnow()
-        ).first()
+            WebAuthnChallenge.user_id == user.id,
+            WebAuthnChallenge.expires_at > utcnow(),
+        ]
+        if challenge_id is not None:
+            challenge_filters.append(WebAuthnChallenge.id == challenge_id)
+        challenge_record = db.query(WebAuthnChallenge).filter(*challenge_filters).first()
 
         if not challenge_record:
             raise ValueError("Challenge expired or not found")
@@ -251,12 +263,18 @@ class PasskeyService:
         db.add(challenge_record)
         db.commit()
 
-        return json.loads(options_to_json(options))
+        result = json.loads(options_to_json(options))
+        # challenge 绑定:verify 请求必须回传该 id,按 id 精确取对应 challenge。
+        # 此前按「最新一条」匹配,攻击者高频刷 options 可不断刷新 challenge,
+        # 让受害者的 passkey 登录持续 DoS。
+        result['challenge_id'] = challenge_record.id
+        return result
 
     @staticmethod
     def verify_authentication(
         db: Session,
-        credential_data: dict
+        credential_data: dict,
+        challenge_id: Optional[int] = None
     ) -> Tuple[User, Passkey]:
         """
         Verify WebAuthn authentication response.
@@ -264,6 +282,8 @@ class PasskeyService:
         Args:
             db: Database session
             credential_data: The credential response from the client
+            challenge_id: options 响应回传的 challenge 记录 id(必填;
+                未回传直接拒绝——「取最新一条」的兜底会重新打开 DoS 窗口)
 
         Returns:
             Tuple of (User, Passkey) on success
@@ -277,6 +297,8 @@ class PasskeyService:
             raise ValueError("Missing credential ID")
 
         # Find passkey by credential ID
+        # (discoverable 流程不带 username,验证前无法得知用户——
+        #  从 credential 反查 passkey → user)
         passkey = db.query(Passkey).filter(
             Passkey.credential_id == credential_id
         ).first()
@@ -289,26 +311,25 @@ class PasskeyService:
         if not user or user.status != 'active':
             raise ValueError("User not found or inactive")
 
-        # Get and validate challenge。
-        # 带 username 的认证 challenge 已绑定 user_id(并发认证时 A 的响应不会
-        # 消费 B 的 challenge);discoverable(不带 username)的 challenge
-        # user_id 为 NULL,按 NULL 匹配。
-        challenge_filters = [
+        # Get and validate challenge:按回传的 challenge_id 精确取对应记录。
+        # 攻击者刷 options 只会新增记录,无法顶掉受害者持有的 challenge;
+        # challenge 单次消费,验证成功即删除。
+        if challenge_id is None:
+            raise ValueError("缺少 challenge_id")
+        challenge_record = db.query(WebAuthnChallenge).filter(
+            WebAuthnChallenge.id == challenge_id,
             WebAuthnChallenge.type == 'authentication',
-            WebAuthnChallenge.expires_at > utcnow(),
-        ]
-        if passkey.user_id is not None:
-            challenge_filters.append(
-                WebAuthnChallenge.user_id == passkey.user_id
-            )
-        else:
-            challenge_filters.append(WebAuthnChallenge.user_id.is_(None))
-        challenge_record = db.query(WebAuthnChallenge).filter(*challenge_filters).order_by(
-            WebAuthnChallenge.created_at.desc()
+            WebAuthnChallenge.expires_at > utcnow()
         ).first()
 
         if not challenge_record:
             raise ValueError("Challenge expired or not found")
+
+        # challenge 与用户绑定:带 username 的认证 challenge 已绑定 user_id;
+        # discoverable(不带 username)的 challenge 不绑用户(user_id 为 NULL),
+        # 验证后从 credential 反查用户——两种情况都放行,其余拒绝。
+        if challenge_record.user_id is not None and challenge_record.user_id != passkey.user_id:
+            raise ValueError("Challenge does not match user")
 
         expected_challenge = base64url_to_bytes(challenge_record.challenge)
 

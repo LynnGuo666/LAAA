@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 from app.config import get_settings
 from app.database import get_db
 from app.middleware.auth import get_current_user, require_unrestricted
+from app.middleware.ratelimit import limiter
 from app.models import Passkey, User
 from app.schemas import TokenResponse, VerificationRequiredResponse
 from app.schemas.passkey import (
@@ -125,7 +126,8 @@ async def verify_registration(
             db,
             current_user,
             credential_data,
-            data.name
+            data.name,
+            data.challenge_id
         )
         return passkey_to_response(passkey)
     except ValueError as e:
@@ -143,13 +145,19 @@ async def verify_registration(
 # ==================== Authentication Flow ====================
 
 @router.post("/authenticate/options")
+@limiter.limit("10/minute")
 async def get_authentication_options(
+    request: Request,
     data: PasskeyAuthenticationOptionsRequest,
     db: Session = Depends(get_db)
 ):
     """
     Generate WebAuthn authentication options.
     Can be called without authentication for passwordless login.
+
+    Rate-limited per IP: an attacker spamming this endpoint must not be
+    able to churn out challenges (each call inserts a DB row) — combined
+    with challenge_id binding on verify this also removes the DoS vector.
     """
     try:
         options = PasskeyService.generate_authentication_options(db, data.username)
@@ -185,7 +193,9 @@ async def verify_authentication(
             "authenticatorAttachment": data.authenticatorAttachment,
         }
 
-        user, passkey = PasskeyService.verify_authentication(db, credential_data)
+        user, passkey = PasskeyService.verify_authentication(
+            db, credential_data, data.challenge_id
+        )
 
         # Get client info
         client_ip = get_client_ip(request)
@@ -316,11 +326,17 @@ async def list_passkeys(
 
 
 @router.get("/check/{username}", response_model=PasskeyCheckResponse)
+@limiter.limit("10/minute")
 async def check_user_passkeys(
     username: str,
+    request: Request,
     db: Session = Depends(get_db)
 ):
-    """Check if a user has passkeys registered (public endpoint)"""
+    """Check if a user has passkeys registered (public endpoint)
+
+    统一响应:用户不存在与「存在但未绑定 passkey」返回完全一致
+    (has_passkeys=False, count=0),消除用户名枚举;限流防止批量探测。
+    """
     user = db.query(User).filter(User.username == username).first()
     if not user:
         return PasskeyCheckResponse(has_passkeys=False, count=0)

@@ -187,7 +187,7 @@ def _current_totp_step() -> int:
     return int(time.time() // 30)
 
 
-def test_totp_code_replay_rejected(db_session, make_user):
+def test_totp_code_replay_rejected(db_session, make_user, seed_admin):
     """同一验证码连续提交两次 → 第二次被拒(重放防护核心)。
 
     修复前只更新 last_used_at 时间戳,同一 6 位码在 ~90 秒窗口内可
@@ -207,7 +207,7 @@ def test_totp_code_replay_rejected(db_session, make_user):
         TOTPService.verify_totp_code(db_session, user, code)
 
 
-def test_totp_previous_window_code_blocked_after_use(db_session, make_user):
+def test_totp_previous_window_code_blocked_after_use(db_session, make_user, seed_admin):
     """消费当前步的码后,前一步的码(valid_window=1 本可匹配)同样被拒。
 
     匹配到的时间步 <= 已记录时间步,一律视为已消费。
@@ -224,7 +224,7 @@ def test_totp_previous_window_code_blocked_after_use(db_session, make_user):
         TOTPService.verify_totp_code(db_session, user, _totp_code_at(secret, step - 1))
 
 
-def test_totp_next_window_code_accepted(db_session, make_user):
+def test_totp_next_window_code_accepted(db_session, make_user, seed_admin):
     """等一个窗口后新验证码仍可正常使用(防护不过度)。"""
     from app.services.totp_service import TOTPService
 
@@ -238,7 +238,7 @@ def test_totp_next_window_code_accepted(db_session, make_user):
     assert TOTPService.verify_totp_code(db_session, user, _totp_code_at(secret, step + 1)) is True
 
 
-def test_totp_setup_confirm_replay_rejected(db_session, make_user):
+def test_totp_setup_confirm_replay_rejected(db_session, make_user, seed_admin):
     """绑定确认(verify_and_enable)同样防重放,且跨流程生效。
 
     绑定确认消费掉的时间步会被记录:同一验证码紧接着用于登录验证
@@ -263,7 +263,7 @@ def test_totp_setup_confirm_replay_rejected(db_session, make_user):
     assert TOTPService.verify_totp_code(db_session, user, _totp_code_at(secret, step + 1)) is True
 
 
-def test_totp_legacy_null_timestep_accepts_first_code(db_session, make_user):
+def test_totp_legacy_null_timestep_accepts_first_code(db_session, make_user, seed_admin):
     """存量数据 last_used_timestep 为 NULL 视为无记录:首个验证码正常通过。"""
     from app.services.totp_service import TOTPService
 
@@ -294,7 +294,7 @@ def _delete_json(client, url: str, headers: dict, payload: dict):
     )
 
 
-def test_totp_setup_endpoint_requires_password(client, db_session, make_user):
+def test_totp_setup_endpoint_requires_password(client, db_session, make_user, seed_admin):
     """TOTP setup 必须带正确密码:无密码 422、错密码 401、正确 200。"""
     user = make_user()
     headers = {"Authorization": f"Bearer {_login_token(client, user.username)}"}
@@ -314,7 +314,7 @@ def test_totp_setup_endpoint_requires_password(client, db_session, make_user):
     assert resp.json()["secret"]
 
 
-def test_totp_verify_setup_endpoint_requires_password(client, db_session, make_user):
+def test_totp_verify_setup_endpoint_requires_password(client, db_session, make_user, seed_admin):
     """TOTP verify-setup 同样要求密码,且不影响正常绑定流程。"""
     import pyotp
 
@@ -348,7 +348,7 @@ def test_totp_verify_setup_endpoint_requires_password(client, db_session, make_u
     assert resp.json()["backup_codes"]
 
 
-def test_passkey_delete_endpoint_requires_password(client, db_session, make_user):
+def test_passkey_delete_endpoint_requires_password(client, db_session, make_user, seed_admin):
     """passkey 删除必须带正确密码:无密码 422、错密码 401、正确 204。"""
     from app.models import Passkey
 
@@ -372,7 +372,7 @@ def test_passkey_delete_endpoint_requires_password(client, db_session, make_user
     assert db_session.query(Passkey).filter(Passkey.id == passkey.id).first() is None
 
 
-def test_passkey_delete_wrong_password_keeps_passkey(client, db_session, make_user):
+def test_passkey_delete_wrong_password_keeps_passkey(client, db_session, make_user, seed_admin):
     """错密码的删除请求不会误删 passkey。"""
     from app.models import Passkey
 
@@ -383,3 +383,168 @@ def test_passkey_delete_wrong_password_keeps_passkey(client, db_session, make_us
     _delete_json(client, f"/api/passkeys/{passkey.id}", headers, {"current_password": "WrongPass123!"})
     db_session.expire_all()
     assert db_session.query(Passkey).filter(Passkey.id == passkey.id).first() is not None
+
+
+# ==================== WebAuthn challenge 绑定 + 端点限流 ====================
+
+class _FakeVerification:
+    """verify_authentication_response 的桩返回值(只用到计数器/UV 标志)"""
+    new_sign_count = 1
+    user_verified = True
+
+
+def _stub_webauthn_verify(monkeypatch, captured=None):
+    """把 webauthn 库的响应验签桩掉,只捕获 expected_challenge。"""
+    from app.services import passkey_service as ps
+
+    def _fake(**kwargs):
+        if captured is not None:
+            captured['challenge'] = kwargs['expected_challenge']
+        return _FakeVerification()
+
+    monkeypatch.setattr(ps, "verify_authentication_response", _fake)
+
+
+def _passkey_credential(passkey) -> dict:
+    return {
+        "id": passkey.credential_id,
+        "rawId": passkey.credential_id,
+        "response": {},
+        "type": "public-key",
+    }
+
+
+def test_passkey_challenge_binding_survives_options_spam(db_session, make_user, seed_admin, monkeypatch):
+    """options 被攻击者刷出新 challenge 后,受害者持旧 challenge_id 仍可完成验证。
+
+    修复前 verify 取「该用户最新一条」challenge,高频刷 options 可让受害者的
+    passkey 登录持续 DoS;现在按 challenge_id 精确取对应记录。
+    """
+    from webauthn.helpers import base64url_to_bytes
+
+    from app.models import Passkey
+    from app.services.passkey_service import PasskeyService
+
+    user = make_user(passkeys=True)
+    passkey = db_session.query(Passkey).filter(Passkey.user_id == user.id).first()
+
+    opts = PasskeyService.generate_authentication_options(db_session, user.username)
+    assert 'challenge_id' in opts
+
+    # 攻击者高频刷 options(生成一堆更新的 challenge)
+    for _ in range(5):
+        PasskeyService.generate_authentication_options(db_session, user.username)
+
+    captured = {}
+    _stub_webauthn_verify(monkeypatch, captured)
+
+    verified_user, _p = PasskeyService.verify_authentication(
+        db_session, _passkey_credential(passkey), opts['challenge_id']
+    )
+    assert verified_user.id == user.id
+    # 消费的正是 opts 对应的那条 challenge,没有被后来刷出的顶掉
+    assert captured['challenge'] == base64url_to_bytes(opts['challenge'])
+
+    # challenge 单次消费:再用同一个 challenge_id → 拒绝
+    with pytest.raises(ValueError):
+        PasskeyService.verify_authentication(
+            db_session, _passkey_credential(passkey), opts['challenge_id']
+        )
+
+
+def test_passkey_challenge_id_required_and_must_match(db_session, make_user, seed_admin, monkeypatch):
+    """challenge_id 缺失/错误/过期 → 一律拒绝。"""
+    from datetime import timedelta
+
+    from app.models import Passkey, WebAuthnChallenge
+    from app.services.passkey_service import PasskeyService
+    from app.utils.time import utcnow
+
+    user = make_user(passkeys=True)
+    passkey = db_session.query(Passkey).filter(Passkey.user_id == user.id).first()
+
+    _stub_webauthn_verify(monkeypatch)
+
+    # 缺失 → 拒绝(不给「取最新」的兜底,否则 DoS 窗口重新打开)
+    with pytest.raises(ValueError):
+        PasskeyService.verify_authentication(db_session, _passkey_credential(passkey))
+
+    # 不存在的 id → 拒绝
+    with pytest.raises(ValueError):
+        PasskeyService.verify_authentication(db_session, _passkey_credential(passkey), 99999999)
+
+    # 过期 → 拒绝
+    opts = PasskeyService.generate_authentication_options(db_session, user.username)
+    record = db_session.query(WebAuthnChallenge).filter(
+        WebAuthnChallenge.id == opts['challenge_id']
+    ).first()
+    record.expires_at = utcnow() - timedelta(seconds=1)
+    db_session.commit()
+    with pytest.raises(ValueError):
+        PasskeyService.verify_authentication(
+            db_session, _passkey_credential(passkey), opts['challenge_id']
+        )
+
+    # 与用户不匹配(别人的 challenge_id)→ 拒绝
+    other = make_user(passkeys=True)
+    other_opts = PasskeyService.generate_authentication_options(db_session, other.username)
+    with pytest.raises(ValueError):
+        PasskeyService.verify_authentication(
+            db_session, _passkey_credential(passkey), other_opts['challenge_id']
+        )
+
+
+def test_passkey_discoverable_flow_challenge_works(db_session, make_user, seed_admin, monkeypatch):
+    """discoverable(不带 username)流程:challenge 不绑用户,verify 后从 credential 反查。
+
+    修复前的死代码 bug:按 user_id IS NULL 匹配的分支永远不命中
+    (Passkey.user_id 非空外键),无用户名的 passwordless 流程实际报
+    "Challenge expired"。
+    """
+    from app.models import Passkey
+    from app.services.passkey_service import PasskeyService
+
+    user = make_user(passkeys=True)
+    passkey = db_session.query(Passkey).filter(Passkey.user_id == user.id).first()
+
+    # discoverable:不传 username → challenge user_id 为 NULL
+    opts = PasskeyService.generate_authentication_options(db_session, None)
+    assert 'challenge_id' in opts
+
+    _stub_webauthn_verify(monkeypatch)
+
+    verified_user, _p = PasskeyService.verify_authentication(
+        db_session, _passkey_credential(passkey), opts['challenge_id']
+    )
+    assert verified_user.id == user.id
+
+
+def test_passkey_check_endpoint_uniform_response(client, db_session, make_user, seed_admin):
+    """check 端点:用户不存在与「存在但无 passkey」响应完全一致(消除用户名枚举)。"""
+    user_without_passkeys = make_user()
+
+    resp_existing = client.get(f"/api/passkeys/check/{user_without_passkeys.username}")
+    resp_missing = client.get("/api/passkeys/check/no_such_user_abcxyz")
+
+    assert resp_existing.status_code == 200
+    assert resp_missing.status_code == 200
+    assert resp_existing.json() == resp_missing.json()
+    assert resp_existing.json() == {"has_passkeys": False, "count": 0}
+
+
+def test_passkey_options_rate_limit(client):
+    """authenticate/options 端点限流:10 次/分钟后 429。"""
+    for _ in range(10):
+        resp = client.post("/api/passkeys/authenticate/options", json={})
+        assert resp.status_code == 200, resp.text
+    resp = client.post("/api/passkeys/authenticate/options", json={})
+    assert resp.status_code == 429
+
+
+def test_passkey_check_rate_limit(client):
+    """check/{username} 端点限流:10 次/分钟后 429。"""
+    for _ in range(10):
+        resp = client.get("/api/passkeys/check/whoever")
+        assert resp.status_code == 200, resp.text
+    resp = client.get("/api/passkeys/check/whoever")
+    assert resp.status_code == 429

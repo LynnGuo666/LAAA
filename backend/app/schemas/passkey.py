@@ -18,6 +18,7 @@ class PasskeyRegistrationVerify(BaseModel):
     clientExtensionResults: Optional[dict] = None
     authenticatorAttachment: Optional[str] = None
     name: str = Field(..., min_length=1, max_length=100)  # User-provided name
+    challenge_id: Optional[int] = None  # options 响应回传的 challenge 记录 id
 
 
 class PasskeyAuthenticationOptionsRequest(BaseModel):
@@ -36,6 +37,7 @@ class PasskeyAuthenticationVerify(BaseModel):
     remember_me: bool = False
     device_name: Optional[str] = None
     device_token: Optional[str] = None  # Device token from localStorage for device identification
+    challenge_id: int  # options 响应回传的 challenge 记录 id(按 id 精确绑定)
 
 
 class PasskeyUpdate(BaseModel):

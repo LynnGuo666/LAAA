@@ -370,6 +370,7 @@ class PasskeyVerifyCompleteRequest(BaseModel):
     """Request to complete passkey verification"""
     session_token: str
     credential: Dict[str, Any]
+    challenge_id: int  # options 响应回传的 challenge 记录 id(按 id 精确绑定)
 
 
 # TOTP Schemas

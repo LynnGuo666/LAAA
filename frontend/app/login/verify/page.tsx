@@ -188,7 +188,11 @@ export default function VerifyPage() {
         <Button onPress={() => verify(async () => {
           const opts = await verificationApi.startPasskeyVerification(session.session_token);
           const cred = await getPasskeyCredential(parseAuthenticationOptions(opts.data.options));
-          return verificationApi.completePasskeyVerification(session.session_token, serializeAuthenticationCredential(cred));
+          return verificationApi.completePasskeyVerification(
+            session.session_token,
+            serializeAuthenticationCredential(cred),
+            opts.data.options.challenge_id,
+          );
         }, 'passkey')} isDisabled={loading || !webAuthnSupported} variant="primary" className="w-full" isPending={loading}>使用通行密钥验证</Button>
         <Button onPress={() => setStep('select')} variant="ghost" className="w-full border border-default-200/70"><ArrowLeft className="w-4 h-4" /> 选择其他方式</Button>
       </div>

@@ -236,13 +236,14 @@ function LoginContent() {
       // Step 2: Get credential from authenticator
       const credential = await getPasskeyCredential(options);
 
-      // Step 3: Serialize and verify
+      // Step 3: Serialize and verify（challenge_id 绑定本次请求对应的 challenge）
       const serialized = serializeAuthenticationCredential(credential);
       const deviceName = `${navigator.userAgent.split(')')[0]})`;
       const response = await passkeyApi.verifyAuthentication({
         ...serialized as any,
         remember_me: formData.rememberMe,
         device_name: formData.rememberMe ? deviceName : undefined,
+        challenge_id: optionsResponse.data.challenge_id,
       });
 
       // Check if verification is required (202 response)

@@ -998,7 +998,7 @@ async def complete_passkey_verification(
     # Verify the passkey credential
     try:
         verified_user, passkey = PasskeyService.verify_authentication(
-            db, request_data.credential
+            db, request_data.credential, request_data.challenge_id
         )
         # Verify the passkey belongs to the expected user
         if verified_user.id != user.id:

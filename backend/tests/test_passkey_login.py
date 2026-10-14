@@ -34,7 +34,7 @@ def stubbed_passkey_user(make_user, monkeypatch, seed_admin):
 
     user = make_user(passkeys=True)
 
-    def _fake_verify(db, credential_data):
+    def _fake_verify(db, credential_data, challenge_id=None):
         u = db.query(User).filter(User.id == user.id).first()
         p = db.query(Passkey).filter(Passkey.user_id == user.id).first()
         assert u is not None and p is not None, "stub: user/passkey must exist"
@@ -55,6 +55,7 @@ def _verify_payload(credential_id: str) -> dict:
             "userHandle": None,
         },
         "type": "public-key",
+        "challenge_id": 1,
     }
 
 

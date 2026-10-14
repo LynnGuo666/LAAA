@@ -234,10 +234,11 @@ export default function RestrictedModeOverlay({ user, onComplete }: RestrictedMo
       const credential = await createPasskeyCredential(options);
       const serialized = serializeRegistrationCredential(credential);
 
-      // Verify registration
+      // Verify registration（challenge_id 绑定本次注册对应的 challenge）
       await passkeyApi.verifyRegistration({
         ...serialized as any,
         name: passkeyName.trim(),
+        challenge_id: optionsResponse.data.challenge_id,
       });
 
       setSuccess('通行密钥已绑定！');

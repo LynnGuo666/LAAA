@@ -483,6 +483,7 @@ export const passkeyApi = {
     clientExtensionResults?: object;
     authenticatorAttachment?: string;
     name: string;
+    challenge_id?: number;
   }) =>
     api.post('/api/passkeys/register/verify', data),
 
@@ -501,6 +502,7 @@ export const passkeyApi = {
     remember_me?: boolean;
     device_name?: string;
     device_token?: string;
+    challenge_id: number;
   }) =>
     axios.post(`${API_URL}/api/passkeys/authenticate/verify`, {
       ...data,
@@ -564,10 +566,11 @@ export const verificationApi = {
     axios.post(`${API_URL}/api/auth/verify/passkey/start`, { session_token: sessionToken }, { withCredentials: true }),
 
   // Complete passkey verification
-  completePasskeyVerification: (sessionToken: string, credential: object) =>
+  completePasskeyVerification: (sessionToken: string, credential: object, challengeId: number) =>
     axios.post(`${API_URL}/api/auth/verify/passkey/complete`, {
       session_token: sessionToken,
-      credential
+      credential,
+      challenge_id: challengeId
     }, { withCredentials: true }),
 
   // Magic Link independent login - send

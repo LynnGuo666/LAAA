@@ -62,6 +62,7 @@ interface PasskeyRegistrationPayload {
   type: string;
   clientExtensionResults?: object;
   authenticatorAttachment?: string;
+  challenge_id?: number;
 }
 
 interface ApiErrorLike {
@@ -273,6 +274,8 @@ export default function SecurityPage() {
       const options = parseRegistrationOptions(optionsResponse.data);
       const credential = await createPasskeyCredential(options);
       const serialized = serializeRegistrationCredential(credential) as PasskeyRegistrationPayload;
+      // challenge_id 绑定本次注册对应的 challenge(verify 精确按 id 取)
+      serialized.challenge_id = optionsResponse.data.challenge_id;
       setPendingCredential(serialized);
       setNewPasskeyName(suggestPasskeyName());
       setShowNameModal(true);
