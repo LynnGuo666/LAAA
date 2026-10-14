@@ -169,6 +169,17 @@ export const siteApi = {
   update: (siteName: string) => api.put('/api/site', { site_name: siteName }),
 };
 
+/**
+ * 会话「当前设备」识别：后端通过 refresh token 反查当前 session
+ * （防切换网络后 IP 变化导致误杀自己）。laaa_refresh cookie 的
+ * Path=/api/auth 使其不会随 /api/user/* 请求发送，因此显式携带
+ * X-Refresh-Token 头（内存 store 中的当前值）。
+ */
+function refreshTokenHeader(): Record<string, string> {
+  const refreshToken = useAuthStore.getState().refreshToken;
+  return refreshToken ? { 'X-Refresh-Token': refreshToken } : {};
+}
+
 // User API
 export const userApi = {
   getProfile: () =>
@@ -184,7 +195,7 @@ export const userApi = {
     api.delete(`/api/user/authorizations/${id}`),
 
   getSessions: () =>
-    api.get('/api/user/sessions'),
+    api.get('/api/user/sessions', { headers: refreshTokenHeader() }),
 
   revokeSession: (id: number) =>
     api.delete(`/api/user/sessions/${id}`),
@@ -209,7 +220,7 @@ export const userApi = {
     api.delete(`/api/user/sessions/${sessionId}/trust`),
 
   revokeOtherSessions: () =>
-    api.post('/api/user/sessions/revoke-others'),
+    api.post('/api/user/sessions/revoke-others', {}, { headers: refreshTokenHeader() }),
 
   changePassword: (currentPassword: string, newPassword: string) =>
     api.put('/api/user/password', { current_password: currentPassword, new_password: newPassword }),

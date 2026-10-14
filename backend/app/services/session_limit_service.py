@@ -146,25 +146,25 @@ class SessionLimitService:
     def kick_all_other_sessions(
         db: Session,
         user_id: int,
-        current_device_id: str
+        keep_session_id: Optional[int] = None,
     ) -> List[Dict[str, Any]]:
         """
-        Kick all sessions except the current one.
+        Kick all sessions except the specified one.
 
         Args:
             db: Database session
             user_id: The user whose sessions to kick
-            current_device_id: Device ID to keep
-
-        Returns:
-            List of kicked session info dicts
+            keep_session_id: ID of the session to keep（当前请求所属的
+                session，由调用方通过 refresh token 反查得到。为 None 时
+                表示无法识别当前会话，会踢掉全部会话——保留旧的「按
+                device_id 匹配失配即全踢」语义，由调用方决定是否兜底）
         """
         kicked_sessions = []
 
         active_sessions = SessionLimitService.get_active_sessions(db, user_id)
 
         for session in active_sessions:
-            if session.device_id != current_device_id:
+            if session.id != keep_session_id:
                 kicked_info = SessionLimitService.kick_session(
                     db, session, reason='user_request'
                 )

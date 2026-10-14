@@ -1,5 +1,5 @@
 import logging
-from typing import List
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
@@ -21,11 +21,42 @@ from app.schemas import (
     UserUpdate,
 )
 from app.utils.device import generate_device_id, get_client_ip
+from app.utils.security import hash_token
 from app.utils.time import utcnow
 
 logger = logging.getLogger("uvicorn.error")
 
 router = APIRouter(prefix="/api/user", tags=["User Management"])
+
+
+def _resolve_current_session(
+    request: Request, db: Session, user: User
+) -> Optional[SessionModel]:
+    """反查当前请求所属的 session。
+
+    优先用当前请求携带的 refresh token（X-Refresh-Token 头，或
+    laaa_refresh cookie——该 cookie Path=/api/auth，通常只有显式传头
+    才可用）按 hash 精确反查 Session.refresh_token_hash。
+    此前按 UA+IP 现算 device_id 匹配：用户切换网络（公司→家）后 IP
+    变化，现算值匹配不到任何 session，「登出其他设备」会把自己也踢掉。
+    未携带 refresh token 时回退旧逻辑（现算 device_id 匹配）。
+    """
+    refresh_token = request.headers.get("x-refresh-token") or request.cookies.get(
+        "laaa_refresh"
+    )
+    if refresh_token:
+        return db.query(SessionModel).filter(
+            SessionModel.user_id == user.id,
+            SessionModel.refresh_token_hash == hash_token(refresh_token),
+        ).first()
+
+    user_agent = request.headers.get("user-agent", "") or "unknown"
+    client_ip = get_client_ip(request)
+    fallback_device_id = generate_device_id(user.id, user_agent, client_ip)
+    return db.query(SessionModel).filter(
+        SessionModel.user_id == user.id,
+        SessionModel.device_id == fallback_device_id,
+    ).first()
 
 
 @router.get("/me", response_model=UserMeResponse)
@@ -144,9 +175,9 @@ async def get_sessions(
     db: Session = Depends(get_db)
 ):
     """Get list of active sessions (remembered devices)"""
-    user_agent = request.headers.get("user-agent", "") or "unknown"
-    client_ip = get_client_ip(request)
-    current_device_id = generate_device_id(current_user.id, user_agent, client_ip)
+    # 通过当前请求的 refresh token 反查所属 session 标记 is_current,
+    # 而非按 UA+IP 现算 device_id(切网后现算值失配,当前设备标记丢失)
+    current_session = _resolve_current_session(request, db, current_user)
 
     sessions = db.query(SessionModel).filter(
         SessionModel.user_id == current_user.id,
@@ -164,7 +195,7 @@ async def get_sessions(
             ip_address=session.ip_address,
             last_active=session.last_active,
             expires_at=session.expires_at,
-            is_current=session.device_id == current_device_id,
+            is_current=current_session is not None and session.id == current_session.id,
             country=session.country,
             city=session.city,
             is_trusted=session.is_trusted or False
@@ -354,12 +385,12 @@ async def revoke_other_sessions(
     """Revoke all sessions except the current one"""
     from app.services.session_limit_service import SessionLimitService
 
-    user_agent = request.headers.get("user-agent", "") or "unknown"
-    client_ip = get_client_ip(request)
-    current_device_id = generate_device_id(current_user.id, user_agent, client_ip)
+    # 通过 refresh token 反查当前 session(而非现算 device_id),
+    # 防止切换网络后 IP 变化导致误杀自己
+    current_session = _resolve_current_session(request, db, current_user)
 
     kicked_sessions = SessionLimitService.kick_all_other_sessions(
-        db, current_user.id, current_device_id
+        db, current_user.id, current_session.id if current_session else None
     )
 
     return KickedSessionsResponse(
