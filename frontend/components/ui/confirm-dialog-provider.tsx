@@ -60,7 +60,9 @@ export function ConfirmDialogProvider({ children }: ConfirmDialogProviderProps) 
       confirmText: nextOptions.confirmText ?? defaultOptions.confirmText,
       cancelText: nextOptions.cancelText ?? defaultOptions.cancelText,
       status: nextOptions.status ?? defaultOptions.status,
-      confirmVariant: nextOptions.confirmVariant ?? defaultOptions.confirmVariant,
+      // 危险操作的确认键默认 danger 样式，防止调用方忘传 variant 时误用醒目主色
+      confirmVariant: nextOptions.confirmVariant
+        ?? ((nextOptions.status ?? defaultOptions.status) === 'danger' ? 'danger' : defaultOptions.confirmVariant),
     })
     setIsOpen(true)
 
