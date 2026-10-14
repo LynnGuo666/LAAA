@@ -1,11 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { AlertDialog, Alert, Button, Card, Chip, Input, Label, Table, Tabs, TextField, toast } from '@heroui/react';
+import { AlertDialog, Alert, Button, Card, Chip, Description, Input, Label, Table, Tabs, TextField, toast } from '@heroui/react';
 import { userApi, totpApi, passkeyApi } from '@/lib/api';
 import { formatDateTime } from '@/lib/date';
 import { useAuthStore } from '@/lib/store';
 import { extractErrorMessage } from '@/lib/errors';
+import { PASSWORD_REQUIREMENT_HINT, validatePasswordStrength } from '@/lib/validation';
 import { useConfirmDialog } from '@/components/ui/confirm-dialog-provider';
 import { TotpManageModal } from '@/components/security/TotpManageModal';
 import { PageLoadingState } from '@/components/ui/loading';
@@ -359,8 +360,10 @@ export default function SecurityPage() {
     setPasswordError('');
     setPasswordSuccess('');
 
-    if (newPassword.length < 6) {
-      setPasswordError('新密码至少需要 6 个字符');
+    // 新密码强度校验（与后端策略一致：12 位 + 3 类）
+    const strength = validatePasswordStrength(newPassword);
+    if (!strength.valid) {
+      setPasswordError(strength.message);
       return;
     }
 
@@ -580,14 +583,15 @@ export default function SecurityPage() {
           <div>
             <TextField isRequired isDisabled={changingPassword}>
               <Label>新密码</Label>
-              <Input type="password" minLength={6} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="至少 6 个字符" />
+              <Input type="password" minLength={12} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder={PASSWORD_REQUIREMENT_HINT} />
+              <Description>{PASSWORD_REQUIREMENT_HINT}</Description>
             </TextField>
           </div>
 
           <div>
             <TextField isRequired isDisabled={changingPassword}>
               <Label>确认新密码</Label>
-              <Input type="password" minLength={6} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="再次输入新密码" />
+              <Input type="password" minLength={12} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="再次输入新密码" />
             </TextField>
           </div>
 

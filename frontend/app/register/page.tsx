@@ -5,7 +5,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { authApi } from '@/lib/api';
 import { extractErrorMessage } from '@/lib/errors';
-import { Alert, Button, Description, Input, Label, Spinner, TextField } from '@heroui/react';
+import { PASSWORD_REQUIREMENT_HINT, validatePasswordStrength } from '@/lib/validation';
+import { Alert, Button, Description, FieldError, Input, Label, Spinner, TextField } from '@heroui/react';
 
 function RegisterContent() {
   const router = useRouter();
@@ -20,6 +21,13 @@ function RegisterContent() {
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  // 密码字段实时校验提示（输入过且不达标时显示）
+  const [passwordTouched, setPasswordTouched] = useState(false);
+  const passwordStrength = validatePasswordStrength(formData.password);
+  // 确认密码失焦比对（HIG 建议：错误尽早反馈，不必等到提交）
+  const [confirmTouched, setConfirmTouched] = useState(false);
+  const confirmPasswordMismatch =
+    confirmTouched && formData.confirmPassword.length > 0 && formData.confirmPassword !== formData.password;
 
   useEffect(() => {
     const inviteFromUrl =
@@ -42,9 +50,11 @@ function RegisterContent() {
       return;
     }
 
-    // Validate password length
-    if (formData.password.length < 6) {
-      setError('密码长度至少为 6 个字符');
+    // Validate password strength（与后端策略一致：12 位 + 3 类）
+    const strength = validatePasswordStrength(formData.password);
+    if (!strength.valid) {
+      setError(strength.message);
+      setPasswordTouched(true);
       return;
     }
 
@@ -111,17 +121,44 @@ function RegisterContent() {
           </div>
 
           <div>
-            <TextField isRequired isDisabled={loading}>
+            <TextField
+              isRequired
+              isDisabled={loading}
+              isInvalid={passwordTouched && formData.password.length > 0 && !passwordStrength.valid}
+              onBlur={() => setPasswordTouched(true)}
+            >
               <Label>密码</Label>
-              <Input id="password" type="password" minLength={6} value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} />
-              <Description>至少 6 个字符</Description>
+              <Input
+                id="password"
+                type="password"
+                minLength={12}
+                value={formData.password}
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+              />
+              <Description>{PASSWORD_REQUIREMENT_HINT}</Description>
+              {passwordTouched && formData.password.length > 0 && !passwordStrength.valid ? (
+                <FieldError>{passwordStrength.message}</FieldError>
+              ) : null}
             </TextField>
           </div>
 
           <div>
-            <TextField isRequired isDisabled={loading}>
+            <TextField
+              isRequired
+              isDisabled={loading}
+              isInvalid={confirmPasswordMismatch}
+              onBlur={() => setConfirmTouched(true)}
+            >
               <Label>确认密码</Label>
-              <Input id="confirm-password" type="password" value={formData.confirmPassword} onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })} />
+              <Input
+                id="confirm-password"
+                type="password"
+                value={formData.confirmPassword}
+                onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+              />
+              {confirmPasswordMismatch ? (
+                <FieldError>两次输入的密码不一致</FieldError>
+              ) : null}
             </TextField>
           </div>
 

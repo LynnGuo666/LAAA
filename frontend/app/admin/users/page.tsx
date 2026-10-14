@@ -22,7 +22,8 @@ import { renderStatusChip, renderStatusSelect } from '@/lib/admin-utils'
 import { hasPermission } from '@/lib/authz'
 import { formatDate } from '@/lib/date'
 import { useAuthStore } from '@/lib/store'
-import { extractErrorMessage } from '@/lib/errors';
+import { extractErrorMessage } from '@/lib/errors'
+import { PASSWORD_REQUIREMENT_HINT, validatePasswordStrength } from '@/lib/validation';
 
 interface User {
   id: number
@@ -195,6 +196,12 @@ export default function UsersPage() {
 
   const handleCreateUser = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    // 创建必须填密码，强度与后端策略一致（12 位 + 3 类）
+    const strength = validatePasswordStrength(createForm.password)
+    if (!strength.valid) {
+      setCreateError(strength.message)
+      return
+    }
     setCreateError(null)
     setCreatingUser(true)
 
@@ -212,6 +219,15 @@ export default function UsersPage() {
   const handleEditUser = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!selectedUser) return
+
+    // 改密为可选：填写了才校验强度（留空表示不修改）
+    if (editForm.password) {
+      const strength = validatePasswordStrength(editForm.password)
+      if (!strength.valid) {
+        setEditError(strength.message)
+        return
+      }
+    }
 
     setEditError(null)
     setUpdatingUser(true)
@@ -565,10 +581,10 @@ export default function UsersPage() {
             }
           />
         </AdminFormField>
-        <AdminFormField label="密码" isRequired>
+        <AdminFormField label="密码" description={PASSWORD_REQUIREMENT_HINT} isRequired>
           <Input
             type="password"
-            minLength={6}
+            minLength={12}
             value={createForm.password}
             onChange={(event) =>
               setCreateForm((previous) => ({
@@ -627,10 +643,13 @@ export default function UsersPage() {
             setEditForm((previous) => ({ ...previous, status: value })),
           )}
         </AdminFormField>
-        <AdminFormField label="新密码" description="留空表示不修改">
+        <AdminFormField
+          label="新密码"
+          description={`留空表示不修改；填写时${PASSWORD_REQUIREMENT_HINT}`}
+        >
           <Input
             type="password"
-            minLength={6}
+            minLength={12}
             value={editForm.password}
             onChange={(event) =>
               setEditForm((previous) => ({
