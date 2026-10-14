@@ -151,6 +151,10 @@ def get_optional_user(
     if payload.get("tv", 0) != user.token_version:
         return None
 
+    # 把解析出的 JWT payload 挂到 request.state,供下游(authorize 的
+    # 受限会话检查)读取,避免重复解码签名(与 get_current_user 同构)
+    request.state.token_payload = payload
+
     return user
 
 

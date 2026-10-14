@@ -742,6 +742,77 @@ def test_legacy_internal_secret_kept_in_debug(client, db_session, seed_admin, mo
 
 
 # ---------------------------------------------------------------------------
+# authorize 拒绝受限会话 claim(批次2 修复7,批次1 遗留项)
+# ---------------------------------------------------------------------------
+
+def test_authorize_rejects_restricted_session_claim(client, seed_admin, internal_client):
+    """跳过验证签发的 restricted token 不得进入授权流程(claim + 静态双检)。
+
+    seed_admin 静态属性不受限(已验证邮箱 + TOTP),本用例单独验证
+    restricted claim 的拦截——静态检查抓不到这种会话。
+    """
+    from app.services.auth_service import AuthService
+
+    cid, _ = internal_client
+    restricted_token = AuthService.create_restricted_access_token(
+        user=seed_admin, client_id="internal", scope="profile email",
+    )["access_token"]
+
+    # GET 预检 → 403
+    resp = client.get(
+        "/api/oauth/authorize",
+        params={
+            "response_type": "code",
+            "client_id": cid,
+            "redirect_uri": REDIRECT_URI,
+            "scope": "profile",
+        },
+        headers={"Authorization": f"Bearer {restricted_token}", "Accept": "application/json"},
+    )
+    assert resp.status_code == 403, resp.text
+    assert "受限" in resp.json()["detail"]
+
+    # POST approve → 403
+    resp = client.post(
+        "/api/oauth/authorize",
+        data={
+            "response_type": "code",
+            "client_id": cid,
+            "redirect_uri": REDIRECT_URI,
+            "scope": "profile",
+            "action": "approve",
+        },
+        headers={"Authorization": f"Bearer {restricted_token}", "Accept": "application/json"},
+    )
+    assert resp.status_code == 403, resp.text
+
+
+def test_authorize_rejects_statically_restricted_user(client, db_session, make_user, internal_client):
+    """静态受限用户(未验证邮箱/无第二因子)在 authorize 被 403(既有行为守护)。"""
+    cid, _ = internal_client
+    user = make_user(email_verified=False)  # 静态受限
+
+    # 用受限用户自己的凭据登录拿 token(登录本身不设限)
+    resp = client.post("/api/auth/login", json={
+        "username": user.username, "password": "Passw0rd!",
+    })
+    assert resp.status_code == 200, resp.text
+    token = resp.json()["access_token"]
+
+    resp = client.get(
+        "/api/oauth/authorize",
+        params={
+            "response_type": "code",
+            "client_id": cid,
+            "redirect_uri": REDIRECT_URI,
+            "scope": "profile",
+        },
+        headers={"Authorization": f"Bearer {token}", "Accept": "application/json"},
+    )
+    assert resp.status_code == 403, resp.text
+
+
+# ---------------------------------------------------------------------------
 # consent 重定向透传 PKCE/nonce(批次2 修复4)
 # ---------------------------------------------------------------------------
 

@@ -128,11 +128,19 @@ async def authorize_get(
             detail="您没有权限访问此应用"
         )
 
-    # Check if user is in restricted mode
+    # Check if user is in restricted mode(静态属性:未验证邮箱/无第二因子)
     if current_user.is_restricted:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="您的账户处于受限模式，请先完成邮箱验证和二次验证设置"
+        )
+
+    # 受限会话 claim 双检(批次1 遗留):身份来自跳过验证签发的 restricted
+    # token 时,即使静态属性已解除受限,也不得进入授权流程
+    if (getattr(request.state, "token_payload", None) or {}).get("restricted"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="当前为受限会话（跳过验证登录），请重新登录并完成安全验证后再授权"
         )
 
     # P2-4:仅当请求 scope 是已授权 scope 的子集时才跳过同意(避免静默升级)
@@ -235,11 +243,19 @@ async def authorize_post(
             detail="您没有权限访问此应用"
         )
 
-    # Check if user is in restricted mode
+    # Check if user is in restricted mode(静态属性:未验证邮箱/无第二因子)
     if current_user.is_restricted:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="您的账户处于受限模式，请先完成邮箱验证和二次验证设置"
+        )
+
+    # 受限会话 claim 双检(批次1 遗留):身份来自跳过验证签发的 restricted
+    # token 时,即使静态属性已解除受限,也不得签发授权码
+    if (getattr(request.state, "token_payload", None) or {}).get("restricted"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="当前为受限会话（跳过验证登录），请重新登录并完成安全验证后再授权"
         )
 
     # Handle denial
