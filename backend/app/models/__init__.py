@@ -231,7 +231,7 @@ class Token(Base):
     redirect_uri = Column(String(500), nullable=True)  # For authorization codes
     # PKCE(RFC 7636):授权码绑定 code_challenge,token 兑换时校验 code_verifier
     code_challenge = Column(String(128), nullable=True)
-    code_challenge_method = Column(String(10), nullable=True)  # S256 / plain
+    code_challenge_method = Column(String(10), nullable=True)  # 仅 S256(plain 已拒绝)
     # OIDC nonce:授权码请求时透传,签发 id_token 时回填(防重放)
     nonce = Column(String(128), nullable=True)
     # refresh token 家族(OAuth 2.1 BCP):同一条登录链路的所有 refresh token

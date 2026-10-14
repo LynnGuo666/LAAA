@@ -14,7 +14,7 @@ from app.middleware.auth import get_optional_user
 from app.middleware.ratelimit import limiter
 from app.models import User
 from app.schemas import UserInfoResponse
-from app.services.oauth_service import OAuthService
+from app.services.oauth_service import OAuthService, is_valid_pkce_param
 from app.utils.device import get_client_ip
 from app.utils.security import create_id_token, decode_token, verify_client_secret
 
@@ -90,9 +90,13 @@ async def authorize_get(
     if not OAuthService.verify_scope(client, scope):
         raise HTTPException(status_code=400, detail="Invalid scope")
 
-    # PKCE:code_challenge_method 仅允许 S256(或 plain 向后兼容)
-    if code_challenge and code_challenge_method not in (None, "S256", "plain"):
-        raise HTTPException(status_code=400, detail="Unsupported code_challenge_method")
+    # PKCE:仅允许 S256(OAuth 2.1 BCP,plain 明文传输 verifier 削弱防拦截
+    # 意义);challenge 格式按 RFC 7636 校验(43-128,限定字符集)
+    if code_challenge:
+        if code_challenge_method not in (None, "S256"):
+            raise HTTPException(status_code=400, detail="Unsupported code_challenge_method (only S256)")
+        if not is_valid_pkce_param(code_challenge):
+            raise HTTPException(status_code=400, detail="Invalid code_challenge format")
 
     # 公开客户端(public,无 client_secret)必须在 authorize 阶段就带 PKCE
     # code_challenge——提前拒绝而非等到兑换时才失败(fail-fast,
@@ -231,6 +235,13 @@ async def authorize_post(
     # Verify redirect_uri
     if not OAuthService.verify_redirect_uri(client, redirect_uri):
         raise HTTPException(status_code=400, detail="Invalid redirect_uri")
+
+    # PKCE:与 GET 一致,仅允许 S256 + challenge 格式校验
+    if code_challenge:
+        if code_challenge_method not in (None, "S256"):
+            raise HTTPException(status_code=400, detail="Unsupported code_challenge_method (only S256)")
+        if not is_valid_pkce_param(code_challenge):
+            raise HTTPException(status_code=400, detail="Invalid code_challenge format")
 
     # 公开客户端必须在 authorize 阶段就带 PKCE challenge(与 GET 一致,fail-fast)
     if getattr(client, 'client_type', 'confidential') == 'public' and not code_challenge:

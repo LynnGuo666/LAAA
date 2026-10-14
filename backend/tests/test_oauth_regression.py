@@ -879,6 +879,109 @@ def test_non_ascii_verifier_rejected_not_500(client, admin_token, internal_clien
 
 
 # ---------------------------------------------------------------------------
+# PKCE 收紧:仅 S256 + 格式校验(批次2 修复8b)
+# ---------------------------------------------------------------------------
+
+def test_pkce_plain_method_rejected(client, admin_token, internal_client):
+    """code_challenge_method=plain 在 authorize 即被拒(OAuth 2.1 BCP)。"""
+    cid, _ = internal_client
+    challenge = "a" * 43  # 合法格式的 challenge,但方法用 plain
+
+    resp = client.get(
+        "/api/oauth/authorize",
+        params={
+            "response_type": "code",
+            "client_id": cid,
+            "redirect_uri": REDIRECT_URI,
+            "scope": "profile",
+            "code_challenge": challenge,
+            "code_challenge_method": "plain",
+        },
+        headers={"Authorization": f"Bearer {admin_token}", "Accept": "application/json"},
+    )
+    assert resp.status_code == 400, resp.text
+    assert "code_challenge_method" in resp.json()["detail"]
+
+    # POST(同意流)同样拒绝
+    resp = client.post(
+        "/api/oauth/authorize",
+        data={
+            "response_type": "code",
+            "client_id": cid,
+            "redirect_uri": REDIRECT_URI,
+            "scope": "profile",
+            "code_challenge": challenge,
+            "code_challenge_method": "plain",
+            "action": "approve",
+        },
+        headers={"Authorization": f"Bearer {admin_token}", "Accept": "application/json"},
+    )
+    assert resp.status_code == 400, resp.text
+
+
+def test_pkce_challenge_format_validated(client, admin_token, internal_client):
+    """challenge 必须满足 RFC 7636 格式(43-128,限定字符集)。"""
+    cid, _ = internal_client
+
+    # 太短(<43)
+    resp = client.get(
+        "/api/oauth/authorize",
+        params={
+            "response_type": "code", "client_id": cid,
+            "redirect_uri": REDIRECT_URI, "scope": "profile",
+            "code_challenge": "short", "code_challenge_method": "S256",
+        },
+        headers={"Authorization": f"Bearer {admin_token}", "Accept": "application/json"},
+    )
+    assert resp.status_code == 400, resp.text
+    assert "format" in resp.json()["detail"].lower()
+
+    # 非法字符(含空格)
+    resp = client.get(
+        "/api/oauth/authorize",
+        params={
+            "response_type": "code", "client_id": cid,
+            "redirect_uri": REDIRECT_URI, "scope": "profile",
+            "code_challenge": "a" * 42 + " !", "code_challenge_method": "S256",
+        },
+        headers={"Authorization": f"Bearer {admin_token}", "Accept": "application/json"},
+    )
+    assert resp.status_code == 400, resp.text
+
+
+def test_pkce_short_verifier_rejected_at_exchange(client, admin_token, internal_client):
+    """verifier 不满足 43-128 格式 → 兑换时 PKCE 校验失败(invalid_grant)。"""
+    cid, sec = internal_client
+    verifier = "v" * 64
+    challenge = base64.urlsafe_b64encode(
+        hashlib.sha256(verifier.encode("ascii")).digest()
+    ).rstrip(b"=").decode("ascii")
+    _, code = _authorize_get_code(
+        client, admin_token, cid,
+        code_challenge=challenge, code_challenge_method="S256",
+    )
+
+    # 20 字符 verifier:即使哈希碰巧不可能匹配,也必须在格式层拒绝
+    resp = client.post("/api/oauth/token", data={
+        "grant_type": "authorization_code",
+        "code": code,
+        "redirect_uri": REDIRECT_URI,
+        "client_id": cid,
+        "client_secret": sec,
+        "code_verifier": "x" * 20,
+    })
+    assert resp.status_code == 400, resp.text
+    assert resp.json()["error"] == "invalid_grant"
+
+
+def test_discovery_advertises_s256_only(client):
+    """discovery 的 code_challenge_methods_supported 不再包含 plain。"""
+    resp = client.get("/.well-known/openid-configuration")
+    methods = resp.json()["code_challenge_methods_supported"]
+    assert methods == ["S256"]
+
+
+# ---------------------------------------------------------------------------
 # consent 重定向透传 PKCE/nonce(批次2 修复4)
 # ---------------------------------------------------------------------------
 

@@ -36,7 +36,7 @@ async def openid_configuration(request: Request):
         ],
         # 实现同时支持 client_secret_post 与 client_secret_basic
         "token_endpoint_auth_methods_supported": ["client_secret_post", "client_secret_basic"],
-        "code_challenge_methods_supported": ["S256", "plain"],
+        "code_challenge_methods_supported": ["S256"],
     }
 
 

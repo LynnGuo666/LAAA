@@ -3,6 +3,7 @@ import hashlib
 import hmac
 import json
 import logging
+import re
 from datetime import timedelta
 from typing import Optional, Tuple
 
@@ -22,6 +23,16 @@ from app.utils.time import utcnow
 
 settings = get_settings()
 logger = logging.getLogger("uvicorn.error")
+
+# RFC 7636 §4.1:code_verifier 由允许的字符集组成且长度 43-128;
+# code_challenge(S256)是 verifier 的 base64url(43 字符),plain 则等于
+# verifier 本身,两者格式校验一致
+_PKCE_PARAM_RE = re.compile(r"^[A-Za-z0-9\-._~]{43,128}$")
+
+
+def is_valid_pkce_param(value: Optional[str]) -> bool:
+    """PKCE code_verifier / code_challenge 格式校验(RFC 7636 §4.1/4.2)。"""
+    return bool(value) and bool(_PKCE_PARAM_RE.match(value))
 
 
 class OAuthService:
@@ -142,28 +153,27 @@ class OAuthService:
 
     @staticmethod
     def _verify_pkce(code_verifier: Optional[str], stored_challenge: Optional[str], method: Optional[str]) -> bool:
-        """校验 PKCE code_verifier。无 stored_challenge 时视为未启用 PKCE,直接通过。"""
+        """校验 PKCE code_verifier。无 stored_challenge 时视为未启用 PKCE,直接通过。
+
+        仅接受 S256(OAuth 2.1 BCP:plain 会把 verifier 明文过信道,
+        削弱 PKCE 的防拦截意义;存量 plain code 一律校验失败)。
+        verifier 格式先按 RFC 7636 §4.1 校验(43-128,限定字符集)。
+        """
         if not stored_challenge:
             # 客户端未在 authorize 时提供 code_challenge:对公开客户端应拒绝,
             # 对机密客户端允许(向后兼容)。调用方按 client_type 决定。
             return True
-        if not code_verifier:
+        if method != "S256":
             return False
-        if method == "S256":
-            try:
-                digest = hashlib.sha256(code_verifier.encode("ascii")).digest()
-            except (UnicodeEncodeError, AttributeError):
-                # 非 ASCII verifier 直接判失败,而不是 500
-                return False
-            computed = base64.urlsafe_b64encode(digest).rstrip(b"=").decode("ascii")
-            return hmac.compare_digest(computed, stored_challenge)
-        elif method == "plain":
-            # 兼容存量 code(收紧到仅 S256 在 authorize 入口做,见批次2 修复8b)
-            try:
-                return hmac.compare_digest(code_verifier, stored_challenge)
-            except TypeError:
-                return False
-        return False
+        if not code_verifier or not is_valid_pkce_param(code_verifier):
+            return False
+        try:
+            digest = hashlib.sha256(code_verifier.encode("ascii")).digest()
+        except (UnicodeEncodeError, AttributeError):
+            # 非 ASCII verifier 直接判失败,而不是 500
+            return False
+        computed = base64.urlsafe_b64encode(digest).rstrip(b"=").decode("ascii")
+        return hmac.compare_digest(computed, stored_challenge)
 
     @staticmethod
     def _revoke_tokens_derived_from_code(db: Session, code_hash: str) -> int:
