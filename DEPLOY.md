@@ -88,6 +88,20 @@ curl http://localhost:8000/api/health   # 应返回 {"status":"ok"}
 
 > `docker-compose.prod.yml` 已把 `HOST`/`PORT`/`STATIC_DIR`/`DATABASE_URL`/`DEBUG` 设为容器内默认，`./env` 不填也行；但 `SECRET_KEY`、`JWT_PRIVATE_KEY_PATH`/`JWT_PUBLIC_KEY_PATH`、`OIDC_ISSUER` 和域名相关项**必须**显式设置。
 
+#### internal 客户端 secret 必须轮换（重要）
+
+内置的 `internal` OAuth 客户端（trusted + default_access）历史版本使用硬编码默认 secret `internal_secret_change_this`——该值随仓库公开，等于没有秘密。当前版本的策略：
+
+- **首次部署**：secret 随机生成（`secrets.token_urlsafe(32)`），只在 seed 输出中打印一次，请立即保存到密码管理器；
+- **存量库**：若数据库里的 secret 仍是历史默认值，**非 DEBUG 模式启动时会自动轮换**为随机值并在日志中告警；
+- **显式指定**：通过环境变量 `INTERNAL_CLIENT_SECRET` 注入固定值（推荐 docker-compose 部署用 `openssl rand -base64 32` 生成后注入）：
+
+  ```env
+  INTERNAL_CLIENT_SECRET=<openssl rand -base64 32 的输出>
+  ```
+
+`internal` 客户端的 secret **不用于 LAAA 自身登录流程**（登录走 `create_tokens` 直签），轮换不影响 LAAA 运行——只切断外部拿公开默认值冒用 `internal` 身份（password grant / introspect / revoke）的路径。若有第三方依赖方在用旧值，请通过管理界面（应用管理）重新下发 secret。
+
 ### 2. 数据持久化
 
 `docker-compose.prod.yml`(及本地版)挂了三个卷，**不要删**：

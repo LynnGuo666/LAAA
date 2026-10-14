@@ -1,11 +1,15 @@
 """
 Database initialization and seed data
 """
-from sqlalchemy.orm import Session
-from app.database import SessionLocal, init_db
-from app.models import User, Role, Permission, Client, Group, role_permissions
-from app.utils.security import get_password_hash, generate_random_string, hash_token
 import json
+import os
+import secrets
+
+from sqlalchemy.orm import Session
+
+from app.database import SessionLocal, init_db
+from app.models import Client, Group, Permission, Role, User
+from app.utils.security import get_password_hash, hash_token
 
 
 def create_roles_and_permissions(db: Session):
@@ -90,20 +94,26 @@ def create_default_admin(db: Session):
 
         db.commit()
 
-        print(f"  ✓ Created admin user (username: admin, password: admin123)")
+        print("  ✓ Created admin user (username: admin, password: admin123)")
     else:
-        print(f"  ℹ Admin user already exists")
+        print("  ℹ Admin user already exists")
 
 
 def create_internal_client(db: Session):
-    """Create internal client for direct login"""
+    """Create internal client for direct login.
+
+    secret 来源优先级:
+    1. 环境变量 INTERNAL_CLIENT_SECRET(docker-compose 注入用);
+    2. 随机生成 secrets.token_urlsafe(32),首次创建时打印一次。
+    不再使用硬编码默认值——它在公开仓库里等于没有 secret。
+    """
     client = db.query(Client).filter(Client.client_id == "internal").first()
 
     if not client:
         # Get admin user as owner
         admin = db.query(User).filter(User.username == "admin").first()
 
-        client_secret = "internal_secret_change_this"
+        client_secret = os.environ.get("INTERNAL_CLIENT_SECRET") or secrets.token_urlsafe(32)
         client = Client(
             client_id="internal",
             client_secret_hash=hash_token(client_secret),
@@ -117,9 +127,15 @@ def create_internal_client(db: Session):
         db.add(client)
         db.commit()
 
-        print(f"  ✓ Created internal client")
+        print("  ✓ Created internal client")
+        if os.environ.get("INTERNAL_CLIENT_SECRET"):
+            print("  ℹ internal client secret 来自环境变量 INTERNAL_CLIENT_SECRET")
+        else:
+            print("  ⚠️  internal client secret(仅此一次展示,请立即妥善保存):")
+            print(f"     {client_secret}")
+            print("     也可用环境变量 INTERNAL_CLIENT_SECRET 显式指定以固定该值")
     else:
-        print(f"  ℹ Internal client already exists")
+        print("  ℹ Internal client already exists")
 
 
 def create_default_groups(db: Session):

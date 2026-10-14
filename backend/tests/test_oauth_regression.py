@@ -668,6 +668,80 @@ def test_password_grant_risk_blocked(client, db_session, seed_admin, make_user, 
 
 
 # ---------------------------------------------------------------------------
+# internal 客户端 secret 随机化(批次2 修复6)
+# ---------------------------------------------------------------------------
+
+def test_legacy_internal_secret_rotated_when_not_debug(client, db_session, seed_admin, monkeypatch):
+    """存量库 internal secret 仍是硬编码默认值时,非 DEBUG 启动自动轮换。"""
+    from app.config import get_settings
+    from app.database import (
+        _LEGACY_INTERNAL_CLIENT_SECRET,
+        _maybe_rotate_legacy_internal_secret,
+    )
+    from app.models import Client
+    from app.utils.security import hash_token, verify_client_secret
+
+    # 造一个带历史默认 secret 的 client(不动共享库的 internal 行)
+    dummy = Client(
+        client_id=f"testrot_{secrets.token_hex(4)}",
+        client_secret_hash=hash_token(_LEGACY_INTERNAL_CLIENT_SECRET),
+        name="legacy secret rotation test",
+        description="",
+        redirect_uris=json.dumps([REDIRECT_URI]),
+        allowed_scopes=json.dumps(["profile"]),
+        trusted=True,
+        owner_id=seed_admin.id,
+    )
+    db_session.add(dummy)
+    db_session.commit()
+    db_session.refresh(dummy)
+
+    monkeypatch.setattr(get_settings(), "debug", False)
+    _maybe_rotate_legacy_internal_secret(db_session, dummy)
+    db_session.refresh(dummy)
+    # 已轮换:不再是默认值
+    assert not verify_client_secret(_LEGACY_INTERNAL_CLIENT_SECRET, dummy.client_secret_hash)
+
+    # 清理
+    db_session.delete(dummy)
+    db_session.commit()
+
+
+def test_legacy_internal_secret_kept_in_debug(client, db_session, seed_admin, monkeypatch):
+    """DEBUG 模式不自动轮换(开发便利),只警告。"""
+    from app.config import get_settings
+    from app.database import (
+        _LEGACY_INTERNAL_CLIENT_SECRET,
+        _maybe_rotate_legacy_internal_secret,
+    )
+    from app.models import Client
+    from app.utils.security import hash_token, verify_client_secret
+
+    dummy = Client(
+        client_id=f"testdbg_{secrets.token_hex(4)}",
+        client_secret_hash=hash_token(_LEGACY_INTERNAL_CLIENT_SECRET),
+        name="legacy secret debug test",
+        description="",
+        redirect_uris=json.dumps([REDIRECT_URI]),
+        allowed_scopes=json.dumps(["profile"]),
+        trusted=True,
+        owner_id=seed_admin.id,
+    )
+    db_session.add(dummy)
+    db_session.commit()
+    db_session.refresh(dummy)
+
+    monkeypatch.setattr(get_settings(), "debug", True)
+    _maybe_rotate_legacy_internal_secret(db_session, dummy)
+    db_session.refresh(dummy)
+    # DEBUG 下保持原值
+    assert verify_client_secret(_LEGACY_INTERNAL_CLIENT_SECRET, dummy.client_secret_hash)
+
+    db_session.delete(dummy)
+    db_session.commit()
+
+
+# ---------------------------------------------------------------------------
 # consent 重定向透传 PKCE/nonce(批次2 修复4)
 # ---------------------------------------------------------------------------
 

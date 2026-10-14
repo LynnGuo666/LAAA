@@ -1,3 +1,6 @@
+import os
+import secrets
+
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import declarative_base, sessionmaker
 
@@ -143,13 +146,24 @@ def init_db():
     _ensure_internal_client()
 
 
+# 历史版本的硬编码 internal client secret(公开仓库可见,视为已泄露)。
+# 存量库若仍用它,非 DEBUG 模式下启动时自动轮换(见 _ensure_internal_client)。
+_LEGACY_INTERNAL_CLIENT_SECRET = "internal_secret_change_this"
+
+
 def _ensure_internal_client():
-    """确保 internal OAuth 客户端存在(幂等)。
+    """确保 internal OAuth 客户端存在(幂等),并处理默认 secret 的轮换。
 
     seed.py 也会创建,但测试环境/精简部署可能不跑 seed;
     登录链路依赖它,缺失会让所有登录 500。
-    secret 固定为 seed.py 的默认值,便于环境间一致;
-    生产环境应通过 admin 界面轮换。
+
+    secret 策略:
+    - 新建:优先 INTERNAL_CLIENT_SECRET 环境变量,否则随机生成并打印一次;
+    - 存量:若 secret_hash 仍是历史硬编码默认值的哈希且非 DEBUG 模式,
+      启动时自动轮换为随机值并打日志警告——避免存量库带着公开仓库里的
+      secret 跑生产(internal 客户端自身的登录链路不用 secret,轮换
+      不影响 LAAA 自身运行,只断了外部拿默认值冒用的路径)。
+    - DEBUG 模式不轮换(开发便利),但每次启动都警告。
     """
     import json as _json
 
@@ -158,14 +172,18 @@ def _ensure_internal_client():
 
     db = SessionLocal()
     try:
-        if db.query(Client).filter(Client.client_id == 'internal').first():
+        existing = db.query(Client).filter(Client.client_id == 'internal').first()
+        if existing:
+            _maybe_rotate_legacy_internal_secret(db, existing)
             return
+
         print("🔧 创建 internal OAuth 客户端...")
+        client_secret = os.environ.get("INTERNAL_CLIENT_SECRET") or secrets.token_urlsafe(32)
         db.add(Client(
             client_id='internal',
             name='内部客户端',
             description='LAAA 自身登录流程使用的内置客户端',
-            client_secret_hash=hash_token('internal_secret_change_this'),
+            client_secret_hash=hash_token(client_secret),
             redirect_uris=_json.dumps(['http://localhost:3000/callback']),
             allowed_scopes=_json.dumps(['profile', 'email', 'openid']),
             trusted=True,
@@ -174,9 +192,43 @@ def _ensure_internal_client():
         ))
         db.commit()
         print("✅ internal 客户端已就绪")
+        if not os.environ.get("INTERNAL_CLIENT_SECRET"):
+            print("⚠️  internal client secret(仅此一次展示,请立即妥善保存):")
+            print(f"    {client_secret}")
+            print("    也可用环境变量 INTERNAL_CLIENT_SECRET 显式指定以固定该值")
     except Exception as e:
         db.rollback()
         print(f"⚠️  创建 internal 客户端失败: {e}")
     finally:
         db.close()
+
+
+def _maybe_rotate_legacy_internal_secret(db, client) -> None:
+    """存量 internal 客户端仍用硬编码默认 secret 时,按需轮换。"""
+    from app.config import get_settings
+    from app.utils.security import hash_token, verify_client_secret
+
+    try:
+        if not verify_client_secret(_LEGACY_INTERNAL_CLIENT_SECRET, client.client_secret_hash):
+            return  # 已是自定义/随机值,无需处理
+
+        if get_settings().debug:
+            print(
+                "⚠️  internal 客户端仍在使用公开仓库中的默认 secret,"
+                "DEBUG 模式下未自动轮换——生产环境启动时会强制轮换,"
+                "或用环境变量 INTERNAL_CLIENT_SECRET 显式指定"
+            )
+            return
+
+        new_secret = os.environ.get("INTERNAL_CLIENT_SECRET") or secrets.token_urlsafe(32)
+        client.client_secret_hash = hash_token(new_secret)
+        db.commit()
+        print(
+            "⚠️  安全警告:internal 客户端的 secret 为历史硬编码默认值(已公开),"
+            "已自动轮换为随机值。该 secret 不用于 LAAA 自身登录,"
+            "如有外部依赖方使用旧值,请通过管理界面重新下发。"
+        )
+    except Exception as e:
+        db.rollback()
+        print(f"⚠️  检查/轮换 internal 客户端 secret 失败: {e}")
 
