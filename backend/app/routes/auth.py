@@ -389,9 +389,9 @@ async def get_current_user_info(
     db: Session = Depends(get_db)
 ):
     """Get current user information"""
-    permissions = sorted({p.code for r in current_user.roles for p in r.permissions})
-    roles = sorted({r.name for r in current_user.roles})
-    groups = sorted({g.name for g in current_user.groups})
+    from app.routes.user import me_collections
+
+    permissions, roles, groups, is_admin = me_collections(db, current_user)
 
     return UserMeResponse(
         id=current_user.id,
@@ -404,7 +404,7 @@ async def get_current_user_info(
         groups=groups,
         roles=roles,
         permissions=permissions,
-        is_admin=current_user.has_permission("admin.*") or current_user.has_role("admin"),
+        is_admin=is_admin,
         is_restricted=current_user.is_restricted,
     )
 

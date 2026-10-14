@@ -3,6 +3,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import or_
 from sqlalchemy.orm import Session as DBSession
+from sqlalchemy.orm import selectinload
 
 from app.database import get_db
 from app.middleware.permission import require_permission
@@ -131,8 +132,11 @@ async def list_users(
     # 获取总数
     total = query.count()
 
-    # 分页
-    users = query.order_by(User.id).offset(skip).limit(limit).all()
+    # 分页(selectinload 预取 groups/roles,消除循环内 lazy select 的 N+1)
+    users = query.options(
+        selectinload(User.groups),
+        selectinload(User.roles),
+    ).order_by(User.id).offset(skip).limit(limit).all()
 
     items = []
     for user in users:
@@ -866,13 +870,15 @@ async def get_user_authorizations(
             detail="用户不存在"
         )
 
-    authorizations = db.query(UserAuthorization).filter(
+    authorizations = db.query(UserAuthorization).options(
+        selectinload(UserAuthorization.client)
+    ).filter(
         UserAuthorization.user_id == user_id
     ).order_by(UserAuthorization.last_used_at.desc()).all()
 
     result = []
     for auth in authorizations:
-        client = db.query(Client).filter(Client.id == auth.client_id).first()
+        client = auth.client
         if client:
             result.append(AdminAuthorizationResponse(
                 id=auth.id,

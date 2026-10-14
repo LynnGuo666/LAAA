@@ -2,11 +2,11 @@ import logging
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.database import get_db
 from app.middleware.auth import get_current_user, require_unrestricted
-from app.models import Client, LoginLog, Token, User, UserAuthorization
+from app.models import Client, LoginLog, Role, Token, User, UserAuthorization
 from app.models import Session as SessionModel
 from app.schemas import (
     AuthorizationListItem,
@@ -27,6 +27,40 @@ from app.utils.time import utcnow
 logger = logging.getLogger("uvicorn.error")
 
 router = APIRouter(prefix="/api/user", tags=["User Management"])
+
+
+def me_collections(db: Session, user: User):
+    """汇总 /me 响应所需的 roles/permissions/groups(消除 N+1)。
+
+    默认 lazy loading 下 roles→permissions 逐角色触发 select,加上 groups
+    一次 /me 要发 2+N 条查询(N=角色数);这里 roles+permissions 用
+    selectinload 一条链取齐、groups 单独一条,固定 3 条。
+    auth.py 的 /api/auth/me 与本文件的 /api/user/me 共用,各端点仍
+    自行构造响应,语义不变。
+    返回 (permissions, roles, groups, is_admin)。
+    """
+    from app.models import Group, user_groups, user_roles
+
+    roles = (
+        db.query(Role)
+        .options(selectinload(Role.permissions))
+        .join(user_roles, user_roles.c.role_id == Role.id)
+        .filter(user_roles.c.user_id == user.id)
+        .all()
+    )
+    role_names = sorted({r.name for r in roles})
+    permissions = sorted({p.code for r in roles for p in r.permissions})
+    groups = (
+        db.query(Group)
+        .join(user_groups, user_groups.c.group_id == Group.id)
+        .filter(user_groups.c.user_id == user.id)
+        .all()
+    )
+    group_names = sorted({g.name for g in groups})
+    # 与 User.has_permission("admin.*") / has_role("admin") 等价:
+    # 二者最终都归结为「名为 admin 的角色」或「admin.* 权限码」
+    is_admin = "admin" in role_names or "admin.*" in permissions
+    return permissions, role_names, group_names, is_admin
 
 
 def _resolve_current_session(
@@ -60,11 +94,9 @@ def _resolve_current_session(
 
 
 @router.get("/me", response_model=UserMeResponse)
-async def get_profile(current_user: User = Depends(get_current_user)):
+async def get_profile(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Get current user profile"""
-    permissions = sorted({p.code for r in current_user.roles for p in r.permissions})
-    roles = sorted({r.name for r in current_user.roles})
-    groups = sorted({g.name for g in current_user.groups})
+    permissions, roles, groups, is_admin = me_collections(db, current_user)
 
     return UserMeResponse(
         id=current_user.id,
@@ -76,7 +108,7 @@ async def get_profile(current_user: User = Depends(get_current_user)):
         groups=groups,
         roles=roles,
         permissions=permissions,
-        is_admin=current_user.has_permission("admin.*") or current_user.has_role("admin"),
+        is_admin=is_admin,
     )
 
 
@@ -98,9 +130,7 @@ async def update_profile(
     db.commit()
     db.refresh(current_user)
 
-    permissions = sorted({p.code for r in current_user.roles for p in r.permissions})
-    roles = sorted({r.name for r in current_user.roles})
-    groups = sorted({g.name for g in current_user.groups})
+    permissions, roles, groups, is_admin = me_collections(db, current_user)
 
     return UserMeResponse(
         id=current_user.id,
@@ -112,7 +142,7 @@ async def update_profile(
         groups=groups,
         roles=roles,
         permissions=permissions,
-        is_admin=current_user.has_permission("admin.*") or current_user.has_role("admin"),
+        is_admin=is_admin,
     )
 
 
@@ -122,7 +152,9 @@ async def get_authorizations(
     db: Session = Depends(get_db)
 ):
     """Get list of authorized applications"""
-    authorizations = db.query(UserAuthorization).filter(
+    authorizations = db.query(UserAuthorization).options(
+        selectinload(UserAuthorization.client)
+    ).filter(
         UserAuthorization.user_id == current_user.id
     ).all()
 
