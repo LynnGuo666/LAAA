@@ -137,7 +137,11 @@ export default function VerifyPage() {
           <Button onPress={handleSendEmailCode} isDisabled={loading} variant="primary" className="w-full" isPending={loading}>发送验证码</Button>
         ) : (
           <>
-            <Input type="text" value={emailCode} onChange={e => setEmailCode(e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="输入6位验证码" className="w-full" maxLength={6} />
+            <div className="flex justify-center py-2">
+              <InputOTP value={emailCode} onChange={v => setEmailCode(v.replace(/\D/g, '').slice(0, 6))} maxLength={6} inputMode="numeric">
+                <InputOTP.Group><InputOTP.Slot index={0} /><InputOTP.Slot index={1} /><InputOTP.Slot index={2} /><InputOTP.Slot index={3} /><InputOTP.Slot index={4} /><InputOTP.Slot index={5} /></InputOTP.Group>
+              </InputOTP>
+            </div>
             <Button onPress={() => verify(() => verificationApi.verifyEmailCode(session.session_token, emailCode), 'email_code')} isDisabled={loading || emailCode.length !== 6} variant="primary" className="w-full" isPending={loading}>验证</Button>
             <Button onPress={handleSendEmailCode} isDisabled={loading || emailCooldown > 0} variant="ghost" className="w-full text-sm">{emailCooldown > 0 ? `重新发送 (${emailCooldown}s)` : '重新发送'}</Button>
           </>
@@ -246,7 +250,7 @@ export default function VerifyPage() {
 
         <div className="pt-1">
           <ProgressBar value={(session.completed_verifications / session.required_verifications) * 100} color="accent" className="mb-3" />
-          <Button onPress={handleSkip} isDisabled={skipping} variant="ghost" size="sm" className="w-full text-foreground/60">{skipping ? '处理中...' : '跳过验证，进入受限模式'}</Button>
+          <Button onPress={handleSkip} isDisabled={skipping} variant="ghost" size="sm" className="w-full text-sm text-muted">{skipping ? '处理中...' : '跳过验证，进入受限模式'}</Button>
         </div>
       </div>
     );
@@ -259,7 +263,7 @@ export default function VerifyPage() {
         {success && <Alert status="success" className="mb-4"><Alert.Indicator /><Alert.Content><Alert.Description>{success}</Alert.Description></Alert.Content></Alert>}
         {renderStep()}
         <div className="mt-6 text-center">
-          <Link href="/login" className="text-xs text-foreground/60 hover:text-muted">返回登录</Link>
+          <Link href="/login" className="text-sm text-muted hover:text-foreground">返回登录</Link>
         </div>
       </div>
     </div>

@@ -58,10 +58,9 @@ export function ThemeToggle() {
   return (
     <Button
       variant="tertiary"
-      size="sm"
+      size="md"
       onPress={toggle}
-      aria-label="切换主题"
-      aria-title={theme === 'dark' ? '切换到浅色模式' : '切换到深色模式'}
+      aria-label={theme === 'dark' ? '切换到浅色模式' : '切换到深色模式'}
     >
       {/* 挂载前用占位图标避免水合不一致；挂载后用真实主题 */}
       {mounted ? (theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />) : <Moon className="w-4 h-4" />}

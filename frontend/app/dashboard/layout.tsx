@@ -197,7 +197,7 @@ export default function DashboardLayout({
                   key={link.href}
                   href={link.href}
                   aria-current={isActive ? 'page' : undefined}
-                  className={`text-sm whitespace-nowrap px-2 py-1 rounded transition-colors ${
+                  className={`text-sm whitespace-nowrap px-3 py-2.5 min-h-11 inline-flex items-center rounded transition-colors ${
                     isActive
                       ? 'text-accent bg-accent/10'
                       : 'text-muted hover:text-foreground'
