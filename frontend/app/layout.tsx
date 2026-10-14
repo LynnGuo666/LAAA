@@ -2,6 +2,7 @@ import './globals.css'
 import type { Metadata } from 'next'
 import { Agentation } from 'agentation'
 import { ConfirmDialogProvider } from '@/components/ui/confirm-dialog-provider'
+import { AuthBootstrap } from '@/components/AuthBootstrap'
 import ToastProvider from './toast-provider'
 
 export const metadata: Metadata = {
@@ -27,7 +28,9 @@ export default function RootLayout({
       </head>
       <body>
         <ToastProvider>
-          <ConfirmDialogProvider>{children}</ConfirmDialogProvider>
+          <ConfirmDialogProvider>
+            <AuthBootstrap>{children}</AuthBootstrap>
+          </ConfirmDialogProvider>
           {process.env.NODE_ENV === 'development' && <Agentation />}
         </ToastProvider>
       </body>

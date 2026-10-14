@@ -36,8 +36,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [siteName, setSiteName] = useState('OAuth 服务器')
 
   useEffect(() => {
-    const token = localStorage.getItem('access_token')
-    if (!token) {
+    // token 在内存（store）；AuthBootstrap 已在根布局恢复会话
+    const { accessToken, refreshToken } = useAuthStore.getState()
+    if (!accessToken && !refreshToken && !user) {
       router.push('/login')
       return
     }
@@ -52,7 +53,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           router.push('/login')
         })
     }
-  }, [router, setUser, user])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [router, user])
 
   useEffect(() => {
     siteApi
@@ -72,13 +74,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }, [router, user])
 
   const handleLogout = async () => {
-    const refreshToken = localStorage.getItem('refresh_token')
-    if (refreshToken) {
-      try {
-        await authApi.logout(refreshToken)
-      } catch {
-        // ignore
-      }
+    // 内存有 refresh token 放 body；没有（cookie 形态）则依赖后端双读
+    try {
+      await authApi.logout(useAuthStore.getState().refreshToken || undefined)
+    } catch {
+      // ignore
     }
     logout()
     router.push('/login')

@@ -181,15 +181,8 @@ function LoginContent() {
       const userResponse = await authApi.getMe(access_token);
       const user = userResponse.data;
 
-      // 然后保存 token 和用户信息
-      localStorage.setItem('access_token', access_token);
-      localStorage.setItem('refresh_token', refresh_token);
-
-      // Also set session cookie for OAuth authorize endpoint
-      const maxAge = 60 * 60 * 24 * 7; // 7 days
-      document.cookie = `session_token=${access_token}; path=/; max-age=${maxAge}; SameSite=Lax`;
-
-      // 设置认证状态
+      // 设置认证状态（token 只存内存；后端已通过 Set-Cookie 下发
+      // laaa_refresh / authorize_token，前端不再写 localStorage / cookie）
       setAuth(user, access_token, refresh_token);
 
       // 如果有安全提示，延迟跳转让用户看到提示
@@ -268,15 +261,7 @@ function LoginContent() {
       const userResponse = await authApi.getMe(access_token);
       const user = userResponse.data;
 
-      // Save tokens
-      localStorage.setItem('access_token', access_token);
-      localStorage.setItem('refresh_token', refresh_token);
-
-      // Also set session cookie for OAuth authorize endpoint
-      const maxAge = 60 * 60 * 24 * 7; // 7 days
-      document.cookie = `session_token=${access_token}; path=/; max-age=${maxAge}; SameSite=Lax`;
-
-      // Set auth state
+      // Set auth state（token 只存内存，持久化由后端 HttpOnly cookie 负责）
       setAuth(user, access_token, refresh_token);
 
       // Redirect

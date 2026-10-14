@@ -78,9 +78,7 @@ export default function VerifyPage() {
     try {
       const res = await fn();
       if (res.data.verification_complete && res.data.access_token) {
-        localStorage.setItem('access_token', res.data.access_token);
-        localStorage.setItem('refresh_token', res.data.refresh_token);
-        document.cookie = `session_token=${res.data.access_token}; path=/; max-age=${60*60*24*7}; SameSite=Lax`;
+        // token 只存内存；后端已通过 Set-Cookie 下发认证 cookie
         const userRes = await authApi.getMe(res.data.access_token);
         setAuth(userRes.data, res.data.access_token, res.data.refresh_token);
         sessionStorage.removeItem('verification_session');
@@ -109,8 +107,7 @@ export default function VerifyPage() {
     try {
       const res = await verificationApi.skipVerification(session.session_token);
       const { access_token, refresh_token } = res.data;
-      localStorage.setItem('access_token', access_token); localStorage.setItem('refresh_token', refresh_token);
-      document.cookie = `session_token=${access_token}; path=/; max-age=${60*60*24*7}; SameSite=Lax`;
+      // token 只存内存；后端已通过 Set-Cookie 下发认证 cookie
       const userRes = await authApi.getMe(access_token);
       setAuth(userRes.data, access_token, refresh_token);
       sessionStorage.removeItem('verification_session');

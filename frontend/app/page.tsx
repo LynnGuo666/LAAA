@@ -21,13 +21,11 @@ export default function Home() {
   }, []);
 
   const handleLogout = () => {
-    // 尽力撤销服务端 refresh token（fire-and-forget），再清理本地状态
-    const refreshToken = localStorage.getItem('refresh_token');
-    if (refreshToken) {
-      authApi.logout(refreshToken).catch(() => {
-        // ignore
-      });
-    }
+    // 尽力撤销服务端会话（fire-and-forget）：内存有 refresh token 放 body，
+    // 没有则依赖后端 cookie 双读；再清理本地状态
+    authApi.logout(useAuthStore.getState().refreshToken || undefined).catch(() => {
+      // ignore
+    });
     useAuthStore.getState().logout();
   };
 

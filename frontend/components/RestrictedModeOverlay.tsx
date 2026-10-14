@@ -90,15 +90,13 @@ export default function RestrictedModeOverlay({ user, onComplete }: RestrictedMo
   };
 
   const handleLogout = async () => {
-    const refreshToken = localStorage.getItem('refresh_token');
-    if (refreshToken) {
-      try {
-        await authApi.logout(refreshToken);
-      } catch {
-        // ignore
-      }
+    // 内存有 refresh token 放 body；没有（cookie 形态）则依赖后端双读
+    try {
+      await authApi.logout(useAuthStore.getState().refreshToken || undefined);
+    } catch {
+      // ignore
     }
-    // 统一走 store.logout，同时清理 localStorage 与 session_token cookie
+    // 统一走 store.logout，清理内存 token 与兼容期残留
     useAuthStore.getState().logout();
     router.push('/login');
   };

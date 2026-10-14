@@ -63,19 +63,11 @@ function MagicLinkContent() {
 
         // Check if verification is complete
         if (response.data.verification_complete && response.data.access_token) {
-          // Save tokens
-          localStorage.setItem('access_token', response.data.access_token);
-          localStorage.setItem('refresh_token', response.data.refresh_token);
-
-          // Also set session cookie for OAuth authorize endpoint
-          const maxAge = 60 * 60 * 24 * 7; // 7 days
-          document.cookie = `session_token=${response.data.access_token}; path=/; max-age=${maxAge}; SameSite=Lax`;
-
           // Get user info
           const userResponse = await authApi.getMe(response.data.access_token);
           const user = userResponse.data;
 
-          // Set auth state
+          // Set auth state（token 只存内存，持久化由后端 HttpOnly cookie 负责）
           setAuth(user, response.data.access_token, response.data.refresh_token);
 
           setStatus('success');
@@ -105,19 +97,11 @@ function MagicLinkContent() {
 
         const { access_token, refresh_token } = response.data;
 
-        // Save tokens
-        localStorage.setItem('access_token', access_token);
-        localStorage.setItem('refresh_token', refresh_token);
-
-        // Also set session cookie for OAuth authorize endpoint
-        const maxAge = 60 * 60 * 24 * 7; // 7 days
-        document.cookie = `session_token=${access_token}; path=/; max-age=${maxAge}; SameSite=Lax`;
-
         // Get user info
         const userResponse = await authApi.getMe(access_token);
         const user = userResponse.data;
 
-        // Set auth state
+        // Set auth state（token 只存内存，持久化由后端 HttpOnly cookie 负责）
         setAuth(user, access_token, refresh_token);
 
         setStatus('success');

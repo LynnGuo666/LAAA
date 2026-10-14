@@ -26,8 +26,10 @@ export default function DashboardLayout({
 
   useEffect(() => {
     // Check if user is authenticated
-    const token = localStorage.getItem('access_token');
-    if (!token) {
+    // token 在内存（store）；AuthBootstrap 已在根布局恢复会话，
+    // 这里既有 user 又有 token 说明会话有效
+    const { accessToken, refreshToken } = useAuthStore.getState();
+    if (!accessToken && !refreshToken && !user) {
       router.push('/login');
       return;
     }
@@ -42,7 +44,8 @@ export default function DashboardLayout({
           router.push('/login');
         });
     }
-  }, [user, setUser, router]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, router]);
 
   useEffect(() => {
     siteApi.get()
@@ -53,13 +56,11 @@ export default function DashboardLayout({
   }, []);
 
   const handleLogout = async () => {
-    const refreshToken = localStorage.getItem('refresh_token');
-    if (refreshToken) {
-      try {
-        await authApi.logout(refreshToken);
-      } catch (err) {
-        // Ignore errors
-      }
+    // 内存有 refresh token 放 body；没有（cookie 形态）则依赖后端双读
+    try {
+      await authApi.logout(useAuthStore.getState().refreshToken || undefined);
+    } catch (err) {
+      // Ignore errors
     }
     logout();
     router.push('/login');

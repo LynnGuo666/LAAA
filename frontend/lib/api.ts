@@ -10,12 +10,16 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  // cookie 随 XHR 走：同源部署无感；dev 双 origin（:3000 → :8000）必需，
+  // 否则后端 Set-Cookie 的 laaa_refresh 收不到、refresh 双读兜底失效。
+  withCredentials: true,
 });
 
 // Request interceptor to add auth token
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('access_token');
+    // token 只在内存（zustand store），不再读 localStorage
+    const token = useAuthStore.getState().accessToken;
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -32,17 +36,25 @@ api.interceptors.request.use(
 // and log the user out randomly.
 let refreshPromise: Promise<{ access_token: string; refresh_token: string }> | null = null;
 
-function refreshAccessToken(refreshToken: string) {
+/**
+ * 刷新 access token（模块级单例，bootstrap 与 401 拦截器共用——
+ * 后端旋转 refresh token 后旧值立即作废，并发 refresh 会互相失效）。
+ * refreshToken 缺省时传空 body，依赖 HttpOnly 的 laaa_refresh cookie
+ * （后端 refresh 端点双读：body 优先、cookie 兜底）。
+ */
+export function refreshAccessToken(refreshToken?: string) {
   if (!refreshPromise) {
     // Use raw axios (not the `api` instance) to avoid interceptor recursion.
     refreshPromise = axios
-      .post(`${API_URL}/api/auth/refresh`, {
-        refresh_token: refreshToken,
-      })
+      .post(
+        `${API_URL}/api/auth/refresh`,
+        { refresh_token: refreshToken || '' },
+        { withCredentials: true }
+      )
       .then((response) => {
         const { access_token, refresh_token } = response.data;
-        localStorage.setItem('access_token', access_token);
-        localStorage.setItem('refresh_token', refresh_token);
+        // 新 token 写回内存 store（而非 localStorage）
+        useAuthStore.getState().setTokens(access_token, refresh_token);
         return { access_token, refresh_token };
       })
       .finally(() => {
@@ -75,18 +87,21 @@ api.interceptors.response.use(
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
 
-      const refreshToken = localStorage.getItem('refresh_token');
-      if (refreshToken) {
+      // 已登录用户（或可能有 cookie 会话）才尝试刷新：
+      // - 内存有 refresh token → 放 body
+      // - 内存没有 → 传空串依赖 laaa_refresh cookie（页面刷新后 token 内存丢失、
+      //   但 cookie 仍在的场景）
+      // 完全匿名（无 user 也无 token）的请求跳过，避免无谓的 refresh 调用。
+      const { refreshToken, user } = useAuthStore.getState();
+      if (refreshToken || user) {
         try {
-          const { access_token } = await refreshAccessToken(refreshToken);
+          const { access_token } = await refreshAccessToken(refreshToken || undefined);
 
           // Retry original request with new token
           originalRequest.headers.Authorization = `Bearer ${access_token}`;
           return api(originalRequest);
         } catch (refreshError) {
           // Refresh failed, logout user (let app router navigate, avoid full reload)
-          localStorage.removeItem('access_token');
-          localStorage.removeItem('refresh_token');
           try {
             useAuthStore.getState().logout();
           } catch {
@@ -115,8 +130,10 @@ export const authApi = {
       device_token: getDeviceToken()
     }),
 
-  logout: (refreshToken: string) =>
-    api.post('/api/auth/logout', { refresh_token: refreshToken }),
+  // refreshToken 可选：内存有就传 body；没有（cookie 形态）传空串，
+  // 后端 logout 双读（body 优先、laaa_refresh cookie 兜底）。
+  logout: (refreshToken?: string) =>
+    api.post('/api/auth/logout', { refresh_token: refreshToken || '' }),
 
   getMe: (token?: string) => {
     const headers = token ? { Authorization: `Bearer ${token}` } : {};
@@ -379,9 +396,9 @@ export const passkeyApi = {
 
   // Get authentication options (no auth required)
   getAuthenticationOptions: (username?: string) =>
-    axios.post(`${API_URL}/api/passkeys/authenticate/options`, { username }),
+    axios.post(`${API_URL}/api/passkeys/authenticate/options`, { username }, { withCredentials: true }),
 
-  // Verify authentication (no auth required)
+  // Verify authentication (no auth required, but receives Set-Cookie on success)
   verifyAuthentication: (data: {
     id: string;
     rawId: string;
@@ -396,11 +413,11 @@ export const passkeyApi = {
     axios.post(`${API_URL}/api/passkeys/authenticate/verify`, {
       ...data,
       device_token: data.device_token || getDeviceToken()
-    }),
+    }, { withCredentials: true }),
 
   // Check if user has passkeys (no auth required)
   checkUserPasskeys: (username: string) =>
-    axios.get(`${API_URL}/api/passkeys/check/${username}`),
+    axios.get(`${API_URL}/api/passkeys/check/${username}`, { withCredentials: true }),
 
   // List passkeys (requires auth)
   list: () =>
@@ -416,26 +433,28 @@ export const passkeyApi = {
 };
 
 // Verification API (for multi-step verification during login)
+// 注意：验证流端点成功时会 Set-Cookie（laaa_refresh / authorize_token），
+// 所有 raw axios 调用都必须带 withCredentials，否则 cookie 被浏览器丢弃。
 export const verificationApi = {
   // Get verification session status
   getStatus: (sessionToken: string) =>
-    axios.get(`${API_URL}/api/auth/verify/status/${sessionToken}`),
+    axios.get(`${API_URL}/api/auth/verify/status/${sessionToken}`, { withCredentials: true }),
 
   // Send email verification code
   sendEmailCode: (sessionToken: string) =>
-    axios.post(`${API_URL}/api/auth/verify/email-code/send`, { session_token: sessionToken }),
+    axios.post(`${API_URL}/api/auth/verify/email-code/send`, { session_token: sessionToken }, { withCredentials: true }),
 
   // Verify email code
   verifyEmailCode: (sessionToken: string, code: string) =>
-    axios.post(`${API_URL}/api/auth/verify/email-code`, { session_token: sessionToken, code }),
+    axios.post(`${API_URL}/api/auth/verify/email-code`, { session_token: sessionToken, code }, { withCredentials: true }),
 
   // Verify TOTP code
   verifyTOTP: (sessionToken: string, code: string) =>
-    axios.post(`${API_URL}/api/auth/verify/totp`, { session_token: sessionToken, code }),
+    axios.post(`${API_URL}/api/auth/verify/totp`, { session_token: sessionToken, code }, { withCredentials: true }),
 
   // Verify backup code
   verifyBackupCode: (sessionToken: string, code: string) =>
-    axios.post(`${API_URL}/api/auth/verify/backup-code`, { session_token: sessionToken, code }),
+    axios.post(`${API_URL}/api/auth/verify/backup-code`, { session_token: sessionToken, code }, { withCredentials: true }),
 
   // Send magic link
   sendMagicLink: (sessionToken: string) =>
@@ -450,14 +469,14 @@ export const verificationApi = {
 
   // Start passkey verification
   startPasskeyVerification: (sessionToken: string) =>
-    axios.post(`${API_URL}/api/auth/verify/passkey/start`, { session_token: sessionToken }),
+    axios.post(`${API_URL}/api/auth/verify/passkey/start`, { session_token: sessionToken }, { withCredentials: true }),
 
   // Complete passkey verification
   completePasskeyVerification: (sessionToken: string, credential: object) =>
     axios.post(`${API_URL}/api/auth/verify/passkey/complete`, {
       session_token: sessionToken,
       credential
-    }),
+    }, { withCredentials: true }),
 
   // Magic Link independent login - send
   sendMagicLinkLogin: (email: string) =>
@@ -472,7 +491,7 @@ export const verificationApi = {
 
   // Skip verification (enter restricted mode)
   skipVerification: (sessionToken: string) =>
-    axios.post(`${API_URL}/api/auth/verify/skip`, { session_token: sessionToken }),
+    axios.post(`${API_URL}/api/auth/verify/skip`, { session_token: sessionToken }, { withCredentials: true }),
 };
 
 // TOTP API (Two-Factor Authentication)

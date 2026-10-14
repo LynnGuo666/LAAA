@@ -51,8 +51,8 @@ function AuthorizeContent() {
   }, []);
 
   const checkAuthorization = async () => {
-    // 检查是否登录
-    const token = localStorage.getItem('access_token');
+    // 检查是否登录：token 只在内存（A2 方案），bootstrap 已恢复会话
+    const token = useAuthStore.getState().accessToken;
     if (!token) {
       // 未登录，重定向到登录页
       const returnUrl = `/oauth/authorize?${searchParams.toString()}`;
@@ -70,6 +70,7 @@ function AuthorizeContent() {
         headers: {
           Authorization: `Bearer ${token}`,
         },
+        withCredentials: true,
       });
 
       setClientInfo({
@@ -92,6 +93,7 @@ function AuthorizeContent() {
           Authorization: `Bearer ${token}`,
           Accept: 'application/json',
         },
+        withCredentials: true,
       });
 
       // 如果后端返回 redirect_url，说明已经自动授权（trusted app 或已授权）
@@ -122,7 +124,7 @@ function AuthorizeContent() {
 
   const handleApprove = async () => {
     if (submitting) return;
-    const token = localStorage.getItem('access_token');
+    const token = useAuthStore.getState().accessToken;
     if (!token) {
       router.push('/login');
       return;
@@ -147,6 +149,7 @@ function AuthorizeContent() {
             'Content-Type': 'application/x-www-form-urlencoded',
             Accept: 'application/json',
           },
+          withCredentials: true,
         }
       );
 
@@ -182,7 +185,7 @@ function AuthorizeContent() {
       ? `${redirectUri}?error=access_denied${state ? `&state=${encodeURIComponent(state)}` : ''}`
       : null;
 
-    const token = localStorage.getItem('access_token');
+    const token = useAuthStore.getState().accessToken;
     if (token) {
       try {
         // 优先调用后端 deny 分支，让后端记录授权拒绝
@@ -203,6 +206,7 @@ function AuthorizeContent() {
               'Content-Type': 'application/x-www-form-urlencoded',
               Accept: 'application/json',
             },
+            withCredentials: true,
           }
         );
 
@@ -225,13 +229,10 @@ function AuthorizeContent() {
 
   const handleSwitchAccount = async () => {
     if (submitting) return;
-    // 撤销服务端 refresh token（尽力而为），并清理本地登录态（含 session_token cookie）
-    const refreshToken = localStorage.getItem('refresh_token');
-    if (refreshToken) {
-      authApi.logout(refreshToken).catch(() => {
-        // ignore
-      });
-    }
+    // 撤销服务端会话（尽力而为，cookie 形态时依赖后端双读），并清理本地登录态
+    authApi.logout(useAuthStore.getState().refreshToken || undefined).catch(() => {
+      // ignore
+    });
     useAuthStore.getState().logout();
     const returnUrl = `/oauth/authorize?${searchParams.toString()}`;
     router.push(`/login?redirect=${encodeURIComponent(returnUrl)}`);
