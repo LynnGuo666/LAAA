@@ -17,9 +17,16 @@
 #   - ./jwt_keys   → /app/jwt_keys   (RS256 签名密钥对,私钥不入镜像/git)
 #   - ./data       → /app/data       (可选:覆盖镜像内置 GeoIP 库)
 #
+# ⚠️ 容器以非 root 用户运行(镜像内 uid/gid 1000)。bind mount 的宿主机目录/
+#    文件属主若是 root,容器内无法写 SQLite/jwt_keys。首次启动前请对齐属主:
+#      sudo chown -R 1000:1000 ./oauth.db ./jwt_keys ./data
+#    或在下方 service 里显式设 user: "1000:1000"(详解见 DEPLOY.md
+#    「非 root 用户与卷属主」)。docker compose 由 root 跑时自动创建的空
+#    oauth.db 属 root,尤其注意。
+#
 # 后端代码挂载:
 #   - ./backend/app → /app/app  (bind mount,配合 uvicorn --reload 热重载)
-#   注意:backend/app 是挂载的,镜像里没有 COPY 它 —— 代码改在宿主机即可生效。
+#   注意:backend/app 是挂载的,会覆盖镜像内 COPY 的同名目录 —— 代码改在宿主机即可生效。
 
 services:
   laaa:
@@ -42,12 +49,15 @@ services:
       - DEBUG=True
     volumes:
       # 后端代码 bind mount + 热重载(改 backend/app 即时生效,无需重 build)
+      # (覆盖镜像内 COPY 的 /app/app;只读代码,uvicorn reload 需要能读即可)
       - ./backend/app:/app/app
-      # 数据库持久化
+      # 数据库持久化。注意属主:容器以 uid 1000 运行,宿主机侧文件若属 root
+      # 会导致 SQLite 写失败 → 首启前 chown 1000:1000(见文件头说明)
       - ./oauth.db:/app/oauth.db
       # RS256 JWT 签名密钥对。先生成:
       #   python backend/scripts/generate_jwt_keys.py --out-dir ./jwt_keys
       # 再在 ./env 设 JWT_PRIVATE_KEY_PATH=jwt_keys/jwt_private.pem
+      # (或直接 up,entrypoint 检测到缺失会自动生成)
       - ./jwt_keys:/app/jwt_keys
       # 可选:自有 GeoIP 库覆盖镜像内置
       - ./data:/app/data

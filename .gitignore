@@ -16,6 +16,8 @@ out/
 .next/server/
 .build/
 dist/
+# next build 增量编译缓存(tsbuildinfo,每次 build 都变)
+*.tsbuildinfo
 
 # Frontend build output (if any)
 frontend/out/
@@ -63,6 +65,10 @@ htmlcov/
 *.sqlite3
 *.db
 backend/oauth.db
+# SQLite WAL/SHM 伴随文件(WAL 含完整用户数据,且随连接生命周期出现/消失,不可提交)
+*.db-wal
+*.db-shm
+*.db-journal
 
 # GeoIP database
 backend/data/GeoLite2-*.mmdb

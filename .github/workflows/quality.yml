@@ -48,6 +48,11 @@ jobs:
           SMTP_ENABLED: "false"
         run: pytest tests/ -v
 
+      # bandit/pip-audit 暂不阻断 CI(`|| true`),这是**有意为之**而非疏忽:
+      # - bandit:现有代码有若干低置信度告警(如 assert 用法),清理后再改为阻断
+      # - pip-audit:依赖链里存在若干上游尚未发修复版的 CVE(尤其 transitive
+      #   依赖),需要先建豁免清单(pip-audit --ignore)再收紧
+      # TODO: 建立供应链 CVE 豁免清单后,去掉两处 `|| true` 让它们 gate 合并。
       - name: Bandit security scan
         working-directory: backend
         run: bandit -r app -ll || true
@@ -56,7 +61,7 @@ jobs:
         working-directory: backend
         run: pip-audit -r requirements.lock || true
 
-      # --- Frontend: lint + typecheck ---
+      # --- Frontend: lint + typecheck + build ---
       - name: Install frontend deps
         working-directory: frontend
         run: npm ci
@@ -68,3 +73,12 @@ jobs:
       - name: Typecheck
         working-directory: frontend
         run: npm run typecheck
+
+      # 静态导出构建也纳入 CI:next build 的失败(类型/页面级错误)在这里
+      # 暴露,而不是等到 docker build 阶段才炸(那时定位成本高得多)。
+      # 产物不需要上传,只为验证可构建。
+      - name: Build frontend (static export)
+        working-directory: frontend
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"
+        run: npm run build

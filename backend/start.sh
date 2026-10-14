@@ -123,11 +123,14 @@ fi
 g "→ 应用数据库迁移"
 alembic upgrade head 2>/dev/null || y "  (alembic 跳过:初始迁移为空,表由应用 startup create_all 建立)"
 
-if [ ! -f oauth.db ] || [ "$(python -c 'import sqlite3;print(sqlite3.connect("oauth.db").execute("select count(*) from users").fetchone()[0])' 2>/dev/null || echo 0)" -eq 0 ]; then
-  g "→ 首次启动,运行 seed.py 创建默认角色/admin/内部 client"
-  python seed.py || y "  seed 跳过(可能已部分存在)"
+# seed.py 本身幂等(按名称查询、已存在则跳过),不依赖探测特定 DB 文件——
+# 用户改了 DATABASE_URL 时,探测 oauth.db 判断的库与实际写入的库会不一致。
+# 需要跳过 seed 时设 RUN_SEED=0。
+if [ "${RUN_SEED:-1}" = "1" ]; then
+  g "→ 运行 seed.py(幂等:确保默认角色/admin/内部 client 存在)"
+  python seed.py || y "  seed 未完全成功(可能权限/连接问题,详见上方输出)"
 else
-  g "✓ 数据库已有数据,跳过 seed"
+  y "  RUN_SEED=0,跳过 seed"
 fi
 
 # --- 6. 前端(可选) ---

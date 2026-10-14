@@ -163,22 +163,71 @@ build_frontend() {
   ( cd "$FRONTEND_DIR" && npm install -q && npm run build )
 }
 
+# ---------- 递归收集并杀掉整棵进程树 ----------
+# 背景:dev 模式下进程树是多层的——
+#   npm(node) → next-server(node) → worker/子进程
+#   uvicorn(--reload) → reloader 子进程
+# 只 kill 顶层 PID 会留下孤儿 node/worker 继续占端口。
+# 做法:用 pgrep -P 递归枚举全部子孙。必须"先收集、后 kill"——一旦先杀了父,
+# 子进程被 init 收养、与原父的父子关系消失,pgrep -P 就找不到了。
+# 输出顺序刻意做成叶子在前、根在后(先杀子孙再杀根,避免父进程临死前再 fork)。
+# pgrep/kill 均为 macOS/Linux 通用,不依赖 setsid/tac 等平台私有工具。
+collect_descendants() {
+  # $1=根 PID;输出其所有子孙 + 根本身(叶子最先,根最后)
+  local root="$1"
+  local children child
+  children="$(pgrep -P "$root" 2>/dev/null || true)"
+  for child in $children; do
+    collect_descendants "$child"
+  done
+  echo "$root"
+}
+
+kill_tree() {
+  # $1=根 PID。按叶子→根顺序逐个发 TERM,随后短暂等待,仍存活者升级 KILL
+  #(否则脚本退出后顽固子进程继续占端口,正是本次要修的问题)。
+  local pid
+  for pid in $(collect_descendants "$1"); do
+    kill "$pid" 2>/dev/null || true
+  done
+  # 最多等 ~2 秒让进程自行退出
+  local i
+  for i in 1 2 3 4; do
+    kill -0 "$1" 2>/dev/null || break
+    sleep 0.5
+  done
+  # 兜底:整棵树里还活着的补 SIGKILL
+  for pid in $(collect_descendants "$1"); do
+    kill -9 "$pid" 2>/dev/null || true
+  done
+}
+
 # ---------- 优雅停止 ----------
 cleanup() {
   echo
   y "↩ 收到退出信号,停止后台进程…"
+  # 先把还活着的 PID 全部读进数组,再统一动手:
+  # 原实现边循环边 rm pid 文件,循环结束后再读 backend.pid 恒失败
+  # (pkill -P 0 无效,被 || true 吞掉),兜底从未生效过。
+  local alive_pids=()
+  local f pid
   for f in frontend.pid backend.pid; do
     if [ -f "$PID_DIR/$f" ]; then
-      pid="$(cat "$PID_DIR/$f")"
-      if kill -0 "$pid" 2>/dev/null; then
-        kill "$pid" 2>/dev/null || true
-        y "  已停 $f (pid=$pid)"
+      pid="$(cat "$PID_DIR/$f" 2>/dev/null || true)"
+      if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
+        alive_pids+=("$pid")
+        y "  停止 $f (pid=$pid,含全部子进程)"
       fi
-      rm -f "$PID_DIR/$f"
     fi
   done
-  # 兜底:按端口清残留(dev 模式子进程树)
-  pkill -P "$(cat "$PID_DIR/backend.pid" 2>/dev/null || echo 0)" 2>/dev/null || true
+  # ${arr[@]+...} 写法兼容 macOS 自带 bash 3.2:空数组在 set -u 下直接展开会报
+  # unbound variable(bash 4.4 才修复)。
+  if [ "${#alive_pids[@]}" -gt 0 ]; then
+    for pid in "${alive_pids[@]}"; do
+      kill_tree "$pid"
+    done
+  fi
+  rm -f "$PID_DIR/frontend.pid" "$PID_DIR/backend.pid"
   exit 0
 }
 
@@ -223,17 +272,25 @@ run_prod() {
 # ---------- 模式:stop ----------
 run_stop() {
   y "↩ 停止本脚本拉起的进程…"
+  # 先收集还活着的根 PID,再统一 kill_tree(整棵树,npm→next-server→worker 多层不残留)
+  local alive_pids=()
+  local f pid
   for f in frontend.pid backend.pid; do
     if [ -f "$PID_DIR/$f" ]; then
-      pid="$(cat "$PID_DIR/$f")"
-      if kill -0 "$pid" 2>/dev/null; then
-        kill "$pid" 2>/dev/null && y "  已停 $f (pid=$pid)"
-        # 杀掉子进程树(npm/next/uvicorn reload 常派生子进程)
-        pkill -P "$pid" 2>/dev/null || true
+      pid="$(cat "$PID_DIR/$f" 2>/dev/null || true)"
+      if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
+        alive_pids+=("$pid")
+        y "  停止 $f (pid=$pid,含全部子进程)"
       fi
-      rm -f "$PID_DIR/$f"
     fi
   done
+  # bash 3.2 兼容:空数组在 set -u 下不可直接展开
+  if [ "${#alive_pids[@]}" -gt 0 ]; then
+    for pid in "${alive_pids[@]}"; do
+      kill_tree "$pid"
+    done
+  fi
+  rm -f "$PID_DIR/frontend.pid" "$PID_DIR/backend.pid"
   g "✓ 完成"
   exit 0
 }

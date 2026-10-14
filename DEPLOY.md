@@ -37,8 +37,9 @@ cp backend/.env.example ./env
 #   WEBAUTHN_RP_ID=localhost
 #   WEBAUTHN_RP_ORIGIN=http://localhost:8000
 
-# 3. 生成 RS256 签名密钥对(只生成一次,随卷持久化)
-#    用本地构建的镜像跑脚本(免本地装依赖),需挂载 backend/app 让脚本能 import:
+# 3. (可选)生成 RS256 签名密钥对
+#    首次 up 时 entrypoint 检测到 ./jwt_keys 里没有密钥会自动生成 RSA-2048,
+#    因此通常可跳过本步。想自己掌握密钥(比如复用已有 CA 管理的密钥)时才手动生成:
 mkdir jwt_keys
 docker compose run --rm --no-deps \
   -v "$PWD/jwt_keys:/jwt_keys" \
@@ -56,7 +57,7 @@ curl http://localhost:8000/api/health   # 应返回 {"status":"ok"}
 日常只改后端代码:`docker compose up -d`(不带 `--build`,镜像层缓存命中,秒起 + reload)。
 看日志 / 停止:`docker compose logs -f laaa` / `docker compose down`。
 
-> ⚠️ **必须生成 RS256 密钥对**。access token / id token 用 RS256 非对称签名,未配置密钥时登录与 OAuth 签发 token 会失败。`jwt_keys/` 已由 compose 挂载到容器 `/app/jwt_keys`,私钥不入镜像、不进 git。
+> ⚠️ **RS256 密钥对**。access token / id token 用 RS256 非对称签名,未配置密钥时登录与 OAuth 签发 token 会失败。密钥缺失时 entrypoint 会自动生成;`jwt_keys/` 已由 compose 挂载到容器 `/app/jwt_keys`,私钥不入镜像、不进 git。
 
 
 首次启动会自动初始化数据库并创建默认管理员（用户名 `admin` / 密码 `admin123`，**登录后立即改密码**）。
@@ -98,6 +99,24 @@ curl http://localhost:8000/api/health   # 应返回 {"status":"ok"}
 > 本地构建版还多挂一个 `./backend/app:/app/app` —— 后端代码 bind mount,配合 `--reload` 热重载。生产版不挂此项,代码已在镜像内。
 
 > 首次 `up` 前无需手动创建 `oauth.db`/`data`，compose 会自动建空目录/空文件。SQLite 会在首次启动时由应用自动建表。`jwt_keys/` 须先按上方步骤生成密钥对再 up。
+
+### 非 root 用户与卷属主（重要）
+
+容器以**非 root** 用户运行（镜像内 `appuser`，uid/gid `1000`），这是容器安全基线——即使应用被攻破，进程也没有 root 权限。代价是 bind mount 进来的文件属主必须允许 uid 1000 写入：
+
+```bash
+# 首次 up 前（或遇到"database is locked / permission denied"时）对齐属主：
+sudo chown -R 1000:1000 ./oauth.db ./jwt_keys ./data
+
+# 若想让 compose 自动以宿主机某用户身份跑，可在 service 里显式指定（二选一即可）：
+#   user: "1000:1000"
+```
+
+常见坑：
+
+- 以 root 执行 `docker compose up` 时，compose 自动创建的空 `oauth.db`/`jwt_keys`/`data` 属主是 **root** → 容器内 uid 1000 无法写 → entrypoint 的 seed/迁移直接失败。
+- 提示 `permission denied`、`unable to open database file`、seed 失败时，先查属主：`ls -ln oauth.db jwt_keys`（看第三列数字是不是 1000）。
+- uid 1000 通常恰好等于宿主机第一个普通用户（多数发行版如此），此时直接可用你的用户跑 compose，无需 chown。
 
 ### 3. 拉起与升级
 
@@ -153,6 +172,16 @@ server {
 ```
 
 > 反向代理须把真实客户端 IP 透传（`X-Forwarded-For`），GeoIP 才能定位到正确地理位置。否则应用只能看到反代 IP。
+
+### X-Forwarded-* 与客户端 IP（uvicorn proxy-headers）
+
+容器内 uvicorn 已开启 `--proxy-headers`，并默认信任 `FORWARDED_ALLOW_IPS=127.0.0.1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16`（即本机与三个 RFC1918 私网段）来源的 `X-Forwarded-*` 头。含义：
+
+- 反代容器/宿主机在这些网段内（常见形态：宿主机 nginx → 容器映射端口）时，**无需任何额外配置**，应用拿到的就是真实客户端 IP。
+- 反代不在上述网段（如另一容器网络的公网地址、或自定义网段）时，uvicorn 会不信任其转发头，所有请求都显示为反代 IP——此时在 `./env` 或 compose 的 `environment` 里覆盖 `FORWARDED_ALLOW_IPS`，把反代的 IP/CIDR 加进去（逗号分隔，支持 IP 与 CIDR）。
+- **风险提醒**：不要把公网段加进 `FORWARDED_ALLOW_IPS`，也不要让 uvicorn 直接暴露公网——伪造的 `X-Forwarded-For` 会被当成真实客户端 IP，污染 GeoIP/风控/限流数据。
+
+排查方法：登录后看「会话列表」的 IP——若所有用户都是同一个 IP（通常是反代 IP），说明信任配置不对。
 
 ---
 
