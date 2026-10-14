@@ -305,6 +305,15 @@ class OAuthService:
             logger.info("oauth password_grant: invalid user credentials client_id=%s username=%s reason=%s", client_id, username, failure_reason)
             return None
 
+        # 访问控制:与 authorize 端点同一判定(can_access_client),
+        # 否则被拒用户凭密码经 trusted client 仍可拿到该应用 token
+        if not OAuthService.check_user_access(user, client):
+            logger.info(
+                "oauth password_grant: user denied by access control client_id=%s user_id=%s",
+                client_id, user.id,
+            )
+            return None
+
         # Verify scope
         if not OAuthService.verify_scope(client, scope):
             logger.info("oauth password_grant: invalid scope client_id=%s scope=%s", client_id, scope)
