@@ -10,5 +10,5 @@ export default function PasskeysPage() {
     router.replace('/dashboard/security#passkeys');
   }, [router]);
 
-  return <div className="text-center py-12">跳转中...</div>;
+  return <div className="text-center py-12">跳转中…</div>;
 }

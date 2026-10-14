@@ -79,7 +79,7 @@ export default function SiteSettingsPage() {
   }
 
   if (loading) {
-    return <AdminLoadingState label="正在读取站点设置..." />
+    return <AdminLoadingState label="正在读取站点设置…" />
   }
 
   return (

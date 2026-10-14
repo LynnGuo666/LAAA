@@ -466,7 +466,7 @@ export default function RestrictedModeOverlay({ user, onComplete }: RestrictedMo
                         变更不立即生效：验证链接会发送到新邮箱，点击确认后才完成更换。
                       </p>
                       <div className="flex gap-2">
-                        <Button onPress={handleChangeEmail} isDisabled={loading} variant="primary" className="text-sm">{loading ? '保存中...' : '保存'}</Button>
+                        <Button onPress={handleChangeEmail} isDisabled={loading} variant="primary" className="text-sm">{loading ? '保存中…' : '保存'}</Button>
                         <Button onPress={() => {
                           setEditingEmail(false);
                           setNewEmail('');
@@ -636,7 +636,7 @@ export default function RestrictedModeOverlay({ user, onComplete }: RestrictedMo
                       className="text-center text-xl tracking-widest font-mono w-40"
                       maxLength={6}
                     />
-                    <Button onPress={handleVerifyTOTP} isDisabled={loading || totpCode.length !== 6} variant="primary">{loading ? '验证中...' : '验证'}</Button>
+                    <Button onPress={handleVerifyTOTP} isDisabled={loading || totpCode.length !== 6} variant="primary">{loading ? '验证中…' : '验证'}</Button>
                   </div>
                 </div>
               </div>
@@ -662,7 +662,7 @@ export default function RestrictedModeOverlay({ user, onComplete }: RestrictedMo
                     className="flex-1"
                   />
                   <Button onPress={handleStartTOTPSetup} isDisabled={loading || !totpPassword} variant="primary" isPending={loading}>
-                    {loading ? '验证中...' : '下一步'}
+                    {loading ? '验证中…' : '下一步'}
                   </Button>
                 </div>
               </div>
@@ -701,7 +701,7 @@ export default function RestrictedModeOverlay({ user, onComplete }: RestrictedMo
             <Button onPress={handleRegisterPasskey} isDisabled={passkeyRegistering || !passkeyName.trim()} variant="primary" className="inline-flex items-center gap-2">{passkeyRegistering ? (
               <>
                 <Spinner size="sm" />
-                注册中...
+                注册中…
               </>
             ) : (
               <>

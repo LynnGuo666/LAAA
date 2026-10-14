@@ -121,7 +121,7 @@ function AppEditContent() {
   }
 
   if (loading) {
-    return <AdminLoadingState label="正在加载应用..." />
+    return <AdminLoadingState label="正在加载应用…" />
   }
 
   if (error || !client) {
@@ -175,7 +175,7 @@ function AppEditContent() {
 
 export default function AppEditPage() {
   return (
-    <Suspense fallback={<AdminLoadingState label="正在加载应用..." />}>
+    <Suspense fallback={<AdminLoadingState label="正在加载应用…" />}>
       <AppEditContent />
     </Suspense>
   )

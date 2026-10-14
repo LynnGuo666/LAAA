@@ -264,7 +264,7 @@ function AuthorizeContent() {
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-3">
           <Spinner size="lg" />
-          <p className="text-sm text-muted">正在验证...</p>
+          <p className="text-sm text-muted">正在验证…</p>
         </div>
       </div>
     );
@@ -394,8 +394,8 @@ function AuthorizeContent() {
         </div>
 
         <div className="space-y-3">
-          <Button onPress={handleApprove} variant="primary" className="w-full" isDisabled={!!submitting} isPending={submitting === 'approve'}>{submitting === 'approve' ? '授权中...' : '授权'}</Button>
-          <Button onPress={() => void handleDeny()} variant="secondary" className="w-full" isDisabled={!!submitting} isPending={submitting === 'deny'}>{submitting === 'deny' ? '正在返回...' : '拒绝'}</Button>
+          <Button onPress={handleApprove} variant="primary" className="w-full" isDisabled={!!submitting} isPending={submitting === 'approve'}>{submitting === 'approve' ? '授权中…' : '授权'}</Button>
+          <Button onPress={() => void handleDeny()} variant="secondary" className="w-full" isDisabled={!!submitting} isPending={submitting === 'deny'}>{submitting === 'deny' ? '正在返回…' : '拒绝'}</Button>
         </div>
 
         <p className="text-xs text-muted text-center mt-4">
@@ -412,7 +412,7 @@ export default function AuthorizePage() {
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-3">
           <Spinner size="lg" />
-          <p className="text-sm text-muted">加载中...</p>
+          <p className="text-sm text-muted">加载中…</p>
         </div>
       </div>
     }>

@@ -78,7 +78,7 @@ export default function ProfilePage() {
           </div>
 
           <div className="pt-2">
-            <Button type="submit" isDisabled={loading} variant="primary" isPending={loading}>{loading ? '保存中...' : '保存更改'}</Button>
+            <Button type="submit" isDisabled={loading} variant="primary" isPending={loading}>{loading ? '保存中…' : '保存更改'}</Button>
           </div>
         </form>
 

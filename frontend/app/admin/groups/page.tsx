@@ -376,7 +376,7 @@ export default function GroupsPage() {
   }
 
   if (loading) {
-    return <AdminLoadingState label="正在加载用户组..." />
+    return <AdminLoadingState label="正在加载用户组…" />
   }
 
   return (
@@ -656,7 +656,7 @@ export default function GroupsPage() {
         />
         <div className="max-h-80 space-y-1 overflow-y-auto rounded-xl border border-border/70 p-3">
           {memberSearchLoading ? (
-            <p className="py-6 text-center text-sm text-muted">正在搜索用户...</p>
+            <p className="py-6 text-center text-sm text-muted">正在搜索用户…</p>
           ) : memberSearchResults.length === 0 ? (
             <p className="py-6 text-center text-sm text-muted">没有可添加的用户</p>
           ) : (

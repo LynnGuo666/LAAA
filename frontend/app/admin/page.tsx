@@ -121,7 +121,7 @@ export default function AdminDashboardPage() {
   }
 
   if (loading) {
-    return <AdminLoadingState label="正在加载管理后台..." />
+    return <AdminLoadingState label="正在加载管理后台…" />
   }
 
   return (

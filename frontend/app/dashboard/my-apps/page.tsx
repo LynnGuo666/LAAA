@@ -81,7 +81,7 @@ export default function MyAppsPage() {
             {Array.from({ length: 6 }, (_, index) => (
               <div key={index} className="h-28 animate-pulse rounded-xl border border-border bg-surface" />
             ))}
-            <span className="sr-only">加载中...</span>
+            <span className="sr-only">加载中…</span>
           </div>
         ) : apps.length === 0 ? (
           <div className="p-6 text-muted">暂无可访问应用</div>

@@ -210,7 +210,7 @@ export default function InvitesPage() {
   }
 
   if (loading) {
-    return <AdminLoadingState label="正在加载邀请码..." />
+    return <AdminLoadingState label="正在加载邀请码…" />
   }
 
   return (

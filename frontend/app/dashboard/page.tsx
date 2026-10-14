@@ -11,5 +11,5 @@ export default function DashboardPage() {
     router.replace('/dashboard/my-apps');
   }, [router]);
 
-  return <PageLoadingState label="正在跳转..." />;
+  return <PageLoadingState label="正在跳转…" />;
 }

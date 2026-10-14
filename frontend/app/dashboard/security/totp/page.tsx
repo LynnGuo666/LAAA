@@ -316,7 +316,7 @@ export default function TOTPSetupPage() {
                 autoComplete="current-password"
               />
               <Button onPress={handleStartSetup} isDisabled={loading || !password} variant="primary" isPending={loading}>
-                {loading ? '验证中...' : '开始设置'}
+                {loading ? '验证中…' : '开始设置'}
               </Button>
             </div>
           </div>
@@ -393,7 +393,7 @@ export default function TOTPSetupPage() {
                   className="flex-1 text-center text-xl tracking-widest font-mono"
                   maxLength={6}
                 />
-                <Button type="submit" isDisabled={verifying || verificationCode.length !== 6 || !password} variant="primary" isPending={verifying}>{verifying ? '验证中...' : '验证'}</Button>
+                <Button type="submit" isDisabled={verifying || verificationCode.length !== 6 || !password} variant="primary" isPending={verifying}>{verifying ? '验证中…' : '验证'}</Button>
               </div>
             </form>
           </div>
@@ -436,7 +436,7 @@ export default function TOTPSetupPage() {
                 }} variant="secondary">
                   取消
                 </Button>
-                <Button onPress={handleDisable} isDisabled={disabling || !password} variant="danger" isPending={disabling}>{disabling ? '禁用中...' : '确认禁用'}</Button>
+                <Button onPress={handleDisable} isDisabled={disabling || !password} variant="danger" isPending={disabling}>{disabling ? '禁用中…' : '确认禁用'}</Button>
               </AlertDialog.Footer>
             </AlertDialog.Dialog>
           </AlertDialog.Container>
@@ -479,7 +479,7 @@ export default function TOTPSetupPage() {
                 }} variant="secondary">
                   取消
                 </Button>
-                <Button onPress={handleRegenerateBackupCodes} isDisabled={regenerating || !password} variant="primary" isPending={regenerating}>{regenerating ? '生成中...' : '重新生成'}</Button>
+                <Button onPress={handleRegenerateBackupCodes} isDisabled={regenerating || !password} variant="primary" isPending={regenerating}>{regenerating ? '生成中…' : '重新生成'}</Button>
               </AlertDialog.Footer>
             </AlertDialog.Dialog>
           </AlertDialog.Container>

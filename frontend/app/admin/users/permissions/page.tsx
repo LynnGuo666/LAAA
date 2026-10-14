@@ -209,7 +209,7 @@ function UserPermissionsContent() {
           </form>
 
           {loading ? (
-            <AdminLoadingState label="正在加载权限详情..." variant="inline" className="p-0" />
+            <AdminLoadingState label="正在加载权限详情…" variant="inline" className="p-0" />
           ) : !data || data.items.length === 0 ? (
             <AdminEmptyState
               title={search ? '没有匹配的应用' : '暂无应用权限数据'}
@@ -306,7 +306,7 @@ function UserPermissionsContent() {
 
 export default function UserPermissionsPage() {
   return (
-    <Suspense fallback={<AdminLoadingState label="正在加载权限详情..." />}>
+    <Suspense fallback={<AdminLoadingState label="正在加载权限详情…" />}>
       <UserPermissionsContent />
     </Suspense>
   )

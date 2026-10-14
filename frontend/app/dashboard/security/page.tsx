@@ -452,7 +452,7 @@ export default function SecurityPage() {
             <SkeletonRows rows={8} rowClassName="h-10" />
           </div>
         </div>
-        <span className="sr-only">加载中...</span>
+        <span className="sr-only">加载中…</span>
       </div>
     );
   }
@@ -535,7 +535,7 @@ export default function SecurityPage() {
           </div>
           {otherSessionsCount > 0 && (
             <Button onPress={handleRevokeOtherSessions} isDisabled={revoking} variant="danger" className="text-sm shrink-0 w-full sm:w-auto">
-              {revoking ? '处理中...' : `登出其他设备 (${otherSessionsCount})`}
+              {revoking ? '处理中…' : `登出其他设备 (${otherSessionsCount})`}
             </Button>
           )}
         </div>
@@ -643,7 +643,7 @@ export default function SecurityPage() {
           </div>
 
           <div className="pt-2">
-            <Button type="submit" isDisabled={changingPassword} variant="primary" isPending={changingPassword}>{changingPassword ? '修改中...' : '修改密码'}</Button>
+            <Button type="submit" isDisabled={changingPassword} variant="primary" isPending={changingPassword}>{changingPassword ? '修改中…' : '修改密码'}</Button>
           </div>
         </form>
           </Tabs.Panel>
@@ -736,7 +736,7 @@ export default function SecurityPage() {
 
         <div className="mb-4">
           <Button onPress={handleRegisterPasskey} isDisabled={!webAuthnSupported || registeringPasskey || !user?.email_verified} variant="primary">
-            {registeringPasskey ? '正在注册...' : '添加通行密钥'}
+            {registeringPasskey ? '正在注册…' : '添加通行密钥'}
           </Button>
           {platformAvailable && (
             <span className="ml-3 text-sm text-success inline-flex items-center gap-1">
@@ -811,7 +811,7 @@ export default function SecurityPage() {
                   取消
                 </Button>
                 <Button onPress={() => void handleConfirmPasskeyRegistration()} isDisabled={!newPasskeyName.trim() || registeringPasskey} variant="primary">
-                  {registeringPasskey ? '保存中...' : '保存'}
+                  {registeringPasskey ? '保存中…' : '保存'}
                 </Button>
               </AlertDialog.Footer>
             </AlertDialog.Dialog>
@@ -862,7 +862,7 @@ export default function SecurityPage() {
                   关闭
                 </Button>
                 <Button onPress={() => void handleRenameSelectedPasskey()} variant="primary" isDisabled={!detailPasskeyName.trim() || renamingPasskey}>
-                  {renamingPasskey ? '保存中...' : '保存名称'}
+                  {renamingPasskey ? '保存中…' : '保存名称'}
                 </Button>
               </AlertDialog.Footer>
             </AlertDialog.Dialog>
@@ -950,7 +950,7 @@ export default function SecurityPage() {
                   取消
                 </Button>
                 <Button onPress={() => void handleConfirmDeletePasskey()} isDisabled={!deletePassword || deletingPasskey} variant="danger" isPending={deletingPasskey}>
-                  {deletingPasskey ? '删除中...' : '删除'}
+                  {deletingPasskey ? '删除中…' : '删除'}
                 </Button>
               </AlertDialog.Footer>
             </AlertDialog.Dialog>

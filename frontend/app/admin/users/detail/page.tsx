@@ -441,7 +441,7 @@ function UserDetailContent() {
   }
 
   if (loading) {
-    return <AdminLoadingState label="正在加载用户详情..." />
+    return <AdminLoadingState label="正在加载用户详情…" />
   }
 
   if (error || !user) {
@@ -591,7 +591,7 @@ function UserDetailContent() {
             ) : null}
 
             {tabLoading ? (
-              <AdminLoadingState label="正在加载标签页数据..." variant="inline" className="mt-4 p-0" />
+              <AdminLoadingState label="正在加载标签页数据…" variant="inline" className="mt-4 p-0" />
             ) : null}
 
             {!tabLoading && activeTab === 'logs' ? (
@@ -963,7 +963,7 @@ function UserDetailContent() {
 
 export default function UserDetailPage() {
   return (
-    <Suspense fallback={<AdminLoadingState label="正在加载用户详情..." />}>
+    <Suspense fallback={<AdminLoadingState label="正在加载用户详情…" />}>
       <UserDetailContent />
     </Suspense>
   )

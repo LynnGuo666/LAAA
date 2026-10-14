@@ -218,7 +218,7 @@ export default function AppsPage() {
   }
 
   if (loading) {
-    return <AdminLoadingState label="正在加载应用..." />
+    return <AdminLoadingState label="正在加载应用…" />
   }
 
   return (

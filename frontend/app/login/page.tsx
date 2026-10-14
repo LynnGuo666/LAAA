@@ -430,7 +430,7 @@ function LoginContent() {
             </UICheckbox>
           </div>
 
-          <Button type="submit" isDisabled={loading || passkeyLoading} variant="primary" className="w-full" isPending={loading}>{loading ? '登录中...' : '登录'}</Button>
+          <Button type="submit" isDisabled={loading || passkeyLoading} variant="primary" className="w-full" isPending={loading}>{loading ? '登录中…' : '登录'}</Button>
 
           {webAuthnSupported && (
             <>
@@ -446,7 +446,7 @@ function LoginContent() {
               <Button type="button" onPress={handlePasskeyLogin} isDisabled={loading || passkeyLoading} variant="secondary" className="w-full text-foreground" isPending={passkeyLoading}>{!passkeyLoading && (
                 <KeyRound className="w-4 h-4 mr-2" />
               )}
-              {passkeyLoading ? '验证中...' : '使用通行密钥登录'}</Button>
+              {passkeyLoading ? '验证中…' : '使用通行密钥登录'}</Button>
 
               {/* 魔法链接登录(免密码,次级入口) */}
               {!magicLinkSent ? (
@@ -475,7 +475,7 @@ function LoginContent() {
                         />
                       </TextField>
                       <Button type="submit" isDisabled={magicLinkSending} variant="secondary" className="w-full" isPending={magicLinkSending}>
-                        {magicLinkSending ? '发送中...' : '发送登录链接'}
+                        {magicLinkSending ? '发送中…' : '发送登录链接'}
                       </Button>
                     </form>
                   )}

@@ -142,7 +142,7 @@ export function AdminNotice({ tone, title, description, className }: AdminNotice
 }
 
 export function AdminLoadingState({
-  label = '加载中...',
+  label = '加载中…',
   className,
   variant = 'card',
 }: AdminLoadingStateProps) {

@@ -2,7 +2,7 @@
 
 import { Spinner, cn } from '@heroui/react'
 
-export function PageLoadingState({ label = '加载中...', className }: { label?: string; className?: string }) {
+export function PageLoadingState({ label = '加载中…', className }: { label?: string; className?: string }) {
   return (
     <div className={cn('min-h-screen flex flex-col', className)}>
       <div className="flex flex-1 items-center justify-center">
@@ -49,7 +49,7 @@ export function SkeletonRows({
           className={cn('h-4 w-full animate-pulse rounded bg-surface-secondary/70', rowClassName)}
         />
       ))}
-      <span className="sr-only">加载中...</span>
+      <span className="sr-only">加载中…</span>
     </div>
   )
 }

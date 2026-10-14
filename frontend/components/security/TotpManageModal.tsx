@@ -241,7 +241,7 @@ export function TotpManageModal({ isOpen, onOpenChange, onStatusUpdated }: TotpM
                 maxLength={6}
               />
               <Button onPress={() => void handleVerifySetup()} isDisabled={verifying || verificationCode.length !== 6 || !password} variant="primary" isPending={verifying}>
-                {verifying ? '验证中...' : '验证'}
+                {verifying ? '验证中…' : '验证'}
               </Button>
             </div>
           </div>
@@ -270,7 +270,7 @@ export function TotpManageModal({ isOpen, onOpenChange, onStatusUpdated }: TotpM
       <div className="flex justify-between gap-2">
         <Button onPress={() => { setView('main'); setPassword(''); }} variant="ghost">返回</Button>
         <Button onPress={() => void handleStartSetup()} isDisabled={startingSetup || !password} variant="primary" isPending={startingSetup}>
-          {startingSetup ? '验证中...' : '确认并生成二维码'}
+          {startingSetup ? '验证中…' : '确认并生成二维码'}
         </Button>
       </div>
     </div>
@@ -293,7 +293,7 @@ export function TotpManageModal({ isOpen, onOpenChange, onStatusUpdated }: TotpM
       <div className="flex justify-between gap-2">
         <Button onPress={() => { setView('main'); setPassword(''); }} variant="ghost">返回</Button>
         <Button onPress={() => void onConfirm()} isDisabled={pending || !password} variant={view === 'disable' ? 'danger' : 'primary'} isPending={pending}>
-          {pending ? '处理中...' : actionLabel}
+          {pending ? '处理中…' : actionLabel}
         </Button>
       </div>
     </div>

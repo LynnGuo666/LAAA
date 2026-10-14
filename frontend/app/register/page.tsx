@@ -167,7 +167,7 @@ function RegisterContent() {
 
           <Button type="submit"
           isDisabled={loading}
-          variant="primary" className="w-full" isPending={loading} >{loading ? '创建中...' : '创建账号'}</Button>
+          variant="primary" className="w-full" isPending={loading} >{loading ? '创建中…' : '创建账号'}</Button>
 
           <div className="text-center text-sm">
             <span className="text-muted">已有账号？ </span>
@@ -188,7 +188,7 @@ export default function RegisterPage() {
         <div className="min-h-screen flex items-center justify-center bg-background px-4">
           <div className="flex flex-col items-center gap-3">
             <Spinner size="lg" />
-            <p className="text-sm text-muted">加载中...</p>
+            <p className="text-sm text-muted">加载中…</p>
           </div>
         </div>
       }
