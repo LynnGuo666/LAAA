@@ -55,6 +55,15 @@ from app.services.verification_service import (
     VerificationError,
     VerificationService,
 )
+from app.utils.cookies import (
+    clear_auth_cookies as _clear_auth_cookies,
+)
+from app.utils.cookies import (
+    set_auth_cookies as _set_auth_cookies,
+)
+from app.utils.cookies import (
+    set_authorize_cookie as _set_authorize_cookie,
+)
 from app.utils.device import get_client_ip
 from app.utils.security import decode_token, hash_token
 from app.utils.time import utcnow
@@ -73,56 +82,8 @@ def _spawn_email_task(coro) -> None:
     task.add_done_callback(_background_tasks.discard)
 
 
-def _set_auth_cookies(response: Response, access_token: str, refresh_token: str,
-                      remember_me: bool = False) -> None:
-    """登录成功时统一设置认证 cookie(token A2 方案)。
-
-    三条不变量(改动前请读 CLAUDE.md「认证 cookie 契约」):
-    1. laaa_refresh:HttpOnly + SameSite=Strict + Path=/api/auth
-       —— 只有 refresh/logout 端点收得到,跨站请求一律不带,天然免疫 CSRF
-    2. authorize_token:HttpOnly + SameSite=Lax + Path=/api/oauth + 15min
-       —— 仅供 OAuth 浏览器重定向的 authorize 端点(顶层导航 GET 需要 Lax),
-         寿命 = access token TTL,过期走标准 re-login 重定向
-    3. 业务 API 端点永远只认 Authorization Bearer(get_current_user 不读 cookie)
-    """
-    refresh_max_age = (
-        settings.refresh_token_remember_me_days if remember_me
-        else settings.refresh_token_expire_days
-    ) * 86400
-    response.set_cookie(
-        key="laaa_refresh",
-        value=refresh_token,
-        max_age=refresh_max_age,
-        httponly=True,
-        secure=settings.cookie_secure,
-        samesite="strict",
-        path="/api/auth",
-    )
-    _set_authorize_cookie(response, access_token, settings.access_token_expire_minutes * 60)
-
-
-def _set_authorize_cookie(response: Response, access_token: str, max_age_seconds: int) -> None:
-    """仅设置 authorize_token cookie(受限会话等无 refresh token 的登录形态)。
-
-    寿命由调用方传入:普通登录 = access TTL;受限会话 = 受限 TTL。
-    """
-    response.set_cookie(
-        key="authorize_token",
-        value=access_token,
-        max_age=max_age_seconds,
-        httponly=True,
-        secure=settings.cookie_secure,
-        samesite="lax",
-        path="/api/oauth",
-    )
-
-
-def _clear_auth_cookies(response: Response) -> None:
-    """登出时清除认证 cookie(含旧名 session_token 的兼容清理)。"""
-    response.delete_cookie(key="laaa_refresh", path="/api/auth")
-    response.delete_cookie(key="authorize_token", path="/api/oauth")
-    response.delete_cookie(key="session_token", path="/")  # 旧名,自然消亡
-
+# 认证 cookie 的实现在 app/utils/cookies.py（passkey 等路由共用）；
+# 顶部已 import 为 _ 前缀别名，本文件既有调用点无需改动。
 
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 

@@ -5,7 +5,7 @@ Passkey/WebAuthn API routes
 import json
 from typing import List, Union
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
@@ -27,6 +27,7 @@ from app.services.geoip_service import GeoIPService
 from app.services.passkey_service import PasskeyService
 from app.services.risk_service import RiskLevel, RiskService
 from app.services.verification_service import VerificationService
+from app.utils.cookies import set_auth_cookies
 from app.utils.device import get_client_ip
 
 settings = get_settings()
@@ -159,6 +160,7 @@ async def get_authentication_options(
 async def verify_authentication(
     data: PasskeyAuthenticationVerify,
     request: Request,
+    response: Response,
     db: Session = Depends(get_db)
 ):
     """
@@ -260,6 +262,14 @@ async def verify_authentication(
             user_agent=user_agent,
             login_method="passkey"
         )
+
+        # 与密码登录（auth.py /login）保持一致：签发 token 的同时设置
+        # 认证 cookie（laaa_refresh / authorize_token），否则用户按 F5
+        # 刷新页面后无法静默恢复会话，等于被登出。
+        # is_restricted 用户与密码登录同语义：正常签发 token + cookie，
+        # 前端经 /me 的 is_restricted 标记弹引导层（区别于 skip 的受限 claim）。
+        set_auth_cookies(response, token_result["access_token"],
+                         token_result["refresh_token"], remember_me=data.remember_me)
 
         return TokenResponse(
             access_token=token_result["access_token"],
