@@ -93,10 +93,11 @@ def get_optional_user(
         token = auth_header.replace("Bearer ", "")
     else:
         # Fall back to the authorize cookie (HttpOnly, Path=/api/oauth, TTL=access token).
-        # 新名 authorize_token(token A2);旧名 session_token 过渡期兼容,自然消亡后删除。
+        # 旧名 session_token 的兼容回退已删除:该 cookie 是 JS 可写的,
+        # 且全站已无写入方(A2 迁移完成),继续回退等于开放凭据注入面。
         # 注意:This function is only mounted on the OAuth authorize endpoints,
         # do NOT use cookies for business endpoints (get_current_user is always Bearer-only).
-        token = request.cookies.get("authorize_token") or request.cookies.get("session_token")
+        token = request.cookies.get("authorize_token")
 
     if not token:
         return None
