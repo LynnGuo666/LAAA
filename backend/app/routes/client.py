@@ -8,8 +8,6 @@ from app.database import get_db
 from app.middleware.permission import require_permission
 from app.models import Client, User
 from app.schemas import ClientCreate, ClientResponse, ClientSecretResetResponse, ClientUpdate, ClientWithSecretResponse
-from app.schemas.group import ClientAccessControlUpdate
-from app.services.group_service import GroupService
 from app.utils.security import generate_random_string, hash_token
 
 router = APIRouter(prefix="/api/clients", tags=["Client Management"])
@@ -216,51 +214,3 @@ async def reset_client_secret(
         client_id=client.client_id,
         client_secret=new_secret
     )
-
-
-@router.put("/{client_id}/access-control")
-async def update_client_access_control(
-    client_id: int,
-    access_control: ClientAccessControlUpdate,
-    current_user: User = Depends(require_permission('admin.clients')),
-    db: Session = Depends(get_db)
-):
-    """更新应用的用户组访问控制"""
-    client = db.query(Client).filter(Client.id == client_id).first()
-
-    if not client:
-        raise HTTPException(status_code=404, detail="Client not found")
-
-    try:
-        updated_client = GroupService.update_client_access_control(
-            db,
-            client_id,
-            access_control.allowed_group_ids,
-            access_control.denied_group_ids
-        )
-
-        return {
-            "message": "访问控制更新成功",
-            "allowed_groups": [{"id": g.id, "name": g.name} for g in updated_client.allowed_groups],
-            "denied_groups": [{"id": g.id, "name": g.name} for g in updated_client.denied_groups]
-        }
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-
-@router.get("/{client_id}/access-control")
-async def get_client_access_control(
-    client_id: int,
-    current_user: User = Depends(require_permission('admin.clients')),
-    db: Session = Depends(get_db)
-):
-    """获取应用的用户组访问控制"""
-    client = db.query(Client).filter(Client.id == client_id).first()
-
-    if not client:
-        raise HTTPException(status_code=404, detail="Client not found")
-
-    return {
-        "allowed_groups": [{"id": g.id, "name": g.name} for g in client.allowed_groups],
-        "denied_groups": [{"id": g.id, "name": g.name} for g in client.denied_groups]
-    }

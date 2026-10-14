@@ -40,7 +40,6 @@
 | `client_type` | `confidential`(有 secret,服务端应用)或 `public`(无 secret,SPA / 移动端,**强制 PKCE**) |
 | `trusted` | 受信任客户端跳过用户同意页,且是使用密码流的前提 |
 | `default_access` | 用户未显式授权时的默认行为(`true`=默认允许,`false`=需显式授权) |
-| `allowed_groups` / `denied_groups` | 遗留字段,当前不参与授权判定(访问控制走用户/组级应用授权表 + `default_access`) |
 | `allowed_scopes` | 该应用可请求的 scope 子集 |
 
 ---
@@ -423,8 +422,6 @@ LAAA 在授权前做两层校验,**不通过则 403**(用户不会进入同意�
 3. 组级拒绝(`group_denied_apps`)→ **拒绝**
 4. 组级允许(`group_allowed_apps`)→ 允许
 5. 回落 `client.default_access`(`true`=允许 / `false`=需显式授权)
-
-访问控制以用户/用户组级应用授权表与客户端 `default_access` 为准(`allowed_groups`/`denied_groups` 为遗留字段,不参与判定)。
 
 ### 受限模式
 

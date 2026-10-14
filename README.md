@@ -200,7 +200,7 @@ npm run dev            # 开发模式;生产用 npm run build 生成 frontend/ou
 4. 组级允许(`group_allowed_apps`)→ 允许
 5. 回落到 `client.default_access`(True=开放 / False=需显式授权)
 
-此外,访问控制以用户/用户组级应用授权表(`user_allowed_apps` / `group_allowed_apps` 等)与客户端 `default_access` 为准;`allowed_groups` / `denied_groups` 为遗留字段,**当前不参与授权判定**。账户须同时满足**邮箱已验证**且**已启用 TOTP 或绑定通行密钥**才能完成 OAuth 授权(否则进入受限模式)。
+账户须同时满足**邮箱已验证**且**已启用 TOTP 或绑定通行密钥**才能完成 OAuth 授权(否则进入受限模式)。
 
 ---
 

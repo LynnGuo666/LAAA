@@ -13,7 +13,7 @@ LAAA is a personal **OAuth 2.0 / OIDC authorization server and unified identity 
 - **Invite-code registration** (open registration is off by default)
 - **Risk-based login anomaly detection** (geo-jump, IP change, login velocity) and **session limits**
 - **GeoIP** lookups (MaxMind GeoLite2 for international + ip2region for Chinese IPs)
-- Multiple applications, **user groups** (whitelist/blacklist access control), **RBAC**, audit & login logs
+- Multiple applications, **user groups** (whitelist/blacklist access control), **RBAC**, login logs
 - Per-user/per-group **app access permissions**, site-wide settings
 
 The backend serves the Next.js static export from `frontend/out/`, so after building the frontend only the backend needs to run.
@@ -111,13 +111,12 @@ Access at: http://localhost:8000
 **Config:** `app/config.py` — Pydantic settings. Lots of tunable knobs (token TTL, WebAuthn RP, SMTP, GeoIP, risk thresholds, session limits, verification). `database.py` runs `init_db()` on startup to ensure the admin role/permissions exist.
 
 **Data Models** (`app/models/__init__.py`):
-- `User`, `Client`, `Token`, `Session`, `Role`, `Permission`, `Group`, `UserAuthorization`, `AuditLog`
+- `User`, `Client`, `Token`, `Session`, `Role`, `Permission`, `Group`, `UserAuthorization`
 - Invite system: `InviteCode`, `InviteRedemption`
 - Security: `Passkey`, `WebAuthnChallenge`, `UserTOTP`, `VerificationSession`, `VerificationCode`, `LoginLog`
 - `SystemSetting` (site-wide config)
 - `KnownDevice` (persistent device-trust memory, decoupled from session lifetime)
-- `AuditLog` (**defined but unused** — no code writes to it)
-- Many-to-many: `user_roles`, `role_permissions`, `user_groups`, `client_allowed_groups`, `client_denied_groups`, `user_allowed_apps`, `user_denied_apps`
+- Many-to-many: `user_roles`, `role_permissions`, `user_groups`, `user_allowed_apps`, `user_denied_apps`, `group_allowed_apps`, `group_denied_apps`
 - Key methods: `User.has_permission()`, `User.has_role()`, `User.in_group()`, `User.can_access_client()`
 
 **Routes** (API endpoints):
@@ -129,9 +128,9 @@ Access at: http://localhost:8000
 - `app/routes/passkey.py` — `/api/passkeys/*` — WebAuthn registration & authentication
 - `app/routes/totp.py` — `/api/totp/*` — TOTP setup/verify/disable
 - `app/routes/site.py` — `/api/site/*` — public site settings
-- `app/api/groups.py` — `/api/groups/*` — user group management (admin)
-- `app/api/admin.py` — `/api/admin/*` — users, roles, clients, login logs, app permissions
-- `app/api/invites.py` — `/api/admin/invites/*` — invite code management
+- `app/routes/groups.py` — `/api/groups/*` — user group management (admin)
+- `app/routes/admin.py` — `/api/admin/*` — users, roles, clients, login logs, app permissions
+- `app/routes/invites.py` — `/api/admin/invites/*` — invite code management
 
 **Services** (business logic in `app/services/`):
 - `auth_service.py` — authentication, JWT issue/validate, session management
@@ -194,7 +193,7 @@ Access at: http://localhost:8000
 3. Refresh Token — token renewal without re-authentication
 
 **Access control:**
-- Clients have `allowed_groups` / `denied_groups` columns, but they are **legacy and NOT enforced** in `User.can_access_client()` — actual access control uses the per-user/per-group app permission tables (`user_allowed_apps` / `user_denied_apps` / `group_allowed_apps` / `group_denied_apps`) plus `Client.default_access`.
+- Access control uses the per-user/per-group app permission tables (`user_allowed_apps` / `user_denied_apps` / `group_allowed_apps` / `group_denied_apps`) plus `Client.default_access` as the fallback.
 - `User.can_access_client()` enforces group-based access before the consent page.
 - Per-user/per-group app permissions (`user_allowed_apps` / `user_denied_apps`, `groupAppApi`) provide finer control.
 
@@ -210,7 +209,7 @@ Access at: http://localhost:8000
 
 ## Database Schema
 
-**Key tables:** `users`, `clients`, `tokens`, `sessions`, `roles`/`permissions`, `groups`, `user_authorizations`, `audit_logs`, `invite_codes`/`invite_redemptions`, `passkeys`/`webauthn_challenges`, `user_totp`, `verification_sessions`/`verification_codes`, `login_logs`, `system_settings`.
+**Key tables:** `users`, `clients`, `tokens`, `sessions`, `roles`/`permissions`, `groups`, `user_authorizations`, `invite_codes`/`invite_redemptions`, `passkeys`/`webauthn_challenges`, `user_totp`, `verification_sessions`/`verification_codes`, `login_logs`, `system_settings`.
 
 Schema is managed by Alembic — see the migration files under `backend/alembic/versions/`.
 
@@ -351,7 +350,7 @@ Interactive docs (admin-only):
 
 1. Define Pydantic schemas in `app/schemas/` (or inline in the route)
 2. Implement business logic in `app/services/`
-3. Create the route handler in `app/routes/` (or `app/api/`) with the right `APIRouter(prefix=...)`
+3. Create the route handler in `app/routes/` with the right `APIRouter(prefix=...)`
 4. Include the router in `app/main.py`
 5. Add the corresponding method to `frontend/lib/api.ts`
 

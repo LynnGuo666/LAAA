@@ -31,8 +31,3 @@ class GroupResponse(GroupBase):
 
 class GroupMembersUpdate(BaseModel):
     user_ids: List[int] = Field(..., description="用户 ID 列表")
-
-
-class ClientAccessControlUpdate(BaseModel):
-    allowed_group_ids: List[int] = Field(default=[], description="允许访问的用户组 ID 列表（白名单）")
-    denied_group_ids: List[int] = Field(default=[], description="禁止访问的用户组 ID 列表（黑名单）")

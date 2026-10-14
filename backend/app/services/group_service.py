@@ -2,7 +2,7 @@ from typing import List, Optional
 
 from sqlalchemy.orm import Session
 
-from app.models import Client, Group, User
+from app.models import Group, User
 from app.schemas.group import GroupCreate, GroupUpdate
 
 
@@ -116,29 +116,3 @@ class GroupService:
         db.commit()
         db.refresh(group)
         return group
-
-    @staticmethod
-    def update_client_access_control(
-        db: Session,
-        client_id: int,
-        allowed_group_ids: List[int],
-        denied_group_ids: List[int]
-    ) -> Optional[Client]:
-        """更新应用的访问控制"""
-        client = db.query(Client).filter(Client.id == client_id).first()
-        if not client:
-            return None
-
-        # 不能同时在白名单和黑名单中
-        if set(allowed_group_ids) & set(denied_group_ids):
-            raise ValueError("用户组不能同时在允许和禁止列表中")
-
-        allowed_groups = db.query(Group).filter(Group.id.in_(allowed_group_ids)).all() if allowed_group_ids else []
-        denied_groups = db.query(Group).filter(Group.id.in_(denied_group_ids)).all() if denied_group_ids else []
-
-        client.allowed_groups = allowed_groups
-        client.denied_groups = denied_groups
-
-        db.commit()
-        db.refresh(client)
-        return client

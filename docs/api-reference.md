@@ -125,8 +125,6 @@ LAAA 后端所有 HTTP 端点,按模块分组。鉴权要求含义:
 | PUT | `/api/clients/{client_id}` | admin:admin.clients | 更新 OAuth 应用信息 |
 | DELETE | `/api/clients/{client_id}` | admin:admin.clients | 删除 OAuth 应用 |
 | POST | `/api/clients/{client_id}/secret` | admin:admin.clients | 重置 OAuth 应用 secret |
-| PUT | `/api/clients/{client_id}/access-control` | admin:admin.clients | 更新应用的用户组访问控制(白 / 黑名单) |
-| GET | `/api/clients/{client_id}/access-control` | admin:admin.clients | 获取应用的用户组访问控制 |
 
 ---
 

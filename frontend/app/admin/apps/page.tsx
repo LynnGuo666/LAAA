@@ -24,10 +24,8 @@ import {
   type AppFormData,
   validateAppForm,
 } from '@/components/admin/app-form-fields'
-import GroupCheckboxList from '@/components/admin/group-checkbox-list'
-import SidePanel from '@/components/SidePanel'
 import { useConfirmDialog } from '@/components/ui/confirm-dialog-provider'
-import { clientApi, groupApi } from '@/lib/api'
+import { clientApi } from '@/lib/api'
 import { hasPermission } from '@/lib/authz'
 import { useAuthStore } from '@/lib/store'
 
@@ -45,12 +43,6 @@ interface Client {
   created_at: string
 }
 
-interface Group {
-  id: number
-  name: string
-  description?: string
-}
-
 export default function AppsPage() {
   const confirmDialog = useConfirmDialog()
   const router = useRouter()
@@ -58,22 +50,16 @@ export default function AppsPage() {
   const canManageClients = hasPermission(user, 'admin.clients')
 
   const [clients, setClients] = useState<Client[]>([])
-  const [groups, setGroups] = useState<Group[]>([])
   const [loading, setLoading] = useState(true)
   const [pageError, setPageError] = useState<string | null>(null)
 
   const [creating, setCreating] = useState(false)
   const [resettingClientId, setResettingClientId] = useState<number | null>(null)
   const [deletingClientId, setDeletingClientId] = useState<number | null>(null)
-  const [accessControlLoading, setAccessControlLoading] = useState(false)
-  const [accessControlSaving, setAccessControlSaving] = useState(false)
 
   const [showCreateModal, setShowCreateModal] = useState(false)
-  const [showAccessControl, setShowAccessControl] = useState(false)
-  const [selectedClient, setSelectedClient] = useState<Client | null>(null)
 
   const [formError, setFormError] = useState<string | null>(null)
-  const [accessControlError, setAccessControlError] = useState<string | null>(null)
 
   const [newClientCredentials, setNewClientCredentials] = useState<{
     client_id: string
@@ -81,10 +67,6 @@ export default function AppsPage() {
   } | null>(null)
   const [showNewSecret, setShowNewSecret] = useState(true)
   const [copyStatus, setCopyStatus] = useState<string | null>(null)
-  const [accessControl, setAccessControl] = useState({
-    allowed_group_ids: [] as number[],
-    denied_group_ids: [] as number[],
-  })
   const [formData, setFormData] = useState<AppFormData>({ ...EMPTY_APP_FORM })
 
   const loadClients = async () => {
@@ -99,19 +81,10 @@ export default function AppsPage() {
     }
   }
 
-  const loadGroups = async () => {
-    try {
-      const response = await groupApi.list()
-      setGroups(response.data)
-    } catch {
-      setGroups([])
-    }
-  }
-
   useEffect(() => {
     if (!canManageClients) return
     setPageError(null)
-    void Promise.all([loadClients(), loadGroups()])
+    void loadClients()
   }, [canManageClients])
 
   const resetForm = () => {
@@ -200,37 +173,6 @@ export default function AppsPage() {
     }
   }
 
-  const openAccessControl = async (client: Client) => {
-    setSelectedClient(client)
-    setShowAccessControl(true)
-    setAccessControlError(null)
-    setAccessControlLoading(true)
-
-    try {
-      const response = await clientApi.getAccessControl(client.id)
-      const data = response.data
-      setAccessControl({
-        allowed_group_ids: Array.isArray(data.allowed_groups)
-          ? data.allowed_groups.map((group: Group) => group.id)
-          : [],
-        denied_group_ids: Array.isArray(data.denied_groups)
-          ? data.denied_groups.map((group: Group) => group.id)
-          : [],
-      })
-    } catch (err: any) {
-      setAccessControlError(err.response?.data?.detail || '加载访问控制失败')
-    } finally {
-      setAccessControlLoading(false)
-    }
-  }
-
-  const closeAccessControl = () => {
-    setShowAccessControl(false)
-    setSelectedClient(null)
-    setAccessControlError(null)
-    setAccessControl({ allowed_group_ids: [], denied_group_ids: [] })
-  }
-
   const handleResetSecret = async (client: Client) => {
     const shouldReset = await confirmDialog({
       title: '确认重置密钥',
@@ -260,51 +202,6 @@ export default function AppsPage() {
     }
   }
 
-  const handleAccessControlSave = async () => {
-    if (!selectedClient) return
-
-    const overlap = accessControl.allowed_group_ids.filter((id) =>
-      accessControl.denied_group_ids.includes(id),
-    )
-    if (overlap.length > 0) {
-      setAccessControlError('同一个用户组不能同时出现在允许和禁止列表中')
-      return
-    }
-
-    try {
-      setAccessControlSaving(true)
-      setAccessControlError(null)
-      await clientApi.updateAccessControl(selectedClient.id, accessControl)
-      toast('访问控制已更新')
-      closeAccessControl()
-    } catch (err: any) {
-      setAccessControlError(err.response?.data?.detail || '更新访问控制失败')
-    } finally {
-      setAccessControlSaving(false)
-    }
-  }
-
-  const toggleGroupInList = (groupId: number, listType: 'allowed' | 'denied') => {
-    if (listType === 'allowed') {
-      setAccessControl((previous) => ({
-        ...previous,
-        denied_group_ids: previous.denied_group_ids.filter((id) => id !== groupId),
-        allowed_group_ids: previous.allowed_group_ids.includes(groupId)
-          ? previous.allowed_group_ids.filter((id) => id !== groupId)
-          : [...previous.allowed_group_ids, groupId],
-      }))
-      return
-    }
-
-    setAccessControl((previous) => ({
-      ...previous,
-      allowed_group_ids: previous.allowed_group_ids.filter((id) => id !== groupId),
-      denied_group_ids: previous.denied_group_ids.includes(groupId)
-        ? previous.denied_group_ids.filter((id) => id !== groupId)
-        : [...previous.denied_group_ids, groupId],
-    }))
-  }
-
   const renderAppFormFields = () => (
     <AppFormFields
       formData={formData}
@@ -327,7 +224,7 @@ export default function AppsPage() {
     <div className="space-y-6">
       <AdminPageHeader
         title="应用管理"
-        description="统一管理 OAuth 应用、回调地址、授权范围和访问控制策略。"
+        description="统一管理 OAuth 应用、回调地址与授权范围。"
         actions={
           <Button variant="primary" onPress={() => setShowCreateModal(true)}>
             创建应用
@@ -401,7 +298,7 @@ export default function AppsPage() {
       {clients.length === 0 ? (
         <AdminEmptyState
           title="还没有应用"
-          description="创建一个应用后，就能配置 OAuth 回调和访问控制。"
+          description="创建一个应用后，就能配置 OAuth 回调与授权范围。"
           action={
             <Button variant="primary" onPress={() => setShowCreateModal(true)}>
               创建应用
@@ -467,15 +364,6 @@ export default function AppsPage() {
                   重置密钥
                 </Button>
                 <Button
-                  variant="secondary"
-                  size="sm"
-                  isPending={accessControlLoading && selectedClient?.id === client.id}
-                  isDisabled={accessControlLoading && selectedClient?.id === client.id}
-                  onPress={() => void openAccessControl(client)}
-                >
-                  访问控制
-                </Button>
-                <Button
                   variant="danger"
                   size="sm"
                   isPending={deletingClientId === client.id}
@@ -490,62 +378,9 @@ export default function AppsPage() {
         </div>
       )}
 
-<SidePanel
-        title={selectedClient ? `访问控制：${selectedClient.name}` : '访问控制'}
-        open={showAccessControl && !!selectedClient}
-        onClose={closeAccessControl}
-      >
-        {!selectedClient ? null : accessControlLoading ? (
-          <AdminLoadingState label="正在加载访问控制..." variant="inline" className="p-0" />
-        ) : (
-          <div className="space-y-6">
-            {accessControlError ? <AdminNotice tone="danger" description={accessControlError} /> : null}
-
-            <AdminNotice
-              tone="accent"
-              description="允许列表与禁止列表互斥；同一个用户组不会同时出现在两边。"
-            />
-
-            <GroupCheckboxList
-              type="allowed"
-              groups={groups}
-              selectedIds={accessControl.allowed_group_ids}
-              onToggle={(groupId: number) => toggleGroupInList(groupId, 'allowed')}
-            />
-
-            <GroupCheckboxList
-              type="denied"
-              groups={groups}
-              selectedIds={accessControl.denied_group_ids}
-              onToggle={(groupId: number) => toggleGroupInList(groupId, 'denied')}
-            />
-
-            <div className="flex gap-2 pt-2">
-              <Button
-                variant="primary"
-                className="flex-1"
-                isPending={accessControlSaving}
-                isDisabled={accessControlSaving}
-                onPress={() => void handleAccessControlSave()}
-              >
-                保存
-              </Button>
-              <Button
-                variant="secondary"
-                className="flex-1"
-                isDisabled={accessControlSaving}
-                onPress={closeAccessControl}
-              >
-                取消
-              </Button>
-            </div>
-          </div>
-        )}
-      </SidePanel>
-
       <AdminModalForm
         title="创建新应用"
-        description="创建后即可生成 Client ID / Secret，并继续配置访问控制。"
+        description="创建后即可生成 Client ID / Secret。"
         isOpen={showCreateModal}
         onOpenChange={(isOpen) => {
           if (!isOpen) closeCreateModal()

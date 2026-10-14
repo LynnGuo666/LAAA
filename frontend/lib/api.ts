@@ -215,15 +215,6 @@ export const clientApi = {
 
   resetSecret: (id: number) =>
     api.post(`/api/clients/${id}/secret`),
-
-  getAccessControl: (id: number) =>
-    api.get(`/api/clients/${id}/access-control`),
-
-  updateAccessControl: (id: number, data: {
-    allowed_group_ids: number[];
-    denied_group_ids: number[];
-  }) =>
-    api.put(`/api/clients/${id}/access-control`, data),
 };
 
 // Group API

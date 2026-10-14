@@ -34,25 +34,7 @@ user_groups = Table(
 )
 
 
-# Client-Group association tables for access control (legacy, will be deprecated)
-client_allowed_groups = Table(
-    'client_allowed_groups',
-    Base.metadata,
-    Column('client_id', Integer, ForeignKey('clients.id', ondelete='CASCADE')),
-    Column('group_id', Integer, ForeignKey('groups.id', ondelete='CASCADE')),
-    Column('created_at', DateTime, default=utcnow)
-)
-
-client_denied_groups = Table(
-    'client_denied_groups',
-    Base.metadata,
-    Column('client_id', Integer, ForeignKey('clients.id', ondelete='CASCADE')),
-    Column('group_id', Integer, ForeignKey('groups.id', ondelete='CASCADE')),
-    Column('created_at', DateTime, default=utcnow)
-)
-
-
-# Group-App permission tables (new)
+# Group-App permission tables
 group_allowed_apps = Table(
     'group_allowed_apps',
     Base.metadata,
@@ -149,6 +131,13 @@ class User(Base):
         """Check if user has a specific role"""
         return any(role.name == role_name for role in self.roles)
 
+    @property
+    def is_restricted(self) -> bool:
+        """受限模式:未完成邮箱验证,或既无已启用 TOTP 也无 Passkey。"""
+        has_totp = self.totp is not None and self.totp.is_enabled
+        has_passkey = len(self.passkeys) > 0
+        return not (self.email_verified and (has_totp or has_passkey))
+
     def in_group(self, group_name: str) -> bool:
         """Check if user is in a specific group"""
         return any(group.name == group_name for group in self.groups)
@@ -206,8 +195,6 @@ class Client(Base):
 
     # Relationships
     owner = relationship('User', back_populates='clients')
-    allowed_groups = relationship('Group', secondary=client_allowed_groups, back_populates='allowed_clients')
-    denied_groups = relationship('Group', secondary=client_denied_groups, back_populates='denied_clients')
     authorizations = relationship('UserAuthorization', back_populates='client', cascade='all, delete-orphan')
     tokens = relationship('Token', back_populates='client', cascade='all, delete-orphan')
 
@@ -349,9 +336,7 @@ class Group(Base):
 
     # Relationships
     users = relationship('User', secondary=user_groups, back_populates='groups')
-    allowed_clients = relationship('Client', secondary=client_allowed_groups, back_populates='allowed_groups')
-    denied_clients = relationship('Client', secondary=client_denied_groups, back_populates='denied_groups')
-    # App permissions (new)
+    # App permissions
     allowed_apps = relationship('Client', secondary=group_allowed_apps, backref='groups_allowed')
     denied_apps = relationship('Client', secondary=group_denied_apps, backref='groups_denied')
 
@@ -401,19 +386,6 @@ class SystemSetting(Base):
     key = Column(String(100), primary_key=True)
     value = Column(Text, nullable=False)
     updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
-
-
-class AuditLog(Base):
-    __tablename__ = 'audit_logs'
-
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
-    action = Column(String(100), nullable=False)  # login, logout, authorize, etc.
-    resource = Column(String(100), nullable=True)  # What was accessed
-    ip_address = Column(String(50), nullable=True)
-    user_agent = Column(Text, nullable=True)
-    details = Column(Text, nullable=True)  # JSON with additional info
-    created_at = Column(DateTime, default=utcnow)
 
 
 class Passkey(Base):
