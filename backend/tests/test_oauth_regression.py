@@ -170,6 +170,129 @@ def test_code_claimed_guard(client, db_session, admin_token, internal_client):
 
 
 # ---------------------------------------------------------------------------
+# 授权码重放:吊销派生 token(RFC 6749 §4.1.2,批次2 修复2)
+# ---------------------------------------------------------------------------
+
+def test_code_replay_revokes_derived_tokens(client, admin_token, internal_client):
+    """code 正常兑换后重放 → invalid_grant,且首次拿到的 refresh token 已被吊销。"""
+    cid, sec = internal_client
+    _, code = _authorize_get_code(client, admin_token, cid)
+
+    # 首次兑换成功
+    r1 = client.post("/api/oauth/token", data={
+        "grant_type": "authorization_code",
+        "code": code,
+        "redirect_uri": REDIRECT_URI,
+        "client_id": cid,
+        "client_secret": sec,
+    })
+    assert r1.status_code == 200, r1.text
+    first_refresh = r1.json()["refresh_token"]
+
+    # 同一 code 重放 → invalid_grant(RFC 6749 §4.1.2)
+    r2 = client.post("/api/oauth/token", data={
+        "grant_type": "authorization_code",
+        "code": code,
+        "redirect_uri": REDIRECT_URI,
+        "client_id": cid,
+        "client_secret": sec,
+    })
+    assert r2.status_code == 400, r2.text
+    assert r2.json()["error"] == "invalid_grant"
+
+    # 首次兑换签发的 refresh token 已被吊销(不可再兑换)
+    r3 = client.post("/api/oauth/token", data={
+        "grant_type": "refresh_token",
+        "refresh_token": first_refresh,
+        "client_id": cid,
+        "client_secret": sec,
+    })
+    assert r3.status_code == 400, r3.text
+    assert r3.json()["error"] == "invalid_grant"
+
+
+def test_code_replay_revokes_rotated_family(client, admin_token, internal_client):
+    """重放前 refresh 已轮换过:灭族覆盖轮换后的新 token,不只首发那枚。"""
+    cid, sec = internal_client
+    _, code = _authorize_get_code(client, admin_token, cid)
+
+    r1 = client.post("/api/oauth/token", data={
+        "grant_type": "authorization_code",
+        "code": code,
+        "redirect_uri": REDIRECT_URI,
+        "client_id": cid,
+        "client_secret": sec,
+    })
+    first_refresh = r1.json()["refresh_token"]
+
+    # 轮换一次,拿最新一代 refresh
+    r2 = client.post("/api/oauth/token", data={
+        "grant_type": "refresh_token",
+        "refresh_token": first_refresh,
+        "client_id": cid,
+        "client_secret": sec,
+    })
+    assert r2.status_code == 200, r2.text
+    rotated_refresh = r2.json()["refresh_token"]
+
+    # code 重放 → 灭族
+    r3 = client.post("/api/oauth/token", data={
+        "grant_type": "authorization_code",
+        "code": code,
+        "redirect_uri": REDIRECT_URI,
+        "client_id": cid,
+        "client_secret": sec,
+    })
+    assert r3.status_code == 400
+    assert r3.json()["error"] == "invalid_grant"
+
+    # 轮换后的新 refresh 也失效(家族整体吊销)
+    r4 = client.post("/api/oauth/token", data={
+        "grant_type": "refresh_token",
+        "refresh_token": rotated_refresh,
+        "client_id": cid,
+        "client_secret": sec,
+    })
+    assert r4.status_code == 400, r4.text
+    assert r4.json()["error"] == "invalid_grant"
+
+
+def test_invalid_code_does_not_revoke_anything(client, admin_token, internal_client, db_session):
+    """从未存在过的 code 兑换失败 → 纯 invalid_grant,不触碰任何 token。"""
+    cid, sec = internal_client
+    # 预先准备一枚有效 refresh(后续断言它不受影响)
+    _, code = _authorize_get_code(client, admin_token, cid)
+    r1 = client.post("/api/oauth/token", data={
+        "grant_type": "authorization_code",
+        "code": code,
+        "redirect_uri": REDIRECT_URI,
+        "client_id": cid,
+        "client_secret": sec,
+    })
+    good_refresh = r1.json()["refresh_token"]
+
+    # 随机垃圾 code(无派生 token)→ invalid_grant
+    r2 = client.post("/api/oauth/token", data={
+        "grant_type": "authorization_code",
+        "code": secrets.token_urlsafe(32),
+        "redirect_uri": REDIRECT_URI,
+        "client_id": cid,
+        "client_secret": sec,
+    })
+    assert r2.status_code == 400
+    assert r2.json()["error"] == "invalid_grant"
+
+    # 无辜的 refresh 不受影响
+    r3 = client.post("/api/oauth/token", data={
+        "grant_type": "refresh_token",
+        "refresh_token": good_refresh,
+        "client_id": cid,
+        "client_secret": sec,
+    })
+    assert r3.status_code == 200, r3.text
+
+
+# ---------------------------------------------------------------------------
 # public client + PKCE(fail-fast + 免 secret 兑换)
 # ---------------------------------------------------------------------------
 

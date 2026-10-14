@@ -237,6 +237,9 @@ class Token(Base):
     # refresh token 家族(OAuth 2.1 BCP):同一条登录链路的所有 refresh token
     # 共享 family_id,检测到旧 token 重放即吊销整个家族(被盗场景止损)
     family_id = Column(String(36), nullable=True, index=True)
+    # 派生来源授权码的 hash(RFC 6749 §4.1.2):授权码被重放时,按此列
+    # 定位该 code 首次兑换签发的 token 并吊销其家族
+    code_hash = Column(String(255), nullable=True, index=True)
     # 轮换时旧 token 标记 revoked_at(不再删除,保留供重放检测判定)
     revoked_at = Column(DateTime, nullable=True)
     expires_at = Column(DateTime, nullable=False)

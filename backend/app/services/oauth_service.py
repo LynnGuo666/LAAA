@@ -158,6 +158,26 @@ class OAuthService:
         return False
 
     @staticmethod
+    def _revoke_tokens_derived_from_code(db: Session, code_hash: str) -> int:
+        """吊销某授权码派生的全部 token(RFC 6749 §4.1.2 重放响应)。
+
+        按 code_hash 定位首次兑换签发的 refresh token,逐个走家族吊销
+        (复用 AuthService._revoke_token_family:覆盖后续轮换产生的同族
+        token,并联动过期挂载的 session)。无派生 token 时为 no-op
+        (code 从未成功兑换过,按普通 invalid_grant 处理)。
+        返回吊销的派生 token 数。
+        """
+        from app.services.auth_service import AuthService
+
+        derived = db.query(Token).filter(
+            Token.code_hash == code_hash,
+            Token.type == 'refresh',
+        ).all()
+        for record in derived:
+            AuthService._revoke_token_family(db, record)
+        return len(derived)
+
+    @staticmethod
     def exchange_code_for_token(
         db: Session,
         code: str,
@@ -198,11 +218,17 @@ class OAuthService:
         ).first()
 
         if not token:
-            logger.info(
-                "oauth exchange_code: code not found/expired/wrong-client client_id=%s code_hash=%s",
-                client_id,
-                OAuthService._short_hash(code),
-            )
+            # 已消耗(成功兑换后行被删除/失败兑换后置 claimed)的 code 再次
+            # 出现 = 重放嫌疑(RFC 6749 §4.1.2:code 被使用多于一次时 MUST
+            # 拒绝并 SHOULD 吊销其签发的全部 token)。按 code_hash 找出
+            # 首次兑换派生的 token 灭族;无派生记录则只是普通无效 code。
+            revoked = OAuthService._revoke_tokens_derived_from_code(db, code_hash)
+            if revoked:
+                logger.warning(
+                    "oauth exchange_code: code replay detected, revoked %s derived token(s) "
+                    "client_id=%s code_hash=%s",
+                    revoked, client_id, OAuthService._short_hash(code),
+                )
             return None
 
         # 单次使用:条件 UPDATE 抢占,并发兑换只有一个能成功(TOCTOU 竞态防护)
@@ -211,10 +237,14 @@ class OAuthService:
             Token.type == 'authorization_code'
         ).update({"type": "authorization_code_claimed"})
         if not claimed:
-            logger.info(
-                "oauth exchange_code: code already claimed client_id=%s code_hash=%s",
+            # 并发方已抢占:同样按重放处理(灭族首兑派生的 token)
+            db.rollback()
+            revoked = OAuthService._revoke_tokens_derived_from_code(db, code_hash)
+            logger.warning(
+                "oauth exchange_code: code already claimed client_id=%s code_hash=%s revoked=%s",
                 client_id,
                 OAuthService._short_hash(code),
+                revoked,
             )
             return None
 
@@ -253,7 +283,8 @@ class OAuthService:
         access_token = create_access_token(token_data, token_version=user.token_version)
         refresh_token = create_refresh_token(token_data)
 
-        # Store refresh token
+        # Store refresh token(记录 code_hash:授权码重放时按此灭族,
+        # RFC 6749 §4.1.2)
         access_expires = utcnow() + timedelta(minutes=settings.access_token_expire_minutes)
         refresh_expires = utcnow() + timedelta(days=settings.refresh_token_expire_days)
 
@@ -263,6 +294,7 @@ class OAuthService:
             user_id=user.id,
             client_id=client.id,
             scope=token.scope,
+            code_hash=code_hash,
             expires_at=refresh_expires
         )
         db.add(refresh_token_record)
