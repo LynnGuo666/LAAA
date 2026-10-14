@@ -602,8 +602,17 @@ async def revoke(
             Token.client_id == client.id,
         ).first()
         if record:
-            db.delete(record)
-            db.commit()
+            from app.services.auth_service import AuthService
+            if record.family_id:
+                # 家族吊销(与自家 logout 语义对齐):同一登录链路轮换出的
+                # 全部 refresh token 一并移除并联动过期 session,防止吊销
+                # 旧 token 后在途的新 token 仍可继续刷新
+                AuthService._revoke_token_family(db, record)
+            else:
+                # 无 family_id 的孤 token(如授权码路径签发的未轮换记录):
+                # 退回删单条(与旧行为一致)
+                db.delete(record)
+                db.commit()
             logger.info("oauth revoke: token revoked client_id=%s type=%s", cid, record.type)
 
     # RFC 7009 §2.2:始终 200

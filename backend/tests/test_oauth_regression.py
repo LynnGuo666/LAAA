@@ -293,6 +293,79 @@ def test_invalid_code_does_not_revoke_anything(client, admin_token, internal_cli
 
 
 # ---------------------------------------------------------------------------
+# revoke 端点:家族吊销(RFC 7009 对齐 logout 语义,批次2 修复3)
+# ---------------------------------------------------------------------------
+
+def test_revoke_kills_whole_family(client, admin_token, internal_client):
+    """revoke 旧 refresh(已轮换)→ 同族的新 refresh 也一并失效。"""
+    cid, sec = internal_client
+    _, code = _authorize_get_code(client, admin_token, cid)
+
+    r1 = client.post("/api/oauth/token", data={
+        "grant_type": "authorization_code",
+        "code": code,
+        "redirect_uri": REDIRECT_URI,
+        "client_id": cid,
+        "client_secret": sec,
+    })
+    old_refresh = r1.json()["refresh_token"]
+
+    # 轮换:old → new(同族)
+    r2 = client.post("/api/oauth/token", data={
+        "grant_type": "refresh_token",
+        "refresh_token": old_refresh,
+        "client_id": cid,
+        "client_secret": sec,
+    })
+    new_refresh = r2.json()["refresh_token"]
+
+    # revoke 掉旧的那枚(已轮换、revoked_at 已置)
+    rr = client.post("/api/oauth/revoke", data={
+        "token": old_refresh, "client_id": cid, "client_secret": sec,
+    })
+    assert rr.status_code == 200, rr.text
+
+    # 家族整体吊销:轮换出的新 refresh 也不可用
+    r3 = client.post("/api/oauth/token", data={
+        "grant_type": "refresh_token",
+        "refresh_token": new_refresh,
+        "client_id": cid,
+        "client_secret": sec,
+    })
+    assert r3.status_code == 400, r3.text
+    assert r3.json()["error"] == "invalid_grant"
+
+
+def test_revoke_without_family_deletes_single(client, admin_token, internal_client):
+    """无 family_id 的孤 refresh(授权码直签、未轮换)→ 退回删单条。"""
+    cid, sec = internal_client
+    _, code = _authorize_get_code(client, admin_token, cid)
+
+    r1 = client.post("/api/oauth/token", data={
+        "grant_type": "authorization_code",
+        "code": code,
+        "redirect_uri": REDIRECT_URI,
+        "client_id": cid,
+        "client_secret": sec,
+    })
+    orphan_refresh = r1.json()["refresh_token"]
+
+    rr = client.post("/api/oauth/revoke", data={
+        "token": orphan_refresh, "client_id": cid, "client_secret": sec,
+    })
+    assert rr.status_code == 200, rr.text
+
+    r2 = client.post("/api/oauth/token", data={
+        "grant_type": "refresh_token",
+        "refresh_token": orphan_refresh,
+        "client_id": cid,
+        "client_secret": sec,
+    })
+    assert r2.status_code == 400
+    assert r2.json()["error"] == "invalid_grant"
+
+
+# ---------------------------------------------------------------------------
 # public client + PKCE(fail-fast + 免 secret 兑换)
 # ---------------------------------------------------------------------------
 
