@@ -3,30 +3,41 @@ from typing import Optional
 
 from fastapi import Request
 
+from app.config import get_settings
+
 
 def get_client_ip(request: Request) -> Optional[str]:
     """Get the real client IP address from request.
 
+    代理头(XFF/CF-Connecting-IP/X-Real-IP)默认**不信任**:直连部署时
+    客户端可任意伪造这些头,污染 GeoIP/风控/登录日志的 IP 记录。
+    推荐部署形态:反代 + uvicorn --proxy-headers + FORWARDED_ALLOW_IPS,
+    此时 request.client.host 已是解析后的真实 IP,直接用即可。
+    仅当显式设置 TRUST_PROXY_HEADERS=true(自担风险)时才读头。
+
     Checks various headers for proxied requests (Cloudflare, Nginx, etc.),
     falls back to direct client IP.
     """
-    # Check CF-Connecting-IP header (Cloudflare)
-    cf_ip = request.headers.get("cf-connecting-ip")
-    if cf_ip:
-        return cf_ip.strip()
+    settings = get_settings()
 
-    # Check X-Forwarded-For header (may contain multiple IPs: client, proxy1, proxy2, ...)
-    forwarded_for = request.headers.get("x-forwarded-for")
-    if forwarded_for:
-        # Take the first IP (original client)
-        return forwarded_for.split(",")[0].strip()
+    if settings.trust_proxy_headers:
+        # Check CF-Connecting-IP header (Cloudflare)
+        cf_ip = request.headers.get("cf-connecting-ip")
+        if cf_ip:
+            return cf_ip.strip()
 
-    # Check X-Real-IP header
-    real_ip = request.headers.get("x-real-ip")
-    if real_ip:
-        return real_ip.strip()
+        # Check X-Forwarded-For header (may contain multiple IPs: client, proxy1, proxy2, ...)
+        forwarded_for = request.headers.get("x-forwarded-for")
+        if forwarded_for:
+            # Take the first IP (original client)
+            return forwarded_for.split(",")[0].strip()
 
-    # Fall back to direct client IP
+        # Check X-Real-IP header
+        real_ip = request.headers.get("x-real-ip")
+        if real_ip:
+            return real_ip.strip()
+
+    # Direct client IP(开了 --proxy-headers 时已是真实客户端 IP)
     if request.client:
         return request.client.host
 

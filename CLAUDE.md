@@ -60,7 +60,7 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
 ### Database Migrations (Alembic)
 
-Schema changes are managed with **Alembic** (do NOT hand-edit/delete the DB in normal development):
+Schema changes are managed with **Alembic**, with one caveat: the initial migration is an empty shell — fresh DBs are bootstrapped by `init_db()`'s `create_all` + `alembic stamp head` (the Docker entrypoint does exactly this), incremental migrations apply on top of existing DBs (do NOT hand-edit/delete the DB in normal development):
 
 ```bash
 cd backend
@@ -115,6 +115,8 @@ Access at: http://localhost:8000
 - Invite system: `InviteCode`, `InviteRedemption`
 - Security: `Passkey`, `WebAuthnChallenge`, `UserTOTP`, `VerificationSession`, `VerificationCode`, `LoginLog`
 - `SystemSetting` (site-wide config)
+- `KnownDevice` (persistent device-trust memory, decoupled from session lifetime)
+- `AuditLog` (**defined but unused** — no code writes to it)
 - Many-to-many: `user_roles`, `role_permissions`, `user_groups`, `client_allowed_groups`, `client_denied_groups`, `user_allowed_apps`, `user_denied_apps`
 - Key methods: `User.has_permission()`, `User.has_role()`, `User.in_group()`, `User.can_access_client()`
 
@@ -192,15 +194,15 @@ Access at: http://localhost:8000
 3. Refresh Token — token renewal without re-authentication
 
 **Access control:**
-- Clients have `allowed_groups` (whitelist) and `denied_groups` (blacklist); blacklist wins.
+- Clients have `allowed_groups` / `denied_groups` columns, but they are **legacy and NOT enforced** in `User.can_access_client()` — actual access control uses the per-user/per-group app permission tables (`user_allowed_apps` / `user_denied_apps` / `group_allowed_apps` / `group_denied_apps`) plus `Client.default_access`.
 - `User.can_access_client()` enforces group-based access before the consent page.
 - Per-user/per-group app permissions (`user_allowed_apps` / `user_denied_apps`, `groupAppApi`) provide finer control.
 
 **Token lifecycle:**
-- Access tokens: 15 min (JWT, HS256)
+- Access tokens: 15 min (JWT, **RS256**; refresh tokens use HS256, see `app/utils/security.py`)
 - Refresh tokens: 7 days default, 30 days with "remember me"
 - Authorization codes: single-use, short-lived
-- Sessions: tracked with `device_id`, individually revocable
+- Sessions: tracked with `device_id`, individually revocable; known devices (device trust) persist in `known_devices` independent of session lifetime (logout no longer forgets the device)
 
 **Important path distinction:**
 - The **frontend consent page** is served at `/oauth/authorize` (browser URL — handled by SPA fallback).
@@ -284,7 +286,7 @@ Containerized with Docker Compose. Two compose files cover two use cases:
 ### Quick test setup
 
 1. Log in with the default admin: `admin` / `admin123`
-2. Create a test app in Dashboard → My Apps; note its Client ID + Secret
+2. Create a test app in **Admin → 应用管理** (requires `admin.clients` permission; Dashboard → My Apps is read-only); note its Client ID + Secret
 3. Visit the authorize URL in a browser (frontend consent page):
    ```
    http://localhost:8000/oauth/authorize?response_type=code&client_id=YOUR_CLIENT_ID&redirect_uri=http://localhost:3000/callback&scope=profile%20email
@@ -330,7 +332,7 @@ Permissions use dot notation with wildcard support:
 
 - Passwords hashed with bcrypt (4.0+, no passlib — for Python 3.13 compatibility)
 - Client secrets stored as hashed tokens
-- JWTs signed with HS256
+- Access/id tokens signed with **RS256** (public keys published at `/.well-known/jwks.json`, `kid` multi-generation support); refresh tokens signed with HS256
 - Authorization codes are single-use
 - Device identification for session management
 - CORS via `ALLOWED_ORIGINS`

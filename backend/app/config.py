@@ -65,6 +65,12 @@ class Settings(BaseSettings):
     geoip_enabled: bool = True
     geoip_database_path: str = "data/GeoLite2-City.mmdb"
 
+    # 代理头信任开关:默认 false(直连时 XFF 可伪造)。
+    # 推荐形态是反代 + uvicorn --proxy-headers + FORWARDED_ALLOW_IPS,
+    # 此时 request.client.host 已是真实 IP,无需开这个。
+    # Env vars: TRUST_PROXY_HEADERS
+    trust_proxy_headers: bool = False
+
     # ip2region settings (for accurate Chinese IP province lookup)
     # Env vars: IP2REGION_ENABLED, IP2REGION_DATABASE_PATH
     ip2region_enabled: bool = True
