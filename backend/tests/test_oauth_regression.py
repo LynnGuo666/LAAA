@@ -356,3 +356,49 @@ def test_password_grant_denied_user(client, db_session, seed_admin, make_user):
     })
     assert resp.status_code == 400, resp.text
     assert resp.json()["error"] == "invalid_grant"
+
+
+# ---------------------------------------------------------------------------
+# 空 scope:invalid_scope + userinfo 无兜底(批次2 修复1)
+# ---------------------------------------------------------------------------
+
+def test_authorize_empty_scope_rejected(client, admin_token, internal_client):
+    """显式空 scope(``scope=``)不得因空集恒为子集而绕过 consent → 400。
+
+    仅 GET 需要测:POST 的 Form 字段空值会被 FastAPI 替换为默认值
+    ``profile``(即「回落默认」语义),空串到不了业务层。
+    """
+    cid, _ = internal_client
+    resp = client.get(
+        "/api/oauth/authorize",
+        params={
+            "response_type": "code",
+            "client_id": cid,
+            "redirect_uri": REDIRECT_URI,
+            "scope": "",
+        },
+        headers={"Authorization": f"Bearer {admin_token}", "Accept": "application/json"},
+    )
+    assert resp.status_code == 400, resp.text
+    assert "scope" in resp.json()["detail"].lower()
+
+
+def test_userinfo_empty_scope_returns_sub_only(client, db_session, seed_admin):
+    """空 scope token 的 userinfo 只返回 sub(移除「无 scope 给全部 claims」兜底)。"""
+    from app.utils.security import create_access_token
+
+    # 直接签发一枚 scope 为空串的 access token(模拟旧路径签出的 token)
+    access_token = create_access_token(
+        {"sub": str(seed_admin.id), "scope": "", "client_id": "internal"},
+        token_version=seed_admin.token_version,
+    )
+    resp = client.get(
+        "/api/oauth/userinfo",
+        headers={"Authorization": f"Bearer {access_token}"},
+    )
+    assert resp.status_code == 200, resp.text
+    data = resp.json()
+    assert data["sub"] == str(seed_admin.id)
+    assert "username" not in data or data.get("username") is None
+    assert "email" not in data or data.get("email") is None
+    assert "avatar" not in data or data.get("avatar") is None

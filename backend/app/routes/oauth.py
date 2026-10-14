@@ -667,11 +667,10 @@ async def userinfo(request: Request, db: Session = Depends(get_db)):
     scopes = set((payload.get("scope") or "").split())
 
     claims = {"sub": str(user.id)}
-    if "profile" in scopes or not scopes:
-        # profile 或无明确 scope(向后兼容)时返回 profile claims
+    if "profile" in scopes:
         claims["username"] = user.username
         claims["avatar"] = user.avatar
-    if "email" in scopes or not scopes:
+    if "email" in scopes:
         claims["email"] = user.email
 
     return UserInfoResponse(**claims)

@@ -58,8 +58,18 @@ class OAuthService:
 
     @staticmethod
     def verify_scope(client: Client, requested_scope: str) -> bool:
-        """Verify if requested scope is allowed for the client"""
+        """Verify if requested scope is allowed for the client.
+
+        空 scope(空串/纯空白)一律拒绝:``set("".split())`` 是空集,
+        空集恒为任意集合的子集,会让 ``scope=`` 绕过 consent 直接拿到
+        「无 scope」token——而 userinfo 曾对无 scope token 兜底返回
+        profile+email 全部 claims,等于变相全量授权。
+        缺省 scope 的默认值由路由层提供(authorize 默认 ``profile``),
+        显式传空串属于非法请求,按 invalid_scope 拒绝。
+        """
         try:
+            if not requested_scope or not requested_scope.strip():
+                return False
             allowed_scopes = json.loads(client.allowed_scopes)
             requested = set(requested_scope.split())
             allowed = set(allowed_scopes)
