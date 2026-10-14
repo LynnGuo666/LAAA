@@ -555,6 +555,119 @@ def test_password_grant_denied_user(client, db_session, seed_admin, make_user):
 
 
 # ---------------------------------------------------------------------------
+# password grant:风控/登录日志/受限拒绝(批次2 修复5)
+# ---------------------------------------------------------------------------
+
+def _trusted_client(db_session, seed_admin):
+    """造一个 trusted client(随机 client_id),返回 (client_id, secret)。"""
+    from app.models import Client
+    from app.utils.security import hash_token
+
+    cid = f"testpw_{secrets.token_hex(4)}"
+    csec = secrets.token_hex(16)
+    db_session.add(Client(
+        client_id=cid,
+        client_secret_hash=hash_token(csec),
+        name="Password Grant Risk Test",
+        description="trusted client for password grant risk tests",
+        redirect_uris=json.dumps([REDIRECT_URI]),
+        allowed_scopes=json.dumps(["profile"]),
+        trusted=True,
+        default_access=True,
+        owner_id=seed_admin.id,
+    ))
+    db_session.commit()
+    return cid, csec
+
+
+def test_password_grant_restricted_user_refused(client, db_session, seed_admin, make_user):
+    """受限用户(未验证邮箱/无第二因子)即使凭据正确也不得经 password grant 拿 token。"""
+    cid, csec = _trusted_client(db_session, seed_admin)
+    user = make_user()  # email_verified=True 但无 TOTP/passkey → is_restricted=True
+
+    resp = client.post("/api/oauth/token", data={
+        "grant_type": "password",
+        "username": user.username,
+        "password": "Passw0rd!",
+        "client_id": cid,
+        "client_secret": csec,
+        "scope": "profile",
+    })
+    assert resp.status_code == 400, resp.text
+    assert resp.json()["error"] == "invalid_grant"
+
+
+def test_password_grant_writes_login_log(client, db_session, seed_admin, make_user):
+    """password grant 成功/失败都写 LoginLog(与 /api/auth/login 一致)。"""
+    from app.models import LoginLog
+
+    cid, csec = _trusted_client(db_session, seed_admin)
+    # passkey=True → 非受限用户
+    user = make_user(passkeys=True)
+
+    def _logs():
+        return db_session.query(LoginLog).filter(
+            LoginLog.user_id == user.id
+        ).order_by(LoginLog.id.desc()).all()
+
+    # 成功 → success=True 日志
+    resp = client.post("/api/oauth/token", data={
+        "grant_type": "password",
+        "username": user.username,
+        "password": "Passw0rd!",
+        "client_id": cid,
+        "client_secret": csec,
+        "scope": "profile",
+    })
+    assert resp.status_code == 200, resp.text
+    logs = _logs()
+    assert logs and logs[0].success is True
+
+    # 失败(密码错)→ success=False 日志(认证失败时 user 未知,
+    # 与 /api/auth/login 一致按 username 记录)
+    resp = client.post("/api/oauth/token", data={
+        "grant_type": "password",
+        "username": user.username,
+        "password": "WrongPassword!",
+        "client_id": cid,
+        "client_secret": csec,
+        "scope": "profile",
+    })
+    assert resp.status_code == 400
+    log = db_session.query(LoginLog).filter(
+        LoginLog.username == user.username,
+        LoginLog.success == False,
+    ).order_by(LoginLog.id.desc()).first()
+    assert log is not None, "密码错误应记录失败日志"
+    assert log.failure_reason in ("invalid_password", "user_not_found")
+
+
+def test_password_grant_risk_blocked(client, db_session, seed_admin, make_user, risk_enabled):
+    """风控开启时,新设备/异常登录经 password grant 一律拒绝(无 step-up 通道)。"""
+    cid, csec = _trusted_client(db_session, seed_admin)
+    user = make_user(passkeys=True)
+
+    resp = client.post("/api/oauth/token", data={
+        "grant_type": "password",
+        "username": user.username,
+        "password": "Passw0rd!",
+        "client_id": cid,
+        "client_secret": csec,
+        "scope": "profile",
+    })
+    assert resp.status_code == 400, resp.text
+    assert resp.json()["error"] == "invalid_grant"
+
+    # 拒绝写入了 risk_blocked 失败日志
+    from app.models import LoginLog
+    log = db_session.query(LoginLog).filter(
+        LoginLog.user_id == user.id,
+        LoginLog.failure_reason == "risk_blocked",
+    ).first()
+    assert log is not None, "风控拒绝应记录 failure_reason=risk_blocked"
+
+
+# ---------------------------------------------------------------------------
 # consent 重定向透传 PKCE/nonce(批次2 修复4)
 # ---------------------------------------------------------------------------
 

@@ -15,6 +15,7 @@ from app.middleware.ratelimit import limiter
 from app.models import User
 from app.schemas import UserInfoResponse
 from app.services.oauth_service import OAuthService
+from app.utils.device import get_client_ip
 from app.utils.security import create_id_token, decode_token, verify_client_secret
 
 settings = get_settings()
@@ -521,7 +522,9 @@ async def token(
             return oauth_error(400, "invalid_request", "username and password required")
 
         result = OAuthService.password_grant(
-            db, username, password, client_id, client_secret or "", scope or "profile"
+            db, username, password, client_id, client_secret or "", scope or "profile",
+            ip_address=get_client_ip(request),
+            user_agent=request.headers.get("user-agent", ""),
         )
 
         if not result:

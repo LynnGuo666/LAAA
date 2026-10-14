@@ -321,9 +321,31 @@ class OAuthService:
         password: str,
         client_id: str,
         client_secret: str,
-        scope: str = "profile"
+        scope: str = "profile",
+        ip_address: Optional[str] = None,
+        user_agent: Optional[str] = None,
     ) -> Optional[Tuple[str, str, int]]:
-        """Password grant type (for trusted clients only)"""
+        """Password grant type (for trusted clients only).
+
+        与 /api/auth/login 共用同一套风控/日志约束(此前该路径完全绕过):
+        - 受限用户(is_restricted)拒绝发 token
+        - 异常检测 + 风险评估命中(BLOCK_SUSPICIOUS_LOGIN)拒绝发 token
+          ——token 端点无法承载 202 step-up 流程,风险登录一律 invalid_grant,
+          用户需改走浏览器密码登录完成二次验证
+        - 成功/失败均写 LoginLog(login_method=password)
+        - 会话限制与密码登录一致:超限踢最旧会话(check_and_enforce_limit)
+        """
+        from app.services.auth_service import AuthService
+        from app.services.geoip_service import GeoIPService
+        from app.services.login_anomaly_service import LoginAnomalyService
+        from app.services.risk_service import RiskLevel, RiskService
+        from app.services.session_limit_service import SessionLimitService
+        from app.utils.device import generate_device_id
+
+        safe_ip = ip_address or "unknown"
+        safe_ua = user_agent or "unknown"
+        geo_info = GeoIPService.get_location(safe_ip)
+
         # Get client
         client = OAuthService.get_client_by_id(db, client_id)
         if not client:
@@ -341,10 +363,42 @@ class OAuthService:
             return None
 
         # Authenticate user
-        from app.services.auth_service import AuthService
-        user, failure_reason = AuthService.authenticate_user(db, username, password)
+        user, failure_reason = AuthService.authenticate_user(
+            db, username, password, ip_address=safe_ip, user_agent=safe_ua
+        )
         if not user:
             logger.info("oauth password_grant: invalid user credentials client_id=%s username=%s reason=%s", client_id, username, failure_reason)
+            AuthService.record_login_log(
+                db,
+                user=None,
+                username=username,
+                success=False,
+                failure_reason=failure_reason or "invalid_credentials",
+                ip_address=safe_ip,
+                user_agent=safe_ua,
+                geo_info=geo_info,
+                login_method="password",
+            )
+            return None
+
+        # 受限用户(未完成邮箱验证/无第二因子)不得经 password grant 拿 token:
+        # 该路径无 step-up 验证通道,发 token 等于让受限防线失效
+        if user.is_restricted:
+            logger.info(
+                "oauth password_grant: restricted user refused client_id=%s user_id=%s",
+                client_id, user.id,
+            )
+            AuthService.record_login_log(
+                db,
+                user=user,
+                username=username,
+                success=False,
+                failure_reason="restricted_user",
+                ip_address=safe_ip,
+                user_agent=safe_ua,
+                geo_info=geo_info,
+                login_method="password",
+            )
             return None
 
         # 访问控制:与 authorize 端点同一判定(can_access_client),
@@ -360,6 +414,46 @@ class OAuthService:
         if not OAuthService.verify_scope(client, scope):
             logger.info("oauth password_grant: invalid scope client_id=%s scope=%s", client_id, scope)
             return None
+
+        # 风控链路(与 /api/auth/login 一致):异常检测 → 风险评分;
+        # 命中即拒绝(token 端点无法承载 step-up,不能只降级放行)
+        login_anomalies = LoginAnomalyService.check_anomalies(
+            db, user, safe_ip, safe_ua, geo_info
+        )
+        if settings.block_suspicious_login:
+            risk_assessment = RiskService.assess_password_login_risk(
+                db=db,
+                user=user,
+                ip_address=safe_ip,
+                city=geo_info.get("city") if geo_info else None,
+                country=geo_info.get("country") if geo_info else None,
+                device_token=None,
+                existing_anomalies=login_anomalies,
+            )
+            if risk_assessment.risk_level != RiskLevel.NONE:
+                logger.warning(
+                    "oauth password_grant: risk detected, refusing grant "
+                    "client_id=%s user_id=%s risk=%s",
+                    client_id, user.id, risk_assessment.risk_level.value,
+                )
+                AuthService.record_login_log(
+                    db,
+                    user=user,
+                    username=username,
+                    success=False,
+                    failure_reason="risk_blocked",
+                    ip_address=safe_ip,
+                    user_agent=safe_ua,
+                    geo_info=geo_info,
+                    login_method="password",
+                    is_suspicious=True,
+                    anomalies=[a.to_dict() for a in risk_assessment.anomalies],
+                )
+                return None
+
+        # 会话限制(与密码登录一致:超限踢最旧会话,而非拒发)
+        device_id = generate_device_id(user.id, safe_ua, safe_ip)
+        SessionLimitService.check_and_enforce_limit(db, user, device_id)
 
         # Create tokens
         token_data = {"sub": str(user.id), "scope": scope, "client_id": client_id}
@@ -397,6 +491,19 @@ class OAuthService:
             db.add(auth)
 
         db.commit()
+
+        # 成功登录日志(在 commit 后写,日志自身独立事务)
+        AuthService.record_login_log(
+            db,
+            user=user,
+            username=username,
+            success=True,
+            ip_address=safe_ip,
+            user_agent=safe_ua,
+            geo_info=geo_info,
+            anomalies=login_anomalies,
+            login_method="password",
+        )
 
         return access_token, refresh_token, settings.access_token_expire_minutes * 60
 
