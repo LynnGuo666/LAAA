@@ -33,6 +33,7 @@ import { hasPermission } from '@/lib/authz'
 import { formatDateTime } from '@/lib/date'
 import { useAuthStore } from '@/lib/store'
 import { extractErrorMessage } from '@/lib/errors';
+import { PASSWORD_REQUIREMENT_HINT } from '@/lib/validation';
 
 interface User {
   id: number
@@ -860,10 +861,11 @@ function UserDetailContent() {
             setEditForm((previous) => ({ ...previous, status: value })),
           )}
         </AdminFormField>
-        <AdminFormField label="新密码" description="留空表示不修改">
+        <AdminFormField label="新密码" description={`留空表示不修改。${PASSWORD_REQUIREMENT_HINT}`}>
           <Input
             type="password"
-            minLength={6}
+            minLength={12}
+            maxLength={72}
             autoComplete="new-password"
             value={editForm.password}
             onChange={(event) =>
