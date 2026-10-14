@@ -466,12 +466,33 @@ class AuthService:
             else settings.refresh_token_expire_days
         )
 
-        # 轮换:标记旧 token 吊销 + 插入新 token(同 family)。
+        # 轮换:条件 UPDATE 原子抢占 revoked_at(参照 oauth_service.exchange_code
+        # 的 code 抢占写法)。SELECT 检查与标记吊销之间不再有 TOCTOU 窗口——
+        # 两个并发请求只有一个能抢占成功,失败方按重放处理走家族吊销,
+        # 封死「家族分叉成两条活跃链、重放检测永不触发」的竞态绕过。
         # 存量无 family 的旧记录在此惰性回填新 family_id。
         import uuid
         family_id = token_record.family_id or str(uuid.uuid4())
-        token_record.revoked_at = utcnow()
-        token_record.family_id = family_id
+        claimed = db.query(Token).filter(
+            Token.id == token_record.id,
+            Token.revoked_at.is_(None),
+        ).update(
+            {"revoked_at": utcnow(), "family_id": family_id},
+            synchronize_session=False,
+        )
+        if not claimed:
+            logger.warning(
+                "refresh rotation race lost: treating as replay, revoking family user=%s token_id=%s",
+                token_record.user_id, token_record.id,
+            )
+            # 抢占失败 = 并发方已抢先轮换/吊销(或行已被删除)。
+            # 重新读取该行的当前状态拿权威 family_id,再灭族。
+            current = db.query(Token).filter(
+                Token.id == token_record.id
+            ).populate_existing().first()
+            if current is not None:
+                AuthService._revoke_token_family(db, current)
+            return None
 
         new_token_record = Token(
             token_hash=hash_token(new_refresh_token),
