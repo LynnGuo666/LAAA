@@ -1,7 +1,9 @@
 from datetime import datetime
 from typing import List, Optional
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
+
+from app.schemas import _validate_password_strength
 
 
 class AdminUserResponse(BaseModel):
@@ -15,6 +17,8 @@ class AdminUserResponse(BaseModel):
     updated_at: datetime
     groups: List[str] = []  # Group names
     roles: List[str] = []  # Role names
+    group_ids: List[int] = []  # Group IDs(前端免于按名反查)
+    role_ids: List[int] = []  # Role IDs
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -24,15 +28,26 @@ class AdminUserUpdate(BaseModel):
     email: Optional[EmailStr] = None
     avatar: Optional[str] = None
     status: Optional[str] = Field(None, pattern="^(active|inactive|suspended)$")
-    password: Optional[str] = Field(None, min_length=6)
+    password: Optional[str] = Field(None, min_length=12, max_length=72)
+
+    @field_validator("password")
+    @classmethod
+    def _check_password_strength(cls, v: Optional[str]) -> Optional[str]:
+        # 与自助注册/改密同一强度策略,管理员路径不降级
+        return _validate_password_strength(v) if v else v
 
 
 class AdminUserCreate(BaseModel):
     """管理员创建用户"""
     username: str = Field(..., min_length=3, max_length=50)
     email: EmailStr
-    password: str = Field(..., min_length=6)
+    password: str = Field(..., min_length=12, max_length=72)
     status: str = Field("active", pattern="^(active|inactive|suspended)$")
+
+    @field_validator("password")
+    @classmethod
+    def _check_password_strength(cls, v: str) -> str:
+        return _validate_password_strength(v)
 
 
 class AdminUserGroupsUpdate(BaseModel):

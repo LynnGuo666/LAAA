@@ -57,6 +57,18 @@ from app.utils.time import utcnow
 
 settings = get_settings()
 logger = logging.getLogger("uvicorn.error")
+
+# 后台邮件任务引用:防止 task 被 GC(Python 文档明确要求持有 create_task 返回值)
+_background_tasks: set = set()
+
+
+def _spawn_email_task(coro) -> None:
+    """安全地启动后台邮件任务:持有引用 + 完成后自动移除。"""
+    task = asyncio.create_task(coro)
+    _background_tasks.add(task)
+    task.add_done_callback(_background_tasks.discard)
+
+
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 
 
@@ -104,7 +116,7 @@ async def register(request: Request, user_data: UserCreate, db: Session = Depend
             site_name = SiteService.get_site_name(db)
 
             # Send email asynchronously
-            asyncio.create_task(
+            _spawn_email_task(
                 EmailService.send_email_verification(
                     to_email=user.email,
                     username=user.username,
@@ -545,9 +557,10 @@ async def verify_backup_code(
             detail=str(e)
         )
 
-    # Mark verification step as complete (counts as TOTP)
+    # Mark verification step as complete
+    # 记为 backup_code 而非 totp:两步验证时可与真 TOTP 组合成两个独立因子
     is_complete = VerificationService.complete_verification_step(
-        db, verification_session, "totp"
+        db, verification_session, "backup_code"
     )
 
     if is_complete:
@@ -1205,7 +1218,7 @@ async def change_email(
     # 注意用 query 参数格式,与注册验证链接一致——前端 verify-email 页只读 searchParams
     try:
         verify_url = f"{settings.frontend_url}/verify-email?token={token}"
-        asyncio.create_task(
+        _spawn_email_task(
             EmailService.send_email(
                 to_email=request_data.new_email,
                 subject="确认邮箱变更 - LAAA",
@@ -1223,7 +1236,7 @@ async def change_email(
     # 7. 通知旧邮箱(若有)有变更请求
     if current_user.email and current_user.email_verified:
         try:
-            asyncio.create_task(
+            _spawn_email_task(
                 EmailService.send_email(
                     to_email=current_user.email,
                     subject="邮箱变更通知 - LAAA",

@@ -46,8 +46,8 @@ router = APIRouter()
 
 @router.get("/users", response_model=PaginatedUsersResponse)
 async def list_users(
-    skip: int = 0,
-    limit: int = 20,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(20, ge=1, le=200),
     search: Optional[str] = Query(None, description="搜索用户名、邮箱或ID"),
     db: DBSession = Depends(get_db),
     _: User = Depends(require_permission('admin.users'))
@@ -83,7 +83,9 @@ async def list_users(
             created_at=user.created_at,
             updated_at=user.updated_at,
             groups=[g.name for g in user.groups],
-            roles=[r.name for r in user.roles]
+            roles=[r.name for r in user.roles],
+            group_ids=[g.id for g in user.groups],
+            role_ids=[r.id for r in user.roles],
         ))
 
     return PaginatedUsersResponse(total=total, items=items)
@@ -112,7 +114,9 @@ async def get_user(
         created_at=user.created_at,
         updated_at=user.updated_at,
         groups=[g.name for g in user.groups],
-        roles=[r.name for r in user.roles]
+        roles=[r.name for r in user.roles],
+        group_ids=[g.id for g in user.groups],
+        role_ids=[r.id for r in user.roles],
     )
 
 
@@ -222,7 +226,9 @@ async def update_user(
         created_at=user.created_at,
         updated_at=user.updated_at,
         groups=[g.name for g in user.groups],
-        roles=[r.name for r in user.roles]
+        roles=[r.name for r in user.roles],
+        group_ids=[g.id for g in user.groups],
+        role_ids=[r.id for r in user.roles],
     )
 
 
@@ -294,7 +300,9 @@ async def update_user_groups(
         created_at=user.created_at,
         updated_at=user.updated_at,
         groups=[g.name for g in user.groups],
-        roles=[r.name for r in user.roles]
+        roles=[r.name for r in user.roles],
+        group_ids=[g.id for g in user.groups],
+        role_ids=[r.id for r in user.roles],
     )
 
 
@@ -339,7 +347,9 @@ async def update_user_roles(
         created_at=user.created_at,
         updated_at=user.updated_at,
         groups=[g.name for g in user.groups],
-        roles=[r.name for r in user.roles]
+        roles=[r.name for r in user.roles],
+        group_ids=[g.id for g in user.groups],
+        role_ids=[r.id for r in user.roles],
     )
 
 @router.get("/roles", response_model=List[RoleResponse])
