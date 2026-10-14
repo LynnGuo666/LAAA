@@ -169,6 +169,9 @@ async def authorize_get(
         }
 
     # For direct browser access, redirect to frontend authorize page
+    # (透传 PKCE/nonce/response_type:丢掉它们会让 public client 在
+    # consent 页重新 POST 时缺 code_challenge 被 400 拒绝,OIDC 的
+    # nonce 也会丢失——浏览器授权流功能死锁)
     frontend_url = _build_redirect_url(
         "/oauth/authorize",
         {
@@ -177,6 +180,11 @@ async def authorize_get(
             "redirect_uri": redirect_uri,
             "scope": scope,
             "state": state,
+            "nonce": nonce,
+            "code_challenge": code_challenge,
+            "code_challenge_method": (
+                code_challenge_method or "S256" if code_challenge else None
+            ),
         },
     )
     return RedirectResponse(url=frontend_url, status_code=302)

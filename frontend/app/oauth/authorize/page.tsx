@@ -38,6 +38,12 @@ function AuthorizeContent() {
   const redirectUri = searchParams.get('redirect_uri');
   const scope = searchParams.get('scope') || 'profile';
   const state = searchParams.get('state');
+  // PKCE / OIDC 参数必须全程透传(后端 consent 302 会带回):
+  // 丢失 code_challenge 会让 public client 的授权流死锁(GET 预检
+  // 要求 challenge → 302 丢失 → POST 无 challenge → 400)
+  const nonce = searchParams.get('nonce');
+  const codeChallenge = searchParams.get('code_challenge');
+  const codeChallengeMethod = searchParams.get('code_challenge_method');
 
   useEffect(() => {
     // 验证必需参数
@@ -88,6 +94,9 @@ function AuthorizeContent() {
           redirect_uri: redirectUri,
           scope: scope,
           state: state,
+          nonce: nonce,
+          code_challenge: codeChallenge,
+          code_challenge_method: codeChallengeMethod,
         },
         headers: {
           Authorization: `Bearer ${token}`,
@@ -138,6 +147,11 @@ function AuthorizeContent() {
       formData.append('redirect_uri', redirectUri || '');
       formData.append('scope', scope);
       if (state) formData.append('state', state);
+      if (nonce) formData.append('nonce', nonce);
+      if (codeChallenge) {
+        formData.append('code_challenge', codeChallenge);
+        formData.append('code_challenge_method', codeChallengeMethod || 'S256');
+      }
       formData.append('action', 'approve');
 
       const response = await axios.post(
@@ -195,6 +209,11 @@ function AuthorizeContent() {
         formData.append('redirect_uri', redirectUri || '');
         formData.append('scope', scope);
         if (state) formData.append('state', state);
+        if (nonce) formData.append('nonce', nonce);
+        if (codeChallenge) {
+          formData.append('code_challenge', codeChallenge);
+          formData.append('code_challenge_method', codeChallengeMethod || 'S256');
+        }
         formData.append('action', 'deny');
 
         const response = await axios.post(

@@ -555,6 +555,48 @@ def test_password_grant_denied_user(client, db_session, seed_admin, make_user):
 
 
 # ---------------------------------------------------------------------------
+# consent 重定向透传 PKCE/nonce(批次2 修复4)
+# ---------------------------------------------------------------------------
+
+def test_consent_redirect_carries_pkce_and_nonce(client, admin_token, second_client):
+    """浏览器流 consent 302 到前端时不得丢 PKCE/nonce(否则 public client 死锁)。"""
+    cid, _ = second_client  # 非 trusted → 需要同意 → 302 到前端授权页
+
+    verifier, challenge = _pkce_pair()
+    resp = client.get(
+        "/api/oauth/authorize",
+        params={
+            "response_type": "code",
+            "client_id": cid,
+            "redirect_uri": REDIRECT_URI,
+            "scope": "profile",
+            "state": "st-123",
+            "nonce": "nonce-abc",
+            "code_challenge": challenge,
+            "code_challenge_method": "S256",
+        },
+        # 浏览器形态:不带 Authorization 头、不请求 JSON,
+        # 身份经 authorize_token cookie 传入
+        cookies={"authorize_token": admin_token},
+        follow_redirects=False,
+    )
+    assert resp.status_code == 302, resp.text
+    location = resp.headers.get("location", "")
+    assert location.startswith("/oauth/authorize"), location
+    qs = parse_qs(urlparse(location).query)
+    # PKCE 参数完整透传
+    assert qs.get("code_challenge") == [challenge], location
+    assert qs.get("code_challenge_method") == ["S256"], location
+    # OIDC nonce 透传
+    assert qs.get("nonce") == ["nonce-abc"], location
+    # 既有参数不丢
+    assert qs.get("response_type") == ["code"]
+    assert qs.get("client_id") == [cid]
+    assert qs.get("state") == ["st-123"]
+    # 前端页据此重新 POST approve,public client 即可带上 challenge 完成授权
+
+
+# ---------------------------------------------------------------------------
 # 空 scope:invalid_scope + userinfo 无兜底(批次2 修复1)
 # ---------------------------------------------------------------------------
 
