@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -6,13 +6,37 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.middleware.permission import require_permission
 from app.models import InviteCode, User
-from app.schemas.invite import InviteCodeCreate, InviteCodeResponse, InviteCodeUpdate
+from app.schemas.invite import (
+    InviteCodeCreate,
+    InviteCodeResponse,
+    InviteCodeUpdate,
+    PaginatedInviteCodesResponse,
+)
 from app.services.invite_service import InviteService
 
 router = APIRouter(prefix="/api/admin/invites", tags=["admin"])
 
 
-@router.get("/", response_model=List[InviteCodeResponse])
+def _to_invite_response(invite: InviteCode) -> InviteCodeResponse:
+    return InviteCodeResponse(
+        id=invite.id,
+        code=invite.code,
+        note=invite.note,
+        group_id=invite.group_id,
+        group_name=invite.group.name if invite.group else "",
+        is_active=invite.is_active,
+        expires_at=invite.expires_at,
+        max_uses=invite.max_uses,
+        used_count=invite.used_count or 0,
+        created_by_user_id=invite.created_by_user_id,
+        used_by_user_id=invite.used_by_user_id,
+        used_at=invite.used_at,
+        created_at=invite.created_at,
+        updated_at=invite.updated_at,
+    )
+
+
+@router.get("/", response_model=PaginatedInviteCodesResponse)
 def list_invite_codes(
     skip: int = 0,
     limit: int = 100,
@@ -24,34 +48,19 @@ def list_invite_codes(
     if active is not None:
         query = query.filter(InviteCode.is_active == active)
 
+    # 返回服务端总数:前端分页控件此前拿当页条数当总数,
+    # 超过一页(20 条)时永远翻不到第 2 页
+    total = query.count()
     invites = (
         query.order_by(InviteCode.id.desc())
         .offset(skip)
         .limit(min(limit, 500))
         .all()
     )
-
-    result: List[InviteCodeResponse] = []
-    for invite in invites:
-        result.append(
-            InviteCodeResponse(
-                id=invite.id,
-                code=invite.code,
-                note=invite.note,
-                group_id=invite.group_id,
-                group_name=invite.group.name if invite.group else "",
-                is_active=invite.is_active,
-                expires_at=invite.expires_at,
-                max_uses=invite.max_uses,
-                used_count=invite.used_count or 0,
-                created_by_user_id=invite.created_by_user_id,
-                used_by_user_id=invite.used_by_user_id,
-                used_at=invite.used_at,
-                created_at=invite.created_at,
-                updated_at=invite.updated_at,
-            )
-        )
-    return result
+    return PaginatedInviteCodesResponse(
+        total=total,
+        items=[_to_invite_response(invite) for invite in invites],
+    )
 
 
 @router.post("/", response_model=InviteCodeResponse, status_code=status.HTTP_201_CREATED)
@@ -72,22 +81,7 @@ def create_invite_code(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-    return InviteCodeResponse(
-        id=invite.id,
-        code=invite.code,
-        note=invite.note,
-        group_id=invite.group_id,
-        group_name=invite.group.name if invite.group else "",
-        is_active=invite.is_active,
-        expires_at=invite.expires_at,
-        max_uses=invite.max_uses,
-        used_count=invite.used_count or 0,
-        created_by_user_id=invite.created_by_user_id,
-        used_by_user_id=invite.used_by_user_id,
-        used_at=invite.used_at,
-        created_at=invite.created_at,
-        updated_at=invite.updated_at,
-    )
+    return _to_invite_response(invite)
 
 
 @router.put("/{invite_id}", response_model=InviteCodeResponse)
@@ -111,19 +105,4 @@ def update_invite_code(
     db.commit()
     db.refresh(invite)
 
-    return InviteCodeResponse(
-        id=invite.id,
-        code=invite.code,
-        note=invite.note,
-        group_id=invite.group_id,
-        group_name=invite.group.name if invite.group else "",
-        is_active=invite.is_active,
-        expires_at=invite.expires_at,
-        max_uses=invite.max_uses,
-        used_count=invite.used_count or 0,
-        created_by_user_id=invite.created_by_user_id,
-        used_by_user_id=invite.used_by_user_id,
-        used_at=invite.used_at,
-        created_at=invite.created_at,
-        updated_at=invite.updated_at,
-    )
+    return _to_invite_response(invite)

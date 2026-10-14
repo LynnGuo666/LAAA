@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional
+from typing import List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -35,3 +35,9 @@ class InviteCodeResponse(BaseModel):
     updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class PaginatedInviteCodesResponse(BaseModel):
+    """邀请码列表分页响应:total 为过滤后的总数(供前端分页控件用)。"""
+    total: int
+    items: List[InviteCodeResponse]

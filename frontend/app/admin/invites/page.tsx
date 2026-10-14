@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import {
   Button,
   Card,
@@ -56,6 +56,7 @@ export default function InvitesPage() {
 
   const [groups, setGroups] = useState<Group[]>([])
   const [invites, setInvites] = useState<Invite[]>([])
+  const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
@@ -88,10 +89,15 @@ export default function InvitesPage() {
         // 状态筛选走服务端（后端支持 active 参数）
         active: filterActive === 'all' ? undefined : filterActive === 'active',
       })
-      setInvites(Array.isArray(response.data) ? response.data : [])
+      const data = response.data
+      // 后端返回 {items, total}：分页用服务端总数（当页条数不是总数，
+      // 否则超过一页时永远翻不到第 2 页）
+      setInvites(Array.isArray(data?.items) ? data.items : [])
+      setTotal(typeof data?.total === 'number' ? data.total : 0)
     } catch (err: any) {
       setError(err.response?.data?.detail || '加载邀请码失败')
       setInvites([])
+      setTotal(0)
     } finally {
       setLoading(false)
     }
@@ -106,12 +112,6 @@ export default function InvitesPage() {
     if (!canManage) return
     void loadInvites()
   }, [canManage, loadInvites])
-
-  const filteredInvites = useMemo(() => {
-    if (filterActive === 'all') return invites
-    const target = filterActive === 'active'
-    return invites.filter((invite) => invite.is_active === target)
-  }, [filterActive, invites])
 
   const handleCreate = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -136,7 +136,7 @@ export default function InvitesPage() {
       const expiresAt = createForm.expiresAtLocal
         ? new Date(createForm.expiresAtLocal).toISOString()
         : undefined
-      const response = await adminApi.createInvite({
+      await adminApi.createInvite({
         group_id: createForm.groupId,
         note: createForm.note.trim() || undefined,
         expires_at: expiresAt,
@@ -148,7 +148,6 @@ export default function InvitesPage() {
       } else {
         await loadInvites()
       }
-      setInvites((previous) => [response.data, ...previous])
       setCreateForm({
         groupId: createForm.groupId,
         note: '',
@@ -184,6 +183,10 @@ export default function InvitesPage() {
           ? previous.filter((item) => item.id !== invite.id)
           : previous.map((item) => (item.id === invite.id ? response.data : item)),
       )
+      // 「仅有效」口径下停用一条，服务端总数同步减一
+      if (filterActive === 'active') {
+        setTotal((previous) => Math.max(0, previous - 1))
+      }
       toast('邀请码已停用')
     } catch (err: any) {
       setError(err.response?.data?.detail || '停用邀请码失败')
@@ -339,7 +342,7 @@ export default function InvitesPage() {
         </Card.Header>
 
         <Card.Content className="p-0">
-          {filteredInvites.length === 0 ? (
+          {invites.length === 0 ? (
             <AdminEmptyState
               className="border-0"
               title="暂无邀请码"
@@ -358,7 +361,7 @@ export default function InvitesPage() {
                     <Table.Column>操作</Table.Column>
                   </Table.Header>
                   <Table.Body>
-                    {filteredInvites.map((invite) => {
+                    {invites.map((invite) => {
                       const usedCount = invite.used_count ?? 0
                       const limitText = invite.max_uses
                         ? `${usedCount}/${invite.max_uses}`
@@ -431,11 +434,11 @@ export default function InvitesPage() {
         <Card.Footer className="border-t border-default-200/70 px-6 py-4">
           <AdminPagination
             page={page}
-            total={filteredInvites.length}
+            total={total}
             limit={limit}
             onPageChange={setPage}
             summary={(page, totalPages, total) =>
-              `第 ${page + 1} / ${totalPages} 页，本页 ${total} 条`
+              `第 ${page + 1} / ${totalPages} 页，共 ${total} 条`
             }
           />
         </Card.Footer>
