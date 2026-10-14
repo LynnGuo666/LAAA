@@ -548,3 +548,42 @@ def test_passkey_check_rate_limit(client):
         assert resp.status_code == 200, resp.text
     resp = client.get("/api/passkeys/check/whoever")
     assert resp.status_code == 429
+
+
+def test_passkey_authentication_options_require_uv(db_session, make_user, seed_admin):
+    """认证 options 要求 userVerification=REQUIRED(注册保持 PREFERRED)。"""
+    from app.services.passkey_service import PasskeyService
+
+    user = make_user(passkeys=True)
+    user_no_passkey = make_user()
+
+    auth_opts = PasskeyService.generate_authentication_options(db_session, user.username)
+    assert auth_opts["userVerification"] == "required"
+
+    # 注册 options:无 passkey 的用户(非管理员限 1 个,故用独立用户);
+    # 注册的 UV 位于 authenticatorSelection 下,保持 PREFERRED(兼容性)
+    reg_opts = PasskeyService.generate_registration_options(db_session, user_no_passkey)
+    assert reg_opts["authenticatorSelection"]["userVerification"] == "preferred"
+
+
+def test_passkey_authentication_rejects_missing_uv_flag(db_session, make_user, seed_admin, monkeypatch):
+    """验证结果缺 UV 标志 → 拒绝:passkey 因子必须证明所有者在场,不只是设备在场。"""
+    from app.models import Passkey
+    from app.services import passkey_service as ps
+    from app.services.passkey_service import PasskeyService
+
+    user = make_user(passkeys=True)
+    passkey = db_session.query(Passkey).filter(Passkey.user_id == user.id).first()
+
+    opts = PasskeyService.generate_authentication_options(db_session, user.username)
+
+    class _NoUVVerification:
+        new_sign_count = 1
+        user_verified = False
+
+    monkeypatch.setattr(ps, "verify_authentication_response", lambda **kw: _NoUVVerification())
+
+    with pytest.raises(ValueError):
+        PasskeyService.verify_authentication(
+            db_session, _passkey_credential(passkey), opts['challenge_id']
+        )

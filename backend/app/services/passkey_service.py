@@ -247,7 +247,10 @@ class PasskeyService:
         options = generate_authentication_options(
             rp_id=settings.webauthn_rp_id,
             allow_credentials=allow_credentials if allow_credentials else None,
-            user_verification=UserVerificationRequirement.PREFERRED,
+            # 认证流程要求用户在场验证(UV=REQUIRED):passkey 用作登录/step-up
+            # 因子时必须证明「所有者在场」(生物识别/PIN),而非仅「设备在场」。
+            # 注册保持 PREFERRED(兼容性:老设备注册无 UV 但认证时补做)。
+            user_verification=UserVerificationRequirement.REQUIRED,
         )
 
         # Store challenge
@@ -342,10 +345,17 @@ class PasskeyService:
                 expected_origin=settings.webauthn_rp_origin,
                 credential_public_key=base64url_to_bytes(passkey.public_key),
                 credential_current_sign_count=passkey.sign_count,
-                require_user_verification=False,
+                # UV=REQUIRED:与 options 的 user_verification 对齐,库层强制
+                require_user_verification=True,
             )
         except Exception as e:
             raise ValueError(f"Authentication verification failed: {e}")
+
+        # 服务层双保险:即使库层未拦,UV 标志缺失也拒绝——
+        # step-up(/api/auth/verify/passkey/complete)复用本验证路径,
+        # 用户在场证明必须成立才算因子完成。
+        if not getattr(verification, 'user_verified', False):
+            raise ValueError("通行密钥验证未完成用户在场验证（生物识别/PIN）")
 
         # Delete used challenge
         db.delete(challenge_record)
