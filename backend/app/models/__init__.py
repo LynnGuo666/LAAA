@@ -578,5 +578,10 @@ class UserTOTP(Base):
     created_at = Column(DateTime, default=utcnow)
     last_used_at = Column(DateTime, nullable=True)
 
+    # 重放防护:最近一次已消费的 TOTP 时间步(int(time // 30))。
+    # 验证要求「本次验证码对应的时间步 > 已记录值」,封死同一验证码在
+    # ~90 秒有效窗口内的重复使用;NULL(存量数据)视为无记录。
+    last_used_timestep = Column(Integer, nullable=True)
+
     # Relationships
     user = relationship('User', back_populates='totp')

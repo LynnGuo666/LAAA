@@ -10,6 +10,7 @@ import hmac
 import json
 import logging
 import secrets
+import time
 from io import BytesIO
 from typing import List, Optional, Tuple
 
@@ -152,6 +153,24 @@ class TOTPService:
         return base64.b64encode(buffer.getvalue()).decode()
 
     @staticmethod
+    def _match_totp_timestep(secret: str, code: str, window: int = 1) -> Optional[int]:
+        """验证 TOTP 验证码,返回实际匹配到的时间步(未匹配返回 None)。
+
+        与 pyotp TOTP.verify(valid_window=window) 语义一致:允许当前时间步
+        前后 window 步的时钟偏移;比较用 hmac.compare_digest(常量时间)。
+
+        重放防护需要知道「验证码对应的时间步」而非布尔结果,故不直接用
+        pyotp.verify——返回的步是匹配到的那个步,不是当前步。
+        """
+        totp = pyotp.TOTP(secret)
+        current_step = int(time.time() // totp.interval)
+        for offset in range(-window, window + 1):
+            step = current_step + offset
+            if hmac.compare_digest(totp.generate_otp(step), str(code)):
+                return step
+        return None
+
+    @staticmethod
     def verify_totp(secret: str, code: str, window: int = 1) -> bool:
         """
         Verify a TOTP code.
@@ -164,8 +183,7 @@ class TOTPService:
         Returns:
             True if code is valid
         """
-        totp = pyotp.TOTP(secret)
-        return totp.verify(code, valid_window=window)
+        return TOTPService._match_totp_timestep(secret, code, window) is not None
 
     @staticmethod
     def generate_backup_codes(count: int = 10) -> List[str]:
@@ -266,8 +284,15 @@ class TOTPService:
         except TOTPSecretCorruptedError:
             cls._purge_corrupted_totp(db, user)
             raise
-        if not cls.verify_totp(secret, code):
+        matched_step = cls._match_totp_timestep(secret, code)
+        if matched_step is None:
             raise InvalidTOTPCodeError("验证码错误")
+
+        # 重放防护:绑定确认消费掉的时间步同样记录,同一验证码不得再用于
+        # 后续登录验证;存量记录 last_used_timestep 为 NULL 视为无记录。
+        last_step = user.totp.last_used_timestep
+        if last_step is not None and matched_step <= last_step:
+            raise InvalidTOTPCodeError("验证码已使用，请等待新验证码")
 
         # Generate backup codes
         backup_codes = cls.generate_backup_codes()
@@ -277,6 +302,7 @@ class TOTPService:
         user.totp.is_enabled = True
         user.totp.backup_codes_hash = json.dumps(hashed_codes)
         user.totp.last_used_at = utcnow()
+        user.totp.last_used_timestep = matched_step
 
         db.commit()
 
@@ -314,11 +340,22 @@ class TOTPService:
         except TOTPSecretCorruptedError:
             # 已启用的二次验证记录必须保留，避免解密失败导致认证降级。
             raise
-        if not cls.verify_totp(secret, code):
+        matched_step = cls._match_totp_timestep(secret, code)
+        if matched_step is None:
             raise InvalidTOTPCodeError("验证码错误")
+
+        # 重放防护(RFC 6238 §5.2):同一时间步的验证码只能消费一次。
+        # 要求本次验证码对应的时间步严格大于已记录值——valid_window=1 时
+        # 匹配到的可能是前一步的码,同样要与已记录值比较(用匹配步,不是
+        # 当前步)。AiTM 钓鱼/肩窥得到的验证码二次提交会在此被拒绝。
+        # 存量数据 last_used_timestep 为 NULL 视为无记录。
+        last_step = user.totp.last_used_timestep
+        if last_step is not None and matched_step <= last_step:
+            raise InvalidTOTPCodeError("验证码已使用，请等待新验证码")
 
         # Update last used
         user.totp.last_used_at = utcnow()
+        user.totp.last_used_timestep = matched_step
         db.commit()
 
         logger.info(f"TOTP verified for user {user.id}")

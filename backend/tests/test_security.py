@@ -1,5 +1,7 @@
-"""安全工具单元测试:JWT 签发/解码、hash_password 别名、常量时间比较、datetime helper。"""
+"""安全工具单元测试:JWT 签发/解码、hash_password 别名、常量时间比较、datetime helper、TOTP 重放防护。"""
 from datetime import timedelta
+
+import pytest
 
 from app.utils.security import (
     create_access_token,
@@ -170,3 +172,104 @@ def test_ready_endpoint_does_not_leak_db_error(client):
         assert "fail:" not in resp.text
     finally:
         app.dependency_overrides.pop(get_db, None)
+
+
+# ==================== TOTP 验证码重放防护 ====================
+
+def _totp_code_at(secret: str, step: int) -> str:
+    """生成指定时间步的 TOTP 验证码(绕开真实时钟,测试可指定步)"""
+    import pyotp
+    return pyotp.TOTP(secret).generate_otp(step)
+
+
+def _current_totp_step() -> int:
+    import time
+    return int(time.time() // 30)
+
+
+def test_totp_code_replay_rejected(db_session, make_user):
+    """同一验证码连续提交两次 → 第二次被拒(重放防护核心)。
+
+    修复前只更新 last_used_at 时间戳,同一 6 位码在 ~90 秒窗口内可
+    重复使用(AiTM 钓鱼/肩窥场景)。
+    """
+    from app.services.totp_service import InvalidTOTPCodeError, TOTPService
+
+    user, secret = make_user(totp=True)
+    step = _current_totp_step()
+    code = _totp_code_at(secret, step)
+
+    assert TOTPService.verify_totp_code(db_session, user, code) is True
+    assert user.totp.last_used_timestep is not None
+
+    # 同一验证码立即重放 → 拒绝
+    with pytest.raises(InvalidTOTPCodeError):
+        TOTPService.verify_totp_code(db_session, user, code)
+
+
+def test_totp_previous_window_code_blocked_after_use(db_session, make_user):
+    """消费当前步的码后,前一步的码(valid_window=1 本可匹配)同样被拒。
+
+    匹配到的时间步 <= 已记录时间步,一律视为已消费。
+    """
+    from app.services.totp_service import InvalidTOTPCodeError, TOTPService
+
+    user, secret = make_user(totp=True)
+    step = _current_totp_step()
+
+    assert TOTPService.verify_totp_code(db_session, user, _totp_code_at(secret, step)) is True
+
+    # 前一步的码:匹配步 step-1 <= 已记录 step → 拒绝
+    with pytest.raises(InvalidTOTPCodeError):
+        TOTPService.verify_totp_code(db_session, user, _totp_code_at(secret, step - 1))
+
+
+def test_totp_next_window_code_accepted(db_session, make_user):
+    """等一个窗口后新验证码仍可正常使用(防护不过度)。"""
+    from app.services.totp_service import TOTPService
+
+    user, secret = make_user(totp=True)
+    step = _current_totp_step()
+
+    assert TOTPService.verify_totp_code(db_session, user, _totp_code_at(secret, step)) is True
+
+    # 下一步的码:无论真实时钟仍在 step(偏移 +1)还是已走到 step+1
+    # (偏移 0),匹配步都是 step+1 > 已记录 step → 通过
+    assert TOTPService.verify_totp_code(db_session, user, _totp_code_at(secret, step + 1)) is True
+
+
+def test_totp_setup_confirm_replay_rejected(db_session, make_user):
+    """绑定确认(verify_and_enable)同样防重放,且跨流程生效。
+
+    绑定确认消费掉的时间步会被记录:同一验证码紧接着用于登录验证
+    (verify_totp_code)也被拒绝;新窗口的码可正常登录。
+    """
+    from app.services.totp_service import InvalidTOTPCodeError, TOTPService
+
+    user = make_user()
+    secret, _uri, _qr = TOTPService.setup_totp(db_session, user)
+    step = _current_totp_step()
+    code = _totp_code_at(secret, step)
+
+    backup_codes = TOTPService.verify_and_enable_totp(db_session, user, code)
+    assert backup_codes, "绑定成功应返回备用码"
+    assert user.totp.is_enabled is True
+
+    # 同一验证码用于登录验证 → 拒绝(跨流程重放)
+    with pytest.raises(InvalidTOTPCodeError):
+        TOTPService.verify_totp_code(db_session, user, code)
+
+    # 新窗口的码可正常登录
+    assert TOTPService.verify_totp_code(db_session, user, _totp_code_at(secret, step + 1)) is True
+
+
+def test_totp_legacy_null_timestep_accepts_first_code(db_session, make_user):
+    """存量数据 last_used_timestep 为 NULL 视为无记录:首个验证码正常通过。"""
+    from app.services.totp_service import TOTPService
+
+    user, secret = make_user(totp=True)
+    # make_user 直插的 UserTOTP 不带 last_used_timestep → NULL
+    assert user.totp.last_used_timestep is None
+
+    code = _totp_code_at(secret, _current_totp_step())
+    assert TOTPService.verify_totp_code(db_session, user, code) is True
