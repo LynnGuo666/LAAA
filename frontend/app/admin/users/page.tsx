@@ -560,6 +560,7 @@ export default function UsersPage() {
           <Input
             type="text"
             minLength={3}
+            autoComplete="username"
             value={createForm.username}
             onChange={(event) =>
               setCreateForm((previous) => ({
@@ -572,6 +573,7 @@ export default function UsersPage() {
         <AdminFormField label="邮箱" isRequired>
           <Input
             type="email"
+            autoComplete="email"
             value={createForm.email}
             onChange={(event) =>
               setCreateForm((previous) => ({
@@ -585,6 +587,7 @@ export default function UsersPage() {
           <Input
             type="password"
             minLength={12}
+            autoComplete="new-password"
             value={createForm.password}
             onChange={(event) =>
               setCreateForm((previous) => ({
@@ -616,6 +619,7 @@ export default function UsersPage() {
         <AdminFormField label="邮箱" isRequired>
           <Input
             type="email"
+            autoComplete="email"
             value={editForm.email}
             onChange={(event) =>
               setEditForm((previous) => ({
@@ -650,6 +654,7 @@ export default function UsersPage() {
           <Input
             type="password"
             minLength={12}
+            autoComplete="new-password"
             value={editForm.password}
             onChange={(event) =>
               setEditForm((previous) => ({

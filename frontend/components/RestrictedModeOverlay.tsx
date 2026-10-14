@@ -444,6 +444,7 @@ export default function RestrictedModeOverlay({ user, onComplete }: RestrictedMo
                         <Label className="block text-sm font-medium text-muted mb-1">新邮箱地址</Label>
                         <Input
                           type="email"
+                          autoComplete="email"
                           value={newEmail}
                           onChange={(e) => setNewEmail(e.target.value)}
                           placeholder="输入新邮箱地址"
@@ -454,6 +455,7 @@ export default function RestrictedModeOverlay({ user, onComplete }: RestrictedMo
                         <Label className="block text-sm font-medium text-muted mb-1">当前密码</Label>
                         <Input
                           type="password"
+                          autoComplete="current-password"
                           value={emailPassword}
                           onChange={(e) => setEmailPassword(e.target.value)}
                           placeholder="输入当前密码以确认身份"
@@ -653,11 +655,11 @@ export default function RestrictedModeOverlay({ user, onComplete }: RestrictedMo
                 <div className="flex gap-3">
                   <Input
                     type="password"
+                    autoComplete="current-password"
                     value={totpPassword}
                     onChange={(e) => setTotpPassword(e.target.value)}
                     placeholder="请输入密码"
                     className="flex-1"
-                    autoComplete="current-password"
                   />
                   <Button onPress={handleStartTOTPSetup} isDisabled={loading || !totpPassword} variant="primary" isPending={loading}>
                     {loading ? '验证中...' : '下一步'}

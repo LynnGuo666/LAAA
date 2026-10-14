@@ -839,6 +839,7 @@ function UserDetailContent() {
         <AdminFormField label="邮箱" isRequired>
           <Input
             type="email"
+            autoComplete="email"
             value={editForm.email}
             onChange={(event) =>
               setEditForm((previous) => ({ ...previous, email: event.target.value }))
@@ -863,6 +864,7 @@ function UserDetailContent() {
           <Input
             type="password"
             minLength={6}
+            autoComplete="new-password"
             value={editForm.password}
             onChange={(event) =>
               setEditForm((previous) => ({ ...previous, password: event.target.value }))

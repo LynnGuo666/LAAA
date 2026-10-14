@@ -589,14 +589,14 @@ export default function SecurityPage() {
           <div>
             <TextField isRequired isDisabled={changingPassword}>
               <Label>当前密码</Label>
-              <Input type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} placeholder="请输入当前密码" />
+              <Input type="password" autoComplete="current-password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} placeholder="请输入当前密码" />
             </TextField>
           </div>
 
           <div>
             <TextField isRequired isDisabled={changingPassword}>
               <Label>新密码</Label>
-              <Input type="password" minLength={12} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder={PASSWORD_REQUIREMENT_HINT} />
+              <Input type="password" minLength={12} autoComplete="new-password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder={PASSWORD_REQUIREMENT_HINT} />
               <Description>{PASSWORD_REQUIREMENT_HINT}</Description>
             </TextField>
           </div>
@@ -604,7 +604,7 @@ export default function SecurityPage() {
           <div>
             <TextField isRequired isDisabled={changingPassword}>
               <Label>确认新密码</Label>
-              <Input type="password" minLength={12} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="再次输入新密码" />
+              <Input type="password" minLength={12} autoComplete="new-password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="再次输入新密码" />
             </TextField>
           </div>
 

@@ -219,11 +219,11 @@ export function TotpManageModal({ isOpen, onOpenChange, onStatusUpdated }: TotpM
             <code className="block px-3 py-2 bg-default rounded font-mono text-sm text-center select-all">{setupData.secret}</code>
             <Input
               type="password"
+              autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="密码确认（完成绑定需验证）"
               className="w-full"
-              autoComplete="current-password"
             />
             <div className="flex gap-2 items-end">
               <Input
@@ -254,6 +254,7 @@ export function TotpManageModal({ isOpen, onOpenChange, onStatusUpdated }: TotpM
       </div>
       <Input
         type="password"
+        autoComplete="current-password"
         value={password}
         onChange={(e) => setPassword(e.target.value)}
         placeholder="请输入密码"
@@ -277,6 +278,7 @@ export function TotpManageModal({ isOpen, onOpenChange, onStatusUpdated }: TotpM
       </div>
       <Input
         type="password"
+        autoComplete="current-password"
         value={password}
         onChange={(e) => setPassword(e.target.value)}
         placeholder="请输入密码"

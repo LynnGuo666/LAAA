@@ -109,14 +109,14 @@ function RegisterContent() {
           <div>
             <TextField isRequired isDisabled={loading}>
               <Label>用户名</Label>
-              <Input id="username" type="text" minLength={3} value={formData.username} onChange={(e) => setFormData({ ...formData, username: e.target.value })} />
+              <Input id="username" type="text" minLength={3} autoComplete="username" value={formData.username} onChange={(e) => setFormData({ ...formData, username: e.target.value })} />
             </TextField>
           </div>
 
           <div>
             <TextField isRequired isDisabled={loading}>
               <Label>邮箱</Label>
-              <Input id="email" type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} />
+              <Input id="email" type="email" autoComplete="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} />
             </TextField>
           </div>
 
@@ -132,6 +132,7 @@ function RegisterContent() {
                 id="password"
                 type="password"
                 minLength={12}
+                autoComplete="new-password"
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
               />
@@ -153,6 +154,7 @@ function RegisterContent() {
               <Input
                 id="confirm-password"
                 type="password"
+                autoComplete="new-password"
                 value={formData.confirmPassword}
                 onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
               />

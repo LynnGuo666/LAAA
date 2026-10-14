@@ -375,14 +375,14 @@ function LoginContent() {
           <div>
             <TextField isRequired isDisabled={loading}>
               <Label>用户名</Label>
-              <Input id="username" type="text" value={formData.username} onChange={(e) => setFormData({ ...formData, username: e.target.value })} placeholder="请输入用户名" />
+              <Input id="username" type="text" autoComplete="username" value={formData.username} onChange={(e) => setFormData({ ...formData, username: e.target.value })} placeholder="请输入用户名" />
             </TextField>
           </div>
 
           <div>
             <TextField isRequired isDisabled={loading}>
               <Label>密码</Label>
-              <Input id="password" type="password" value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} placeholder="请输入密码" />
+              <Input id="password" type="password" autoComplete="current-password" value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} placeholder="请输入密码" />
             </TextField>
           </div>
 
