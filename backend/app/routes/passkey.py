@@ -250,6 +250,13 @@ async def verify_authentication(
                 )
 
         # No risk or risk detection disabled - create tokens directly
+        # (复用上面已查的 geo_info,异常检测先算好传入,避免 create_tokens
+        # 内二次 GeoIP 查询 + 异常检测——结果等价,参照 auth.py 密码登录)
+        from app.services.login_anomaly_service import LoginAnomalyService
+
+        login_anomalies = LoginAnomalyService.check_anomalies(
+            db, user, client_ip, user_agent, geo_info
+        )
         token_result = AuthService.create_tokens(
             db,
             user=user,
@@ -260,7 +267,9 @@ async def verify_authentication(
             device_token=data.device_token,
             ip_address=client_ip,
             user_agent=user_agent,
-            login_method="passkey"
+            login_method="passkey",
+            geo_info=geo_info,
+            anomalies=login_anomalies,
         )
 
         # 与密码登录（auth.py /login）保持一致：签发 token 的同时设置

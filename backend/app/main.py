@@ -37,6 +37,12 @@ async def lifespan(app: FastAPI):
             "startup: JWT RS256 keys not configured (JWT_PRIVATE_KEY_PATH/JWT_PUBLIC_KEY_PATH) "
             "— access/id token issuance will fail"
         )
+    # GeoIP 数据库(mmdb + ip2region xdb ~10MB)启动时在线程池预载,
+    # 避免首次登录请求承担全量载入的阻塞
+    from fastapi.concurrency import run_in_threadpool
+
+    from app.services.geoip_service import preload as preload_geoip
+    await run_in_threadpool(preload_geoip)
     # 后台清理任务:每小时清过期 token/验证码/challenge + 归档超期登录日志
     from app.services.maintenance_service import start_maintenance_task
     maintenance_task = start_maintenance_task()

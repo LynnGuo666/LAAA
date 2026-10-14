@@ -116,6 +116,18 @@ def _get_ip2region_searcher():
         return None
 
 
+def preload():
+    """启动时预载全部 GeoIP 数据库(main.py lifespan 调用)。
+
+    ip2region xdb(~10MB)首次查询才全量载入会阻塞几十 ms,挪到启动
+    阶段线程池里做完,首个登录请求不再付这笔开销。幂等:reader 已
+    加载时直接返回。
+    """
+    _get_reader()
+    _get_cn_reader()
+    _get_ip2region_searcher()
+
+
 class GeoIPService:
     """Service for IP geolocation lookups"""
 
