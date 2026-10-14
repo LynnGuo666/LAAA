@@ -37,32 +37,88 @@ api.interceptors.request.use(
 // and log the user out randomly.
 let refreshPromise: Promise<{ access_token: string; refresh_token: string }> | null = null;
 
+/** Web Locks 跨 tab 互斥的锁名 */
+const REFRESH_LOCK_NAME = 'laaa:auth-refresh';
+
 /**
- * 刷新 access token（模块级单例，bootstrap 与 401 拦截器共用——
- * 后端旋转 refresh token 后旧值立即作废，并发 refresh 会互相失效）。
+ * 发一次 refresh 请求并把新 token 写回内存 store。
  * refreshToken 缺省时传空 body，依赖 HttpOnly 的 laaa_refresh cookie
  * （后端 refresh 端点双读：body 优先、cookie 兜底）。
  */
+function requestRefresh(refreshToken?: string): Promise<{ access_token: string; refresh_token: string }> {
+  // Use raw axios (not the `api` instance) to avoid interceptor recursion.
+  return axios
+    .post(
+      `${API_URL}/api/auth/refresh`,
+      { refresh_token: refreshToken || '' },
+      { withCredentials: true }
+    )
+    .then((response) => {
+      const { access_token, refresh_token } = response.data;
+      // 新 token 写回内存 store（而非 localStorage）
+      useAuthStore.getState().setTokens(access_token, refresh_token);
+      return { access_token, refresh_token };
+    });
+}
+
+/**
+ * 刷新 access token（模块级单例，bootstrap 与 401 拦截器共用——
+ * 后端旋转 refresh token 后旧值立即作废，并发 refresh 会互相失效）。
+ *
+ * cookie 优先（两段式）：
+ * 1. 先不带 body 发起（走 HttpOnly laaa_refresh cookie——Path=/api/auth
+ *    覆盖 refresh 端点，浏览器自动携带）。cookie 是浏览器级共享状态，
+ *    永远是最近一次旋转后的最新值。
+ * 2. 仅当第一段 401（无 cookie 或 cookie 已失效）且内存还有 refresh
+ *    token 时，才用内存 token 兜底重试一次；两段都失败才算真失败。
+ *
+ * 为什么不再「内存 token 优先放 body」：多 tab / 恢复会话场景下，旧 tab
+ * 内存里的 token 可能已被其他 tab 的 refresh 旋转作废——后端 body 优先
+ * 于 cookie，旧值会触发家族吊销（replay 检测），导致全端随机登出。
+ * HttpOnly cookie 无法用 document.cookie 探测，故用「先空 body、失败再
+ * 重试」的两段式。
+ * session_revoked（家族已被吊销）时不再重试——内存 token 属于同一家族，
+ * 重试必然同样失败，只会多一次无效请求。
+ */
 export function refreshAccessToken(refreshToken?: string) {
   if (!refreshPromise) {
-    // Use raw axios (not the `api` instance) to avoid interceptor recursion.
-    refreshPromise = axios
-      .post(
-        `${API_URL}/api/auth/refresh`,
-        { refresh_token: refreshToken || '' },
-        { withCredentials: true }
-      )
-      .then((response) => {
-        const { access_token, refresh_token } = response.data;
-        // 新 token 写回内存 store（而非 localStorage）
-        useAuthStore.getState().setTokens(access_token, refresh_token);
-        return { access_token, refresh_token };
-      })
-      .finally(() => {
-        refreshPromise = null;
-      });
+    refreshPromise = withCrossTabRefreshLock(async () => {
+      try {
+        return await requestRefresh();
+      } catch (err: any) {
+        const status = err?.response?.status;
+        const code = err?.response?.data?.detail?.code;
+        if (status === 401 && refreshToken && code !== 'session_revoked') {
+          return requestRefresh(refreshToken);
+        }
+        throw err;
+      }
+    }).finally(() => {
+      refreshPromise = null;
+    });
   }
   return refreshPromise;
+}
+
+/**
+ * Web Locks API（Safari 16.4+ / Chrome 69+ / Firefox 96+）跨 tab refresh
+ * 互斥：多 tab 同时恢复会话时串行化 refresh，避免两个 tab 用同一个
+ * cookie 值并发刷新——后一个会被判为重放触发家族吊销。
+ * 不支持的环境（非 secure context / 旧浏览器）直接执行，此时仅靠
+ * cookie 优先策略兜底。
+ */
+function withCrossTabRefreshLock<T>(fn: () => Promise<T>): Promise<T> {
+  if (typeof navigator === 'undefined' || !('locks' in navigator)) {
+    return fn();
+  }
+  try {
+    // 泛型回调的返回类型会让 locks.request 推断出 Promise<Promise<T>>，
+    // 实际语义就是「锁内执行 fn 并透传其结果」，断言对齐即可
+    return navigator.locks.request(REFRESH_LOCK_NAME, { mode: 'exclusive' }, fn) as Promise<T>;
+  } catch {
+    // 锁获取异常（理论上不应发生）：降级为直接执行，宁可多一次请求也不阻断登录恢复
+    return fn();
+  }
 }
 
 // Response interceptor to handle token refresh
