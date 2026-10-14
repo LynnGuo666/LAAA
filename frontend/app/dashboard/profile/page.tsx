@@ -10,7 +10,6 @@ import { Alert, Button, Card, Description, Input, Label, TextField } from '@hero
 export default function ProfilePage() {
   const { user, setUser } = useAuthStore();
   const [formData, setFormData] = useState({
-    email: user?.email || '',
     avatar: user?.avatar || '',
   });
   const [loading, setLoading] = useState(false);
@@ -22,7 +21,9 @@ export default function ProfilePage() {
     setMessage('');
 
     try {
-      const response = await userApi.updateProfile(formData);
+      // 只提交头像：邮箱字段只读（后端 UserUpdate 也不接受 email——
+      // 邮箱变更必须走 /api/auth/change-email 的密码确认 + 双向验证流程）
+      const response = await userApi.updateProfile({ avatar: formData.avatar });
       setUser(response.data);
       setMessage('个人资料已更新');
     } catch (err: any) {
@@ -61,9 +62,10 @@ export default function ProfilePage() {
           </div>
 
           <div>
-            <TextField isRequired isDisabled={loading}>
+            <TextField isDisabled>
               <Label>邮箱</Label>
-              <Input type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} />
+              <Input type="email" value={user.email} />
+              <Description>邮箱不可在此修改；如需更换请前往安全设置或联系管理员</Description>
             </TextField>
           </div>
 

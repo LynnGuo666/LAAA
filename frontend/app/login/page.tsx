@@ -148,7 +148,7 @@ function LoginContent() {
     try {
       const deviceName = `${navigator.userAgent.split(')')[0]})`;
       const response = await authApi.login(
-        formData.username,
+        formData.username.trim(), // 输入法/复制粘贴常带入首尾空白，后端按精确匹配会 401
         formData.password,
         formData.rememberMe,
         formData.rememberMe ? deviceName : undefined

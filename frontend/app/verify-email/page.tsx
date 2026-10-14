@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { Button, Spinner } from '@heroui/react';
 import { authApi } from '@/lib/api';
 import { extractErrorMessage } from '@/lib/errors';
+import { useAuthStore } from '@/lib/store';
 import { CheckCircle, XCircle, Mail } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { cn } from '@heroui/react';
@@ -44,8 +45,6 @@ const STATUS_CONFIG: Record<
     tone: 'danger',
     title: '验证失败',
     description: '',
-    primary: { label: '重新登录', href: '/login', variant: 'primary' },
-    secondary: { label: '返回首页', href: '/', variant: 'secondary' },
   },
   'no-token': {
     icon: Mail,
@@ -121,9 +120,13 @@ function ResultState({
 function VerifyEmailContent() {
   const searchParams = useSearchParams();
   const token = searchParams.get('token');
+  const user = useAuthStore((state) => state.user);
 
   const [status, setStatus] = useState<VerificationStatus>('loading');
   const [errorMessage, setErrorMessage] = useState('');
+  // 重新发送验证邮件（error 态的自救出口）
+  const [resending, setResending] = useState(false);
+  const [resendResult, setResendResult] = useState<{ ok: boolean; message: string } | null>(null);
 
   useEffect(() => {
     if (!token) {
@@ -144,10 +147,62 @@ function VerifyEmailContent() {
     verifyEmail();
   }, [token]);
 
+  const handleResend = async () => {
+    setResending(true);
+    setResendResult(null);
+    try {
+      await authApi.sendVerificationEmail();
+      setResendResult({ ok: true, message: '验证邮件已重新发送，请查收' });
+    } catch (err: any) {
+      // 常见失败：邮箱已验证 / 频控 / 未登录（需要登录态才能重发）
+      setResendResult({ ok: false, message: extractErrorMessage(err, '发送失败，请稍后重试') });
+    } finally {
+      setResending(false);
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-background px-4">
       <div className="max-w-md w-full">
         <ResultState status={status} description={status === 'error' ? errorMessage : ''} />
+
+        {status === 'error' && (
+          <div className="surface p-6 mt-4 space-y-4 text-center animate-fade-in">
+            {resendResult && (
+              <p className={resendResult.ok ? 'text-success text-sm' : 'text-danger text-sm'}>
+                {resendResult.message}
+              </p>
+            )}
+            {user ? (
+              <>
+                <p className="text-sm text-default-600">
+                  当前登录账号：{user.email}。可重新发送验证邮件后再从邮箱打开新链接。
+                </p>
+                <Button
+                  onPress={handleResend}
+                  isDisabled={resending}
+                  variant="primary"
+                  className="w-full"
+                  isPending={resending}
+                >
+                  {resending ? '发送中...' : '重新发送验证邮件'}
+                </Button>
+              </>
+            ) : (
+              <>
+                <p className="text-sm text-default-600">
+                  重新发送验证邮件需要先登录账号。
+                </p>
+                <Link href="/login">
+                  <Button variant="primary" className="w-full">前往登录</Button>
+                </Link>
+              </>
+            )}
+            <Link href="/">
+              <Button variant="secondary" className="w-full">返回首页</Button>
+            </Link>
+          </div>
+        )}
       </div>
     </div>
   );
