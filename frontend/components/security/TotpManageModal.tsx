@@ -174,10 +174,10 @@ export function TotpManageModal({ isOpen, onOpenChange, onStatusUpdated }: TotpM
     <div className="space-y-4">
       {showBackupCodes && backupCodes.length > 0 && (
         <div className="border border-warning/40 rounded-lg p-4 space-y-3">
-          <div className="text-sm text-default-600">请保存备用码（每个仅能使用一次）</div>
+          <div className="text-sm text-muted">请保存备用码（每个仅能使用一次）</div>
           <div className="grid grid-cols-2 gap-2">
             {backupCodes.map((code, i) => (
-              <div key={i} className="font-mono text-sm text-center py-1 bg-default-100 rounded">
+              <div key={i} className="font-mono text-sm text-center py-1 bg-default rounded">
                 {code}
               </div>
             ))}
@@ -190,12 +190,12 @@ export function TotpManageModal({ isOpen, onOpenChange, onStatusUpdated }: TotpM
         </div>
       )}
 
-      <div className="border border-default-200 rounded-lg p-4">
+      <div className="border border-border rounded-lg p-4">
         <div className="flex items-center justify-between gap-4 mb-3">
           <div>
             <div className="font-semibold text-foreground">{status?.enabled ? '已启用' : '未启用'}</div>
             {status?.enabled && (
-              <div className="text-sm text-default-500">剩余备用码：{status.backup_codes_remaining || 0}</div>
+              <div className="text-sm text-muted">剩余备用码：{status.backup_codes_remaining || 0}</div>
             )}
           </div>
           {status?.enabled ? (
@@ -210,13 +210,13 @@ export function TotpManageModal({ isOpen, onOpenChange, onStatusUpdated }: TotpM
 
         {setupData && (
           <div className="space-y-3">
-            <div className="text-sm text-default-600">扫描二维码或手动输入密钥后，填写 6 位验证码完成设置。</div>
+            <div className="text-sm text-muted">扫描二维码或手动输入密钥后，填写 6 位验证码完成设置。</div>
             <div className="flex justify-center">
               <div className="bg-background p-3 rounded-lg inline-block">
                 <img src={`data:image/png;base64,${setupData.qr_code}`} alt="TOTP QR Code" className="w-40 h-40" />
               </div>
             </div>
-            <code className="block px-3 py-2 bg-default-100 rounded font-mono text-sm text-center select-all">{setupData.secret}</code>
+            <code className="block px-3 py-2 bg-default rounded font-mono text-sm text-center select-all">{setupData.secret}</code>
             <Input
               type="password"
               value={password}
@@ -248,7 +248,7 @@ export function TotpManageModal({ isOpen, onOpenChange, onStatusUpdated }: TotpM
     <div className="space-y-4">
       <div>
         <h4 className="font-semibold text-foreground">开始设置身份验证器</h4>
-        <p className="text-sm text-default-600 mt-1">
+        <p className="text-sm text-muted mt-1">
           绑定身份验证器需要输入密码确认，以防会话被劫持时被他人植入后门。
         </p>
       </div>
@@ -273,7 +273,7 @@ export function TotpManageModal({ isOpen, onOpenChange, onStatusUpdated }: TotpM
     <div className="space-y-4">
       <div>
         <h4 className="font-semibold text-foreground">{title}</h4>
-        <p className="text-sm text-default-600 mt-1">请输入密码确认操作。</p>
+        <p className="text-sm text-muted mt-1">请输入密码确认操作。</p>
       </div>
       <Input
         type="password"

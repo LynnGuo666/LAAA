@@ -73,7 +73,7 @@ export default function AuthorizationsPage() {
       {authorizations.length === 0 ? (
         <Card>
           <div className="text-center py-12">
-            <p className="text-default-500">暂无已授权应用</p>
+            <p className="text-muted">暂无已授权应用</p>
           </div>
         </Card>
       ) : (
@@ -101,11 +101,11 @@ export default function AuthorizationsPage() {
                         <div className="flex flex-wrap gap-1">
                           {auth.scope ? auth.scope.split(' ').map((s) => (
                             <Chip key={s} size="sm" variant="soft">{s}</Chip>
-                          )) : <span className="text-default-400">-</span>}
+                          )) : <span className="text-foreground/60">-</span>}
                         </div>
                       </Table.Cell>
-                      <Table.Cell className="text-default-600 text-sm">{formatDateTime(auth.created_at)}</Table.Cell>
-                      <Table.Cell className="text-default-600 text-sm">{formatDateTime(auth.last_used_at)}</Table.Cell>
+                      <Table.Cell className="text-muted text-sm">{formatDateTime(auth.created_at)}</Table.Cell>
+                      <Table.Cell className="text-muted text-sm">{formatDateTime(auth.last_used_at)}</Table.Cell>
                       <Table.Cell>
                         <div className="flex items-center gap-2">
                           <Button onPress={() => handleShowDetail(auth)} variant="tertiary" size="sm">详情</Button>
@@ -130,11 +130,11 @@ export default function AuthorizationsPage() {
               </AlertDialog.Header>
               <AlertDialog.Body>
                 {selectedAuthorization && (
-                  <div className="space-y-2 text-sm text-default-600">
-                    <div><span className="text-default-500">应用：</span>{selectedAuthorization.client_name}</div>
-                    <div><span className="text-default-500">授权范围：</span>{selectedAuthorization.scope || '-'}</div>
-                    <div><span className="text-default-500">首次授权：</span>{formatDateTime(selectedAuthorization.created_at)}</div>
-                    <div><span className="text-default-500">最近使用：</span>{formatDateTime(selectedAuthorization.last_used_at)}</div>
+                  <div className="space-y-2 text-sm text-muted">
+                    <div><span className="text-muted">应用：</span>{selectedAuthorization.client_name}</div>
+                    <div><span className="text-muted">授权范围：</span>{selectedAuthorization.scope || '-'}</div>
+                    <div><span className="text-muted">首次授权：</span>{formatDateTime(selectedAuthorization.created_at)}</div>
+                    <div><span className="text-muted">最近使用：</span>{formatDateTime(selectedAuthorization.last_used_at)}</div>
                   </div>
                 )}
               </AlertDialog.Body>

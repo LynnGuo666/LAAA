@@ -8,10 +8,10 @@ export function PageLoadingState({ label = '加载中...', className }: { label?
       <div className="flex flex-1 items-center justify-center">
         <div className="flex flex-col items-center gap-3">
           <Spinner size="lg" />
-          <p className="text-sm text-default-500">{label}</p>
+          <p className="text-sm text-muted">{label}</p>
         </div>
       </div>
-      <p className="pb-6 text-center text-xs text-default-400">Powered By Lynn❤️</p>
+      <p className="pb-6 text-center text-xs text-foreground/60">Powered By Lynn❤️</p>
     </div>
   )
 }
@@ -22,7 +22,7 @@ export function PageLoadingState({ label = '加载中...', className }: { label?
  */
 export function InlineLoading({ label, className }: { label?: string; className?: string }) {
   return (
-    <div className={cn('flex items-center justify-center gap-2 py-6 text-default-500', className)}>
+    <div className={cn('flex items-center justify-center gap-2 py-6 text-muted', className)}>
       <Spinner size="sm" />
       {label ? <p className="text-sm">{label}</p> : null}
     </div>
@@ -47,7 +47,7 @@ export function SkeletonRows({
       {Array.from({ length: rows }, (_, index) => (
         <div
           key={index}
-          className={cn('h-4 w-full animate-pulse rounded bg-default-200/70', rowClassName)}
+          className={cn('h-4 w-full animate-pulse rounded bg-surface-secondary/70', rowClassName)}
         />
       ))}
       <span className="sr-only">加载中...</span>

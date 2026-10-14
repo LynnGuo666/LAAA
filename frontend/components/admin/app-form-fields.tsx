@@ -180,11 +180,11 @@ export function AppFormFields({
               <UICheckbox
                 key={scope.value}
                 value={scope.value}
-                className="m-0 max-w-full border-b border-default-200/70 py-3 last:border-b-0"
+                className="m-0 max-w-full border-b border-border/70 py-3 last:border-b-0"
               >
                 <div className="min-w-0">
                   <p className="font-medium text-foreground">{scope.label}</p>
-                  <p className="text-xs text-default-500">{scope.description}</p>
+                  <p className="text-xs text-muted">{scope.description}</p>
                 </div>
               </UICheckbox>
             ))}

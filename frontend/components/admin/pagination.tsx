@@ -116,7 +116,7 @@ export function AdminSimplePagination({
   if (totalPages <= 1) return null
 
   return (
-    <div className={className ?? 'flex w-full items-center justify-between gap-4 text-sm text-default-500'}>
+    <div className={className ?? 'flex w-full items-center justify-between gap-4 text-sm text-muted'}>
       <span>{summary(page, totalPages, total)}</span>
       <div className="flex gap-2">
         <Button variant="secondary" isDisabled={page === 0} onPress={() => onPageChange(Math.max(0, page - 1))}>

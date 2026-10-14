@@ -96,8 +96,8 @@ export default function SiteSettingsPage() {
         <AdminSection>
           <Card.Header>
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                <Globe className="h-5 w-5 text-primary" />
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent/10">
+                <Globe className="h-5 w-5 text-accent" />
               </div>
               <div>
                 <Card.Title>站点信息</Card.Title>
@@ -128,11 +128,11 @@ export default function SiteSettingsPage() {
           <AdminSection>
             <Card.Content className="p-5">
               <h3 className="text-sm font-medium text-foreground">预览效果</h3>
-              <div className="mt-3 rounded-xl border border-default-200/70 bg-default-50 p-4">
+              <div className="mt-3 rounded-xl border border-border/70 bg-surface p-4">
                 <p className="text-lg font-semibold text-foreground">
                   {siteName || 'OAuth 服务器'}
                 </p>
-                <p className="mt-1 text-xs text-default-500">
+                <p className="mt-1 text-xs text-muted">
                   该名称将显示在导航栏和页面标题中
                 </p>
               </div>

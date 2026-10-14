@@ -498,7 +498,7 @@ function UserDetailContent() {
                   <h2 className="text-xl font-semibold text-foreground">{user.username}</h2>
                   {renderStatusChip(user.status)}
                 </div>
-                <p className="text-default-600">{user.email}</p>
+                <p className="text-muted">{user.email}</p>
               </div>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -541,20 +541,20 @@ function UserDetailContent() {
                   <Card>
                     <Card.Header><Card.Title>基本信息</Card.Title></Card.Header>
                     <Card.Content className="space-y-3 px-6 pb-6 text-sm">
-                      <div className="flex justify-between"><span className="text-default-500">用户名</span><span className="text-foreground">{user.username}</span></div>
-                      <div className="flex justify-between"><span className="text-default-500">邮箱</span><span className="text-foreground">{user.email}</span></div>
-                      <div className="flex justify-between"><span className="text-default-500">状态</span>{renderStatusChip(user.status)}</div>
-                      <div className="flex justify-between"><span className="text-default-500">创建时间</span><span className="text-foreground">{formatDateTime(user.created_at)}</span></div>
-                      <div className="flex justify-between"><span className="text-default-500">更新时间</span><span className="text-foreground">{formatDateTime(user.updated_at)}</span></div>
+                      <div className="flex justify-between"><span className="text-muted">用户名</span><span className="text-foreground">{user.username}</span></div>
+                      <div className="flex justify-between"><span className="text-muted">邮箱</span><span className="text-foreground">{user.email}</span></div>
+                      <div className="flex justify-between"><span className="text-muted">状态</span>{renderStatusChip(user.status)}</div>
+                      <div className="flex justify-between"><span className="text-muted">创建时间</span><span className="text-foreground">{formatDateTime(user.created_at)}</span></div>
+                      <div className="flex justify-between"><span className="text-muted">更新时间</span><span className="text-foreground">{formatDateTime(user.updated_at)}</span></div>
                     </Card.Content>
                   </Card>
 
                   <Card>
                     <Card.Header><Card.Title>安全验证方式</Card.Title></Card.Header>
                     <Card.Content className="space-y-3 px-6 pb-6 text-sm">
-                      <div className="flex items-center justify-between"><span className="text-default-500">邮箱验证</span><Chip size="sm" variant="soft" color={securityMethods?.email_verified ? 'success' : 'default'}>{securityMethods?.email_verified ? '已验证' : '未验证'}</Chip></div>
-                      <div className="flex items-center justify-between"><span className="text-default-500">身份验证器</span><Chip size="sm" variant="soft" color={securityMethods?.totp_enabled ? 'success' : 'default'}>{securityMethods?.totp_enabled ? '已启用' : '未启用'}</Chip></div>
-                      <div className="flex items-center justify-between"><span className="text-default-500">通行密钥</span><Chip size="sm" variant="soft" color={securityMethods?.passkey_count ? 'accent' : 'default'}>{securityMethods?.passkey_count || 0} 个</Chip></div>
+                      <div className="flex items-center justify-between"><span className="text-muted">邮箱验证</span><Chip size="sm" variant="soft" color={securityMethods?.email_verified ? 'success' : 'default'}>{securityMethods?.email_verified ? '已验证' : '未验证'}</Chip></div>
+                      <div className="flex items-center justify-between"><span className="text-muted">身份验证器</span><Chip size="sm" variant="soft" color={securityMethods?.totp_enabled ? 'success' : 'default'}>{securityMethods?.totp_enabled ? '已启用' : '未启用'}</Chip></div>
+                      <div className="flex items-center justify-between"><span className="text-muted">通行密钥</span><Chip size="sm" variant="soft" color={securityMethods?.passkey_count ? 'accent' : 'default'}>{securityMethods?.passkey_count || 0} 个</Chip></div>
                     </Card.Content>
                   </Card>
                 </div>
@@ -565,7 +565,7 @@ function UserDetailContent() {
                     <Card.Content className="px-6 pb-6">
                       <div className="flex flex-wrap gap-2">
                         {user.groups.length === 0 ? (
-                          <p className="text-sm text-default-400">无</p>
+                          <p className="text-sm text-foreground/60">无</p>
                         ) : (
                           user.groups.map((group) => <Chip key={group} variant="soft" size="sm">{group}</Chip>)
                         )}
@@ -578,7 +578,7 @@ function UserDetailContent() {
                     <Card.Content className="px-6 pb-6">
                       <div className="flex flex-wrap gap-2">
                         {user.roles.length === 0 ? (
-                          <p className="text-sm text-default-400">无</p>
+                          <p className="text-sm text-foreground/60">无</p>
                         ) : (
                           user.roles.map((role) => <Chip key={role} variant="soft" size="sm" color="accent">{role}</Chip>)
                         )}
@@ -635,7 +635,7 @@ function UserDetailContent() {
                               </div>
                             </Table.Cell>
                             <Table.Cell>
-                              <div className="space-y-1 text-sm text-default-600">
+                              <div className="space-y-1 text-sm text-muted">
                                 {log.ip_address ? <p>{log.ip_address}</p> : null}
                                 <p>{[log.city, log.country].filter(Boolean).join(' / ') || '未知地区'}</p>
                                 <p>{log.device_type || '未知设备'}</p>
@@ -657,7 +657,7 @@ function UserDetailContent() {
                         summary={(page, totalPages) =>
                           `第 ${page + 1} / ${totalPages} 页`
                         }
-                        className="flex w-full items-center justify-between gap-4 px-6 py-4 text-sm text-default-500"
+                        className="flex w-full items-center justify-between gap-4 px-6 py-4 text-sm text-muted"
                       />
                     </Table.Footer>
                   ) : null}
@@ -698,13 +698,13 @@ function UserDetailContent() {
                                       </Chip>
                                     ) : null}
                                   </div>
-                                  <p className="text-sm text-default-500">
+                                  <p className="text-sm text-muted">
                                     {session.device_type || '未知类型'} · {session.ip_address || '未知 IP'}
                                   </p>
                                 </div>
                               </Table.Cell>
                               <Table.Cell>
-                                <div className="space-y-1 text-sm text-default-600">
+                                <div className="space-y-1 text-sm text-muted">
                                   <p>最后活跃：{formatDateTime(session.last_active)}</p>
                                   <p>过期时间：{formatDateTime(session.expires_at)}</p>
                                   <p>{[session.city, session.country].filter(Boolean).join(' / ') || '未知地区'}</p>
@@ -747,11 +747,11 @@ function UserDetailContent() {
                             <Table.Cell>
                               <div className="space-y-1">
                                 <p className="font-medium text-foreground">{passkey.name}</p>
-                                <p className="text-xs text-default-500">{passkey.credential_id}</p>
+                                <p className="text-xs text-muted">{passkey.credential_id}</p>
                               </div>
                             </Table.Cell>
                             <Table.Cell>
-                              <div className="space-y-1 text-sm text-default-600">
+                              <div className="space-y-1 text-sm text-muted">
                                 <p>创建：{formatDateTime(passkey.created_at)}</p>
                                 <p>
                                   最后使用：
@@ -803,7 +803,7 @@ function UserDetailContent() {
                                   <p className="font-medium text-foreground">
                                     {authorization.client_name}
                                   </p>
-                                  <p className="text-xs text-default-500">{authorization.client_id}</p>
+                                  <p className="text-xs text-muted">{authorization.client_id}</p>
                                 </div>
                               </div>
                             </Table.Cell>
@@ -887,11 +887,11 @@ function UserDetailContent() {
         isPending={savingGroups}
       >
         {modalError ? <AdminNotice tone="danger" description={modalError} /> : null}
-        <div className="max-h-96 space-y-2 overflow-y-auto rounded-xl border border-default-200/70 p-3">
+        <div className="max-h-96 space-y-2 overflow-y-auto rounded-xl border border-border/70 p-3">
           {groups.map((group) => (
             <UICheckbox
               key={group.id}
-              className="m-0 max-w-full border-b border-default-200/70 py-3 last:border-b-0"
+              className="m-0 max-w-full border-b border-border/70 py-3 last:border-b-0"
               isSelected={selectedGroups.includes(group.id)}
               onChange={() =>
                 setSelectedGroups((previous) =>
@@ -904,7 +904,7 @@ function UserDetailContent() {
               <div className="min-w-0">
                 <p className="font-medium text-foreground">{group.name}</p>
                 {group.description ? (
-                  <p className="mt-1 text-xs text-default-500">{group.description}</p>
+                  <p className="mt-1 text-xs text-muted">{group.description}</p>
                 ) : null}
               </div>
             </UICheckbox>
@@ -928,11 +928,11 @@ function UserDetailContent() {
         isPending={savingRoles}
       >
         {modalError ? <AdminNotice tone="danger" description={modalError} /> : null}
-        <div className="max-h-96 space-y-2 overflow-y-auto rounded-xl border border-default-200/70 p-3">
+        <div className="max-h-96 space-y-2 overflow-y-auto rounded-xl border border-border/70 p-3">
           {roles.map((role) => (
             <UICheckbox
               key={role.id}
-              className="m-0 max-w-full border-b border-default-200/70 py-3 last:border-b-0"
+              className="m-0 max-w-full border-b border-border/70 py-3 last:border-b-0"
               isSelected={selectedRoles.includes(role.id)}
               onChange={() =>
                 setSelectedRoles((previous) =>
@@ -945,9 +945,9 @@ function UserDetailContent() {
               <div className="min-w-0">
                 <p className="font-medium text-foreground">{role.name}</p>
                 {role.description ? (
-                  <p className="mt-1 text-xs text-default-500">{role.description}</p>
+                  <p className="mt-1 text-xs text-muted">{role.description}</p>
                 ) : null}
-                <p className="mt-1 text-xs text-default-400">等级：{role.level}</p>
+                <p className="mt-1 text-xs text-foreground/60">等级：{role.level}</p>
               </div>
             </UICheckbox>
           ))}

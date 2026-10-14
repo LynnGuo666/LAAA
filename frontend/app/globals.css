@@ -1,6 +1,12 @@
 @import "tailwindcss";
 @import "@heroui/styles";
 
+/* 兼容别名：历史代码中的 primary* 类映射到 HeroUI v3 语义 token（兜底，新代码请直接用 accent） */
+@theme inline {
+  --color-primary: var(--accent);
+  --color-primary-foreground: var(--accent-foreground);
+}
+
 /* 启用基于 data-theme 属性的 dark: 变体（配合 HeroUI 主题系统） */
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 

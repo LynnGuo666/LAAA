@@ -263,7 +263,7 @@ function AuthorizeContent() {
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-3">
           <Spinner size="lg" />
-          <p className="text-sm text-default-500">正在验证...</p>
+          <p className="text-sm text-muted">正在验证...</p>
         </div>
       </div>
     );
@@ -278,7 +278,7 @@ function AuthorizeContent() {
               <AlertTriangle className="h-14 w-14 text-warning" aria-hidden />
             </div>
             <h1 className="text-2xl font-bold text-foreground mb-4">授权请求错误</h1>
-            <p className="text-default-600 mb-6">{error}</p>
+            <p className="text-muted mb-6">{error}</p>
             <Button onPress={() => router.push('/dashboard')} variant="primary" className="w-full">
               返回控制台
             </Button>
@@ -297,7 +297,7 @@ function AuthorizeContent() {
               <Ban className="h-14 w-14 text-danger" aria-hidden />
             </div>
             <h1 className="text-2xl font-bold text-foreground mb-4">访问被拒绝</h1>
-            <p className="text-default-600 mb-6">
+            <p className="text-muted mb-6">
               {error || '抱歉，您没有权限访问此应用。请联系管理员为您分配相应的用户组权限。'}
             </p>
             <div className="space-y-3">
@@ -321,16 +321,16 @@ function AuthorizeContent() {
       <Card className="max-w-md w-full p-8">
         {/* 当前用户信息 */}
         {currentUser && (
-          <div className="mb-6 pb-4 border-b border-default-200">
+          <div className="mb-6 pb-4 border-b border-border">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <EntityAvatar src={currentUser.avatar} name={currentUser.username} size="md" rounded="full" />
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-foreground">{currentUser.username}</p>
-                  <p className="text-xs text-default-500 truncate">{currentUser.email}</p>
+                  <p className="text-xs text-muted truncate">{currentUser.email}</p>
                 </div>
               </div>
-              <Button onPress={() => void handleSwitchAccount()} className="text-sm text-primary" variant="tertiary" isDisabled={!!submitting}>
+              <Button onPress={() => void handleSwitchAccount()} className="text-sm text-accent" variant="tertiary" isDisabled={!!submitting}>
                 切换账号
               </Button>
             </div>
@@ -343,22 +343,22 @@ function AuthorizeContent() {
             <img
               src={clientInfo.logo}
               alt={clientInfo.name}
-              className="w-16 h-16 mx-auto mb-4 rounded-xl object-cover border border-default-200"
+              className="w-16 h-16 mx-auto mb-4 rounded-xl object-cover border border-border"
               onError={(e) => {
                 e.currentTarget.style.display = 'none'
               }}
             />
           ) : null}
           <h1 className="text-2xl font-bold text-foreground mb-2">授权请求</h1>
-          <p className="text-default-600">
+          <p className="text-muted">
             <strong className="text-foreground">{clientInfo?.name}</strong> 想要访问您的账号
           </p>
           {clientInfo?.description && (
-            <p className="text-sm text-default-500 mt-2">{clientInfo.description}</p>
+            <p className="text-sm text-muted mt-2">{clientInfo.description}</p>
           )}
           {clientInfo?.website_url && (
             <a
-              className="inline-block text-sm text-primary hover:text-primary mt-2"
+              className="inline-block text-sm text-accent hover:text-accent mt-2"
               href={clientInfo.website_url}
               target="_blank"
               rel="noreferrer"
@@ -368,11 +368,11 @@ function AuthorizeContent() {
           )}
         </div>
 
-        <div className="rounded-lg p-4 mb-6 bg-default-50">
+        <div className="rounded-lg p-4 mb-6 bg-surface">
           <h2 className="font-semibold text-foreground mb-3">此应用将能够：</h2>
           <div className="space-y-2">
             {scope.split(' ').map((s: string) => (
-              <div key={s} className="flex items-start text-sm text-default-700">
+              <div key={s} className="flex items-start text-sm text-foreground">
                 <Check className="h-4 w-4 text-success mr-2 mt-0.5 shrink-0" aria-hidden />
                 <span>
                   {s === 'profile' && '查看您的基本信息（用户名、头像等）'}
@@ -392,7 +392,7 @@ function AuthorizeContent() {
           <Button onPress={() => void handleDeny()} variant="secondary" className="w-full" isDisabled={!!submitting} isPending={submitting === 'deny'}>{submitting === 'deny' ? '正在返回...' : '拒绝'}</Button>
         </div>
 
-        <p className="text-xs text-default-500 text-center mt-4">
+        <p className="text-xs text-muted text-center mt-4">
           授权后，该应用将能够在您允许的范围内访问您的信息
         </p>
       </Card>
@@ -406,7 +406,7 @@ export default function AuthorizePage() {
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-3">
           <Spinner size="lg" />
-          <p className="text-sm text-default-500">加载中...</p>
+          <p className="text-sm text-muted">加载中...</p>
         </div>
       </div>
     }>

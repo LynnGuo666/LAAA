@@ -191,13 +191,13 @@ export default function TOTPSetupPage() {
       <div className="flex items-center gap-4">
         <Link
           href="/dashboard/security"
-          className="text-default-500 hover:text-default-600"
+          className="text-muted hover:text-muted"
         >
           <ChevronLeft className="w-5 h-5" />
         </Link>
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-foreground">身份验证器</h1>
-          <p className="text-default-600 mt-1">
+          <p className="text-muted mt-1">
             使用 Google Authenticator 或其他 TOTP 应用增强账户安全
           </p>
         </div>
@@ -226,13 +226,13 @@ export default function TOTPSetupPage() {
               <h3 className="text-lg font-semibold text-foreground">
                 保存您的备用码
               </h3>
-              <p className="text-sm text-default-600 mt-1">
+              <p className="text-sm text-muted mt-1">
                 如果您无法访问身份验证器应用，可以使用这些备用码登录。每个备用码只能使用一次。
               </p>
             </div>
           </div>
 
-          <div className="bg-default-100 rounded-lg p-4 mb-4">
+          <div className="bg-default rounded-lg p-4 mb-4">
             <div className="grid grid-cols-2 gap-2">
               {backupCodes.map((code, i) => (
                 <div key={i} className="font-mono text-sm text-center py-1 bg-background rounded">
@@ -263,12 +263,12 @@ export default function TOTPSetupPage() {
             <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
               status?.enabled
                 ? 'bg-success/10'
-                : 'bg-default-100'
+                : 'bg-default'
             }`}>
               <ShieldCheck className={`w-5 h-5 ${
                 status?.enabled
                   ? 'text-success'
-                  : 'text-default-400'
+                  : 'text-foreground/60'
               }`} />
             </div>
             <div>
@@ -276,7 +276,7 @@ export default function TOTPSetupPage() {
                 {status?.enabled ? '已启用' : '未启用'}
               </h3>
               {status?.enabled && status.created_at && (
-                <p className="text-sm text-default-500">
+                <p className="text-sm text-muted">
                   启用于 {formatDate(status.created_at)}
                 </p>
               )}
@@ -285,7 +285,7 @@ export default function TOTPSetupPage() {
 
           {status?.enabled && (
             <div className="text-right">
-              <p className="text-sm text-default-500">
+              <p className="text-sm text-muted">
                 剩余备用码: <span className="font-medium">{status.backup_codes_remaining || 0}</span>
               </p>
             </div>
@@ -303,7 +303,7 @@ export default function TOTPSetupPage() {
           </div>
         ) : !setupData && (
           <div className="space-y-3">
-            <p className="text-sm text-default-600">
+            <p className="text-sm text-muted">
               绑定身份验证器需要输入密码确认，以防会话被劫持时被他人植入后门。
             </p>
             <div className="flex gap-3 items-end max-w-sm">
@@ -331,14 +331,14 @@ export default function TOTPSetupPage() {
 
           <div className="mb-6">
             <div className="flex items-center gap-2 mb-3">
-              <span className="w-6 h-6 rounded-full bg-primary text-white text-sm flex items-center justify-center">
+              <span className="w-6 h-6 rounded-full bg-accent text-white text-sm flex items-center justify-center">
                 1
               </span>
               <h4 className="font-medium text-foreground">
                 扫描二维码
               </h4>
             </div>
-            <p className="text-sm text-default-600 mb-4 ml-8">
+            <p className="text-sm text-muted mb-4 ml-8">
               使用 Google Authenticator、Microsoft Authenticator 或其他 TOTP 应用扫描下方二维码
             </p>
 
@@ -353,10 +353,10 @@ export default function TOTPSetupPage() {
             </div>
 
             <div className="text-center">
-              <p className="text-sm text-default-500 mb-2">
+              <p className="text-sm text-muted mb-2">
                 无法扫描？手动输入以下密钥：
               </p>
-              <code className="inline-block px-3 py-2 bg-default-100 rounded font-mono text-sm select-all">
+              <code className="inline-block px-3 py-2 bg-default rounded font-mono text-sm select-all">
                 {setupData.secret}
               </code>
             </div>
@@ -364,14 +364,14 @@ export default function TOTPSetupPage() {
 
           <div>
             <div className="flex items-center gap-2 mb-3">
-              <span className="w-6 h-6 rounded-full bg-primary text-white text-sm flex items-center justify-center">
+              <span className="w-6 h-6 rounded-full bg-accent text-white text-sm flex items-center justify-center">
                 2
               </span>
               <h4 className="font-medium text-foreground">
                 输入验证码
               </h4>
             </div>
-            <p className="text-sm text-default-600 mb-4 ml-8">
+            <p className="text-sm text-muted mb-4 ml-8">
               输入应用中显示的 6 位验证码以完成设置
             </p>
 
@@ -408,7 +408,7 @@ export default function TOTPSetupPage() {
                 <AlertDialog.Heading>禁用身份验证器</AlertDialog.Heading>
               </AlertDialog.Header>
               <AlertDialog.Body>
-                <p className="text-sm text-default-600 mb-4">
+                <p className="text-sm text-muted mb-4">
                   禁用后，您将无法使用身份验证器进行二次验证。请输入密码确认。
                 </p>
 
@@ -450,7 +450,7 @@ export default function TOTPSetupPage() {
                 <AlertDialog.Heading>重新生成备用码</AlertDialog.Heading>
               </AlertDialog.Header>
               <AlertDialog.Body>
-                <p className="text-sm text-default-600 mb-4">
+                <p className="text-sm text-muted mb-4">
                   重新生成后，旧的备用码将失效。请输入密码确认。
                 </p>
 
@@ -488,7 +488,7 @@ export default function TOTPSetupPage() {
         <h3 className="font-semibold text-foreground mb-3">
           什么是身份验证器？
         </h3>
-        <p className="text-sm text-default-600 mb-4">
+        <p className="text-sm text-muted mb-4">
           身份验证器是一种基于时间的一次性密码 (TOTP) 应用，可以在您的手机上生成 6 位验证码。
           启用后，当检测到可疑登录时，除了密码外还需要输入验证码才能登录，大大提高了账户安全性。
         </p>
@@ -496,7 +496,7 @@ export default function TOTPSetupPage() {
         <h4 className="font-medium text-foreground mb-2">
           推荐的应用：
         </h4>
-        <ul className="text-sm text-default-600 space-y-1">
+        <ul className="text-sm text-muted space-y-1">
           <li>• Google Authenticator (iOS / Android)</li>
           <li>• Microsoft Authenticator (iOS / Android)</li>
           <li>• Authy (iOS / Android / Desktop)</li>

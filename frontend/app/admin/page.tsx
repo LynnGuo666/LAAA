@@ -32,8 +32,8 @@ const quickActions = [
     title: '应用管理',
     description: '创建、编辑 OAuth 应用，并配置访问控制。',
     icon: AppWindow,
-    color: 'text-primary',
-    bg: 'bg-primary/10',
+    color: 'text-accent',
+    bg: 'bg-accent/10',
     permission: 'admin.clients',
   },
   {
@@ -141,25 +141,25 @@ export default function AdminDashboardPage() {
       <div className="grid gap-4 sm:grid-cols-2">
         <Link
           href="/admin/apps"
-          className="group rounded-xl border border-default-200/70 bg-background p-5 shadow-sm transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 group-hover:shadow-md"
+          className="group rounded-xl border border-border/70 bg-background p-5 shadow-sm transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 group-hover:shadow-md"
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                <AppWindow className="h-5 w-5 text-primary" />
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent/10">
+                <AppWindow className="h-5 w-5 text-accent" />
               </div>
               <div>
-                <p className="text-sm font-medium text-default-600">应用总数</p>
+                <p className="text-sm font-medium text-muted">应用总数</p>
                 <p className="text-3xl font-bold text-foreground">{stats.apps}</p>
               </div>
             </div>
-            <ArrowRight className="h-5 w-5 text-default-300 transition-colors group-hover:text-primary" />
+            <ArrowRight className="h-5 w-5 text-muted transition-colors group-hover:text-accent" />
           </div>
         </Link>
 
         <Link
           href="/admin/users"
-          className="group rounded-xl border border-default-200/70 bg-background p-5 shadow-sm transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 group-hover:shadow-md"
+          className="group rounded-xl border border-border/70 bg-background p-5 shadow-sm transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 group-hover:shadow-md"
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -167,11 +167,11 @@ export default function AdminDashboardPage() {
                 <Users className="h-5 w-5 text-success" />
               </div>
               <div>
-                <p className="text-sm font-medium text-default-600">用户总数</p>
+                <p className="text-sm font-medium text-muted">用户总数</p>
                 <p className="text-3xl font-bold text-foreground">{stats.users}</p>
               </div>
             </div>
-            <ArrowRight className="h-5 w-5 text-default-300 transition-colors group-hover:text-primary" />
+            <ArrowRight className="h-5 w-5 text-muted transition-colors group-hover:text-accent" />
           </div>
         </Link>
       </div>
@@ -183,7 +183,7 @@ export default function AdminDashboardPage() {
             <Link
               key={action.href}
               href={action.href}
-              className="group rounded-xl border border-default-200/70 bg-background p-5 shadow-sm transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 group-hover:shadow-md"
+              className="group rounded-xl border border-border/70 bg-background p-5 shadow-sm transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 group-hover:shadow-md"
             >
               <div className="flex items-start gap-4">
                 <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${action.bg}`}>
@@ -191,9 +191,9 @@ export default function AdminDashboardPage() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="font-medium text-foreground">{action.title}</p>
-                  <p className="mt-1 text-sm text-default-500">{action.description}</p>
+                  <p className="mt-1 text-sm text-muted">{action.description}</p>
                 </div>
-                <ArrowRight className="mt-1 h-4 w-4 shrink-0 text-default-300 transition-colors group-hover:text-primary" />
+                <ArrowRight className="mt-1 h-4 w-4 shrink-0 text-muted transition-colors group-hover:text-accent" />
               </div>
             </Link>
           )

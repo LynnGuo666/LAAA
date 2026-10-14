@@ -372,7 +372,7 @@ export default function InvitesPage() {
                         <Table.Row key={invite.id} id={String(invite.id)}>
                           <Table.Cell>
                             <div className="flex items-center gap-2">
-                              <code className="rounded-lg bg-default-100 px-2 py-1 text-xs font-medium">
+                              <code className="rounded-lg bg-default px-2 py-1 text-xs font-medium">
                                 {invite.code}
                               </code>
                               <Button
@@ -395,7 +395,7 @@ export default function InvitesPage() {
                                 {invite.is_active ? '有效' : '无效'}
                               </Chip>
                               {invite.expires_at ? (
-                                <p className="text-xs text-default-500">
+                                <p className="text-xs text-muted">
                                   到期：{formatDateTime(invite.expires_at)}
                                 </p>
                               ) : null}
@@ -405,7 +405,7 @@ export default function InvitesPage() {
                             <div className="space-y-1 text-sm">
                               <p>{limitText}</p>
                               {invite.used_at ? (
-                                <p className="text-xs text-default-500">
+                                <p className="text-xs text-muted">
                                   最后一次：{formatDateTime(invite.used_at)}
                                 </p>
                               ) : null}
@@ -432,7 +432,7 @@ export default function InvitesPage() {
           )}
         </Card.Content>
 
-        <Card.Footer className="border-t border-default-200/70 px-6 py-4">
+        <Card.Footer className="border-t border-border/70 px-6 py-4">
           <AdminPagination
             page={page}
             total={total}

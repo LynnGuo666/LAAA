@@ -109,7 +109,7 @@ export function AdminPageHeader({ title, description, actions }: AdminPageHeader
       <div className="min-w-0">
         <h1 className="text-2xl font-semibold text-foreground sm:text-3xl">{title}</h1>
         {description ? (
-          <p className="mt-2 text-sm leading-6 text-default-600">{description}</p>
+          <p className="mt-2 text-sm leading-6 text-muted">{description}</p>
         ) : null}
       </div>
       {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
@@ -149,7 +149,7 @@ export function AdminLoadingState({
   const inner = (
     <div className="flex flex-col items-center justify-center gap-3 text-center">
       <Spinner size="lg" />
-      <p className="text-sm text-default-500">{label}</p>
+      <p className="text-sm text-muted">{label}</p>
     </div>
   )
 
@@ -172,7 +172,7 @@ export function AdminEmptyState({
     <div className={cn('flex flex-col items-center justify-center gap-3 p-10 text-center', className)}>
       <div className="space-y-1">
         <p className="text-base font-medium text-foreground">{title}</p>
-        {description ? <p className="text-sm text-default-500">{description}</p> : null}
+        {description ? <p className="text-sm text-muted">{description}</p> : null}
       </div>
       {action}
     </div>
@@ -247,7 +247,7 @@ export function AdminModalForm({
                 <div className="space-y-1">
                   <Modal.Heading>{title}</Modal.Heading>
                   {description ? (
-                    <Description className="text-sm text-default-500">
+                    <Description className="text-sm text-muted">
                       {description}
                     </Description>
                   ) : null}
@@ -287,7 +287,7 @@ export function EntityAvatar({
   rounded = 'lg',
 }: EntityAvatarProps) {
   const baseClassName = cn(
-    'shrink-0 overflow-hidden border border-default-200 bg-default-100 text-default-600 dark:border-default-100/10',
+    'shrink-0 overflow-hidden border border-border bg-default text-muted dark:border-default/10',
     avatarSizeClasses[size],
     avatarRoundedClasses[rounded],
   )

@@ -32,7 +32,7 @@ export default function Home() {
   return (
     <main className="min-h-screen grid lg:grid-cols-2 bg-background">
       {/* ─── 左：品牌 + 动画主视觉 ─── */}
-      <section className="relative flex flex-col justify-between overflow-hidden bg-gradient-to-br from-primary-900 via-primary-700 to-primary-500 p-8 lg:p-12">
+      <section className="relative flex flex-col justify-between overflow-hidden bg-gradient-to-br from-accent to-accent/70 p-8 lg:p-12">
         {/* 装饰光斑 */}
         <div className="pointer-events-none absolute right-[10%] top-[12%] h-64 w-64 rounded-full bg-white/20 blur-3xl" />
         <div className="pointer-events-none absolute bottom-[8%] left-[5%] h-80 w-80 rounded-full bg-black/20 blur-3xl" />
@@ -74,11 +74,11 @@ export default function Home() {
           {isAuthenticated && user ? (
             // 已登录：进入控制台
             <div className="text-center">
-              <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary-50 text-primary">
+              <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-accent/10 text-accent">
                 <Sparkles className="h-8 w-8" />
               </div>
               <h1 className="text-2xl font-bold text-foreground">欢迎回来，{user.username}</h1>
-              <p className="mt-2 text-default-600">你已登录，可直接进入控制台。</p>
+              <p className="mt-2 text-muted">你已登录，可直接进入控制台。</p>
               <Link
                 href="/dashboard"
                 className={cn(
@@ -90,7 +90,7 @@ export default function Home() {
               </Link>
               <button
                 onClick={handleLogout}
-                className="mt-4 text-sm text-default-500 hover:text-foreground"
+                className="mt-4 text-sm text-muted hover:text-foreground"
               >
                 退出登录
               </button>
@@ -99,7 +99,7 @@ export default function Home() {
             // 未登录：登录 / 注册入口
             <div className="text-center">
               <h1 className="text-2xl font-bold text-foreground">{siteName}</h1>
-              <p className="mt-2 text-sm text-default-600">
+              <p className="mt-2 text-sm text-muted">
                 个人 OAuth 2.0 认证授权服务器
               </p>
 
@@ -126,7 +126,7 @@ export default function Home() {
                 </Link>
               </div>
 
-              <p className="mt-8 text-sm text-default-500">
+              <p className="mt-8 text-sm text-muted">
                 为你的应用提供安全的认证和授权服务
               </p>
             </div>

@@ -437,7 +437,7 @@ export default function SecurityPage() {
     <div className="px-4 sm:px-0 animate-fade-in space-y-6 sm:space-y-8">
       <div>
         <h1 className="text-2xl sm:text-3xl font-bold text-foreground">安全设置</h1>
-        <p className="text-default-600 mt-1 text-sm sm:text-base">
+        <p className="text-muted mt-1 text-sm sm:text-base">
           管理您的账户安全设置和查看登录历史。
         </p>
       </div>
@@ -463,30 +463,30 @@ export default function SecurityPage() {
             </Tabs.List>
           </Tabs.ListContainer>
 
-          <Card className="min-w-0 border border-default-200 bg-content2 p-3 sm:p-4">
+          <Card className="min-w-0 border border-border bg-surface-secondary p-3 sm:p-4">
 
           <Tabs.Panel id="totp" className="pt-4">
             <h2 className="text-lg sm:text-xl font-semibold text-foreground mb-2">验证方式</h2>
-            <p className="text-sm text-default-500 mb-4">
+            <p className="text-sm text-muted mb-4">
               启用两步验证后，当检测到可疑登录时，需要额外的验证步骤才能登录。
             </p>
-            <div className="border border-default-200 rounded-lg p-4">
+            <div className="border border-border rounded-lg p-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
                     totpStatus?.enabled
                       ? 'bg-success/10'
-                      : 'bg-default-100'
+                      : 'bg-default'
                   }`}>
                     <ShieldCheck className={`w-5 h-5 ${
                       totpStatus?.enabled
                         ? 'text-success'
-                        : 'text-default-400'
+                        : 'text-foreground/60'
                     }`} />
                   </div>
                   <div>
                     <h3 className="font-medium text-foreground">身份验证器 (TOTP)</h3>
-                    <p className="text-sm text-default-500">
+                    <p className="text-sm text-muted">
                       {totpStatus?.enabled
                         ? `已启用 · 剩余 ${totpStatus.backup_codes_remaining || 0} 个备用码`
                         : '使用 Google Authenticator 等应用生成验证码'}
@@ -505,7 +505,7 @@ export default function SecurityPage() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             <h2 className="text-lg sm:text-xl font-semibold text-foreground">设备会话</h2>
-            <p className="text-sm text-default-500 mt-1">管理当前登录设备和会话状态</p>
+            <p className="text-sm text-muted mt-1">管理当前登录设备和会话状态</p>
           </div>
           {otherSessionsCount > 0 && (
             <Button onPress={handleRevokeOtherSessions} isDisabled={revoking} variant="danger" className="text-sm shrink-0 w-full sm:w-auto">
@@ -515,7 +515,7 @@ export default function SecurityPage() {
         </div>
         {sessions.length === 0 ? (
           <div className="text-center py-12">
-            <p className="text-default-500">暂无活跃会话</p>
+            <p className="text-muted">暂无活跃会话</p>
           </div>
         ) : (
           <div className="overflow-hidden">
@@ -524,7 +524,7 @@ export default function SecurityPage() {
               <li key={session.id} className="list-item">
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                   <div className="flex items-start gap-3 min-w-0">
-                    <div className="p-2 bg-default-100 rounded-lg text-default-600 shrink-0">
+                    <div className="p-2 bg-default rounded-lg text-muted shrink-0">
                       {getDeviceIcon(session.device_type)}
                     </div>
                     <div className="min-w-0 flex-1">
@@ -539,11 +539,11 @@ export default function SecurityPage() {
                           <Chip color="accent" variant="soft" size="sm">可信</Chip>
                         )}
                       </div>
-                      <div className="mt-1 text-xs sm:text-sm text-default-600 flex items-center gap-1 sm:gap-2 flex-wrap">
+                      <div className="mt-1 text-xs sm:text-sm text-muted flex items-center gap-1 sm:gap-2 flex-wrap">
                         <span>
                           {session.device_type === 'mobile' ? '手机' : session.device_type === 'tablet' ? '平板' : '电脑'}
                         </span>
-                        <span className="text-default-400">·</span>
+                        <span className="text-foreground/60">·</span>
                         <span>点击详情查看完整信息</span>
                       </div>
                     </div>
@@ -618,14 +618,14 @@ export default function SecurityPage() {
             <div className="space-y-4">
         <div>
           <h2 className="text-lg sm:text-xl font-semibold text-foreground">登录记录</h2>
-          <p className="text-sm text-default-500 mt-1">
+          <p className="text-sm text-muted mt-1">
             您账户的最近登录行为记录
           </p>
         </div>
 
         {loginHistory.length === 0 ? (
           <div className="text-center py-12">
-            <p className="text-default-500">暂无登录记录</p>
+            <p className="text-muted">暂无登录记录</p>
           </div>
         ) : (
           <Table aria-label="登录记录">
@@ -653,16 +653,16 @@ export default function SecurityPage() {
                           </div>
                         )}
                       </Table.Cell>
-                      <Table.Cell className="text-default-600">{getLoginMethodText(log.login_method)}</Table.Cell>
-                      <Table.Cell className="text-default-600">
+                      <Table.Cell className="text-muted">{getLoginMethodText(log.login_method)}</Table.Cell>
+                      <Table.Cell className="text-muted">
                         <div className="break-all">{log.ip_address || '-'}</div>
                         {(log.city || log.country) && (
-                          <div className="text-xs text-default-500 mt-1">
+                          <div className="text-xs text-muted mt-1">
                             {[log.city, log.country].filter(Boolean).join(', ')}
                           </div>
                         )}
                       </Table.Cell>
-                      <Table.Cell className="text-xs sm:text-sm text-default-500 whitespace-nowrap">{formatDateTime(log.created_at)}</Table.Cell>
+                      <Table.Cell className="text-xs sm:text-sm text-muted whitespace-nowrap">{formatDateTime(log.created_at)}</Table.Cell>
                     </Table.Row>
                   ))}
                 </Table.Body>
@@ -675,7 +675,7 @@ export default function SecurityPage() {
 
           <Tabs.Panel id="passkeys" className="pt-4">
         <h2 className="text-lg sm:text-xl font-semibold text-foreground mb-2">通行密钥</h2>
-        <p className="text-sm text-default-500 mb-4">
+        <p className="text-sm text-muted mb-4">
           管理用于登录验证的通行密钥
         </p>
 
@@ -712,7 +712,7 @@ export default function SecurityPage() {
         </div>
 
         {passkeys.length === 0 ? (
-          <div className="text-center py-8 text-default-500">暂无通行密钥</div>
+          <div className="text-center py-8 text-muted">暂无通行密钥</div>
         ) : (
           <div className="overflow-hidden">
             <ul className="list">
@@ -755,7 +755,7 @@ export default function SecurityPage() {
                 <AlertDialog.Heading>为通行密钥命名</AlertDialog.Heading>
               </AlertDialog.Header>
               <AlertDialog.Body>
-                <p className="text-sm text-default-600 mb-4">
+                <p className="text-sm text-muted mb-4">
                   给这个通行密钥起一个便于识别的名称，例如设备名称
                 </p>
                 <Input
@@ -801,9 +801,9 @@ export default function SecurityPage() {
               </AlertDialog.Header>
               <AlertDialog.Body>
                 {selectedPasskey && (
-                  <div className="space-y-3 text-sm text-default-600">
+                  <div className="space-y-3 text-sm text-muted">
                     <div>
-                      <span className="text-default-500">名称：</span>
+                      <span className="text-muted">名称：</span>
                       <Input
                         type="text"
                         value={detailPasskeyName}
@@ -816,10 +816,10 @@ export default function SecurityPage() {
                         }}
                       />
                     </div>
-                    <div><span className="text-default-500">创建时间：</span>{formatDateTime(selectedPasskey.created_at)}</div>
-                    <div><span className="text-default-500">最后使用：</span>{selectedPasskey.last_used_at ? formatDateTime(selectedPasskey.last_used_at) : '-'}</div>
-                    <div><span className="text-default-500">传输方式：</span>{selectedPasskey.transports && selectedPasskey.transports.length > 0 ? selectedPasskey.transports.join(', ') : '-'}</div>
-                    <div><span className="text-default-500">可同步：</span>{selectedPasskey.backup_eligible ? '是' : '否'}</div>
+                    <div><span className="text-muted">创建时间：</span>{formatDateTime(selectedPasskey.created_at)}</div>
+                    <div><span className="text-muted">最后使用：</span>{selectedPasskey.last_used_at ? formatDateTime(selectedPasskey.last_used_at) : '-'}</div>
+                    <div><span className="text-muted">传输方式：</span>{selectedPasskey.transports && selectedPasskey.transports.length > 0 ? selectedPasskey.transports.join(', ') : '-'}</div>
+                    <div><span className="text-muted">可同步：</span>{selectedPasskey.backup_eligible ? '是' : '否'}</div>
                   </div>
                 )}
               </AlertDialog.Body>
@@ -852,15 +852,15 @@ export default function SecurityPage() {
               </AlertDialog.Header>
               <AlertDialog.Body>
                 {selectedSession && (
-                  <div className="space-y-2 text-sm text-default-600">
-                    <div><span className="text-default-500">设备名称：</span>{selectedSession.device_name || '未知设备'}</div>
-                    <div><span className="text-default-500">设备类型：</span>{selectedSession.device_type === 'mobile' ? '手机' : selectedSession.device_type === 'tablet' ? '平板' : '电脑'}</div>
-                    <div><span className="text-default-500">状态：</span>{selectedSession.is_current ? '当前会话' : '历史会话'}{selectedSession.is_trusted ? ' · 已信任' : ''}</div>
-                    <div><span className="text-default-500">IP 地址：</span>{selectedSession.ip_address || '-'}</div>
-                    <div><span className="text-default-500">位置：</span>{[selectedSession.city, selectedSession.country].filter(Boolean).join(', ') || '-'}</div>
-                    <div><span className="text-default-500">设备 ID：</span><span className="font-mono break-all">{selectedSession.device_id || '-'}</span></div>
-                    <div><span className="text-default-500">最后活跃：</span>{formatDateTime(selectedSession.last_active)}</div>
-                    <div><span className="text-default-500">过期时间：</span>{formatDateTime(selectedSession.expires_at)}</div>
+                  <div className="space-y-2 text-sm text-muted">
+                    <div><span className="text-muted">设备名称：</span>{selectedSession.device_name || '未知设备'}</div>
+                    <div><span className="text-muted">设备类型：</span>{selectedSession.device_type === 'mobile' ? '手机' : selectedSession.device_type === 'tablet' ? '平板' : '电脑'}</div>
+                    <div><span className="text-muted">状态：</span>{selectedSession.is_current ? '当前会话' : '历史会话'}{selectedSession.is_trusted ? ' · 已信任' : ''}</div>
+                    <div><span className="text-muted">IP 地址：</span>{selectedSession.ip_address || '-'}</div>
+                    <div><span className="text-muted">位置：</span>{[selectedSession.city, selectedSession.country].filter(Boolean).join(', ') || '-'}</div>
+                    <div><span className="text-muted">设备 ID：</span><span className="font-mono break-all">{selectedSession.device_id || '-'}</span></div>
+                    <div><span className="text-muted">最后活跃：</span>{formatDateTime(selectedSession.last_active)}</div>
+                    <div><span className="text-muted">过期时间：</span>{formatDateTime(selectedSession.expires_at)}</div>
                   </div>
                 )}
               </AlertDialog.Body>
@@ -890,10 +890,10 @@ export default function SecurityPage() {
                 <AlertDialog.Heading>确认删除通行密钥</AlertDialog.Heading>
               </AlertDialog.Header>
               <AlertDialog.Body>
-                <p className="text-sm text-default-600 mb-4">
+                <p className="text-sm text-muted mb-4">
                   确定要删除通行密钥 <strong className="text-foreground">{pendingDeletePasskey?.name}</strong> 吗？删除后将无法使用此通行密钥登录。
                 </p>
-                <p className="text-sm text-default-600 mb-3">
+                <p className="text-sm text-muted mb-3">
                   此操作需要输入密码确认，以防他人盗用会话后移除您的登录凭据。
                 </p>
                 <Input

@@ -39,7 +39,7 @@ export default function ProfilePage() {
     <div className="px-4 sm:px-0 animate-fade-in">
       <div className="mb-6 sm:mb-8">
         <h1 className="text-2xl sm:text-3xl font-bold text-foreground">个人资料</h1>
-        <p className="text-default-600 mt-1 text-sm sm:text-base">
+        <p className="text-muted mt-1 text-sm sm:text-base">
           管理您的账号资料和基本信息。
         </p>
       </div>
@@ -81,26 +81,26 @@ export default function ProfilePage() {
           </div>
         </form>
 
-        <Card className="border border-default-200 bg-content2 overflow-hidden">
-          <div className="px-4 py-3 border-b border-default-200">
+        <Card className="border border-border bg-surface-secondary overflow-hidden">
+          <div className="px-4 py-3 border-b border-border">
             <h2 className="text-base font-semibold text-foreground">账号信息</h2>
           </div>
           <ul className="list">
             <li className="list-item">
               <div className="flex items-center justify-between gap-4">
-                <span className="text-sm text-default-600">用户 ID</span>
+                <span className="text-sm text-muted">用户 ID</span>
                 <span className="text-sm text-foreground">{user.id}</span>
               </div>
             </li>
             <li className="list-item">
               <div className="flex items-center justify-between gap-4">
-                <span className="text-sm text-default-600">状态</span>
+                <span className="text-sm text-muted">状态</span>
                 <span className="text-sm text-foreground">{user.status}</span>
               </div>
             </li>
             <li className="list-item">
               <div className="flex items-center justify-between gap-4">
-                <span className="text-sm text-default-600">注册时间</span>
+                <span className="text-sm text-muted">注册时间</span>
                 <span className="text-sm text-foreground">
                   {formatDate(user.created_at)}
                 </span>

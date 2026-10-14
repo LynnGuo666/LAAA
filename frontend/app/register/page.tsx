@@ -87,7 +87,7 @@ function RegisterContent() {
       <div className="max-w-md w-full space-y-8 animate-fade-in">
         <div className="text-center">
           <h2 className="text-3xl font-bold text-foreground">创建账号</h2>
-          <p className="mt-2 text-default-600">开始使用本站服务</p>
+          <p className="mt-2 text-muted">开始使用本站服务</p>
         </div>
 
         <form onSubmit={handleSubmit} className="surface p-6 space-y-6">
@@ -167,8 +167,8 @@ function RegisterContent() {
           variant="primary" className="w-full" isPending={loading} >{loading ? '创建中...' : '创建账号'}</Button>
 
           <div className="text-center text-sm">
-            <span className="text-default-600">已有账号？ </span>
-            <Link href="/login" className="text-primary hover:text-primary font-medium">
+            <span className="text-muted">已有账号？ </span>
+            <Link href="/login" className="text-accent hover:text-accent font-medium">
               登录
             </Link>
           </div>
@@ -185,7 +185,7 @@ export default function RegisterPage() {
         <div className="min-h-screen flex items-center justify-center bg-background px-4">
           <div className="flex flex-col items-center gap-3">
             <Spinner size="lg" />
-            <p className="text-sm text-default-500">加载中...</p>
+            <p className="text-sm text-muted">加载中...</p>
           </div>
         </div>
       }

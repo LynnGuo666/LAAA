@@ -459,24 +459,24 @@ export default function UsersPage() {
                             <EntityAvatar src={item.avatar} name={item.username} rounded="full" />
                             <div className="min-w-0">
                               <p className="font-medium text-foreground">{item.username}</p>
-                              <p className="text-sm text-default-600">{item.email}</p>
-                              <p className="text-xs text-default-500">ID: {item.id}</p>
+                              <p className="text-sm text-muted">{item.email}</p>
+                              <p className="text-xs text-muted">ID: {item.id}</p>
                             </div>
                           </div>
                         </Table.Cell>
                         <Table.Cell>{renderStatusChip(item.status)}</Table.Cell>
                         <Table.Cell>
                           <div className="space-y-1 text-sm">
-                            <p className="text-default-700">
+                            <p className="text-foreground">
                               用户组：{item.groups.length ? item.groups.join('、') : '无'}
                             </p>
-                            <p className="text-default-500">
+                            <p className="text-muted">
                               角色：{item.roles.length ? item.roles.join('、') : '无'}
                             </p>
                           </div>
                         </Table.Cell>
                         <Table.Cell>
-                          <div className="space-y-1 text-sm text-default-600">
+                          <div className="space-y-1 text-sm text-muted">
                             <p>{formatDate(item.created_at)}</p>
                             <p>更新：{formatDate(item.updated_at)}</p>
                           </div>
@@ -529,7 +529,7 @@ export default function UsersPage() {
         </Card.Content>
 
         {totalPages > 1 ? (
-          <Card.Footer className="border-t border-default-200/70 px-6 py-4">
+          <Card.Footer className="border-t border-border/70 px-6 py-4">
             <AdminPagination
               page={page}
               total={total}
@@ -673,18 +673,18 @@ export default function UsersPage() {
         isPending={savingGroups}
       >
         {groupsError ? <AdminNotice tone="danger" description={groupsError} /> : null}
-        <div className="max-h-96 space-y-2 overflow-y-auto rounded-xl border border-default-200/70 p-3">
+        <div className="max-h-96 space-y-2 overflow-y-auto rounded-xl border border-border/70 p-3">
           {groups.map((group) => (
             <UICheckbox
               key={group.id}
-              className="m-0 max-w-full border-b border-default-200/70 py-3 last:border-b-0"
+              className="m-0 max-w-full border-b border-border/70 py-3 last:border-b-0"
               isSelected={selectedUserGroups.includes(group.id)}
               onChange={() => toggleGroup(group.id)}
             >
               <div className="min-w-0">
                 <p className="font-medium text-foreground">{group.name}</p>
                 {group.description ? (
-                  <p className="mt-1 text-xs text-default-500">{group.description}</p>
+                  <p className="mt-1 text-xs text-muted">{group.description}</p>
                 ) : null}
               </div>
             </UICheckbox>
@@ -704,20 +704,20 @@ export default function UsersPage() {
         isPending={savingRoles}
       >
         {rolesError ? <AdminNotice tone="danger" description={rolesError} /> : null}
-        <div className="max-h-96 space-y-2 overflow-y-auto rounded-xl border border-default-200/70 p-3">
+        <div className="max-h-96 space-y-2 overflow-y-auto rounded-xl border border-border/70 p-3">
           {roles.map((role) => (
             <UICheckbox
               key={role.id}
-              className="m-0 max-w-full border-b border-default-200/70 py-3 last:border-b-0"
+              className="m-0 max-w-full border-b border-border/70 py-3 last:border-b-0"
               isSelected={selectedUserRoles.includes(role.id)}
               onChange={() => toggleRole(role.id)}
             >
               <div className="min-w-0">
                 <p className="font-medium text-foreground">{role.name}</p>
                 {role.description ? (
-                  <p className="mt-1 text-xs text-default-500">{role.description}</p>
+                  <p className="mt-1 text-xs text-muted">{role.description}</p>
                 ) : null}
-                <p className="mt-1 text-xs text-default-400">等级：{role.level}</p>
+                <p className="mt-1 text-xs text-foreground/60">等级：{role.level}</p>
               </div>
             </UICheckbox>
           ))}

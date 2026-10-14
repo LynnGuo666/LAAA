@@ -313,7 +313,7 @@ function LoginContent() {
           <h1 className="text-xl sm:text-2xl font-bold text-foreground mb-1">
             登录
           </h1>
-          <p className="text-sm sm:text-base text-default-600">
+          <p className="text-sm sm:text-base text-muted">
             {clientInfo ? (
               <>
                 您正在登录到 <strong className="text-foreground">{clientInfo.name}</strong>
@@ -325,7 +325,7 @@ function LoginContent() {
             )}
           </p>
           {clientInfo?.description && (
-            <p className="text-xs sm:text-sm text-default-500 mt-1">{clientInfo.description}</p>
+            <p className="text-xs sm:text-sm text-muted mt-1">{clientInfo.description}</p>
           )}
         </div>
 
@@ -399,14 +399,14 @@ function LoginContent() {
             <>
               <div className="relative my-3">
                 <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-default-200"></div>
+                  <div className="w-full border-t border-border"></div>
                 </div>
                 <div className="relative flex justify-center">
                   <Chip size="sm" variant="soft" color="default">或</Chip>
                 </div>
               </div>
 
-              <Button type="button" onPress={handlePasskeyLogin} isDisabled={loading || passkeyLoading} variant="secondary" className="w-full text-default-foreground" isPending={passkeyLoading}>{!passkeyLoading && (
+              <Button type="button" onPress={handlePasskeyLogin} isDisabled={loading || passkeyLoading} variant="secondary" className="w-full text-foreground" isPending={passkeyLoading}>{!passkeyLoading && (
                 <KeyRound className="w-4 h-4 mr-2" />
               )}
               {passkeyLoading ? '验证中...' : '使用通行密钥登录'}</Button>
@@ -414,8 +414,8 @@ function LoginContent() {
           )}
 
           <div className="text-center text-sm pt-1">
-            <span className="text-default-600">还没有账号？ </span>
-            <Link href="/register" className="text-primary hover:text-primary font-medium">
+            <span className="text-muted">还没有账号？ </span>
+            <Link href="/register" className="text-accent hover:text-accent font-medium">
               注册
             </Link>
           </div>

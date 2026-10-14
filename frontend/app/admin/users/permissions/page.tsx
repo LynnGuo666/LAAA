@@ -233,7 +233,7 @@ function UserPermissionsContent() {
                             <EntityAvatar src={item.app_logo} name={item.app_name} size="sm" />
                             <div className="min-w-0">
                               <p className="font-medium text-foreground">{item.app_name}</p>
-                              <p className="text-xs text-default-500">{item.client_id}</p>
+                              <p className="text-xs text-muted">{item.client_id}</p>
                             </div>
                           </div>
                         </Table.Cell>
@@ -287,7 +287,7 @@ function UserPermissionsContent() {
         </Card.Content>
 
         {totalPages > 1 ? (
-          <Card.Footer className="border-t border-default-200/70 px-6 py-4">
+          <Card.Footer className="border-t border-border/70 px-6 py-4">
             <AdminSimplePagination
               page={page}
               total={data?.total ?? 0}

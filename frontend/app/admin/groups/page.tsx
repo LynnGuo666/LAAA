@@ -371,7 +371,7 @@ export default function GroupsPage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-foreground">用户组</h1>
-          <p className="mt-1 text-sm text-default-500">管理用户组、成员归属和应用访问权限。</p>
+          <p className="mt-1 text-sm text-muted">管理用户组、成员归属和应用访问权限。</p>
         </div>
         <div className="flex items-center gap-3">
           <Select
@@ -439,7 +439,7 @@ export default function GroupsPage() {
                           新用户自动加入该用户组
                         </UICheckbox>
                       </AdminFieldGroup>
-                      <div className="flex items-center justify-between border-t border-default-200/70 pt-4">
+                      <div className="flex items-center justify-between border-t border-border/70 pt-4">
                         <Button variant="danger" size="sm" isPending={deletingGroup} isDisabled={deletingGroup} onPress={() => void handleDelete()}>删除用户组</Button>
                         <Button type="submit" variant="primary" isPending={savingMeta} isDisabled={savingMeta}>保存信息</Button>
                       </div>
@@ -449,7 +449,7 @@ export default function GroupsPage() {
                   <Tabs.Panel id="members">
                     <div className="space-y-4">
                       <div className="flex items-center justify-between">
-                        <span className="text-sm text-default-500">共 {members.length} 位成员</span>
+                        <span className="text-sm text-muted">共 {members.length} 位成员</span>
                         <Button variant="primary" size="sm" onPress={() => {
                           if (!selectedGroup) return
                           setSearchMembers('')
@@ -461,7 +461,7 @@ export default function GroupsPage() {
                         }}>添加成员</Button>
                       </div>
                       {members.length === 0 ? (
-                        <p className="py-6 text-center text-sm text-default-500">暂无成员，点击上方按钮添加</p>
+                        <p className="py-6 text-center text-sm text-muted">暂无成员，点击上方按钮添加</p>
                       ) : (
                         <Table aria-label="用户组成员列表">
                           <Table.ScrollContainer>
@@ -478,7 +478,7 @@ export default function GroupsPage() {
                                         <EntityAvatar src={member.avatar} name={member.username} size="sm" rounded="full" />
                                         <div>
                                           <p className="font-medium text-foreground">{member.username}</p>
-                                          <p className="text-xs text-default-500">{member.email}</p>
+                                          <p className="text-xs text-muted">{member.email}</p>
                                         </div>
                                       </div>
                                     </Table.Cell>
@@ -501,9 +501,9 @@ export default function GroupsPage() {
                         <Input value={appSearch} onChange={(e) => setAppSearch(e.target.value)} placeholder="搜索应用名称" className="max-w-xs" />
                         <Button variant="primary" size="sm" isPending={savingApps} isDisabled={savingApps} onPress={() => void handleUpdateAppPermissions()}>保存权限</Button>
                       </div>
-                      <p className="text-xs text-default-500">优先级：用户拒绝 → 用户允许 → 用户组拒绝 → 用户组允许 → 应用默认</p>
+                      <p className="text-xs text-muted">优先级：用户拒绝 → 用户允许 → 用户组拒绝 → 用户组允许 → 应用默认</p>
                       {filteredApps.length === 0 ? (
-                        <p className="py-6 text-center text-sm text-default-500">暂无应用</p>
+                        <p className="py-6 text-center text-sm text-muted">暂无应用</p>
                       ) : (
                         <Table aria-label="用户组应用权限">
                           <Table.ScrollContainer>
@@ -521,7 +521,7 @@ export default function GroupsPage() {
                                         <EntityAvatar src={app.logo} name={app.name} size="sm" />
                                         <div className="min-w-0">
                                           <p className="font-medium text-foreground">{app.name}</p>
-                                          <p className="text-xs text-default-500">{app.client_id}</p>
+                                          <p className="text-xs text-muted">{app.client_id}</p>
                                         </div>
                                       </div>
                                     </Table.Cell>
@@ -549,7 +549,7 @@ export default function GroupsPage() {
         <AdminSection className="flex items-center justify-center border-dashed">
           <Card.Content className="p-10 text-center">
             <p className="text-base font-medium text-foreground">请选择用户组</p>
-            <p className="mt-2 text-sm text-default-500">从上方下拉选择用户组，查看和编辑详情。</p>
+            <p className="mt-2 text-sm text-muted">从上方下拉选择用户组，查看和编辑详情。</p>
           </Card.Content>
         </AdminSection>
       )}
@@ -635,22 +635,22 @@ export default function GroupsPage() {
           }}
           placeholder="搜索用户名或邮箱"
         />
-        <div className="max-h-80 space-y-1 overflow-y-auto rounded-xl border border-default-200/70 p-3">
+        <div className="max-h-80 space-y-1 overflow-y-auto rounded-xl border border-border/70 p-3">
           {memberSearchLoading ? (
-            <p className="py-6 text-center text-sm text-default-500">正在搜索用户...</p>
+            <p className="py-6 text-center text-sm text-muted">正在搜索用户...</p>
           ) : memberSearchResults.length === 0 ? (
-            <p className="py-6 text-center text-sm text-default-500">没有可添加的用户</p>
+            <p className="py-6 text-center text-sm text-muted">没有可添加的用户</p>
           ) : (
             memberSearchResults.map((member) => (
               <UICheckbox
                 key={member.id}
-                className="m-0 max-w-full border-b border-default-200/70 py-2 last:border-b-0"
+                className="m-0 max-w-full border-b border-border/70 py-2 last:border-b-0"
                 isSelected={pendingAddIds.includes(member.id)}
                 onChange={() => togglePendingAdd(member.id)}
               >
                 <div className="min-w-0">
                   <p className="font-medium text-foreground">{member.username}</p>
-                  <p className="text-xs text-default-500">{member.email}</p>
+                  <p className="text-xs text-muted">{member.email}</p>
                 </div>
               </UICheckbox>
             ))

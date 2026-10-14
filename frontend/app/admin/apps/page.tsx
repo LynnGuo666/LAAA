@@ -251,7 +251,7 @@ export default function AppsPage() {
           <Card.Content className="space-y-4 p-6 pt-0">
             <AdminFieldGroup label="Client ID">
               <div className="flex items-center gap-2">
-                <code className="flex-1 rounded-xl bg-default-100 px-3 py-2 text-xs font-medium">
+                <code className="flex-1 rounded-xl bg-default px-3 py-2 text-xs font-medium">
                   {newClientCredentials.client_id}
                 </code>
                 <Button
@@ -268,7 +268,7 @@ export default function AppsPage() {
 
             <AdminFieldGroup label="Client Secret">
               <div className="flex flex-wrap items-center gap-2">
-                <code className="min-w-0 flex-1 rounded-xl bg-default-100 px-3 py-2 text-xs font-medium break-all">
+                <code className="min-w-0 flex-1 rounded-xl bg-default px-3 py-2 text-xs font-medium break-all">
                   {showNewSecret
                     ? newClientCredentials.client_secret
                     : '••••••••••••••••'}
@@ -290,7 +290,7 @@ export default function AppsPage() {
                   复制
                 </Button>
               </div>
-              {copyStatus ? <p className="text-xs text-default-500">{copyStatus}</p> : null}
+              {copyStatus ? <p className="text-xs text-muted">{copyStatus}</p> : null}
             </AdminFieldGroup>
           </Card.Content>
         </AdminSection>
@@ -339,10 +339,10 @@ export default function AppsPage() {
               </Card.Header>
 
               <Card.Content className="space-y-3 px-6 pb-0">
-                <div className="space-y-1 text-sm text-default-600">
+                <div className="space-y-1 text-sm text-muted">
                   <p>
                     Client ID：
-                    <code className="ml-2 rounded-lg bg-default-100 px-2 py-1 text-xs font-medium">
+                    <code className="ml-2 rounded-lg bg-default px-2 py-1 text-xs font-medium">
                       {client.client_id}
                     </code>
                   </p>

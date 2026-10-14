@@ -113,14 +113,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   return (
     <div className="min-h-screen bg-background">
-      <nav className="bg-background shadow-sm border-b border-default-200">
+      <nav className="bg-background shadow-sm border-b border-border">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
             <div className="flex items-center min-w-0">
               <Link href="/admin" className="flex items-center gap-2 px-2 py-2 text-xl font-bold whitespace-nowrap">
-                <ShieldCheck className="h-5 w-5 text-primary" />
+                <ShieldCheck className="h-5 w-5 text-accent" />
                 {siteName}
-                <span className="hidden rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-primary sm:inline">
+                <span className="hidden rounded-md bg-accent/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-accent sm:inline">
                   Admin
                 </span>
               </Link>
@@ -152,13 +152,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               <ThemeToggle />
               <Link
                 href="/dashboard/my-apps"
-                className="hidden items-center gap-1.5 rounded-xl px-3 py-1.5 text-sm text-default-600 transition-colors hover:bg-default-100 sm:inline-flex"
+                className="hidden items-center gap-1.5 rounded-xl px-3 py-1.5 text-sm text-muted transition-colors hover:bg-default sm:inline-flex"
               >
                 <ArrowLeft className="h-3.5 w-3.5" />
                 用户面板
               </Link>
-              <div className="hidden h-4 w-px bg-default-200 sm:block" />
-              <span className="hidden text-sm text-default-600 sm:inline">{user.username}</span>
+              <div className="hidden h-4 w-px bg-surface-secondary sm:block" />
+              <span className="hidden text-sm text-muted sm:inline">{user.username}</span>
               <Button variant="secondary" size="sm" onPress={handleLogout}>
                 <LogOut className="h-3.5 w-3.5" />
                 <span className="hidden sm:inline">退出</span>
@@ -167,7 +167,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </div>
         </div>
 
-        <div className="sm:hidden border-t border-default-200 relative">
+        <div className="sm:hidden border-t border-border relative">
           <div className="flex overflow-x-auto px-4 py-2 gap-4 no-scrollbar scroll-smooth">
             {navLinks.map((link) => {
               const isActive = link.href === '/admin'
@@ -180,8 +180,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   aria-current={isActive ? 'page' : undefined}
                   className={`text-sm whitespace-nowrap px-2 py-1 rounded transition-colors ${
                     isActive
-                      ? 'text-primary bg-primary/10'
-                      : 'text-default-600 hover:text-default-foreground'
+                      ? 'text-accent bg-accent/10'
+                      : 'text-muted hover:text-foreground'
                   }`}
                 >
                   {link.label}

@@ -110,7 +110,7 @@ export default function DashboardLayout({
   return (
     <div className="min-h-screen bg-background">
       {/* Navigation */}
-      <nav className="bg-background shadow-sm border-b border-default-200">
+      <nav className="bg-background shadow-sm border-b border-border">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
             <div className="flex">
@@ -152,13 +152,13 @@ export default function DashboardLayout({
                     <div className="flex items-center gap-2 min-w-0">
                       {user.avatar ? (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img src={user.avatar} alt={user.username} className="h-7 w-7 rounded-full object-cover border border-default-300" />
+                        <img src={user.avatar} alt={user.username} className="h-7 w-7 rounded-full object-cover border border-border" />
                       ) : (
-                        <div className="h-7 w-7 rounded-full bg-default-300 text-default-700 flex items-center justify-center text-xs font-semibold">
+                        <div className="h-7 w-7 rounded-full bg-surface-tertiary text-foreground flex items-center justify-center text-xs font-semibold">
                           {user.username.charAt(0).toUpperCase()}
                         </div>
                       )}
-                      <span className="hidden sm:inline text-sm text-default-600 truncate">{user.username}</span>
+                      <span className="hidden sm:inline text-sm text-muted truncate">{user.username}</span>
                     </div>
                   </Button>
                 </Popover.Trigger>
@@ -188,7 +188,7 @@ export default function DashboardLayout({
         </div>
 
         {/* Mobile navigation */}
-        <div className="sm:hidden border-t border-default-200 relative">
+        <div className="sm:hidden border-t border-border relative">
           <div className="flex overflow-x-auto px-4 py-2 gap-4 no-scrollbar scroll-smooth">
                {navLinks.map((link) => {
                const isActive = normalizedPathname === link.href || normalizedPathname.startsWith(`${link.href}/`);
@@ -199,8 +199,8 @@ export default function DashboardLayout({
                   aria-current={isActive ? 'page' : undefined}
                   className={`text-sm whitespace-nowrap px-2 py-1 rounded transition-colors ${
                     isActive
-                      ? 'text-primary bg-primary/10'
-                      : 'text-default-600 hover:text-default-foreground'
+                      ? 'text-accent bg-accent/10'
+                      : 'text-muted hover:text-foreground'
                   }`}
                 >
                   {link.label}

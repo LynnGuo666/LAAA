@@ -92,7 +92,7 @@ function ResultState({
         )}
       </div>
       <h2 className="text-2xl font-bold text-foreground mb-2">{config.title}</h2>
-      <p className="text-default-600 mb-6">
+      <p className="text-muted mb-6">
         {description || config.description}
       </p>
       {(config.primary || config.secondary) && (
@@ -175,7 +175,7 @@ function VerifyEmailContent() {
             )}
             {user ? (
               <>
-                <p className="text-sm text-default-600">
+                <p className="text-sm text-muted">
                   当前登录账号：{user.email}。可重新发送验证邮件后再从邮箱打开新链接。
                 </p>
                 <Button
@@ -190,7 +190,7 @@ function VerifyEmailContent() {
               </>
             ) : (
               <>
-                <p className="text-sm text-default-600">
+                <p className="text-sm text-muted">
                   重新发送验证邮件需要先登录账号。
                 </p>
                 <Link href="/login">
@@ -215,7 +215,7 @@ export default function VerifyEmailPage() {
         <div className="min-h-screen flex items-center justify-center bg-background px-4">
           <div className="flex flex-col items-center gap-3">
             <Spinner size="lg" />
-            <p className="text-sm text-default-500">加载中...</p>
+            <p className="text-sm text-muted">加载中...</p>
           </div>
         </div>
       }
