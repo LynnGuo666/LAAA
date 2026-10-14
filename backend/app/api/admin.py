@@ -38,6 +38,7 @@ from app.schemas.admin import (
     UserAppPermissionsResponse,
     UserAppPermissionsUpdate,
 )
+from app.services.session_limit_service import SessionLimitService
 from app.utils.security import get_password_hash
 from app.utils.time import utcnow
 
@@ -672,8 +673,9 @@ async def revoke_user_session(
             detail="会话不存在"
         )
 
-    db.delete(session)
-    db.commit()
+    # 吊销会话必须连带删 refresh token(走统一 helper),
+    # 否则被强制登出的用户仍可用 refresh token 续命
+    SessionLimitService.kick_session(db, session, reason='admin_revoke')
     return None
 
 
@@ -691,10 +693,16 @@ async def revoke_all_user_sessions(
             detail="用户不存在"
         )
 
-    count = db.query(Session).filter(Session.user_id == user_id).delete()
-    db.commit()
+    sessions = db.query(Session).filter(
+        Session.user_id == user_id,
+        Session.kicked_at.is_(None),
+        Session.expires_at > utcnow(),
+    ).all()
+    for session in sessions:
+        # 同上:连带删各会话关联的 refresh token
+        SessionLimitService.kick_session(db, session, reason='admin_revoke')
 
-    return {"message": f"已登出 {count} 个会话"}
+    return {"message": f"已登出 {len(sessions)} 个会话"}
 
 
 # ==================== User Passkeys ====================
