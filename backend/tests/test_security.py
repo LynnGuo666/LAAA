@@ -111,3 +111,30 @@ def test_utcnow_comparison_works():
     # 模拟 expires_at 比较(token 过期判断的核心)
     expires_at = utcnow() + timedelta(minutes=15)
     assert expires_at > utcnow()
+
+
+def test_validation_error_response_strips_input(client, caplog):
+    """422 响应与日志不回显用户原始输入(input 字段含明文密码)。
+
+    exc.errors() 每项的 input 是用户提交的原始值(如注册密码),
+    必须在 request_validation_error_handler 里被剥离。
+    """
+    secret_password = "short-but-secret-pw"
+    resp = client.post(
+        "/api/auth/register",
+        json={"username": "u", "email": "u@example.com", "password": secret_password},
+    )
+    assert resp.status_code == 422, resp.text
+
+    # 响应体不含 input 字段,也不含明文密码
+    body_text = resp.text
+    assert "input" not in body_text
+    assert secret_password not in body_text
+
+    # 日志同样不落明文密码
+    with caplog.at_level("WARNING"):
+        client.post(
+            "/api/auth/register",
+            json={"username": "u2", "email": "u2@example.com", "password": secret_password},
+        )
+    assert secret_password not in caplog.text

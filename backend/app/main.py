@@ -75,10 +75,12 @@ app.add_middleware(SecurityHeadersMiddleware)
 
 @app.exception_handler(RequestValidationError)
 async def request_validation_error_handler(request: Request, exc: RequestValidationError):
-    # exc.errors() 的 ctx 里可能含 ValueError 等不可 JSON 序列化的对象,转成 str 再返回
+    # exc.errors() 的 ctx 里可能含 ValueError 等不可 JSON 序列化的对象,转成 str 再返回;
+    # 每项的 input 字段是用户原始输入(可能是明文密码),绝不能进日志或响应体
     safe_errors = []
     for err in exc.errors():
         e = dict(err)
+        e.pop("input", None)
         ctx = e.get("ctx")
         if ctx and "error" in ctx:
             e["ctx"] = {k: (str(v) if k == "error" else v) for k, v in ctx.items()}

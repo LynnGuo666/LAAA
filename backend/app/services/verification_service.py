@@ -129,7 +129,8 @@ class VerificationService:
         db.commit()
         db.refresh(verification_session)
 
-        logger.info(f"Created verification session {session_token} for user {user.id}, risk level: {risk_assessment.risk_level.value}")
+        # session_token 是 skip/验证流的 bearer 凭据,日志只记前 8 位前缀
+        logger.info(f"Created verification session {session_token[:8]}... for user {user.id}, risk level: {risk_assessment.risk_level.value}")
 
         return verification_session
 
@@ -211,7 +212,7 @@ class VerificationService:
                     expire_minutes=settings.verification_code_expire_minutes
                 )
 
-        logger.info(f"Created email verification code for session {verification_session.session_token}")
+        logger.info(f"Created email verification code for session {verification_session.session_token[:8]}...")
 
         return verification_code
 
@@ -311,7 +312,7 @@ class VerificationService:
         verification_code.used_at = utcnow()
         db.commit()
 
-        logger.info(f"Email code verified for session {verification_session.session_token}")
+        logger.info(f"Email code verified for session {verification_session.session_token[:8]}...")
 
         return True
 
