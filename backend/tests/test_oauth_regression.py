@@ -813,6 +813,72 @@ def test_authorize_rejects_statically_restricted_user(client, db_session, make_u
 
 
 # ---------------------------------------------------------------------------
+# code 兑换失败即销毁(OAuth BCP,批次2 修复8a)
+# ---------------------------------------------------------------------------
+
+def test_failed_exchange_burns_code(client, admin_token, internal_client):
+    """PKCE 校验失败的兑换也要销毁 code:换正确 verifier 重试不得成功。"""
+    cid, sec = internal_client
+    verifier = "v" * 64
+    challenge = base64.urlsafe_b64encode(
+        hashlib.sha256(verifier.encode("ascii")).digest()
+    ).rstrip(b"=").decode("ascii")
+
+    _, code = _authorize_get_code(
+        client, admin_token, cid,
+        code_challenge=challenge, code_challenge_method="S256",
+    )
+
+    # 错误 verifier → 失败,且 code 被销毁(不再可用)
+    r1 = client.post("/api/oauth/token", data={
+        "grant_type": "authorization_code",
+        "code": code,
+        "redirect_uri": REDIRECT_URI,
+        "client_id": cid,
+        "client_secret": sec,
+        "code_verifier": "w" * 64,
+    })
+    assert r1.status_code == 400
+    assert r1.json()["error"] == "invalid_grant"
+
+    # 正确 verifier 重试 → 仍然失败(code 已在首次失败时销毁)
+    r2 = client.post("/api/oauth/token", data={
+        "grant_type": "authorization_code",
+        "code": code,
+        "redirect_uri": REDIRECT_URI,
+        "client_id": cid,
+        "client_secret": sec,
+        "code_verifier": verifier,
+    })
+    assert r2.status_code == 400, r2.text
+    assert r2.json()["error"] == "invalid_grant"
+
+
+def test_non_ascii_verifier_rejected_not_500(client, admin_token, internal_client):
+    """非 ASCII code_verifier → invalid_grant,而非未捕获异常 500。"""
+    cid, sec = internal_client
+    verifier = "v" * 64
+    challenge = base64.urlsafe_b64encode(
+        hashlib.sha256(verifier.encode("ascii")).digest()
+    ).rstrip(b"=").decode("ascii")
+    _, code = _authorize_get_code(
+        client, admin_token, cid,
+        code_challenge=challenge, code_challenge_method="S256",
+    )
+
+    resp = client.post("/api/oauth/token", data={
+        "grant_type": "authorization_code",
+        "code": code,
+        "redirect_uri": REDIRECT_URI,
+        "client_id": cid,
+        "client_secret": sec,
+        "code_verifier": "验证因子" * 16,
+    })
+    assert resp.status_code == 400, resp.text
+    assert resp.json()["error"] == "invalid_grant"
+
+
+# ---------------------------------------------------------------------------
 # consent 重定向透传 PKCE/nonce(批次2 修复4)
 # ---------------------------------------------------------------------------
 

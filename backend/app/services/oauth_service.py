@@ -150,11 +150,19 @@ class OAuthService:
         if not code_verifier:
             return False
         if method == "S256":
-            digest = hashlib.sha256(code_verifier.encode("ascii")).digest()
+            try:
+                digest = hashlib.sha256(code_verifier.encode("ascii")).digest()
+            except (UnicodeEncodeError, AttributeError):
+                # 非 ASCII verifier 直接判失败,而不是 500
+                return False
             computed = base64.urlsafe_b64encode(digest).rstrip(b"=").decode("ascii")
             return hmac.compare_digest(computed, stored_challenge)
         elif method == "plain":
-            return hmac.compare_digest(code_verifier, stored_challenge)
+            # 兼容存量 code(收紧到仅 S256 在 authorize 入口做,见批次2 修复8b)
+            try:
+                return hmac.compare_digest(code_verifier, stored_challenge)
+            except TypeError:
+                return False
         return False
 
     @staticmethod
@@ -256,16 +264,21 @@ class OAuthService:
                 token.redirect_uri,
                 redirect_uri,
             )
+            # OAuth BCP:兑换失败即销毁 code——先 commit 掉 claimed 状态,
+            # 防止攻击者用错误 redirect_uri/verifier 反复试探正确值
+            db.commit()
             return None
 
         # PKCE 校验(RFC 7636)
         if not OAuthService._verify_pkce(code_verifier, token.code_challenge, token.code_challenge_method):
             logger.info("oauth exchange_code: pkce verification failed client_id=%s", client_id)
+            db.commit()
             return None
 
         # 公开客户端必须走了 PKCE(授权码创建时有 challenge)
         if is_public and not token.code_challenge:
             logger.info("oauth exchange_code: public client code has no pkce challenge client_id=%s", client_id)
+            db.commit()
             return None
 
         # Get user
@@ -276,6 +289,7 @@ class OAuthService:
                 client_id,
                 getattr(user, "id", None),
             )
+            db.commit()
             return None
 
         # Create tokens
