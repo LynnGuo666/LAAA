@@ -73,7 +73,7 @@ function AuthorizeContent() {
       setCurrentUser(userResponse.data);
 
       // 获取客户端信息
-      const clientResponse = await axios.get(`${API_URL}/api/oauth/client/${clientId}`, {
+      const clientResponse = await axios.get(`${API_URL}/api/oauth/client/${encodeURIComponent(clientId || '')}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },

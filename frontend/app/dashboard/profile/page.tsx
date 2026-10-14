@@ -5,6 +5,7 @@ import { useAuthStore } from '@/lib/store';
 import { userApi } from '@/lib/api';
 import { formatDate } from '@/lib/date';
 import { extractErrorMessage } from '@/lib/errors';
+import { renderStatusChip } from '@/lib/admin-utils';
 import { Alert, Button, Card, Description, Input, Label, TextField } from '@heroui/react';
 
 export default function ProfilePage() {
@@ -95,7 +96,7 @@ export default function ProfilePage() {
             <li className="list-item">
               <div className="flex items-center justify-between gap-4">
                 <span className="text-sm text-muted">状态</span>
-                <span className="text-sm text-foreground">{user.status}</span>
+                {renderStatusChip(user.status)}
               </div>
             </li>
             <li className="list-item">

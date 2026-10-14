@@ -94,7 +94,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   // 各导航项按后端 @require_permission 的权限码过滤
   const allNavLinks: NavItem[] = [
-    { href: '/admin', label: '控制台' },
+    { href: '/admin', label: '管理后台' },
     { href: '/admin/apps', label: '应用管理', permission: 'admin.clients' },
     { href: '/admin/users', label: '用户管理', permission: 'admin.users' },
     { href: '/admin/groups', label: '用户组', permission: 'admin.groups' },
@@ -161,7 +161,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               <span className="hidden text-sm text-muted sm:inline">{user.username}</span>
               <Button variant="secondary" size="sm" onPress={handleLogout}>
                 <LogOut className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">退出</span>
+                <span className="hidden sm:inline">退出登录</span>
               </Button>
             </div>
           </div>

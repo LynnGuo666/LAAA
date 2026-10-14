@@ -147,7 +147,7 @@ function MagicLinkContent() {
               正在验证
             </h1>
             <p className="text-muted">
-              请稍候，我们正在验证您的链接...
+              请稍候，我们正在验证您的链接…
             </p>
           </>
         )}
@@ -162,7 +162,7 @@ function MagicLinkContent() {
               验证成功
             </h1>
             <p className="text-muted mb-4">
-              您已成功登录，{countdown} 秒后自动跳转...
+              您已成功登录，{countdown} 秒后自动跳转…
             </p>
             <Link
               href="/dashboard"
@@ -237,7 +237,7 @@ export default function MagicLinkPage() {
       <div className="min-h-screen flex items-center justify-center bg-background p-4">
         <div className="flex flex-col items-center gap-3">
           <Spinner size="lg" />
-          <p className="text-sm text-muted">加载中...</p>
+          <p className="text-sm text-muted">加载中…</p>
         </div>
       </div>
     }>

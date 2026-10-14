@@ -121,13 +121,13 @@ export default function AdminDashboardPage() {
   }
 
   if (loading) {
-    return <AdminLoadingState label="正在加载管理控制台..." />
+    return <AdminLoadingState label="正在加载管理后台..." />
   }
 
   return (
     <div className="space-y-6">
       <AdminPageHeader
-        title="管理控制台"
+        title="管理后台"
         description="这里汇总了管理后台的关键入口和整体数据。"
         actions={
           <Button variant="secondary" onPress={() => window.open('/api/docs', '_blank', 'noopener,noreferrer')}>

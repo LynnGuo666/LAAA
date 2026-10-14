@@ -30,7 +30,7 @@ const STATUS_CONFIG: Record<
     icon: CheckCircle,
     tone: 'loading',
     title: '正在验证邮箱',
-    description: '请稍候...',
+    description: '请稍候…',
   },
   success: {
     icon: CheckCircle,
@@ -185,7 +185,7 @@ function VerifyEmailContent() {
                   className="w-full"
                   isPending={resending}
                 >
-                  {resending ? '发送中...' : '重新发送验证邮件'}
+                  {resending ? '发送中…' : '重新发送验证邮件'}
                 </Button>
               </>
             ) : (
@@ -215,7 +215,7 @@ export default function VerifyEmailPage() {
         <div className="min-h-screen flex items-center justify-center bg-background px-4">
           <div className="flex flex-col items-center gap-3">
             <Spinner size="lg" />
-            <p className="text-sm text-muted">加载中...</p>
+            <p className="text-sm text-muted">加载中…</p>
           </div>
         </div>
       }

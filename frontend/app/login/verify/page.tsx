@@ -250,7 +250,7 @@ export default function VerifyPage() {
 
         <div className="pt-1">
           <ProgressBar value={(session.completed_verifications / session.required_verifications) * 100} color="accent" className="mb-3" />
-          <Button onPress={handleSkip} isDisabled={skipping} variant="ghost" size="sm" className="w-full text-sm text-muted">{skipping ? '处理中...' : '跳过验证，进入受限模式'}</Button>
+          <Button onPress={handleSkip} isDisabled={skipping} variant="ghost" size="sm" className="w-full text-sm text-muted">{skipping ? '处理中…' : '跳过验证，进入受限模式'}</Button>
         </div>
       </div>
     );

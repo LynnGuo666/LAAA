@@ -178,7 +178,7 @@ export default function DashboardLayout({
                     }}
                   >
                     <ListBoxItem id="profile">个人资料</ListBoxItem>
-                    {userIsAdmin && <ListBoxItem id="admin">管理面板</ListBoxItem>}
+                    {userIsAdmin && <ListBoxItem id="admin">管理后台</ListBoxItem>}
                     <ListBoxItem id="logout" className="text-danger">退出登录</ListBoxItem>
                   </ListBox>
                 </Popover.Content>

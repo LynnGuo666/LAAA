@@ -125,7 +125,7 @@ function LoginContent() {
 
   const fetchClientInfo = async (clientId: string) => {
     try {
-      const response = await axios.get(`${API_URL}/api/oauth/client/${clientId}`);
+      const response = await axios.get(`${API_URL}/api/oauth/client/${encodeURIComponent(clientId)}`);
       setClientInfo({
         name: response.data.name,
         description: response.data.description,

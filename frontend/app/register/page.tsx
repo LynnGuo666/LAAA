@@ -66,11 +66,12 @@ function RegisterContent() {
         return;
       }
 
+      // 后端 normalize_code 为 strip().upper()，此处对齐提交值与 uppercase 视觉
       await authApi.register(
         formData.username,
         formData.email,
         formData.password,
-        formData.inviteCode.trim()
+        formData.inviteCode.trim().toUpperCase()
       );
 
       // Redirect to login
