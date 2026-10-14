@@ -204,7 +204,7 @@ def test_invalid_redirect_uri_rejected(client, admin_token, internal_client):
 
 
 def test_invalid_scope_rejected(client, admin_token, internal_client):
-    """请求超出 client 允许的 scope 应被拒。"""
+    """请求超出 client 允许的 scope 应被拒(302/API JSON 回传 invalid_scope)。"""
     cid, _ = internal_client
     headers = {"Authorization": f"Bearer {admin_token}", "Accept": "application/json"}
 
@@ -218,7 +218,10 @@ def test_invalid_scope_rejected(client, admin_token, internal_client):
         },
         headers=headers,
     )
-    assert resp.status_code == 400
+    # redirect_uri 已验证 → 按 RFC 6749 §4.1.2.1 回传 error=invalid_scope
+    # (API 形态是 200 + redirect_url,浏览器形态是 302)
+    assert resp.status_code == 200
+    assert "error=invalid_scope" in resp.json()["redirect_url"]
 
 
 def test_token_endpoint_basic_auth(client, admin_token, internal_client):

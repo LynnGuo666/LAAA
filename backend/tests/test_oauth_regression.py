@@ -1189,8 +1189,10 @@ def test_consent_redirect_carries_pkce_and_nonce(client, admin_token, second_cli
 # ---------------------------------------------------------------------------
 
 def test_authorize_empty_scope_rejected(client, admin_token, internal_client):
-    """显式空 scope(``scope=``)不得因空集恒为子集而绕过 consent → 400。
+    """显式空 scope(``scope=``)不得因空集恒为子集而绕过 consent。
 
+    redirect_uri 已验证,按 RFC 6749 §4.1.2.1 以 302/API JSON 回传
+    error=invalid_scope(与 response_type 错误同风格,原为 400)。
     仅 GET 需要测:POST 的 Form 字段空值会被 FastAPI 替换为默认值
     ``profile``(即「回落默认」语义),空串到不了业务层。
     """
@@ -1205,8 +1207,33 @@ def test_authorize_empty_scope_rejected(client, admin_token, internal_client):
         },
         headers={"Authorization": f"Bearer {admin_token}", "Accept": "application/json"},
     )
-    assert resp.status_code == 400, resp.text
-    assert "scope" in resp.json()["detail"].lower()
+    assert resp.status_code == 200, resp.text
+    redirect_url = resp.json()["redirect_url"]
+    qs = parse_qs(urlparse(redirect_url).query)
+    assert qs["error"] == ["invalid_scope"], redirect_url
+
+
+def test_authorize_invalid_scope_redirected_with_error(
+    client, admin_token, internal_client
+):
+    """请求未授权 scope → 302 回传 error=invalid_scope(原为 400)。"""
+    cid, _ = internal_client
+    resp = client.get(
+        "/api/oauth/authorize",
+        params={
+            "response_type": "code",
+            "client_id": cid,
+            "redirect_uri": REDIRECT_URI,
+            "scope": "profile admin:everything",
+            "state": "st-scope",
+        },
+        headers={"Authorization": f"Bearer {admin_token}", "Accept": "application/json"},
+    )
+    assert resp.status_code == 200, resp.text
+    redirect_url = resp.json()["redirect_url"]
+    qs = parse_qs(urlparse(redirect_url).query)
+    assert qs["error"] == ["invalid_scope"], redirect_url
+    assert qs["state"] == ["st-scope"], redirect_url
 
 
 def test_userinfo_empty_scope_returns_sub_only(client, db_session, seed_admin):

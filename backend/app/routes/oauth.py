@@ -102,9 +102,21 @@ async def authorize_get(
             return {"redirect_url": error_url}
         return RedirectResponse(url=error_url, status_code=302)
 
-    # Verify scope
+    # Verify scope:redirect_uri 已验证合法,与 response_type 同风格按
+    # RFC 6749 §4.1.2.1 以 302 回传 error=invalid_scope(空 scope 的
+    # 拒绝逻辑见 OAuthService.verify_scope,显式空串同样走此分支)
     if not OAuthService.verify_scope(client, scope):
-        raise HTTPException(status_code=400, detail="Invalid scope")
+        error_url = _build_redirect_url(
+            redirect_uri,
+            {
+                "error": "invalid_scope",
+                "error_description": "requested scope is not allowed for this client",
+                "state": state,
+            },
+        )
+        if is_api_call:
+            return {"redirect_url": error_url}
+        return RedirectResponse(url=error_url, status_code=302)
 
     # PKCE:仅允许 S256(OAuth 2.1 BCP,plain 明文传输 verifier 削弱防拦截
     # 意义);challenge 格式按 RFC 7636 校验(43-128,限定字符集)
@@ -310,9 +322,19 @@ async def authorize_post(
 
     # Handle approval
     if action == "approve":
-        # Verify scope
+        # Verify scope(与 GET 一致:redirect_uri 已验证,302 回传 invalid_scope)
         if not OAuthService.verify_scope(client, scope):
-            raise HTTPException(status_code=400, detail="Invalid scope")
+            error_url = _build_redirect_url(
+                redirect_uri,
+                {
+                    "error": "invalid_scope",
+                    "error_description": "requested scope is not allowed for this client",
+                    "state": state,
+                },
+            )
+            if is_api_call:
+                return {"redirect_url": error_url}
+            return RedirectResponse(url=error_url, status_code=302)
 
         # Create authorization code(透传 PKCE + nonce)
         code = OAuthService.create_authorization_code(
