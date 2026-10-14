@@ -6,6 +6,7 @@ import { Button, Card, Spinner, toast } from '@heroui/react';
 import { authApi, API_URL } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { extractErrorMessage } from '@/lib/errors';
+import { isHttpUrl } from '@/lib/validation';
 import { EntityAvatar } from '@/components/admin/admin-ui';
 import axios from 'axios';
 import { AlertTriangle, Ban, Check } from 'lucide-react';
@@ -357,14 +358,19 @@ function AuthorizeContent() {
             <p className="text-sm text-muted mt-2">{clientInfo.description}</p>
           )}
           {clientInfo?.website_url && (
-            <a
-              className="inline-block text-sm text-accent hover:text-accent mt-2"
-              href={clientInfo.website_url}
-              target="_blank"
-              rel="noreferrer"
-            >
-              访问应用官网
-            </a>
+            isHttpUrl(clientInfo.website_url) ? (
+              <a
+                className="inline-block text-sm text-accent hover:text-accent mt-2"
+                href={clientInfo.website_url}
+                target="_blank"
+                rel="noreferrer"
+              >
+                访问应用官网
+              </a>
+            ) : (
+              // 存量脏数据(非 http/https 协议):不渲染为链接,只显示文本
+              <span className="inline-block text-sm text-muted mt-2">{clientInfo.website_url}</span>
+            )
           )}
         </div>
 

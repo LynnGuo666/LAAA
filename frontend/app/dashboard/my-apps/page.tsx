@@ -5,6 +5,7 @@ import { userApi } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { isAdmin } from '@/lib/authz';
 import { extractErrorMessage } from '@/lib/errors';
+import { isHttpUrl } from '@/lib/validation';
 import { Alert, Button, Card } from '@heroui/react';
 import { ExternalLink } from 'lucide-react';
 
@@ -44,7 +45,9 @@ export default function MyAppsPage() {
   };
 
   const openApp = (app: AppItem) => {
-    if (!app.website_url) return;
+    // 只允许 http/https 外链:website_url 是用户可控字段,
+    // 防止 javascript:/data: 等协议经 window.open 注入
+    if (!app.website_url || !isHttpUrl(app.website_url)) return;
     window.open(app.website_url, '_blank', 'noopener,noreferrer');
   };
 
@@ -113,11 +116,11 @@ export default function MyAppsPage() {
                   <div className="flex justify-end">
                     <Button
                       onPress={() => openApp(app)}
-                      variant={app.website_url ? 'primary' : 'tertiary'}
-                      isDisabled={!app.website_url}
+                      variant={isHttpUrl(app.website_url) ? 'primary' : 'tertiary'}
+                      isDisabled={!isHttpUrl(app.website_url)}
                       className="w-auto px-3 text-sm"
                     >
-                      {app.website_url ? '进入应用' : '暂无入口'}
+                      {isHttpUrl(app.website_url) ? '进入应用' : '暂无入口'}
                     </Button>
                   </div>
                 </div>

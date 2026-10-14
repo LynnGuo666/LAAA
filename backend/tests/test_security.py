@@ -658,3 +658,56 @@ def test_geoip_private_ip_precise_172_range():
     assert not _is_private_ip("172.15.0.1")
     assert not _is_private_ip("8.8.8.8")
     assert not _is_private_ip("1.2.3.4")
+
+
+# ---------------------------------------------------------------------------
+# website_url 协议校验(批次 8 修复 9)
+# ---------------------------------------------------------------------------
+
+class TestWebsiteUrlValidation:
+    """ClientCreate/ClientUpdate 的 website_url 只允许 http/https。
+
+    该字段会渲染为 consent 页链接/前端 window.open 入口,
+    javascript:/data: 协议等于存储型 XSS。
+    """
+
+    def test_create_accepts_http_and_https(self):
+        from app.schemas import ClientCreate
+
+        base = {
+            "name": "x",
+            "redirect_uris": ["https://rp.example.com/cb"],
+            "allowed_scopes": ["profile"],
+        }
+        assert ClientCreate(**base, website_url="https://example.com").website_url == "https://example.com"
+        assert ClientCreate(**base, website_url="http://example.com").website_url == "http://example.com"
+
+    def test_create_rejects_dangerous_schemes(self):
+        from pydantic import ValidationError
+
+        from app.schemas import ClientCreate
+
+        base = {
+            "name": "x",
+            "redirect_uris": ["https://rp.example.com/cb"],
+            "allowed_scopes": ["profile"],
+        }
+        for evil in (
+            "javascript:alert(1)",
+            "data:text/html;base64,PHNjcmlwdD4=",
+            "vbscript:msgbox",
+            "file:///etc/passwd",
+        ):
+            with pytest.raises(ValidationError, match="website_url"):
+                ClientCreate(**base, website_url=evil)
+
+    def test_update_rejects_dangerous_scheme_and_allows_clearing(self):
+        from pydantic import ValidationError
+
+        from app.schemas import ClientUpdate
+
+        with pytest.raises(ValidationError, match="website_url"):
+            ClientUpdate(website_url="javascript:alert(1)")
+        # 显式清空/置 None 不受影响
+        assert ClientUpdate(website_url=None).website_url is None
+        assert ClientUpdate(website_url="").website_url == ""

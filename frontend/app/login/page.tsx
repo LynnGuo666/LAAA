@@ -325,7 +325,7 @@ function LoginContent() {
           <p className="text-sm sm:text-base text-muted">
             {clientInfo ? (
               <>
-                您正在登录到 <strong className="text-foreground">{clientInfo.name}</strong>
+                登录 LAAA 后将授权 <strong className="text-foreground">{clientInfo.name}</strong> 访问您的账号
               </>
             ) : (
               <>

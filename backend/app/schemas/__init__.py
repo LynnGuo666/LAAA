@@ -1,6 +1,7 @@
 import string
 from datetime import datetime
 from typing import Any, Dict, List, Optional
+from urllib.parse import urlparse
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
@@ -99,6 +100,21 @@ class RefreshTokenRequest(BaseModel):
 
 
 # Client Schemas
+def _validate_website_url(v: Optional[str]) -> Optional[str]:
+    """website_url 只允许 http/https 协议。
+
+    该字段会渲染为 consent 页链接/前端 window.open 入口,放行
+    javascript:/data: 等协议等于存储型 XSS。存量脏数据不受影响,
+    下次更新该字段时会被拒绝。
+    """
+    if v is None or v == "":
+        return v
+    parsed = urlparse(v)
+    if parsed.scheme not in ("http", "https"):
+        raise ValueError("website_url 必须以 http:// 或 https:// 开头")
+    return v
+
+
 class ClientBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
     description: Optional[str] = None
@@ -108,6 +124,11 @@ class ClientBase(BaseModel):
     allowed_scopes: List[str]
     trusted: bool = False
     default_access: bool = False
+
+    @field_validator("website_url")
+    @classmethod
+    def _check_website_url(cls, v: Optional[str]) -> Optional[str]:
+        return _validate_website_url(v)
 
 
 class ClientCreate(ClientBase):
@@ -123,6 +144,11 @@ class ClientUpdate(BaseModel):
     allowed_scopes: Optional[List[str]] = None
     trusted: Optional[bool] = None
     default_access: Optional[bool] = None
+
+    @field_validator("website_url")
+    @classmethod
+    def _check_website_url(cls, v: Optional[str]) -> Optional[str]:
+        return _validate_website_url(v)
 
 
 class ClientResponse(ClientBase):

@@ -52,3 +52,21 @@ export function validatePasswordStrength(password: string): PasswordStrengthResu
   }
   return { valid: true, message: '' };
 }
+
+/**
+ * 判断外链 URL 是否只允许 http/https 协议。
+ *
+ * 应用官网（website_url）等用户可控的链接在渲染 <a href> 或 window.open
+ * 前必须校验，防止 `javascript:`/`data:` 等协议注入（存储型 XSS）。
+ * 存量脏数据不渲染为链接，只显示文本（后端 schema 已在写入侧拦截，
+ * 新数据不会再落入非 http 协议）。
+ */
+export function isHttpUrl(url: string | null | undefined): url is string {
+  if (!url) return false;
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
