@@ -75,7 +75,7 @@ function ResultState({
 
   return (
     <div
-      className="surface p-8 text-center animate-fade-in"
+      className="card card--default p-8 text-center animate-fade-in"
       role="status"
       aria-live="polite"
     >
@@ -167,7 +167,7 @@ function VerifyEmailContent() {
         <ResultState status={status} description={status === 'error' ? errorMessage : ''} />
 
         {status === 'error' && (
-          <div className="surface p-6 mt-4 space-y-4 text-center animate-fade-in">
+          <div className="card card--default p-6 mt-4 space-y-4 text-center animate-fade-in">
             {resendResult && (
               <p className={resendResult.ok ? 'text-success text-sm' : 'text-danger text-sm'}>
                 {resendResult.message}

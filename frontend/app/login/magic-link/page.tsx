@@ -136,7 +136,7 @@ function MagicLinkContent() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <div className="max-w-md w-full surface p-6 sm:p-8 animate-fade-in text-center">
+      <div className="max-w-md w-full card card--default p-6 sm:p-8 animate-fade-in text-center">
         {/* Verifying */}
         {status === 'verifying' && (
           <>

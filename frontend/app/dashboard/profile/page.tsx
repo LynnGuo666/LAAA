@@ -45,7 +45,7 @@ export default function ProfilePage() {
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)] gap-6">
-        <form onSubmit={handleSubmit} className="surface p-5 sm:p-6 space-y-5">
+        <form onSubmit={handleSubmit} className="card card--default p-5 sm:p-6 space-y-5">
           {message && (
             <Alert status={message.startsWith('错误') ? 'danger' : 'success'}>
               <Alert.Indicator />

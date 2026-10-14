@@ -291,7 +291,7 @@ export default function RestrictedModeOverlay({ user, onComplete }: RestrictedMo
               </Alert.Description>
             </Alert.Content>
           </Alert>
-          <div className="surface p-6">
+          <div className="card card--default p-6">
             <div className="flex items-start gap-4">
               <div className="w-10 h-10 rounded-full bg-warning/10 flex items-center justify-center shrink-0">
                 <AlertTriangle className="w-5 h-5 text-warning" />
@@ -412,7 +412,7 @@ export default function RestrictedModeOverlay({ user, onComplete }: RestrictedMo
         {currentStep === 'overview' && (
           <div className="space-y-4">
             {/* Step 1: Email verification */}
-            <div className={`surface p-6 ${emailVerified ? 'opacity-60' : ''}`}>
+            <div className={`card card--default p-6 ${emailVerified ? 'opacity-60' : ''}`}>
               <div className="flex items-start gap-4">
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
                   emailVerified
@@ -494,7 +494,7 @@ export default function RestrictedModeOverlay({ user, onComplete }: RestrictedMo
             </div>
 
             {/* Step 2: Second factor */}
-            <div className={`surface p-6 ${!emailVerified ? 'opacity-60 pointer-events-none' : ''}`}>
+            <div className={`card card--default p-6 ${!emailVerified ? 'opacity-60 pointer-events-none' : ''}`}>
               <div className="flex items-start gap-4">
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
                   hasSecondFactor
@@ -567,7 +567,7 @@ export default function RestrictedModeOverlay({ user, onComplete }: RestrictedMo
 
         {/* TOTP Setup */}
         {currentStep === 'totp' && (
-          <div className="surface p-6">
+          <div className="card card--default p-6">
             {showBackupCodes ? (
               <div>
                 <h3 className="text-lg font-semibold text-foreground mb-4">
@@ -672,7 +672,7 @@ export default function RestrictedModeOverlay({ user, onComplete }: RestrictedMo
 
         {/* Passkey Setup */}
         {currentStep === 'passkey' && (
-          <div className="surface p-6">
+          <div className="card card--default p-6">
             <div className="flex items-center gap-2 mb-4">
               <Button  onPress={() => setCurrentStep('overview')} variant="ghost"
               className="text-muted hover:text-muted p-1 h-auto w-auto"><ChevronLeft className="w-5 h-5" /></Button>

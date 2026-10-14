@@ -90,7 +90,7 @@ function RegisterContent() {
           <p className="mt-2 text-muted">开始使用本站服务</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="surface p-6 space-y-6">
+        <form onSubmit={handleSubmit} className="card card--default p-6 space-y-6">
           {error && (
             <Alert status="danger">
               <Alert.Indicator />

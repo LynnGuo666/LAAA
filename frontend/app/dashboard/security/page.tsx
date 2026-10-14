@@ -450,7 +450,7 @@ export default function SecurityPage() {
       )}
 
       {/* 两步验证 */}
-      <div className="surface p-4 sm:p-6">
+      <div className="card card--default p-4 sm:p-6">
         <Tabs selectedKey={activeTab} onSelectionChange={(key) => handleTabChange(String(key))} className="w-full">
           <div className="grid grid-cols-1 lg:grid-cols-[180px_minmax(0,1fr)] gap-3 sm:gap-4">
           <Tabs.ListContainer className="lg:pr-1">

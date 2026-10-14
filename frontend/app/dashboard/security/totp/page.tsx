@@ -217,7 +217,7 @@ export default function TOTPSetupPage() {
       )}
 
       {showBackupCodes && backupCodes.length > 0 && (
-        <div className="surface p-6">
+        <div className="card card--default p-6">
           <div className="flex items-start gap-4 mb-4">
             <div className="w-10 h-10 bg-warning/10 rounded-full flex items-center justify-center shrink-0">
               <AlertTriangle className="w-5 h-5 text-warning" />
@@ -257,7 +257,7 @@ export default function TOTPSetupPage() {
         </div>
       )}
 
-      <div className="surface p-6">
+      <div className="card card--default p-6">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
             <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
@@ -324,7 +324,7 @@ export default function TOTPSetupPage() {
       </div>
 
       {setupData && (
-        <div className="surface p-6">
+        <div className="card card--default p-6">
           <h3 className="text-lg font-semibold text-foreground mb-4">
             设置身份验证器
           </h3>
@@ -486,7 +486,7 @@ export default function TOTPSetupPage() {
         </AlertDialog.Backdrop>
       </AlertDialog>
 
-      <div className="surface p-6">
+      <div className="card card--default p-6">
         <h3 className="font-semibold text-foreground mb-3">
           什么是身份验证器？
         </h3>

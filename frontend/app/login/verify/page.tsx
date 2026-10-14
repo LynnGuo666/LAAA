@@ -254,7 +254,7 @@ export default function VerifyPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <div className="max-w-md w-full surface p-6 sm:p-8 animate-fade-in">
+      <div className="max-w-md w-full card card--default p-6 sm:p-8 animate-fade-in">
         {error && <Alert status="danger" className="mb-4"><Alert.Indicator /><Alert.Content><Alert.Description>{error}</Alert.Description></Alert.Content></Alert>}
         {success && <Alert status="success" className="mb-4"><Alert.Indicator /><Alert.Content><Alert.Description>{success}</Alert.Description></Alert.Content></Alert>}
         {renderStep()}

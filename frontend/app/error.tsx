@@ -18,7 +18,7 @@ export default function Error({
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4">
-      <div className="card max-w-lg w-full">
+      <div className="card card--default max-w-lg w-full">
         <h1 className="text-2xl font-bold mb-2">页面出错了</h1>
         <p className="text-muted mb-6">
           请刷新重试，或返回控制台继续使用。
