@@ -21,6 +21,7 @@ export default function DashboardLayout({
   const router = useRouter();
   const pathname = usePathname();
   const { user, setUser, logout } = useAuthStore();
+  const isRestrictedSession = useAuthStore((state) => state.isRestrictedSession);
   const [siteName, setSiteName] = useState('OAuth 服务器');
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
 
@@ -95,8 +96,9 @@ export default function DashboardLayout({
     : pathname;
   const activeDesktopNav = navLinks.find((link) => normalizedPathname === link.href || normalizedPathname.startsWith(`${link.href}/`))?.href || navLinks[0].href;
 
-  // Show restricted mode overlay if user is restricted
-  if (user.is_restricted) {
+  // Show restricted mode overlay if user is restricted（账户受限：邮箱未验证/无二次验证）
+  // or the current session is restricted（会话受限：跳过验证登录签发的受限 token）
+  if (user.is_restricted || isRestrictedSession) {
     return (
       <RestrictedModeOverlay
         user={user}

@@ -102,14 +102,17 @@ export default function VerifyPage() {
 
   const handleSkip = async () => {
     if (!session) return;
-    if (!(await confirmDialog({ title: '确认跳过验证', description: '跳过验证后，您需要先完成邮箱验证和设置二次验证方式才能正常使用系统。', confirmText: '继续跳过', cancelText: '取消', status: 'warning', confirmVariant: 'primary' }))) return;
+    if (!(await confirmDialog({ title: '确认跳过验证', description: '跳过验证后将以受限模式进入系统：会话仅 5 分钟且不可续期，修改密码、绑定/解绑安全方式等敏感操作不可用，需重新登录并完成验证后才能恢复。', confirmText: '继续跳过', cancelText: '取消', status: 'warning', confirmVariant: 'primary' }))) return;
     setSkipping(true); setError('');
     try {
       const res = await verificationApi.skipVerification(session.session_token);
-      const { access_token, refresh_token } = res.data;
-      // token 只存内存；后端已通过 Set-Cookie 下发认证 cookie
+      // skip 只签发受限 token：短 TTL + restricted claim，无 refresh token。
+      // token 只存内存；后端只下发 authorize_token cookie（无 laaa_refresh），
+      // 页面刷新后无法恢复会话，需重新登录。
+      const { access_token, refresh_token, restricted } = res.data;
       const userRes = await authApi.getMe(access_token);
-      setAuth(userRes.data, access_token, refresh_token);
+      setAuth(userRes.data, access_token, refresh_token ?? null);
+      if (restricted) useAuthStore.getState().setRestrictedSession(true);
       sessionStorage.removeItem('verification_session');
       router.push(isSafeRedirect(session.redirect) ? session.redirect : '/dashboard');
     } catch (err: any) { setError(err.response?.data?.detail || '跳过失败'); } finally { setSkipping(false); }

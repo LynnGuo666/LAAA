@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { toast } from '@heroui/react';
 import { useAuthStore } from './store';
 import { getDeviceToken } from './device';
 
@@ -110,6 +111,16 @@ api.interceptors.response.use(
           return Promise.reject(refreshError);
         }
       }
+    }
+
+    // 受限会话 403：后端 require_unrestricted 拒绝了「跳过验证」签发的受限 token。
+    // 呼出引导（完成验证 / 重新登录）；完整引导界面在 dashboard 的 RestrictedModeOverlay。
+    if (
+      error.response?.status === 403 &&
+      typeof error.response?.data?.detail === 'string' &&
+      error.response.data.detail.includes('受限会话')
+    ) {
+      toast.warning('当前为受限会话（跳过验证登录），请重新登录并完成安全验证后再执行此操作');
     }
 
     return Promise.reject(error);

@@ -37,6 +37,9 @@ interface TOTPSetupData {
 
 export default function RestrictedModeOverlay({ user, onComplete }: RestrictedModeOverlayProps) {
   const router = useRouter();
+  // 会话级受限：本次登录走了「跳过验证」，token 是 skip 签发的受限 token
+  //（区别于 user.is_restricted 的账户级受限）
+  const isRestrictedSession = useAuthStore((state) => state.isRestrictedSession);
 
   const [currentStep, setCurrentStep] = useState<Step>('overview');
   const [loading, setLoading] = useState(false);
@@ -234,6 +237,60 @@ export default function RestrictedModeOverlay({ user, onComplete }: RestrictedMo
 
   const emailVerified = user.email_verified;
   const hasSecondFactor = totpEnabled || passkeyCount > 0;
+  const accountRestricted = !!user.is_restricted;
+
+  // 变体一：仅会话受限（账户本身已达标：邮箱已验证 + 有二次验证，
+  // 只是本次登录跳过了风控验证）。引导用户重新登录完成验证即可恢复。
+  if (isRestrictedSession && !accountRestricted) {
+    return (
+      <div className="min-h-screen bg-background">
+        <nav className="bg-surface shadow-sm border-b border-default-200">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-between h-16">
+              <div className="flex items-center">
+                <span className="text-xl font-bold text-foreground">账户设置</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-sm text-default-600">{user.username}</span>
+                <Button onPress={handleLogout} variant="tertiary" className="text-sm inline-flex items-center gap-1"><LogOut className="w-4 h-4" />
+                退出
+                </Button>
+              </div>
+            </div>
+          </div>
+        </nav>
+        <main className="max-w-2xl mx-auto py-8 px-4">
+          <Alert status="warning" className="mb-6">
+            <Alert.Indicator />
+            <Alert.Content>
+              <Alert.Title>当前为受限会话</Alert.Title>
+              <Alert.Description>
+                您本次登录跳过了安全验证，会话有效期短且不可续期，修改密码、安全设置、会话管理等敏感操作不可用。
+                请退出并重新登录，完成安全验证后即可恢复完整功能。
+              </Alert.Description>
+            </Alert.Content>
+          </Alert>
+          <div className="surface p-6">
+            <div className="flex items-start gap-4">
+              <div className="w-10 h-10 rounded-full bg-warning/10 flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-5 h-5 text-warning" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-foreground mb-1">恢复完整功能</h3>
+                <p className="text-sm text-default-600 mb-4">
+                  重新登录时按提示完成邮箱验证码 / 身份验证器 / 通行密钥任一验证方式，即可获得正常会话。
+                </p>
+                <Button onPress={handleLogout} variant="primary" className="text-sm inline-flex items-center gap-1">
+                  <LogOut className="w-4 h-4" />
+                  退出并重新登录
+                </Button>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -270,6 +327,20 @@ export default function RestrictedModeOverlay({ user, onComplete }: RestrictedMo
             </Alert.Description>
           </Alert.Content>
         </Alert>
+
+        {/* 会话受限提示：本次登录跳过了验证，TOTP 等设置需重新登录后完成 */}
+        {isRestrictedSession && (
+          <Alert status="accent" className="mb-6">
+            <Alert.Indicator />
+            <Alert.Content>
+              <Alert.Title>当前为受限会话（跳过验证登录）</Alert.Title>
+              <Alert.Description>
+                身份验证器（TOTP）的设置在受限会话下不可用；邮箱验证、修改邮箱与通行密钥绑定仍可进行。
+                完成设置后请退出并重新登录，或重新登录时完成安全验证以恢复完整功能。
+              </Alert.Description>
+            </Alert.Content>
+          </Alert>
+        )}
 
         {/* Progress indicator */}
         <div className="flex items-center justify-center gap-4 mb-8">
