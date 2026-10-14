@@ -52,6 +52,8 @@ export default function RestrictedModeOverlay({ user, onComplete }: RestrictedMo
   const [emailCooldown, setEmailCooldown] = useState(0);
   const [editingEmail, setEditingEmail] = useState(false);
   const [newEmail, setNewEmail] = useState('');
+  // 修改邮箱需确认当前密码（后端 ChangeEmailRequest 必填，防会话劫持后改邮箱接管）
+  const [emailPassword, setEmailPassword] = useState('');
 
   // TOTP state
   const [totpSetupData, setTotpSetupData] = useState<TOTPSetupData | null>(null);
@@ -129,14 +131,20 @@ export default function RestrictedModeOverlay({ user, onComplete }: RestrictedMo
       return;
     }
 
+    if (!emailPassword) {
+      setError('请输入当前密码以确认身份');
+      return;
+    }
+
     setLoading(true);
     setError('');
 
     try {
-      await authApi.changeEmail(newEmail);
-      setSuccess('邮箱已更新，请发送验证邮件');
+      await authApi.changeEmail(newEmail, emailPassword);
+      setSuccess('验证链接已发送到新邮箱，请查收并点击确认以完成变更');
       setEditingEmail(false);
       setNewEmail('');
+      setEmailPassword('');
       onComplete(); // Refresh user data
     } catch (err: any) {
       setError(extractErrorMessage(err, '修改失败'));
@@ -420,18 +428,35 @@ export default function RestrictedModeOverlay({ user, onComplete }: RestrictedMo
                     </span>
                   ) : editingEmail ? (
                     <div className="space-y-3">
-                      <Input
-                        type="email"
-                        value={newEmail}
-                        onChange={(e) => setNewEmail(e.target.value)}
-                        placeholder="输入新邮箱地址"
-                        className="w-full max-w-sm"
-                      />
+                      <div>
+                        <Label className="block text-sm font-medium text-default-600 mb-1">新邮箱地址</Label>
+                        <Input
+                          type="email"
+                          value={newEmail}
+                          onChange={(e) => setNewEmail(e.target.value)}
+                          placeholder="输入新邮箱地址"
+                          className="w-full max-w-sm"
+                        />
+                      </div>
+                      <div>
+                        <Label className="block text-sm font-medium text-default-600 mb-1">当前密码</Label>
+                        <Input
+                          type="password"
+                          value={emailPassword}
+                          onChange={(e) => setEmailPassword(e.target.value)}
+                          placeholder="输入当前密码以确认身份"
+                          className="w-full max-w-sm"
+                        />
+                      </div>
+                      <p className="text-xs text-default-500">
+                        变更不立即生效：验证链接会发送到新邮箱，点击确认后才完成更换。
+                      </p>
                       <div className="flex gap-2">
                         <Button onPress={handleChangeEmail} isDisabled={loading} variant="primary" className="text-sm">{loading ? '保存中...' : '保存'}</Button>
                         <Button onPress={() => {
                           setEditingEmail(false);
                           setNewEmail('');
+                          setEmailPassword('');
                         }} variant="tertiary" className="text-sm">
                           取消
                         </Button>

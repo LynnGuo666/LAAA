@@ -169,8 +169,12 @@ export const authApi = {
     api.get(`/api/auth/verify-email/${token}`),
 
   // Change email (available in restricted mode)
-  changeEmail: (newEmail: string) =>
-    api.post('/api/auth/change-email', { new_email: newEmail }),
+  // 后端 ChangeEmailRequest 必填 current_password（step-up 确认，防会话劫持改邮箱）
+  changeEmail: (newEmail: string, currentPassword: string) =>
+    api.post('/api/auth/change-email', {
+      new_email: newEmail,
+      current_password: currentPassword,
+    }),
 };
 
 // Site API (public + admin)
