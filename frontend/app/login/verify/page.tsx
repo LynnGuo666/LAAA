@@ -83,6 +83,11 @@ export default function VerifyPage() {
         const userRes = await authApi.getMe(res.data.access_token);
         setAuth(userRes.data, res.data.access_token, res.data.refresh_token);
         sessionStorage.removeItem('verification_session');
+        // 首登/被重置密码后的强制改密:直达改密页(与密码/通行密钥登录同策略)
+        if (userRes.data.must_change_password) {
+          router.push('/dashboard/security#password');
+          return;
+        }
         router.push(isSafeRedirect(session?.redirect) ? session.redirect : '/dashboard');
       } else {
         setCompletedMethods([...completedMethods, method]);

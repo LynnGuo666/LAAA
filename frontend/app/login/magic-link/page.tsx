@@ -51,6 +51,12 @@ function MagicLinkContent() {
         }
         sessionStorage.removeItem('verification_session');
       }
+      // 首登/被重置密码后的强制改密:直达改密页(与密码/通行密钥登录同策略)
+      const currentUser = useAuthStore.getState().user;
+      if (currentUser?.must_change_password) {
+        router.push('/dashboard/security#password');
+        return;
+      }
       // 安全检查：仅允许站内路径，防止协议相对 URL 之类的开放重定向
       router.push(isSafeRedirect(redirectUrl) ? redirectUrl : '/dashboard');
     }

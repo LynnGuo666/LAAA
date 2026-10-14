@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Alert, Button, Chip, Input, Label, TextField } from '@heroui/react';
 import Link from 'next/link';
-import { authApi, passkeyApi, API_URL } from '@/lib/api';
+import { authApi, passkeyApi, verificationApi, API_URL } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { isSafeRedirect } from '@/lib/authz';
 import { extractErrorMessage } from '@/lib/errors';
@@ -77,6 +77,12 @@ function LoginContent() {
   const [loadingClient, setLoadingClient] = useState(true);
   const [mounted, setMounted] = useState(false);
   const [justRegistered, setJustRegistered] = useState(false);
+
+  // 魔法链接登录(免密码):邮箱输入 → 后端发送一次性登录链接
+  const [showMagicLink, setShowMagicLink] = useState(false);
+  const [magicLinkEmail, setMagicLinkEmail] = useState('');
+  const [magicLinkSending, setMagicLinkSending] = useState(false);
+  const [magicLinkSent, setMagicLinkSent] = useState(false);
 
   // 被踢下线 / 风险提示的延迟跳转定时器
   const redirectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -303,6 +309,28 @@ function LoginContent() {
     }
   };
 
+  const handleMagicLinkSend = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (magicLinkSending) return;
+    const email = magicLinkEmail.trim();
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setError('请输入有效的邮箱地址');
+      return;
+    }
+    setError('');
+    setMagicLinkSending(true);
+    try {
+      // 后端对已注册/未注册返回相同文案(防邮箱枚举);设备绑定 cookie
+      // (magic_link_device)已由后端 Set-Cookie 下发,链接须在本浏览器打开
+      await verificationApi.sendMagicLinkLogin(email);
+      setMagicLinkSent(true);
+    } catch (err: any) {
+      setError(extractErrorMessage(err, '发送登录链接失败，请稍后重试'));
+    } finally {
+      setMagicLinkSending(false);
+    }
+  };
+
   if (loadingClient) {
     return <PageLoadingState />;
   }
@@ -419,6 +447,49 @@ function LoginContent() {
                 <KeyRound className="w-4 h-4 mr-2" />
               )}
               {passkeyLoading ? '验证中...' : '使用通行密钥登录'}</Button>
+
+              {/* 魔法链接登录(免密码,次级入口) */}
+              {!magicLinkSent ? (
+                <>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="w-full text-sm text-muted"
+                    onPress={() => { setShowMagicLink(!showMagicLink); setError(''); }}
+                  >
+                    {showMagicLink ? '收起' : '使用魔法链接登录'}
+                  </Button>
+                  {showMagicLink && (
+                    <form onSubmit={handleMagicLinkSend} className="space-y-3">
+                      <p className="text-xs text-muted">
+                        输入注册邮箱，我们将发送一次性登录链接（须在本浏览器中打开）。
+                      </p>
+                      <TextField isRequired isDisabled={magicLinkSending}>
+                        <Label>邮箱</Label>
+                        <Input
+                          type="email"
+                          autoComplete="email"
+                          value={magicLinkEmail}
+                          onChange={(e) => setMagicLinkEmail(e.target.value)}
+                          placeholder="you@example.com"
+                        />
+                      </TextField>
+                      <Button type="submit" isDisabled={magicLinkSending} variant="secondary" className="w-full" isPending={magicLinkSending}>
+                        {magicLinkSending ? '发送中...' : '发送登录链接'}
+                      </Button>
+                    </form>
+                  )}
+                </>
+              ) : (
+                <Alert status="success" className="text-sm">
+                  <Alert.Indicator />
+                  <Alert.Content>
+                    <Alert.Description>
+                      如果该邮箱已注册，登录链接已发送，请查收邮件（须在本浏览器中打开链接）。
+                    </Alert.Description>
+                  </Alert.Content>
+                </Alert>
+              )}
             </>
           )}
 
