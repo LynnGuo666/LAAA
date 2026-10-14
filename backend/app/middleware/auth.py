@@ -92,8 +92,11 @@ def get_optional_user(
     if auth_header and auth_header.startswith("Bearer "):
         token = auth_header.replace("Bearer ", "")
     else:
-        # Fall back to session cookie (for OAuth authorize endpoint)
-        token = request.cookies.get("session_token")
+        # Fall back to the authorize cookie (HttpOnly, Path=/api/oauth, TTL=access token).
+        # 新名 authorize_token(token A2);旧名 session_token 过渡期兼容,自然消亡后删除。
+        # 注意:This function is only mounted on the OAuth authorize endpoints,
+        # do NOT use cookies for business endpoints (get_current_user is always Bearer-only).
+        token = request.cookies.get("authorize_token") or request.cookies.get("session_token")
 
     if not token:
         return None

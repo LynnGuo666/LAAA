@@ -11,14 +11,13 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from app.api import admin, groups, invites
 from app.config import get_settings
 from app.database import get_db, init_db
 from app.middleware.auth import get_current_user
 from app.middleware.observability import RequestIdMiddleware, configure_logging
 from app.middleware.ratelimit import limiter
 from app.models import User
-from app.routes import auth, client, oauth, oidc, passkey, site, totp, user
+from app.routes import admin, auth, client, groups, invites, oauth, oidc, passkey, site, totp, user
 from app.utils.security import keystore
 
 settings = get_settings()
@@ -69,6 +68,10 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 # request_id 中间件:每个请求注入 X-Request-ID,贯穿日志便于排障
 app.add_middleware(RequestIdMiddleware)
 
+# 全局安全响应头(CSP/XFO/nosniff 等)——静态导出只能由后端注入
+from app.middleware.security_headers import SecurityHeadersMiddleware
+app.add_middleware(SecurityHeadersMiddleware)
+
 @app.exception_handler(RequestValidationError)
 async def request_validation_error_handler(request: Request, exc: RequestValidationError):
     # exc.errors() 的 ctx 里可能含 ValueError 等不可 JSON 序列化的对象,转成 str 再返回
@@ -107,9 +110,9 @@ app.include_router(oidc.router)
 app.include_router(site.router)
 app.include_router(passkey.router)
 app.include_router(totp.router)
-app.include_router(groups.router, prefix="/api/groups", tags=["groups"])
-app.include_router(admin.router, prefix="/api/admin", tags=["admin"])
-app.include_router(invites.router, prefix="/api/admin/invites", tags=["admin"])
+app.include_router(groups.router)
+app.include_router(admin.router)
+app.include_router(invites.router)
 
 def require_docs_admin(current_user: User = Depends(get_current_user)) -> User:
     if current_user.has_role("admin") or current_user.has_permission("admin.*"):
@@ -179,7 +182,7 @@ if os.path.exists(static_dir):
     async def serve_frontend(full_path: str):
         # Don't serve frontend for API routes
         if full_path.startswith("api/"):
-            return {"error": "Not found"}
+            raise HTTPException(status_code=404, detail="Not found")
 
         def _resolve(rel: str):
             """把相对路径安全解析到 static_dir 内;穿越出目录返回 None。

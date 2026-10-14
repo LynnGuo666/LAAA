@@ -123,12 +123,16 @@ class RiskService:
 
     @staticmethod
     def get_risk_level(score: int) -> RiskLevel:
-        """Determine risk level based on score"""
+        """Determine risk level based on score.
+
+        阈值来自 settings.risk_score_medium / risk_score_high
+        (env: RISK_SCORE_MEDIUM / RISK_SCORE_HIGH),与 .env.example 对齐。
+        """
         if score == 0:
             return RiskLevel.NONE
-        elif score <= 2:
+        elif score <= settings.risk_score_medium:
             return RiskLevel.LOW
-        elif score <= 4:
+        elif score <= settings.risk_score_high:
             return RiskLevel.MEDIUM
         else:
             return RiskLevel.HIGH

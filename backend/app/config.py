@@ -90,6 +90,10 @@ class Settings(BaseSettings):
     smtp_use_ssl: bool = False  # SSL/TLS (port 465)
     # SMTP 证书校验:默认校验(防中间人截获凭据);仅对证书异常的旧服务器关闭
     smtp_verify_tls: bool = True
+    # Cookie Secure 标志:生产(true)必须 HTTPS;本地 http 调试可设 false
+    # (Safari 不豁免 localhost 的 Secure cookie,dev 双 origin 形态建议关闭)
+    # Env vars: COOKIE_SECURE
+    cookie_secure: bool = True
 
     # Risk-based verification settings
     # Env vars: RISK_SCORE_MEDIUM, RISK_SCORE_HIGH

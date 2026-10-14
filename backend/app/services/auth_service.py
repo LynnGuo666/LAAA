@@ -129,10 +129,16 @@ class AuthService:
         device_token: Optional[str] = None,
         ip_address: Optional[str] = None,
         user_agent: Optional[str] = None,
-        login_method: str = "password"
+        login_method: str = "password",
+        geo_info: Optional[Dict[str, Any]] = None,
+        anomalies: Optional[List[Dict[str, Any]]] = None,
     ) -> Dict[str, Any]:
         """
         Create access and refresh tokens for a user.
+
+        Args:
+            geo_info: 调用方已查过的 GeoIP 结果(传入则不重查,省一次 mmdb 读)
+            anomalies: 调用方已跑过的异常检测结果(传入则不重跑)
 
         Returns:
             Dictionary containing:
@@ -152,13 +158,15 @@ class AuthService:
         # Always generate device_id for session tracking
         device_id = generate_device_id(user.id, safe_user_agent, safe_ip_address)
 
-        # Get GeoIP information
-        geo_info = GeoIPService.get_location(safe_ip_address)
+        # Get GeoIP information(调用方传入则复用)
+        if geo_info is None:
+            geo_info = GeoIPService.get_location(safe_ip_address)
 
-        # Check for anomalies
-        anomalies = LoginAnomalyService.check_anomalies(
-            db, user, safe_ip_address, safe_user_agent, geo_info
-        )
+        # Check for anomalies(调用方传入则复用)
+        if anomalies is None:
+            anomalies = LoginAnomalyService.check_anomalies(
+                db, user, safe_ip_address, safe_user_agent, geo_info
+            )
         is_suspicious = LoginAnomalyService.is_suspicious(anomalies)
 
         # Check and enforce session limits
