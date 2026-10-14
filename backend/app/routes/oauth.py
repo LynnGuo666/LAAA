@@ -615,10 +615,16 @@ async def introspect(
     """
     body = await _parse_form_or_json(request)
     token_value = body.get("token")
-    # client 认证(Basic 或 body)
+    # client 认证(Basic 或 body)。public client(如 SPA/原生应用)无 secret,
+    # 与 token 端点 refresh grant 的 public 分支保持对称:按 client_type 跳过
+    # secret 校验(否则 public client 恒 401,无法自查 token 状态)。
     cid, csec = _extract_client_credentials(request, body)
     client = OAuthService.get_client_by_id(db, cid) if cid else None
-    if not client or not verify_client_secret(csec or "", client.client_secret_hash):
+    is_public = bool(client) and getattr(client, 'client_type', 'confidential') == 'public'
+    client_authenticated = bool(client) and (
+        is_public or verify_client_secret(csec or "", client.client_secret_hash)
+    )
+    if not client_authenticated:
         return JSONResponse(status_code=401, content={"error": "invalid_client"})
 
     if not token_value:
@@ -656,9 +662,14 @@ async def revoke(
     body = await _parse_form_or_json(request)
     token_value = body.get("token")
     token_type_hint = body.get("token_type_hint", "refresh_token")
+    # 与 introspect 一致:public client 按 client_type 免 secret 校验
     cid, csec = _extract_client_credentials(request, body)
     client = OAuthService.get_client_by_id(db, cid) if cid else None
-    if not client or not verify_client_secret(csec or "", client.client_secret_hash):
+    is_public = bool(client) and getattr(client, 'client_type', 'confidential') == 'public'
+    client_authenticated = bool(client) and (
+        is_public or verify_client_secret(csec or "", client.client_secret_hash)
+    )
+    if not client_authenticated:
         return JSONResponse(status_code=401, content={"error": "invalid_client"})
 
     if token_value:

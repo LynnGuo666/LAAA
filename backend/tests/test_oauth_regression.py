@@ -1072,6 +1072,76 @@ def test_public_client_refresh_without_secret(client, admin_token, public_client
     assert "access_token" in r2.json()
 
 
+def test_public_client_introspect_and_revoke_without_secret(
+    client, admin_token, public_client
+):
+    """public client 的 introspect/revoke 免 client_secret(此前恒 401)。
+
+    与 refresh grant 的 public 分支对称;introspect 无权查看仍返回
+    active:false,不泄露信息。
+    """
+    verifier, challenge = _pkce_pair()
+    code = _approve_for_code(
+        client, admin_token, public_client,
+        code_challenge=challenge, code_challenge_method="S256",
+    )
+
+    r1 = client.post("/api/oauth/token", data={
+        "grant_type": "authorization_code",
+        "code": code,
+        "redirect_uri": REDIRECT_URI,
+        "client_id": public_client,
+        "code_verifier": verifier,
+    })
+    assert r1.status_code == 200, r1.text
+    access_token = r1.json()["access_token"]
+    refresh_token = r1.json()["refresh_token"]
+
+    # introspect 免 secret → 200 且 active:true
+    ri = client.post("/api/oauth/introspect", data={
+        "token": access_token, "client_id": public_client,
+    })
+    assert ri.status_code == 200, ri.text
+    assert ri.json()["active"] is True
+    assert ri.json()["client_id"] == public_client
+
+    # revoke 免 secret → 200
+    rr = client.post("/api/oauth/revoke", data={
+        "token": refresh_token, "client_id": public_client,
+    })
+    assert rr.status_code == 200, rr.text
+
+    # revoke 后 refresh token 不可再用(token 端点 400)
+    r_after = client.post("/api/oauth/token", data={
+        "grant_type": "refresh_token",
+        "refresh_token": refresh_token,
+        "client_id": public_client,
+    })
+    assert r_after.status_code == 400
+
+    # introspect 无效 token → active:false(不泄露具体原因)
+    ri2 = client.post("/api/oauth/introspect", data={
+        "token": "not-a-real-token", "client_id": public_client,
+    })
+    assert ri2.status_code == 200
+    assert ri2.json()["active"] is False
+
+
+def test_introspect_unknown_client_still_401(client, internal_client):
+    """机密/未知 client 不带有效凭据 → 仍 401(public 豁免不得扩大面)。"""
+    cid, _ = internal_client
+    resp = client.post("/api/oauth/introspect", data={
+        "token": "whatever", "client_id": cid,
+    })
+    assert resp.status_code == 401
+    assert resp.json()["error"] == "invalid_client"
+
+    resp2 = client.post("/api/oauth/revoke", data={
+        "token": "whatever", "client_id": cid,
+    })
+    assert resp2.status_code == 401
+
+
 # ---------------------------------------------------------------------------
 # consent 重定向透传 PKCE/nonce(批次2 修复4)
 # ---------------------------------------------------------------------------
