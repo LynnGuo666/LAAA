@@ -4,6 +4,7 @@ Verification Service
 Handles multi-step verification for suspicious logins.
 """
 
+import asyncio
 import hashlib
 import hmac
 import json
@@ -22,6 +23,17 @@ from app.utils.time import utcnow
 
 settings = get_settings()
 logger = logging.getLogger(__name__)
+
+# 后台邮件任务引用:防止 task 被 GC(Python 文档明确要求持有 create_task 返回值),
+# 与 app/routes/auth.py 的 _spawn_email_task 同一模式
+_background_email_tasks: set = set()
+
+
+def _spawn_email_task(coro) -> None:
+    """安全地启动后台邮件任务:持有引用 + 完成后自动移除。"""
+    task = asyncio.create_task(coro)
+    _background_email_tasks.add(task)
+    task.add_done_callback(_background_email_tasks.discard)
 
 
 class VerificationError(Exception):
@@ -201,15 +213,17 @@ class VerificationService:
         db.commit()
         db.refresh(verification_code)
 
-        # Send email
+        # Send email(后台任务:SMTP 慢速服务器不再挂起请求)
         if send_email:
             user = db.query(User).get(verification_session.user_id)
             if user and user.email:
-                await EmailService.send_verification_code(
-                    to_email=user.email,
-                    username=user.username,
-                    code=code,
-                    expire_minutes=settings.verification_code_expire_minutes
+                _spawn_email_task(
+                    EmailService.send_verification_code(
+                        to_email=user.email,
+                        username=user.username,
+                        code=code,
+                        expire_minutes=settings.verification_code_expire_minutes
+                    )
                 )
 
         logger.info(f"Created email verification code for session {verification_session.session_token[:8]}...")
@@ -360,12 +374,14 @@ class VerificationService:
         if verification_code.device_token:
             if device_token != verification_code.device_token:
                 device_matched = False
-                # Send security alert
+                # Send security alert(后台任务:SMTP 慢速服务器不再挂起请求)
                 user = db.query(User).get(verification_code.user_id)
                 if user and user.email:
-                    await EmailService.send_magic_link_device_mismatch(
-                        to_email=user.email,
-                        username=user.username
+                    _spawn_email_task(
+                        EmailService.send_magic_link_device_mismatch(
+                            to_email=user.email,
+                            username=user.username
+                        )
                     )
                 raise DeviceMismatchError("请在同一设备上验证链接")
 

@@ -681,12 +681,14 @@ async def send_magic_link(
     # Build magic link URL
     magic_link_url = f"{settings.frontend_url}/login/magic-link?token={token}&session={request_data.session_token}"
 
-    # Send email
-    await EmailService.send_magic_link(
-        to_email=user.email,
-        username=user.username,
-        link=magic_link_url,
-        expire_minutes=settings.magic_link_expire_minutes
+    # Send email(后台任务:SMTP 慢速服务器不再挂起请求)
+    _spawn_email_task(
+        EmailService.send_magic_link(
+            to_email=user.email,
+            username=user.username,
+            link=magic_link_url,
+            expire_minutes=settings.magic_link_expire_minutes
+        )
     )
 
     # Set device token in HttpOnly cookie for verification
@@ -790,12 +792,15 @@ async def magic_link_login_send(
     # Build magic link URL
     magic_link_url = f"{settings.frontend_url}/login/magic-link?token={token}"
 
-    # Send email
-    await EmailService.send_magic_link(
-        to_email=user.email,
-        username=user.username,
-        link=magic_link_url,
-        expire_minutes=settings.magic_link_expire_minutes
+    # Send email(后台任务):已注册/未注册两个分支都立即返回相同响应,
+    # 消除「已注册走 SMTP(慢)/未注册立即返回」的时序差(防注册邮箱枚举)
+    _spawn_email_task(
+        EmailService.send_magic_link(
+            to_email=user.email,
+            username=user.username,
+            link=magic_link_url,
+            expire_minutes=settings.magic_link_expire_minutes
+        )
     )
 
     # Set device token in HttpOnly cookie
@@ -1090,13 +1095,15 @@ async def send_verification_email(
     from app.services.site_service import SiteService
     site_name = SiteService.get_site_name(db)
 
-    # Send email
-    await EmailService.send_email_verification(
-        to_email=current_user.email,
-        username=current_user.username,
-        link=verification_link,
-        expire_hours=24,
-        site_name=site_name
+    # Send email(后台任务:SMTP 慢速服务器不再挂起请求)
+    _spawn_email_task(
+        EmailService.send_email_verification(
+            to_email=current_user.email,
+            username=current_user.username,
+            link=verification_link,
+            expire_hours=24,
+            site_name=site_name
+        )
     )
 
     return {"message": "验证邮件已发送，请检查您的邮箱"}
