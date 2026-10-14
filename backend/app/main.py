@@ -107,6 +107,18 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException):
     return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
 
 # CORS middleware
+# 配置校验:allow_credentials=True 时,ALLOWED_ORIGINS 含通配符(* 或
+# *.example.com 形态)是矛盾配置——浏览器规范禁止凭据请求走通配符来源。
+# Starlette 会静默按无凭据处理,容易让人误以为 CORS 生效了。这里启动告警
+# 而非 fail-fast(个人部署可能有意公开只读 API)。
+_cors_origins = [o.strip() for o in settings.allowed_origins.split(",") if o.strip()]
+_wildcard_origins = [o for o in _cors_origins if "*" in o]
+if _wildcard_origins:
+    logger.warning(
+        "CORS 配置冲突:ALLOWED_ORIGINS 含通配符 %s 且 allow_credentials=True;"
+        "浏览器将拒绝带凭据的跨域请求(cookie 无法携带)。如需凭据请改为显式域名列表。",
+        _wildcard_origins,
+    )
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.allowed_origins.split(","),
