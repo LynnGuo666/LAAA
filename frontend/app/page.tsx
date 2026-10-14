@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { buttonVariants, cn } from '@heroui/react';
 import { ArrowRight, Sparkles, LogIn, UserPlus } from 'lucide-react';
-import { siteApi } from '@/lib/api';
+import { siteApi, authApi } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import AnimatedCharacters from '@/components/animated-characters/AnimatedCharacters';
 
@@ -19,6 +19,17 @@ export default function Home() {
         // ignore
       });
   }, []);
+
+  const handleLogout = () => {
+    // 尽力撤销服务端 refresh token（fire-and-forget），再清理本地状态
+    const refreshToken = localStorage.getItem('refresh_token');
+    if (refreshToken) {
+      authApi.logout(refreshToken).catch(() => {
+        // ignore
+      });
+    }
+    useAuthStore.getState().logout();
+  };
 
   return (
     <main className="min-h-screen grid lg:grid-cols-2 bg-background">
@@ -80,7 +91,7 @@ export default function Home() {
                 进入控制台 <ArrowRight className="h-4 w-4" />
               </Link>
               <button
-                onClick={() => useAuthStore.getState().logout()}
+                onClick={handleLogout}
                 className="mt-4 text-sm text-default-500 hover:text-foreground"
               >
                 退出登录

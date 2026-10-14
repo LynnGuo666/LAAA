@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   Button,
   Card,
@@ -20,9 +20,10 @@ import {
   AdminPageHeader,
   AdminSection,
 } from '@/components/admin/admin-ui'
+import { AdminPagination } from '@/components/admin/pagination'
 import { useConfirmDialog } from '@/components/ui/confirm-dialog-provider'
 import { adminApi, groupApi } from '@/lib/api'
-import { isAdmin } from '@/lib/authz'
+import { hasPermission } from '@/lib/authz'
 import { formatDateTime } from '@/lib/date'
 import { useAuthStore } from '@/lib/store'
 
@@ -51,7 +52,7 @@ interface Invite {
 export default function InvitesPage() {
   const confirmDialog = useConfirmDialog()
   const user = useAuthStore((state) => state.user)
-  const canManage = isAdmin(user)
+  const canManage = hasPermission(user, 'admin.users')
 
   const [groups, setGroups] = useState<Group[]>([])
   const [invites, setInvites] = useState<Invite[]>([])
@@ -59,6 +60,8 @@ export default function InvitesPage() {
   const [error, setError] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
   const [filterActive, setFilterActive] = useState<'all' | 'active' | 'inactive'>('active')
+  const [page, setPage] = useState(0)
+  const limit = 20
   const [createForm, setCreateForm] = useState({
     groupId: 0,
     note: '',
@@ -66,29 +69,43 @@ export default function InvitesPage() {
     maxUses: '',
   })
 
-  const loadAll = async () => {
+  const loadGroups = async () => {
+    try {
+      const response = await groupApi.list()
+      setGroups(Array.isArray(response.data) ? response.data : [])
+    } catch {
+      setGroups([])
+    }
+  }
+
+  const loadInvites = useCallback(async () => {
     setError(null)
     setLoading(true)
     try {
-      const [groupsResponse, invitesResponse] = await Promise.all([
-        groupApi.list(),
-        adminApi.listInvites({ limit: 200 }),
-      ])
-      setGroups(Array.isArray(groupsResponse.data) ? groupsResponse.data : [])
-      setInvites(Array.isArray(invitesResponse.data) ? invitesResponse.data : [])
+      const response = await adminApi.listInvites({
+        skip: page * limit,
+        limit,
+        // 状态筛选走服务端（后端支持 active 参数）
+        active: filterActive === 'all' ? undefined : filterActive === 'active',
+      })
+      setInvites(Array.isArray(response.data) ? response.data : [])
     } catch (err: any) {
       setError(err.response?.data?.detail || '加载邀请码失败')
-      setGroups([])
       setInvites([])
     } finally {
       setLoading(false)
     }
-  }
+  }, [page, filterActive])
 
   useEffect(() => {
     if (!canManage) return
-    void loadAll()
+    void loadGroups()
   }, [canManage])
+
+  useEffect(() => {
+    if (!canManage) return
+    void loadInvites()
+  }, [canManage, loadInvites])
 
   const filteredInvites = useMemo(() => {
     if (filterActive === 'all') return invites
@@ -125,6 +142,12 @@ export default function InvitesPage() {
         expires_at: expiresAt,
         max_uses: maxUses,
       })
+      // 回到第一页并刷新，保证新邀请码立即可见
+      if (page !== 0) {
+        setPage(0)
+      } else {
+        await loadInvites()
+      }
       setInvites((previous) => [response.data, ...previous])
       setCreateForm({
         groupId: createForm.groupId,
@@ -155,8 +178,11 @@ export default function InvitesPage() {
     setError(null)
     try {
       const response = await adminApi.updateInvite(invite.id, { is_active: false })
+      // 筛选为「仅有效」时把停用项从当前列表移除
       setInvites((previous) =>
-        previous.map((item) => (item.id === invite.id ? response.data : item)),
+        filterActive === 'active'
+          ? previous.filter((item) => item.id !== invite.id)
+          : previous.map((item) => (item.id === invite.id ? response.data : item)),
       )
       toast('邀请码已停用')
     } catch (err: any) {
@@ -189,7 +215,7 @@ export default function InvitesPage() {
         title="邀请码"
         description="邀请制注册入口，邀请码决定新用户初始所属用户组。"
         actions={
-          <Button variant="secondary" onPress={() => void loadAll()} isDisabled={loading}>
+          <Button variant="secondary" onPress={() => void loadInvites()} isDisabled={loading}>
             刷新
           </Button>
         }
@@ -291,9 +317,10 @@ export default function InvitesPage() {
             <AdminFormField label="筛选状态">
               <Select
                 selectedKey={filterActive}
-                onSelectionChange={(key) =>
+                onSelectionChange={(key) => {
                   setFilterActive(String(key) as 'all' | 'active' | 'inactive')
-                }
+                  setPage(0)
+                }}
               >
                 <Select.Trigger>
                   <Select.Value />
@@ -400,6 +427,18 @@ export default function InvitesPage() {
             </Table>
           )}
         </Card.Content>
+
+        <Card.Footer className="border-t border-default-200/70 px-6 py-4">
+          <AdminPagination
+            page={page}
+            total={filteredInvites.length}
+            limit={limit}
+            onPageChange={setPage}
+            summary={(page, totalPages, total) =>
+              `第 ${page + 1} / ${totalPages} 页，本页 ${total} 条`
+            }
+          />
+        </Card.Footer>
       </AdminSection>
     </div>
   )

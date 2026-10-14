@@ -4,6 +4,7 @@ import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button, Card, Spinner, toast } from '@heroui/react';
 import { authApi, API_URL } from '@/lib/api';
+import { useAuthStore } from '@/lib/store';
 import { EntityAvatar } from '@/components/admin/admin-ui';
 import axios from 'axios';
 import { AlertTriangle, Ban, Check } from 'lucide-react';
@@ -46,6 +47,7 @@ function AuthorizeContent() {
       return;
     }
     checkAuthorization();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const checkAuthorization = async () => {
@@ -161,6 +163,7 @@ function AuthorizeContent() {
       } else if (err.response?.status === 401) {
         // Token 过期，重新登录
         const returnUrl = `/oauth/authorize?${searchParams.toString()}`;
+        setSubmitting(null);
         router.push(`/login?redirect=${encodeURIComponent(returnUrl)}`);
         return;
       } else {
@@ -170,22 +173,66 @@ function AuthorizeContent() {
     }
   };
 
-  const handleDeny = () => {
+  const handleDeny = async () => {
     if (submitting) return;
     setSubmitting('deny');
-    if (redirectUri) {
-      let url = `${redirectUri}?error=access_denied`;
-      if (state) url += `&state=${state}`;
-      window.location.href = url;
+
+    // 本地拼接的兜底跳转地址（state 需编码，避免 & / # 截断参数）
+    const fallbackUrl = redirectUri
+      ? `${redirectUri}?error=access_denied${state ? `&state=${encodeURIComponent(state)}` : ''}`
+      : null;
+
+    const token = localStorage.getItem('access_token');
+    if (token) {
+      try {
+        // 优先调用后端 deny 分支，让后端记录授权拒绝
+        const formData = new URLSearchParams();
+        formData.append('response_type', responseType || '');
+        formData.append('client_id', clientId || '');
+        formData.append('redirect_uri', redirectUri || '');
+        formData.append('scope', scope);
+        if (state) formData.append('state', state);
+        formData.append('action', 'deny');
+
+        const response = await axios.post(
+          `${API_URL}/api/oauth/authorize`,
+          formData,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              'Content-Type': 'application/x-www-form-urlencoded',
+              Accept: 'application/json',
+            },
+          }
+        );
+
+        if (response.data?.redirect_url) {
+          window.location.href = response.data.redirect_url;
+          return;
+        }
+      } catch {
+        // 后端调用失败时退回本地拼接
+      }
+    }
+
+    if (fallbackUrl) {
+      window.location.href = fallbackUrl;
     } else {
+      setSubmitting(null);
       router.push('/dashboard');
     }
   };
 
-  const handleSwitchAccount = () => {
-    // 退出当前账号并重定向回授权页面
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
+  const handleSwitchAccount = async () => {
+    if (submitting) return;
+    // 撤销服务端 refresh token（尽力而为），并清理本地登录态（含 session_token cookie）
+    const refreshToken = localStorage.getItem('refresh_token');
+    if (refreshToken) {
+      authApi.logout(refreshToken).catch(() => {
+        // ignore
+      });
+    }
+    useAuthStore.getState().logout();
     const returnUrl = `/oauth/authorize?${searchParams.toString()}`;
     router.push(`/login?redirect=${encodeURIComponent(returnUrl)}`);
   };
@@ -237,7 +284,7 @@ function AuthorizeContent() {
                 返回控制台
               </Button>
               {redirectUri && (
-                <Button onPress={handleDeny} variant="secondary" className="w-full">
+                <Button onPress={() => void handleDeny()} variant="secondary" className="w-full">
                   返回应用
                 </Button>
               )}
@@ -262,7 +309,7 @@ function AuthorizeContent() {
                   <p className="text-xs text-default-500 truncate">{currentUser.email}</p>
                 </div>
               </div>
-              <Button onPress={handleSwitchAccount} className="text-sm text-primary" variant="tertiary" isDisabled={!!submitting}>
+              <Button onPress={() => void handleSwitchAccount()} className="text-sm text-primary" variant="tertiary" isDisabled={!!submitting}>
                 切换账号
               </Button>
             </div>
@@ -303,7 +350,7 @@ function AuthorizeContent() {
         <div className="rounded-lg p-4 mb-6 bg-default-50">
           <h2 className="font-semibold text-foreground mb-3">此应用将能够：</h2>
           <div className="space-y-2">
-            {scope.split(' ').map((s) => (
+            {scope.split(' ').map((s: string) => (
               <div key={s} className="flex items-start text-sm text-default-700">
                 <Check className="h-4 w-4 text-success mr-2 mt-0.5 shrink-0" aria-hidden />
                 <span>
@@ -321,7 +368,7 @@ function AuthorizeContent() {
 
         <div className="space-y-3">
           <Button onPress={handleApprove} variant="primary" className="w-full" isDisabled={!!submitting} isPending={submitting === 'approve'}>{submitting === 'approve' ? '授权中...' : '授权'}</Button>
-          <Button onPress={handleDeny} variant="secondary" className="w-full" isDisabled={!!submitting} isPending={submitting === 'deny'}>{submitting === 'deny' ? '正在返回...' : '拒绝'}</Button>
+          <Button onPress={() => void handleDeny()} variant="secondary" className="w-full" isDisabled={!!submitting} isPending={submitting === 'deny'}>{submitting === 'deny' ? '正在返回...' : '拒绝'}</Button>
         </div>
 
         <p className="text-xs text-default-500 text-center mt-4">

@@ -11,12 +11,12 @@ import {
   AdminSection,
 } from '@/components/admin/admin-ui'
 import { siteApi } from '@/lib/api'
-import { isAdmin } from '@/lib/authz'
+import { hasPermission } from '@/lib/authz'
 import { useAuthStore } from '@/lib/store'
 
 export default function SiteSettingsPage() {
   const user = useAuthStore((state) => state.user)
-  const canManage = isAdmin(user)
+  const canManage = hasPermission(user, 'admin.users')
 
   const [siteName, setSiteName] = useState('')
   const [loading, setLoading] = useState(true)

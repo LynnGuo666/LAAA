@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Alert, Button, Chip, Description, Input, Label, TextField, toast } from '@heroui/react';
+import { Alert, Button, Chip, Input, Label, TextField, toast } from '@heroui/react';
 import Link from 'next/link';
-import { authApi, passkeyApi, API_URL, verificationApi } from '@/lib/api';
+import { authApi, passkeyApi, API_URL } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
+import { isSafeRedirect } from '@/lib/authz';
 import { PageLoadingState } from '@/components/ui/loading';
 import axios from 'axios';
 import {
@@ -74,6 +75,10 @@ function LoginContent() {
   const [clientInfo, setClientInfo] = useState<ClientInfo | null>(null);
   const [loadingClient, setLoadingClient] = useState(true);
   const [mounted, setMounted] = useState(false);
+  const [justRegistered, setJustRegistered] = useState(false);
+
+  // 被踢下线 / 风险提示的延迟跳转定时器
+  const redirectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // 获取 redirect 参数
   const redirectUrl = searchParams.get('redirect');
@@ -82,6 +87,10 @@ function LoginContent() {
     setMounted(true);
     // Check WebAuthn support
     setWebAuthnSupported(isWebAuthnSupported());
+    // 注册成功后跳转过来的提示
+    if (searchParams.get('registered') === 'true') {
+      setJustRegistered(true);
+    }
     // 检查是否是从 OAuth 授权页面跳转过来的
     if (redirectUrl && redirectUrl.includes('/oauth/authorize')) {
       // 从 redirect URL 中提取 client_id
@@ -101,7 +110,17 @@ function LoginContent() {
     } else {
       setLoadingClient(false);
     }
-  }, [redirectUrl]);
+  }, [redirectUrl, searchParams]);
+
+  // 卸载时清理延迟跳转定时器，避免组件销毁后仍触发 router.push
+  useEffect(() => {
+    return () => {
+      if (redirectTimerRef.current) {
+        clearTimeout(redirectTimerRef.current);
+        redirectTimerRef.current = null;
+      }
+    };
+  }, []);
 
   const fetchClientInfo = async (clientId: string) => {
     try {
@@ -140,7 +159,7 @@ function LoginContent() {
         // Store verification session in sessionStorage
         sessionStorage.setItem('verification_session', JSON.stringify({
           ...verificationData,
-          redirect: redirectUrl || '/dashboard'
+          redirect: isSafeRedirect(redirectUrl) ? redirectUrl : '/dashboard'
         }));
         // Redirect to verification page
         router.push('/login/verify');
@@ -176,19 +195,15 @@ function LoginContent() {
       // 如果有安全提示，延迟跳转让用户看到提示
       const redirectDelay = (kicked_session || is_suspicious) ? 2000 : 0;
 
-      setTimeout(() => {
-        // 如果有 redirect 参数，跳转到指定页面；否则跳转到控制台
-        if (redirectUrl) {
-          // 安全检查：确保 redirect URL 是内部路径
-          if (redirectUrl.startsWith('/')) {
-            router.push(redirectUrl);
-          } else {
-            router.push('/dashboard');
-          }
-        } else {
-          router.push('/dashboard');
-        }
-      }, redirectDelay);
+      const safeRedirect = isSafeRedirect(redirectUrl) ? redirectUrl : '/dashboard';
+      if (redirectDelay === 0) {
+        router.push(safeRedirect);
+      } else {
+        redirectTimerRef.current = setTimeout(() => {
+          redirectTimerRef.current = null;
+          router.push(safeRedirect);
+        }, redirectDelay);
+      }
     } catch (err: any) {
       console.error('登录错误:', err);
       // Check if this is a 202 response (axios doesn't treat 202 as error by default, but just in case)
@@ -196,7 +211,7 @@ function LoginContent() {
         const verificationData: VerificationRequired = err.response.data;
         sessionStorage.setItem('verification_session', JSON.stringify({
           ...verificationData,
-          redirect: redirectUrl || '/dashboard'
+          redirect: isSafeRedirect(redirectUrl) ? redirectUrl : '/dashboard'
         }));
         router.push('/login/verify');
         return;
@@ -241,7 +256,7 @@ function LoginContent() {
         const verificationData: VerificationRequired = response.data;
         sessionStorage.setItem('verification_session', JSON.stringify({
           ...verificationData,
-          redirect: redirectUrl || '/dashboard'
+          redirect: isSafeRedirect(redirectUrl) ? redirectUrl : '/dashboard'
         }));
         router.push('/login/verify');
         return;
@@ -265,11 +280,7 @@ function LoginContent() {
       setAuth(user, access_token, refresh_token);
 
       // Redirect
-      if (redirectUrl && redirectUrl.startsWith('/')) {
-        router.push(redirectUrl);
-      } else {
-        router.push('/dashboard');
-      }
+      router.push(isSafeRedirect(redirectUrl) ? redirectUrl : '/dashboard');
     } catch (err: any) {
       console.error('Passkey login failed', err);
       // Check if this is a 202 response
@@ -277,7 +288,7 @@ function LoginContent() {
         const verificationData: VerificationRequired = err.response.data;
         sessionStorage.setItem('verification_session', JSON.stringify({
           ...verificationData,
-          redirect: redirectUrl || '/dashboard'
+          redirect: isSafeRedirect(redirectUrl) ? redirectUrl : '/dashboard'
         }));
         router.push('/login/verify');
         return;
@@ -334,6 +345,14 @@ function LoginContent() {
 
         {/* 登录表单 */}
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* 注册成功提示 */}
+          {justRegistered && (
+            <Alert status="success" className="text-sm">
+              <Alert.Indicator />
+              <Alert.Content><Alert.Description>注册成功，请使用新账号登录。</Alert.Description></Alert.Content>
+            </Alert>
+          )}
+
           {/* 安全信息提示 */}
           {securityInfo && (
             <div className="space-y-2">
@@ -348,6 +367,21 @@ function LoginContent() {
                   <Alert.Indicator />
                   <Alert.Content><Alert.Description><span className="font-medium">安全提醒：</span><ul className="mt-1 list-disc list-inside">{securityInfo.anomalies.filter(a => a.severity !== 'low').map((a, i) => (<li key={i}>{a.message}</li>))}</ul></Alert.Description></Alert.Content>
                 </Alert>
+              )}
+              {(securityInfo.kicked_session || securityInfo.is_suspicious) && redirectTimerRef.current && (
+                <Button
+                  variant="secondary"
+                  className="w-full"
+                  onPress={() => {
+                    if (redirectTimerRef.current) {
+                      clearTimeout(redirectTimerRef.current);
+                      redirectTimerRef.current = null;
+                    }
+                    router.push(isSafeRedirect(redirectUrl) ? redirectUrl : '/dashboard');
+                  }}
+                >
+                  立即继续
+                </Button>
               )}
             </div>
           )}

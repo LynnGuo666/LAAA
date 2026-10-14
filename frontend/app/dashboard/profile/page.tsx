@@ -23,9 +23,9 @@ export default function ProfilePage() {
     try {
       const response = await userApi.updateProfile(formData);
       setUser(response.data);
-      setMessage('Profile updated successfully!');
+      setMessage('个人资料已更新');
     } catch (err: any) {
-      setMessage('Error: ' + (err.response?.data?.detail || 'Failed to update profile'));
+      setMessage('错误：' + (err.response?.data?.detail || '更新个人资料失败'));
     } finally {
       setLoading(false);
     }
@@ -45,7 +45,7 @@ export default function ProfilePage() {
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)] gap-6">
         <form onSubmit={handleSubmit} className="surface p-5 sm:p-6 space-y-5">
           {message && (
-            <Alert status={message.startsWith('Error') ? 'danger' : 'success'}>
+            <Alert status={message.startsWith('错误') ? 'danger' : 'success'}>
               <Alert.Indicator />
               <Alert.Content><Alert.Description>{message}</Alert.Description></Alert.Content>
             </Alert>

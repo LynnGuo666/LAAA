@@ -6,6 +6,7 @@ import { Alert, Button, Spinner, toast } from '@heroui/react';
 import Link from 'next/link';
 import { verificationApi, authApi } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
+import { isSafeRedirect } from '@/lib/authz';
 import { CheckCircle, AlertTriangle, XCircle } from 'lucide-react';
 
 function MagicLinkContent() {
@@ -49,7 +50,8 @@ function MagicLinkContent() {
         }
         sessionStorage.removeItem('verification_session');
       }
-      router.push(redirectUrl);
+      // 安全检查：仅允许站内路径，防止协议相对 URL 之类的开放重定向
+      router.push(isSafeRedirect(redirectUrl) ? redirectUrl : '/dashboard');
     }
   }, [status, countdown, router]);
 
@@ -129,15 +131,6 @@ function MagicLinkContent() {
         setStatus('device_mismatch');
         setError('此链接必须在请求它的同一设备上打开。请在原设备上重新点击链接。');
         toast.warning('此链接必须在请求它的同一设备上打开。请在原设备上重新点击链接。');
-
-        // Notify the original tab about device mismatch (for verification flow)
-        if (sessionToken) {
-          try {
-            localStorage.setItem('magic_link_device_mismatch', sessionToken);
-          } catch {
-            // ignore localStorage errors
-          }
-        }
       } else if (errorDetail.includes('expired') || errorDetail.includes('过期')) {
         setStatus('error');
         setError('验证链接已过期，请重新请求');

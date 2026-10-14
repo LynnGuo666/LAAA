@@ -28,7 +28,7 @@ import GroupCheckboxList from '@/components/admin/group-checkbox-list'
 import SidePanel from '@/components/SidePanel'
 import { useConfirmDialog } from '@/components/ui/confirm-dialog-provider'
 import { clientApi, groupApi } from '@/lib/api'
-import { isAdmin } from '@/lib/authz'
+import { hasPermission } from '@/lib/authz'
 import { useAuthStore } from '@/lib/store'
 
 interface Client {
@@ -55,7 +55,7 @@ export default function AppsPage() {
   const confirmDialog = useConfirmDialog()
   const router = useRouter()
   const user = useAuthStore((state) => state.user)
-  const canManageClients = isAdmin(user)
+  const canManageClients = hasPermission(user, 'admin.clients')
 
   const [clients, setClients] = useState<Client[]>([])
   const [groups, setGroups] = useState<Group[]>([])

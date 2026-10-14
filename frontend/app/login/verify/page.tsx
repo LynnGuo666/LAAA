@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { useConfirmDialog } from '@/components/ui/confirm-dialog-provider';
 import { verificationApi, authApi } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
+import { isSafeRedirect } from '@/lib/authz';
 import { Mail, ShieldCheck, KeyRound, ChevronRight, ArrowLeft, Check } from 'lucide-react';
 import {
   isWebAuthnSupported,
@@ -22,6 +23,7 @@ interface VerificationSession {
   requires_verification: boolean; session_token: string; risk_level: string; risk_score: number;
   required_verifications: number; completed_verifications: number; email_masked: string;
   available_methods: VerificationMethod[]; anomalies: Anomaly[]; redirect: string;
+  completed_methods?: string[];
 }
 
 type VerificationStep = 'select' | 'email_code' | 'totp' | 'passkey' | 'backup_code';
@@ -60,7 +62,9 @@ export default function VerifyPage() {
     try {
       const data = JSON.parse(stored) as VerificationSession;
       setSession(data);
-      if (data.completed_verifications >= data.required_verifications) router.push(data.redirect || '/dashboard');
+      if (data.completed_verifications >= data.required_verifications) {
+        router.push(isSafeRedirect(data.redirect) ? data.redirect : '/dashboard');
+      }
     } catch { router.push('/login'); }
     setWebAuthnSupported(isWebAuthnSupported());
   }, [router]);
@@ -80,10 +84,10 @@ export default function VerifyPage() {
         const userRes = await authApi.getMe(res.data.access_token);
         setAuth(userRes.data, res.data.access_token, res.data.refresh_token);
         sessionStorage.removeItem('verification_session');
-        router.push(session?.redirect || '/dashboard');
+        router.push(isSafeRedirect(session?.redirect) ? session.redirect : '/dashboard');
       } else {
         setCompletedMethods([...completedMethods, method]);
-        const updated = { ...session!, completed_verifications: res.data.completed_verifications, completed_methods: res.data.completed_methods, available_methods: res.data.remaining_methods || session!.available_methods.filter(m => m.method !== method) };
+        const updated: VerificationSession = { ...session!, completed_verifications: res.data.completed_verifications, completed_methods: res.data.completed_methods, available_methods: res.data.remaining_methods || session!.available_methods.filter(m => m.method !== method) };
         setSession(updated); sessionStorage.setItem('verification_session', JSON.stringify(updated));
         setStep('select'); setSuccess(`${METHOD_NAMES[method]} 验证成功，请继续完成下一步验证`);
         setEmailCode(''); setTotpCode(''); setBackupCode(''); setEmailCodeSent(false);
@@ -110,7 +114,7 @@ export default function VerifyPage() {
       const userRes = await authApi.getMe(access_token);
       setAuth(userRes.data, access_token, refresh_token);
       sessionStorage.removeItem('verification_session');
-      router.push(session.redirect || '/dashboard');
+      router.push(isSafeRedirect(session.redirect) ? session.redirect : '/dashboard');
     } catch (err: any) { setError(err.response?.data?.detail || '跳过失败'); } finally { setSkipping(false); }
   };
 

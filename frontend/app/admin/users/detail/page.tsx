@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import {
   Button,
@@ -29,7 +29,7 @@ import { UICheckbox } from '@/components/ui/primitives'
 import { useConfirmDialog } from '@/components/ui/confirm-dialog-provider'
 import { adminApi, groupApi } from '@/lib/api'
 import { renderStatusChip, renderStatusSelect } from '@/lib/admin-utils'
-import { isAdmin } from '@/lib/authz'
+import { hasPermission } from '@/lib/authz'
 import { formatDateTime } from '@/lib/date'
 import { useAuthStore } from '@/lib/store'
 
@@ -116,13 +116,13 @@ interface SecurityMethods {
 
 type Tab = 'info' | 'logs' | 'sessions' | 'passkeys' | 'authorizations'
 
-export default function UserDetailPage() {
+function UserDetailContent() {
   const confirmDialog = useConfirmDialog()
   const searchParams = useSearchParams()
   const router = useRouter()
   const userId = Number(searchParams.get('id'))
   const currentUser = useAuthStore((state) => state.user)
-  const canManageUsers = isAdmin(currentUser)
+  const canManageUsers = hasPermission(currentUser, 'admin.users')
 
   const [user, setUser] = useState<User | null>(null)
   const [groups, setGroups] = useState<Group[]>([])
@@ -131,6 +131,8 @@ export default function UserDetailPage() {
   const [error, setError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<Tab>('info')
   const [tabLoading, setTabLoading] = useState(false)
+  // 请求序号守卫：快速切换标签页/翻页时丢弃过期响应
+  const tabLoadSeqRef = useRef(0)
 
   const [loginLogs, setLoginLogs] = useState<LoginLog[]>([])
   const [logsTotal, setLogsTotal] = useState(0)
@@ -198,49 +200,57 @@ export default function UserDetailPage() {
 
   const loadLoginLogs = useCallback(async () => {
     if (!userId) return
+    const seq = ++tabLoadSeqRef.current
     setTabLoading(true)
     try {
       const response = await adminApi.getUserLoginLogs(userId, {
         skip: logsPage * 20,
         limit: 20,
       })
+      if (seq !== tabLoadSeqRef.current) return // 过期响应，丢弃
       setLoginLogs(response.data.items)
       setLogsTotal(response.data.total)
     } finally {
-      setTabLoading(false)
+      if (seq === tabLoadSeqRef.current) setTabLoading(false)
     }
   }, [logsPage, userId])
 
   const loadSessions = useCallback(async () => {
     if (!userId) return
+    const seq = ++tabLoadSeqRef.current
     setTabLoading(true)
     try {
       const response = await adminApi.getUserSessions(userId)
+      if (seq !== tabLoadSeqRef.current) return
       setSessions(response.data)
     } finally {
-      setTabLoading(false)
+      if (seq === tabLoadSeqRef.current) setTabLoading(false)
     }
   }, [userId])
 
   const loadPasskeys = useCallback(async () => {
     if (!userId) return
+    const seq = ++tabLoadSeqRef.current
     setTabLoading(true)
     try {
       const response = await adminApi.getUserPasskeys(userId)
+      if (seq !== tabLoadSeqRef.current) return
       setPasskeys(response.data)
     } finally {
-      setTabLoading(false)
+      if (seq === tabLoadSeqRef.current) setTabLoading(false)
     }
   }, [userId])
 
   const loadAuthorizations = useCallback(async () => {
     if (!userId) return
+    const seq = ++tabLoadSeqRef.current
     setTabLoading(true)
     try {
       const response = await adminApi.getUserAuthorizations(userId)
+      if (seq !== tabLoadSeqRef.current) return
       setAuthorizations(response.data)
     } finally {
-      setTabLoading(false)
+      if (seq === tabLoadSeqRef.current) setTabLoading(false)
     }
   }, [userId])
 
@@ -943,5 +953,13 @@ export default function UserDetailPage() {
         </div>
       </AdminModalForm>
     </div>
+  )
+}
+
+export default function UserDetailPage() {
+  return (
+    <Suspense fallback={<AdminLoadingState label="正在加载用户详情..." />}>
+      <UserDetailContent />
+    </Suspense>
   )
 }

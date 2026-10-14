@@ -21,6 +21,34 @@ const defaultSummary = (page: number, totalPages: number, total: number) =>
   `第 ${page + 1} / ${totalPages} 页，共 ${total} 条`
 
 /**
+ * 计算窗口截断后的页码序列：首页、末页、当前页 ±2，其余用省略号占位。
+ * 避免总页数很多时全量渲染页码导致 DOM 爆炸。
+ */
+function buildPageWindow(page: number, totalPages: number): Array<number | 'ellipsis'> {
+  // 页数不多时直接全量展示
+  if (totalPages <= 7) {
+    return Array.from({ length: totalPages }, (_, index) => index)
+  }
+
+  const pages = new Set<number>([0, totalPages - 1])
+  for (let i = page - 2; i <= page + 2; i++) {
+    if (i >= 0 && i < totalPages) pages.add(i)
+  }
+
+  const sorted = [...pages].sort((a, b) => a - b)
+  const result: Array<number | 'ellipsis'> = []
+  let previous: number | undefined
+  for (const current of sorted) {
+    if (previous !== undefined && current - previous > 1) {
+      result.push('ellipsis')
+    }
+    result.push(current)
+    previous = current
+  }
+  return result
+}
+
+/**
  * 统一的分页控件：摘要 + 上一页 / 数字页码 / 下一页。
  * 替代 admin 各列表页手写的「上一页/下一页 Button」实现。
  */
@@ -47,13 +75,19 @@ export function AdminPagination({
             上一页
           </Pagination.Previous>
         </Pagination.Item>
-        {Array.from({ length: totalPages }, (_, index) => (
-          <Pagination.Item key={index}>
-            <Pagination.Link isActive={page === index} onPress={() => onPageChange(index)}>
-              {index + 1}
-            </Pagination.Link>
-          </Pagination.Item>
-        ))}
+        {buildPageWindow(page, totalPages).map((item, index) =>
+          item === 'ellipsis' ? (
+            <Pagination.Item key={`ellipsis-${index}`}>
+              <Pagination.Link>…</Pagination.Link>
+            </Pagination.Item>
+          ) : (
+            <Pagination.Item key={item}>
+              <Pagination.Link isActive={page === item} onPress={() => onPageChange(item)}>
+                {item + 1}
+              </Pagination.Link>
+            </Pagination.Item>
+          ),
+        )}
         <Pagination.Item>
           <Pagination.Next
             isDisabled={page >= totalPages - 1}

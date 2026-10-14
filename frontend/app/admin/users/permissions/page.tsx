@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import {
   Button,
@@ -24,7 +24,7 @@ import {
 } from '@/components/admin/admin-ui'
 import { AdminSimplePagination } from '@/components/admin/pagination'
 import { adminApi } from '@/lib/api'
-import { isAdmin } from '@/lib/authz'
+import { hasPermission } from '@/lib/authz'
 import { useAuthStore } from '@/lib/store'
 
 interface ComputedAppPermission {
@@ -46,13 +46,13 @@ interface PermissionsData {
   items: ComputedAppPermission[]
 }
 
-export default function UserPermissionsPage() {
+function UserPermissionsContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const userId = Number(searchParams.get('id'))
 
   const currentUser = useAuthStore((state) => state.user)
-  const canManageUsers = isAdmin(currentUser)
+  const canManageUsers = hasPermission(currentUser, 'admin.users')
 
   const [data, setData] = useState<PermissionsData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -62,10 +62,13 @@ export default function UserPermissionsPage() {
   const [page, setPage] = useState(0)
   const [updating, setUpdating] = useState<number | null>(null)
   const limit = 20
+  // 请求序号守卫：快速连续搜索/翻页时丢弃过期响应
+  const loadSeqRef = useRef(0)
 
   const loadPermissions = useCallback(async () => {
     if (!userId) return
 
+    const seq = ++loadSeqRef.current
     try {
       setLoading(true)
       setError(null)
@@ -74,12 +77,14 @@ export default function UserPermissionsPage() {
         limit,
         search: search || undefined,
       })
+      if (seq !== loadSeqRef.current) return // 过期响应，丢弃
       setData(response.data)
     } catch (err: any) {
+      if (seq !== loadSeqRef.current) return
       setData(null)
       setError(err.response?.data?.detail || '加载权限信息失败')
     } finally {
-      setLoading(false)
+      if (seq === loadSeqRef.current) setLoading(false)
     }
   }, [page, search, userId])
 
@@ -295,5 +300,13 @@ export default function UserPermissionsPage() {
         ) : null}
       </AdminSection>
     </div>
+  )
+}
+
+export default function UserPermissionsPage() {
+  return (
+    <Suspense fallback={<AdminLoadingState label="正在加载权限详情..." />}>
+      <UserPermissionsContent />
+    </Suspense>
   )
 }

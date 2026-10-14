@@ -7,13 +7,26 @@ import { Button, Tabs } from '@heroui/react'
 import { LogOut, ArrowLeft, ShieldCheck } from 'lucide-react'
 import { PageLoadingState } from '@/components/ui/loading'
 import { ThemeToggle } from '@/components/ThemeToggle'
-import { isAdmin } from '@/lib/authz'
+import { hasPermission } from '@/lib/authz'
 import { authApi, siteApi } from '@/lib/api'
 import { useAuthStore } from '@/lib/store'
 
 type NavItem = {
   href: string
   label: string
+  /** 后端对应的细粒度权限码；undefined 表示所有管理员可见 */
+  permission?: string
+}
+
+/** 是否拥有任一管理权限（可进入 /admin） */
+function hasAnyAdminPermission(user: Parameters<typeof hasPermission>[0]): boolean {
+  if (!user) return false
+  return (
+    hasPermission(user, 'admin.users') ||
+    hasPermission(user, 'admin.roles') ||
+    hasPermission(user, 'admin.groups') ||
+    hasPermission(user, 'admin.clients')
+  )
 }
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -53,7 +66,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }, [])
 
   useEffect(() => {
-    if (user && !isAdmin(user)) {
+    if (user && !hasAnyAdminPermission(user)) {
       router.replace('/dashboard')
     }
   }, [router, user])
@@ -75,18 +88,23 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     return <PageLoadingState />
   }
 
-  if (!isAdmin(user)) {
+  if (!hasAnyAdminPermission(user)) {
     return null
   }
 
-  const navLinks: NavItem[] = [
+  // 各导航项按后端 @require_permission 的权限码过滤
+  const allNavLinks: NavItem[] = [
     { href: '/admin', label: '控制台' },
-    { href: '/admin/apps', label: '应用管理' },
-    { href: '/admin/users', label: '用户管理' },
-    { href: '/admin/groups', label: '用户组' },
-    { href: '/admin/invites', label: '邀请码' },
-    { href: '/admin/settings', label: '站点设置' },
+    { href: '/admin/apps', label: '应用管理', permission: 'admin.clients' },
+    { href: '/admin/users', label: '用户管理', permission: 'admin.users' },
+    { href: '/admin/groups', label: '用户组', permission: 'admin.groups' },
+    { href: '/admin/invites', label: '邀请码', permission: 'admin.users' },
+    { href: '/admin/settings', label: '站点设置', permission: 'admin.users' },
   ]
+
+  const navLinks = allNavLinks.filter(
+    (link) => !link.permission || hasPermission(user, link.permission),
+  )
 
   const activeKey = navLinks.find((link) => {
     if (link.href === '/admin') return pathname === '/admin'

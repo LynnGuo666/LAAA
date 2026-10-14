@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { Suspense, useCallback, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Button, toast } from '@heroui/react'
 import {
@@ -15,7 +15,7 @@ import {
   validateAppForm,
 } from '@/components/admin/app-form-fields'
 import { clientApi } from '@/lib/api'
-import { isAdmin } from '@/lib/authz'
+import { hasPermission } from '@/lib/authz'
 import { useAuthStore } from '@/lib/store'
 
 interface Client {
@@ -32,12 +32,12 @@ interface Client {
   created_at: string
 }
 
-export default function AppEditPage() {
+function AppEditContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const clientId = Number(searchParams.get('id'))
   const currentUser = useAuthStore((state) => state.user)
-  const canManage = isAdmin(currentUser)
+  const canManage = hasPermission(currentUser, 'admin.clients')
 
   const [client, setClient] = useState<Client | null>(null)
   const [loading, setLoading] = useState(true)
@@ -151,7 +151,7 @@ export default function AppEditPage() {
         }
       />
 
-      <form onSubmit={void handleSave} className="space-y-6">
+      <form onSubmit={handleSave} className="space-y-6">
         <AppFormFields
           formData={formData}
           setFormData={setFormData}
@@ -169,5 +169,13 @@ export default function AppEditPage() {
         </div>
       </form>
     </div>
+  )
+}
+
+export default function AppEditPage() {
+  return (
+    <Suspense fallback={<AdminLoadingState label="正在加载应用..." />}>
+      <AppEditContent />
+    </Suspense>
   )
 }

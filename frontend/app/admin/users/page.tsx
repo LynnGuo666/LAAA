@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button, Card, Input, ListBox, ListBoxItem, Popover, Table } from '@heroui/react'
 import { MoreHorizontal } from 'lucide-react'
@@ -19,7 +19,7 @@ import { UICheckbox } from '@/components/ui/primitives'
 import { useConfirmDialog } from '@/components/ui/confirm-dialog-provider'
 import { adminApi, groupApi } from '@/lib/api'
 import { renderStatusChip, renderStatusSelect } from '@/lib/admin-utils'
-import { isAdmin } from '@/lib/authz'
+import { hasPermission } from '@/lib/authz'
 import { formatDate } from '@/lib/date'
 import { useAuthStore } from '@/lib/store'
 
@@ -33,6 +33,9 @@ interface User {
   updated_at: string
   groups: string[]
   roles: string[]
+  /** 后端 AdminUserResponse 新增的 ID 字段；旧后端可能缺失，按名称回退 */
+  group_ids?: number[]
+  role_ids?: number[]
 }
 
 interface Group {
@@ -52,7 +55,7 @@ export default function UsersPage() {
   const confirmDialog = useConfirmDialog()
   const router = useRouter()
   const user = useAuthStore((state) => state.user)
-  const canManageUsers = isAdmin(user)
+  const canManageUsers = hasPermission(user, 'admin.users')
 
   const [users, setUsers] = useState<User[]>([])
   const [groups, setGroups] = useState<Group[]>([])
@@ -60,6 +63,8 @@ export default function UsersPage() {
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
   const [pageError, setPageError] = useState<string | null>(null)
+  // 请求序号守卫：快速连续搜索/翻页时丢弃过期响应
+  const loadSeqRef = useRef(0)
 
   const [page, setPage] = useState(0)
   const [searchInput, setSearchInput] = useState('')
@@ -100,6 +105,7 @@ export default function UsersPage() {
   })
 
   const loadUsers = useCallback(async () => {
+    const seq = ++loadSeqRef.current
     try {
       setLoading(true)
       setPageError(null)
@@ -108,14 +114,16 @@ export default function UsersPage() {
         limit,
         search: search || undefined,
       })
+      if (seq !== loadSeqRef.current) return // 过期响应，丢弃
       setUsers(response.data.items)
       setTotal(response.data.total)
     } catch (err: any) {
+      if (seq !== loadSeqRef.current) return
       setUsers([])
       setTotal(0)
       setPageError(err.response?.data?.detail || '加载用户列表失败')
     } finally {
-      setLoading(false)
+      if (seq === loadSeqRef.current) setLoading(false)
     }
   }, [page, search])
 
@@ -272,9 +280,12 @@ export default function UsersPage() {
   }
 
   const openGroupsModal = (targetUser: User) => {
-    const groupIds = groups
-      .filter((group) => targetUser.groups.includes(group.name))
-      .map((group) => group.id)
+    // 优先使用后端返回的 group_ids；缺失时按组名反查 ID 兜底
+    const groupIds =
+      targetUser.group_ids ??
+      groups
+        .filter((group) => targetUser.groups.includes(group.name))
+        .map((group) => group.id)
 
     setSelectedUser(targetUser)
     setSelectedUserGroups(groupIds)
@@ -283,9 +294,12 @@ export default function UsersPage() {
   }
 
   const openRolesModal = (targetUser: User) => {
-    const roleIds = roles
-      .filter((role) => targetUser.roles.includes(role.name))
-      .map((role) => role.id)
+    // 优先使用后端返回的 role_ids；缺失时按角色名反查 ID 兜底
+    const roleIds =
+      targetUser.role_ids ??
+      roles
+        .filter((role) => targetUser.roles.includes(role.name))
+        .map((role) => role.id)
 
     setSelectedUser(targetUser)
     setSelectedUserRoles(roleIds)

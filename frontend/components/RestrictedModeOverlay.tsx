@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Alert, Button, Input, Label, Spinner } from '@heroui/react';
 import { authApi, totpApi, passkeyApi } from '@/lib/api';
-import { User } from '@/lib/store';
+import { User, useAuthStore } from '@/lib/store';
 import {
   AlertTriangle,
   Mail,
@@ -98,8 +98,8 @@ export default function RestrictedModeOverlay({ user, onComplete }: RestrictedMo
         // ignore
       }
     }
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
+    // 统一走 store.logout，同时清理 localStorage 与 session_token cookie
+    useAuthStore.getState().logout();
     router.push('/login');
   };
 

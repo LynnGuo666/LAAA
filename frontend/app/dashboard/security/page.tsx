@@ -89,6 +89,7 @@ export default function SecurityPage() {
   const [passkeys, setPasskeys] = useState<PasskeyCredential[]>([]);
   const [loading, setLoading] = useState(true);
   const [revoking, setRevoking] = useState(false);
+  const [pageError, setPageError] = useState<string | null>(null);
 
   // Password change form
   const [currentPassword, setCurrentPassword] = useState('');
@@ -152,6 +153,7 @@ export default function SecurityPage() {
 
   const loadData = async () => {
     try {
+      setPageError(null);
       const [historyRes, totpRes, sessionsRes, passkeysRes] = await Promise.all([
         userApi.getLoginHistory(0, 10),
         totpApi.getStatus(),
@@ -164,6 +166,7 @@ export default function SecurityPage() {
       setPasskeys(passkeysRes.data);
     } catch (err) {
       console.error('Failed to load data', err);
+      setPageError('加载安全信息失败，请刷新页面重试');
     } finally {
       setLoading(false);
     }
@@ -422,6 +425,13 @@ export default function SecurityPage() {
           管理您的账户安全设置和查看登录历史。
         </p>
       </div>
+
+      {pageError && (
+        <Alert status="danger">
+          <Alert.Indicator />
+          <Alert.Content><Alert.Description>{pageError}</Alert.Description></Alert.Content>
+        </Alert>
+      )}
 
       {/* 两步验证 */}
       <div className="surface p-4 sm:p-6">

@@ -17,7 +17,7 @@ import {
   AdminNotice,
 } from '@/components/admin/admin-ui'
 import { adminApi, clientApi } from '@/lib/api'
-import { isAdmin } from '@/lib/authz'
+import { hasPermission } from '@/lib/authz'
 import { useAuthStore } from '@/lib/store'
 
 type DashboardStats = {
@@ -33,6 +33,7 @@ const quickActions = [
     icon: AppWindow,
     color: 'text-primary',
     bg: 'bg-primary/10',
+    permission: 'admin.clients',
   },
   {
     href: '/admin/users',
@@ -41,6 +42,7 @@ const quickActions = [
     icon: Users,
     color: 'text-success',
     bg: 'bg-success/10',
+    permission: 'admin.users',
   },
   {
     href: '/admin/invites',
@@ -49,6 +51,7 @@ const quickActions = [
     icon: TicketCheck,
     color: 'text-warning',
     bg: 'bg-warning/10',
+    permission: 'admin.users',
   },
   {
     href: '/admin/settings',
@@ -57,8 +60,20 @@ const quickActions = [
     icon: Settings2,
     color: 'text-secondary',
     bg: 'bg-secondary/10',
+    permission: 'admin.users',
   },
 ]
+
+/** 是否拥有任一管理权限（可进入 /admin） */
+function hasAnyAdminPermission(user: Parameters<typeof hasPermission>[0]): boolean {
+  if (!user) return false
+  return (
+    hasPermission(user, 'admin.users') ||
+    hasPermission(user, 'admin.roles') ||
+    hasPermission(user, 'admin.groups') ||
+    hasPermission(user, 'admin.clients')
+  )
+}
 
 export default function AdminDashboardPage() {
   const router = useRouter()
@@ -69,22 +84,25 @@ export default function AdminDashboardPage() {
 
   useEffect(() => {
     if (!user) return
-    if (!isAdmin(user)) {
+    if (!hasAnyAdminPermission(user)) {
       router.replace('/dashboard')
       return
     }
+
+    const canSeeClients = hasPermission(user, 'admin.clients')
+    const canSeeUsers = hasPermission(user, 'admin.users')
 
     const loadStats = async () => {
       try {
         setLoading(true)
         setError(null)
         const [appsResponse, usersResponse] = await Promise.all([
-          clientApi.list(),
-          adminApi.listUsers({ limit: 1 }),
+          canSeeClients ? clientApi.list() : Promise.resolve({ data: [] as unknown[] }),
+          canSeeUsers ? adminApi.listUsers({ limit: 1 }) : Promise.resolve({ data: { total: 0 } }),
         ])
 
         setStats({
-          apps: appsResponse.data.length,
+          apps: Array.isArray(appsResponse.data) ? appsResponse.data.length : 0,
           users: usersResponse.data.total || 0,
         })
       } catch (err: any) {
@@ -97,7 +115,7 @@ export default function AdminDashboardPage() {
     void loadStats()
   }, [router, user])
 
-  if (!user || !isAdmin(user)) {
+  if (!user || !hasAnyAdminPermission(user)) {
     return null
   }
 
@@ -158,7 +176,7 @@ export default function AdminDashboardPage() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        {quickActions.map((action) => {
+        {quickActions.filter((action) => !action.permission || hasPermission(user, action.permission)).map((action) => {
           const Icon = action.icon
           return (
             <Link

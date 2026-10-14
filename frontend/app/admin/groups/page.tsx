@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Button,
   Card,
@@ -25,7 +25,7 @@ import {
 import { UICheckbox } from '@/components/ui/primitives'
 import { useConfirmDialog } from '@/components/ui/confirm-dialog-provider'
 import { adminApi, clientApi, groupApi, groupAppApi } from '@/lib/api'
-import { isAdmin } from '@/lib/authz'
+import { hasPermission } from '@/lib/authz'
 import { useAuthStore } from '@/lib/store'
 
 interface Group {
@@ -57,7 +57,7 @@ interface AppItem {
 export default function GroupsPage() {
   const confirmDialog = useConfirmDialog()
   const user = useAuthStore((state) => state.user)
-  const canManageGroups = isAdmin(user)
+  const canManageGroups = hasPermission(user, 'admin.groups')
 
   const [groups, setGroups] = useState<Group[]>([])
   const [users, setUsers] = useState<User[]>([])
@@ -79,6 +79,11 @@ export default function GroupsPage() {
   const [deletingGroup, setDeletingGroup] = useState(false)
   const [activeTab, setActiveTab] = useState('info')
   const [showAddMemberModal, setShowAddMemberModal] = useState(false)
+  // 可添加成员的服务端搜索结果（防抖查询，避免一次拉全量用户）
+  const [memberSearchResults, setMemberSearchResults] = useState<User[]>([])
+  const [memberSearchLoading, setMemberSearchLoading] = useState(false)
+  const memberSearchSeqRef = useRef(0)
+  const memberSearchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const [createForm, setCreateForm] = useState({
     name: '',
@@ -106,13 +111,50 @@ export default function GroupsPage() {
   }
 
   const loadUsers = async () => {
+    // 成员列表按组名过滤仍需要用户数据，但只拉一页做基础展示；
+    // 添加成员弹窗改为防抖服务端搜索（见 loadMemberSearchResults）
     try {
-      const response = await adminApi.listUsers({ limit: 1000 })
+      const response = await adminApi.listUsers({ limit: 200 })
       setUsers(Array.isArray(response.data.items) ? response.data.items : [])
     } catch {
       setUsers([])
     }
   }
+
+  // 防抖 300ms 服务端搜索可添加的成员（后端 list_users 支持 search 参数）
+  const loadMemberSearchResults = (term: string, groupName: string) => {
+    if (memberSearchTimerRef.current) {
+      clearTimeout(memberSearchTimerRef.current)
+    }
+    memberSearchTimerRef.current = setTimeout(async () => {
+      memberSearchTimerRef.current = null
+      const seq = ++memberSearchSeqRef.current
+      setMemberSearchLoading(true)
+      try {
+        const response = await adminApi.listUsers({
+          limit: 50,
+          search: term.trim() || undefined,
+        })
+        if (seq !== memberSearchSeqRef.current) return // 过期响应，丢弃
+        const items: User[] = Array.isArray(response.data.items) ? response.data.items : []
+        // 排除已经是本组成员的用户
+        setMemberSearchResults(items.filter((item) => !item.groups?.includes(groupName)))
+      } catch {
+        if (seq === memberSearchSeqRef.current) setMemberSearchResults([])
+      } finally {
+        if (seq === memberSearchSeqRef.current) setMemberSearchLoading(false)
+      }
+    }, 300)
+  }
+
+  // 卸载时清理防抖定时器
+  useEffect(() => {
+    return () => {
+      if (memberSearchTimerRef.current) {
+        clearTimeout(memberSearchTimerRef.current)
+      }
+    }
+  }, [])
 
   const loadApps = async () => {
     try {
@@ -198,20 +240,6 @@ export default function GroupsPage() {
   const members = selectedGroup
     ? users.filter((item) => item.groups?.includes(selectedGroup.name))
     : []
-
-  const availableUsers = selectedGroup
-    ? users.filter((item) => !item.groups?.includes(selectedGroup.name))
-    : []
-
-  const filteredAvailableUsers = useMemo(
-    () =>
-      availableUsers.filter(
-        (item) =>
-          item.username.toLowerCase().includes(searchMembers.toLowerCase()) ||
-          item.email.toLowerCase().includes(searchMembers.toLowerCase()),
-      ),
-    [availableUsers, searchMembers],
-  )
 
   const togglePendingAdd = (userId: number) => {
     setPendingAddIds((previous) =>
@@ -421,7 +449,15 @@ export default function GroupsPage() {
                     <div className="space-y-4">
                       <div className="flex items-center justify-between">
                         <span className="text-sm text-default-500">共 {members.length} 位成员</span>
-                        <Button variant="primary" size="sm" onPress={() => { setSearchMembers(''); setPendingAddIds([]); setShowAddMemberModal(true) }}>添加成员</Button>
+                        <Button variant="primary" size="sm" onPress={() => {
+                          if (!selectedGroup) return
+                          setSearchMembers('')
+                          setPendingAddIds([])
+                          setMemberSearchResults([])
+                          setShowAddMemberModal(true)
+                          // 打开弹窗即拉取第一页候选
+                          loadMemberSearchResults('', selectedGroup.name)
+                        }}>添加成员</Button>
                       </div>
                       {members.length === 0 ? (
                         <p className="py-6 text-center text-sm text-default-500">暂无成员，点击上方按钮添加</p>
@@ -590,12 +626,21 @@ export default function GroupsPage() {
         isDisabled={pendingAddIds.length === 0}
         size="lg"
       >
-        <Input value={searchMembers} onChange={(e) => setSearchMembers(e.target.value)} placeholder="搜索用户名或邮箱" />
+        <Input
+          value={searchMembers}
+          onChange={(e) => {
+            setSearchMembers(e.target.value)
+            if (selectedGroup) loadMemberSearchResults(e.target.value, selectedGroup.name)
+          }}
+          placeholder="搜索用户名或邮箱"
+        />
         <div className="max-h-80 space-y-1 overflow-y-auto rounded-xl border border-default-200/70 p-3">
-          {filteredAvailableUsers.length === 0 ? (
+          {memberSearchLoading ? (
+            <p className="py-6 text-center text-sm text-default-500">正在搜索用户...</p>
+          ) : memberSearchResults.length === 0 ? (
             <p className="py-6 text-center text-sm text-default-500">没有可添加的用户</p>
           ) : (
-            filteredAvailableUsers.map((member) => (
+            memberSearchResults.map((member) => (
               <UICheckbox
                 key={member.id}
                 className="m-0 max-w-full border-b border-default-200/70 py-2 last:border-b-0"
