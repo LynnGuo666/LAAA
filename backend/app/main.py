@@ -157,16 +157,20 @@ async def readiness_check(db: Session = Depends(get_db)):
 
     compose healthcheck 应打此端点,避免 DB 不可用时容器仍报 healthy(假活)。
     GeoIP/SMTP 为非关键依赖(降级可用),不阻塞 ready。
+    失败详情只进日志——该端点未认证,回显异常(含 DB 路径/驱动细节)
+    会向匿名探测者泄露内部信息。
     """
-    checks = {"database": "ok"}
     http_status = 200
     try:
         from sqlalchemy import text
         db.execute(text("SELECT 1"))
     except Exception as e:
-        checks["database"] = f"fail: {e}"
+        logger.warning("/api/ready: database check failed: %s", e)
         http_status = 503
-    return JSONResponse(status_code=http_status, content={"status": "ready" if http_status == 200 else "not_ready", "checks": checks})
+    return JSONResponse(
+        status_code=http_status,
+        content={"status": "ready" if http_status == 200 else "not_ready"},
+    )
 
 
 # Serve Next.js static files

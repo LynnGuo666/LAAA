@@ -276,7 +276,7 @@ async def get_login_history(
     """Get login history for the current user"""
     logs = db.query(LoginLog).filter(
         LoginLog.user_id == current_user.id
-    ).order_by(LoginLog.created_at.desc()).offset(skip).limit(limit).all()
+    ).order_by(LoginLog.created_at.desc()).offset(skip).limit(min(limit, 200)).all()
 
     return [LoginLogResponse(
         id=log.id,

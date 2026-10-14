@@ -670,7 +670,7 @@ async def get_user_computed_app_permissions(
         query = query.filter(Client.name.ilike(search_term))
 
     total = query.count()
-    clients = query.order_by(Client.id).offset(skip).limit(limit).all()
+    clients = query.order_by(Client.id).offset(skip).limit(min(limit, 200)).all()
 
     # 计算每个应用的权限
     items = [_compute_app_permission(user, client) for client in clients]
@@ -746,7 +746,7 @@ async def get_user_login_logs(
 
     query = db.query(LoginLog).filter(LoginLog.user_id == user_id)
     total = query.count()
-    logs = query.order_by(LoginLog.created_at.desc()).offset(skip).limit(limit).all()
+    logs = query.order_by(LoginLog.created_at.desc()).offset(skip).limit(min(limit, 200)).all()
 
     return PaginatedLoginLogsResponse(
         total=total,

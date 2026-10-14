@@ -138,3 +138,35 @@ def test_validation_error_response_strips_input(client, caplog):
             json={"username": "u2", "email": "u2@example.com", "password": secret_password},
         )
     assert secret_password not in caplog.text
+
+
+def test_ready_endpoint_does_not_leak_db_error(client):
+    """/api/ready DB 异常时不向匿名探测者回显内部异常详情(修复5)。
+
+    原实现返回 {"checks": {"database": "fail: <异常>"}},异常串含
+    DB 路径/驱动细节;该端点未认证,属于信息泄露。现在只返回状态,
+    详情进日志。
+    """
+    from app.database import get_db
+    from app.main import app
+
+    class _BrokenDB:
+        def execute(self, *args, **kwargs):
+            raise RuntimeError("sqlite: internal/path/secret oauth.db boom")
+
+    def _override():
+        yield _BrokenDB()
+
+    app.dependency_overrides[get_db] = _override
+    try:
+        resp = client.get("/api/ready")
+        assert resp.status_code == 503
+        data = resp.json()
+        assert data["status"] == "not_ready"
+        assert "checks" not in data
+        # 异常细节(路径/错误串)绝不出现在响应体
+        assert "boom" not in resp.text
+        assert "secret" not in resp.text
+        assert "fail:" not in resp.text
+    finally:
+        app.dependency_overrides.pop(get_db, None)

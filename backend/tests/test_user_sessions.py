@@ -81,3 +81,20 @@ def test_revoke_others_spares_refresh_token_session(client, db_session, make_use
     assert fresh_a.kicked_at is not None, "非当前 session 应被吊销"
     assert fresh_b.kicked_at is None, "当前 session 不应被误杀"
     assert fresh_b.expires_at > utcnow()
+
+
+def test_login_history_limit_clamped(client, db_session, make_user, seed_admin):
+    """login-history 的 limit 参数有上界钳制(min(limit, 200)),超大值不报错。
+
+    防止无上界的 offset/limit 被用于一次性拉全表(DoS 面)。
+    """
+    user = make_user()
+    headers = _login(client, user.username)
+
+    resp = client.get(
+        "/api/user/login-history",
+        params={"skip": 0, "limit": 99999},
+        headers=headers,
+    )
+    assert resp.status_code == 200, resp.text
+    assert isinstance(resp.json(), list)
