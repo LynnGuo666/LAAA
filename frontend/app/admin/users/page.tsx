@@ -7,7 +7,6 @@ import { MoreHorizontal } from 'lucide-react'
 import {
   AdminEmptyState,
   AdminFormField,
-  AdminLoadingState,
   AdminModalForm,
   AdminNotice,
   AdminPageHeader,
@@ -16,6 +15,7 @@ import {
 } from '@/components/admin/admin-ui'
 import { AdminPagination } from '@/components/admin/pagination'
 import { UICheckbox } from '@/components/ui/primitives'
+import { SkeletonRows } from '@/components/ui/loading'
 import { useConfirmDialog } from '@/components/ui/confirm-dialog-provider'
 import { adminApi, groupApi } from '@/lib/api'
 import { renderStatusChip, renderStatusSelect } from '@/lib/admin-utils'
@@ -427,7 +427,7 @@ export default function UsersPage() {
           </form>
 
           {loading ? (
-            <AdminLoadingState label="正在加载用户列表..." variant="inline" className="p-0" />
+            <SkeletonRows rows={20} className="py-2" rowClassName="h-10" />
           ) : users.length === 0 ? (
             <AdminEmptyState
               title={search ? '没有匹配的用户' : '暂无用户'}

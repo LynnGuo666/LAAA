@@ -5,7 +5,7 @@ import { userApi } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { isAdmin } from '@/lib/authz';
 import { extractErrorMessage } from '@/lib/errors';
-import { Alert, Button, Card, Spinner } from '@heroui/react';
+import { Alert, Button, Card } from '@heroui/react';
 import { ExternalLink } from 'lucide-react';
 
 interface AppItem {
@@ -74,8 +74,11 @@ export default function MyAppsPage() {
 
       <div>
         {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <Spinner size="md" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3" role="status" aria-live="polite">
+            {Array.from({ length: 6 }, (_, index) => (
+              <div key={index} className="h-28 animate-pulse rounded-xl border border-border bg-surface" />
+            ))}
+            <span className="sr-only">加载中...</span>
           </div>
         ) : apps.length === 0 ? (
           <div className="p-6 text-muted">暂无可访问应用</div>

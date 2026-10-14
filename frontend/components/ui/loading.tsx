@@ -11,7 +11,6 @@ export function PageLoadingState({ label = '加载中...', className }: { label?
           <p className="text-sm text-muted">{label}</p>
         </div>
       </div>
-      <p className="pb-6 text-center text-xs text-foreground/60">Powered By Lynn❤️</p>
     </div>
   )
 }

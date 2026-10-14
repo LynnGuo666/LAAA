@@ -9,7 +9,7 @@ import { extractErrorMessage } from '@/lib/errors';
 import { PASSWORD_REQUIREMENT_HINT, validatePasswordStrength } from '@/lib/validation';
 import { useConfirmDialog } from '@/components/ui/confirm-dialog-provider';
 import { TotpManageModal } from '@/components/security/TotpManageModal';
-import { PageLoadingState } from '@/components/ui/loading';
+import { SkeletonRows } from '@/components/ui/loading';
 import { Check, AlertTriangle, Smartphone, Tablet, Monitor, ShieldCheck } from 'lucide-react';
 import {
   isWebAuthnSupported,
@@ -428,7 +428,25 @@ export default function SecurityPage() {
   };
 
   if (loading) {
-    return <PageLoadingState />;
+    return (
+      <div className="px-4 sm:px-0 animate-fade-in space-y-6 sm:space-y-8" role="status" aria-live="polite">
+        <div>
+          <div className="h-8 w-44 animate-pulse rounded bg-surface-secondary/70" />
+          <div className="mt-2 h-4 w-64 animate-pulse rounded bg-surface-secondary/70" />
+        </div>
+        <div className="card card--default p-4 sm:p-6">
+          <div className="grid grid-cols-1 lg:grid-cols-[180px_minmax(0,1fr)] gap-3 sm:gap-4">
+            <div className="space-y-2">
+              {Array.from({ length: 5 }, (_, index) => (
+                <div key={index} className="h-8 animate-pulse rounded bg-surface-secondary/70" />
+              ))}
+            </div>
+            <SkeletonRows rows={8} rowClassName="h-10" />
+          </div>
+        </div>
+        <span className="sr-only">加载中...</span>
+      </div>
+    );
   }
 
   const otherSessionsCount = sessions.filter((session) => !session.is_current).length;
