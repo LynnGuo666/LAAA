@@ -11,7 +11,7 @@ from app.config import get_settings
 from app.database import get_db
 from app.middleware.auth import get_current_user
 from app.middleware.ratelimit import limiter
-from app.models import Passkey, User
+from app.models import User
 from app.schemas import (
     ChangeEmailRequest,
     LoginRequest,
@@ -36,6 +36,7 @@ from app.schemas import (
 from app.services.auth_service import AuthService
 from app.services.email_service import EmailService
 from app.services.geoip_service import GeoIPService
+from app.services.login_anomaly_service import LoginAnomalyService
 from app.services.risk_service import RiskLevel, RiskService
 from app.services.totp_service import (
     InvalidBackupCodeError,
@@ -67,6 +68,49 @@ def _spawn_email_task(coro) -> None:
     task = asyncio.create_task(coro)
     _background_tasks.add(task)
     task.add_done_callback(_background_tasks.discard)
+
+
+def _set_auth_cookies(response: Response, access_token: str, refresh_token: str,
+                      remember_me: bool = False) -> None:
+    """登录成功时统一设置认证 cookie(token A2 方案)。
+
+    三条不变量(改动前请读 CLAUDE.md「认证 cookie 契约」):
+    1. laaa_refresh:HttpOnly + SameSite=Strict + Path=/api/auth
+       —— 只有 refresh/logout 端点收得到,跨站请求一律不带,天然免疫 CSRF
+    2. authorize_token:HttpOnly + SameSite=Lax + Path=/api/oauth + 15min
+       —— 仅供 OAuth 浏览器重定向的 authorize 端点(顶层导航 GET 需要 Lax),
+         寿命 = access token TTL,过期走标准 re-login 重定向
+    3. 业务 API 端点永远只认 Authorization Bearer(get_current_user 不读 cookie)
+    """
+    refresh_max_age = (
+        settings.refresh_token_remember_me_days if remember_me
+        else settings.refresh_token_expire_days
+    ) * 86400
+    response.set_cookie(
+        key="laaa_refresh",
+        value=refresh_token,
+        max_age=refresh_max_age,
+        httponly=True,
+        secure=settings.cookie_secure,
+        samesite="strict",
+        path="/api/auth",
+    )
+    response.set_cookie(
+        key="authorize_token",
+        value=access_token,
+        max_age=settings.access_token_expire_minutes * 60,
+        httponly=True,
+        secure=settings.cookie_secure,
+        samesite="lax",
+        path="/api/oauth",
+    )
+
+
+def _clear_auth_cookies(response: Response) -> None:
+    """登出时清除认证 cookie(含旧名 session_token 的兼容清理)。"""
+    response.delete_cookie(key="laaa_refresh", path="/api/auth")
+    response.delete_cookie(key="authorize_token", path="/api/oauth")
+    response.delete_cookie(key="session_token", path="/")  # 旧名,自然消亡
 
 
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
@@ -143,6 +187,7 @@ async def register(request: Request, user_data: UserCreate, db: Session = Depend
 async def login(
     login_data: LoginRequest,
     request: Request,
+    response: Response,
     db: Session = Depends(get_db)
 ):
     """
@@ -184,6 +229,12 @@ async def login(
             detail="Incorrect username or password"
         )
 
+    # 异常检测(geo-jump / IP 变化 / 高频登录)结果作为既有异常传入风控评分——
+    # 此前该结果只进日志不参与判定,geo_jump 等高价值信号实际无牙齿
+    login_anomalies = LoginAnomalyService.check_anomalies(
+        db, user, client_ip, user_agent, geo_info
+    )
+
     # Assess risk for password login
     if settings.block_suspicious_login:
         risk_assessment = RiskService.assess_password_login_risk(
@@ -192,7 +243,8 @@ async def login(
             ip_address=client_ip,
             city=city,
             country=country,
-            device_token=login_data.device_token
+            device_token=login_data.device_token,
+            existing_anomalies=login_anomalies
         )
 
         # If risk detected, create verification session
@@ -246,6 +298,7 @@ async def login(
             )
 
     # No risk or risk detection disabled - create tokens directly
+    # (复用上面已查的 geo_info 与异常结果,避免 create_tokens 内二次检测)
     result = AuthService.create_tokens(
         db,
         user=user,
@@ -256,8 +309,13 @@ async def login(
         device_token=login_data.device_token,
         ip_address=client_ip,
         user_agent=user_agent,
-        login_method="password"
+        login_method="password",
+        geo_info=geo_info,
+        anomalies=login_anomalies,
     )
+
+    _set_auth_cookies(response, result["access_token"], result["refresh_token"],
+                      remember_me=login_data.remember_me)
 
     return TokenResponseExtended(
         access_token=result["access_token"],
@@ -272,11 +330,23 @@ async def login(
 
 @router.post("/refresh", response_model=TokenResponse)
 @limiter.limit("10/minute")
-async def refresh(refresh_data: RefreshTokenRequest, request: Request, db: Session = Depends(get_db)):
-    """Refresh access token"""
+async def refresh(
+    refresh_data: RefreshTokenRequest,
+    request: Request,
+    response: Response,
+    db: Session = Depends(get_db),
+):
+    """Refresh access token(兼容期双读:body 里的 refresh_token 优先,其次 cookie)"""
+    refresh_token_value = refresh_data.refresh_token or request.cookies.get("laaa_refresh")
+    if not refresh_token_value:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing refresh token"
+        )
+
     result = AuthService.refresh_access_token(
         db,
-        refresh_data.refresh_token,
+        refresh_token_value,
         client_id=refresh_data.client_id,
         client_secret=refresh_data.client_secret
     )
@@ -287,6 +357,9 @@ async def refresh(refresh_data: RefreshTokenRequest, request: Request, db: Sessi
         )
 
     access_token, refresh_token = result
+
+    # 旋转后重设两个 cookie(refresh 续期 + authorize 通道与 SPA 会话重新对齐)
+    _set_auth_cookies(response, access_token, refresh_token)
 
     return TokenResponse(
         access_token=access_token,
@@ -299,11 +372,15 @@ async def refresh(refresh_data: RefreshTokenRequest, request: Request, db: Sessi
 @router.post("/logout")
 async def logout(
     refresh_data: RefreshTokenRequest,
+    request: Request,
+    response: Response,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Logout user"""
-    AuthService.logout(db, refresh_data.refresh_token)
+    """Logout user(兼容期双读:body 的 refresh_token 优先,其次 cookie)"""
+    refresh_token_value = refresh_data.refresh_token or request.cookies.get("laaa_refresh")
+    AuthService.logout(db, refresh_token_value)
+    _clear_auth_cookies(response)
     return {"message": "Logged out successfully"}
 
 
@@ -317,14 +394,6 @@ async def get_current_user_info(
     roles = sorted({r.name for r in current_user.roles})
     groups = sorted({g.name for g in current_user.groups})
 
-    # Calculate is_restricted: need email_verified AND (totp OR passkey)
-    has_totp = current_user.totp is not None and current_user.totp.is_enabled
-    passkey_count = db.query(Passkey).filter(Passkey.user_id == current_user.id).count()
-    is_restricted = not (
-        current_user.email_verified
-        and (has_totp or passkey_count > 0)
-    )
-
     return UserMeResponse(
         id=current_user.id,
         username=current_user.username,
@@ -337,7 +406,7 @@ async def get_current_user_info(
         roles=roles,
         permissions=permissions,
         is_admin=current_user.has_permission("admin.*") or current_user.has_role("admin"),
-        is_restricted=is_restricted,
+        is_restricted=current_user.is_restricted,
     )
 
 
@@ -361,9 +430,11 @@ def _get_valid_verification_session(db: Session, session_token: str):
     return verification_session
 
 
-def _finalize_login(db: Session, verification_session, user: User) -> VerificationCompleteResponse:
+def _finalize_login(db: Session, verification_session, user: User,
+                    response: Optional[Response] = None) -> VerificationCompleteResponse:
     """Helper to finalize login after verification is complete"""
-    # Create tokens
+    # Create tokens(geo_info 查一次,记录日志复用)
+    geo_info = GeoIPService.get_location(verification_session.ip_address)
     result = AuthService.create_tokens(
         db,
         user=user,
@@ -374,11 +445,11 @@ def _finalize_login(db: Session, verification_session, user: User) -> Verificati
         device_token=verification_session.device_token,
         ip_address=verification_session.ip_address,
         user_agent=verification_session.user_agent,
-        login_method="password"
+        login_method="password",
+        geo_info=geo_info,
     )
 
     # Record successful login
-    geo_info = GeoIPService.get_location(verification_session.ip_address)
     AuthService.record_login_log(
         db,
         user=user,
@@ -390,6 +461,11 @@ def _finalize_login(db: Session, verification_session, user: User) -> Verificati
         login_method="password",
         is_suspicious=False
     )
+
+    # 登录完成:同步设置认证 cookie(调用方传了 Response 才设)
+    if response is not None:
+        _set_auth_cookies(response, result["access_token"], result["refresh_token"],
+                          remember_me=verification_session.remember_me)
 
     return VerificationCompleteResponse(
         verification_complete=True,
@@ -443,6 +519,7 @@ async def send_email_verification_code(
 async def verify_email_code(
     request_data: VerifyEmailCodeRequest,
     request: Request,
+    response: Response,
     db: Session = Depends(get_db)
 ):
     """Verify email verification code"""
@@ -473,7 +550,7 @@ async def verify_email_code(
 
     if is_complete:
         user = db.query(User).filter(User.id == verification_session.user_id).first()
-        return _finalize_login(db, verification_session, user)
+        return _finalize_login(db, verification_session, user, response=response)
 
     # Return updated status
     user = db.query(User).filter(User.id == verification_session.user_id).first()
@@ -485,6 +562,7 @@ async def verify_email_code(
 async def verify_totp(
     request_data: VerifyTOTPRequest,
     request: Request,
+    response: Response,
     db: Session = Depends(get_db)
 ):
     """Verify TOTP code"""
@@ -522,7 +600,7 @@ async def verify_totp(
     )
 
     if is_complete:
-        return _finalize_login(db, verification_session, user)
+        return _finalize_login(db, verification_session, user, response=response)
 
     return VerificationService.get_session_status(user, verification_session)
 
@@ -532,6 +610,7 @@ async def verify_totp(
 async def verify_backup_code(
     request_data: VerifyBackupCodeRequest,
     request: Request,
+    response: Response,
     db: Session = Depends(get_db)
 ):
     """Verify TOTP backup code"""
@@ -564,7 +643,7 @@ async def verify_backup_code(
     )
 
     if is_complete:
-        return _finalize_login(db, verification_session, user)
+        return _finalize_login(db, verification_session, user, response=response)
 
     return VerificationService.get_session_status(user, verification_session)
 
@@ -617,7 +696,7 @@ async def send_magic_link(
         value=device_token,
         max_age=settings.magic_link_expire_minutes * 60,
         httponly=True,
-        secure=True,
+        secure=settings.cookie_secure,
         samesite="strict"
     )
 
@@ -668,7 +747,7 @@ async def verify_magic_link(
 
     if is_complete:
         user = db.query(User).filter(User.id == verification_session.user_id).first()
-        return _finalize_login(db, verification_session, user)
+        return _finalize_login(db, verification_session, user, response=response)
 
     user = db.query(User).filter(User.id == verification_session.user_id).first()
     return VerificationService.get_session_status(user, verification_session)
@@ -726,7 +805,7 @@ async def magic_link_login_send(
         value=device_token,
         max_age=settings.magic_link_expire_minutes * 60,
         httponly=True,
-        secure=True,
+        secure=settings.cookie_secure,
         samesite="strict"
     )
 
@@ -828,8 +907,11 @@ async def magic_link_login_verify(
         device_token=persistent_device_token,
         ip_address=client_ip,
         user_agent=user_agent,
-        login_method="magic_link"
+        login_method="magic_link",
+        geo_info=geo_info,
     )
+
+    _set_auth_cookies(response, result["access_token"], result["refresh_token"])
 
     # Record successful login
     geo_info = geo_info if geo_info else GeoIPService.get_location(client_ip)
@@ -893,6 +975,7 @@ async def start_passkey_verification(
 @router.post("/verify/passkey/complete")
 async def complete_passkey_verification(
     request_data: PasskeyVerifyCompleteRequest,
+    response: Response,
     db: Session = Depends(get_db)
 ):
     """Complete passkey verification"""
@@ -931,7 +1014,7 @@ async def complete_passkey_verification(
     )
 
     if is_complete:
-        return _finalize_login(db, verification_session, user)
+        return _finalize_login(db, verification_session, user, response=response)
 
     return VerificationService.get_session_status(user, verification_session)
 
@@ -1095,6 +1178,7 @@ async def verify_email(
 @router.post("/verify/skip")
 async def skip_verification(
     request_data: SkipVerificationRequest,
+    response: Response,
     db: Session = Depends(get_db)
 ):
     """Skip risk verification and login in restricted mode"""
@@ -1120,6 +1204,10 @@ async def skip_verification(
         user_agent=verification_session.user_agent,
         login_method="password"
     )
+
+    # 受限模式登录同样设置认证 cookie
+    _set_auth_cookies(response, result["access_token"], result["refresh_token"],
+                      remember_me=verification_session.remember_me)
 
     # Record login log (mark as suspicious since verification was skipped)
     geo_info = GeoIPService.get_location(verification_session.ip_address)

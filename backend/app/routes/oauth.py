@@ -12,7 +12,7 @@ from app.config import get_settings
 from app.database import get_db
 from app.middleware.auth import get_optional_user
 from app.middleware.ratelimit import limiter
-from app.models import Passkey, User
+from app.models import User
 from app.schemas import UserInfoResponse
 from app.services.oauth_service import OAuthService
 from app.utils.security import create_id_token, decode_token, verify_client_secret
@@ -93,6 +93,12 @@ async def authorize_get(
     if code_challenge and code_challenge_method not in (None, "S256", "plain"):
         raise HTTPException(status_code=400, detail="Unsupported code_challenge_method")
 
+    # 公开客户端(public,无 client_secret)必须在 authorize 阶段就带 PKCE
+    # code_challenge——提前拒绝而非等到兑换时才失败(fail-fast,
+    # 与 RFC 7636 §4.3 授权请求中 SHOULD 要求 challenge 的实践一致)
+    if getattr(client, 'client_type', 'confidential') == 'public' and not code_challenge:
+        raise HTTPException(status_code=400, detail="Public clients must use PKCE (code_challenge required)")
+
     # Check if user is logged in
     if not current_user:
         # Redirect to login page with return URL
@@ -122,13 +128,7 @@ async def authorize_get(
         )
 
     # Check if user is in restricted mode
-    has_totp = current_user.totp is not None and current_user.totp.is_enabled
-    passkey_count = db.query(Passkey).filter(Passkey.user_id == current_user.id).count()
-    is_restricted = not (
-        current_user.email_verified
-        and (has_totp or passkey_count > 0)
-    )
-    if is_restricted:
+    if current_user.is_restricted:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="您的账户处于受限模式，请先完成邮箱验证和二次验证设置"
@@ -215,6 +215,10 @@ async def authorize_post(
     if not OAuthService.verify_redirect_uri(client, redirect_uri):
         raise HTTPException(status_code=400, detail="Invalid redirect_uri")
 
+    # 公开客户端必须在 authorize 阶段就带 PKCE challenge(与 GET 一致,fail-fast)
+    if getattr(client, 'client_type', 'confidential') == 'public' and not code_challenge:
+        raise HTTPException(status_code=400, detail="Public clients must use PKCE (code_challenge required)")
+
     # Check if user has access to this client based on group permissions
     if not OAuthService.check_user_access(current_user, client):
         raise HTTPException(
@@ -223,13 +227,7 @@ async def authorize_post(
         )
 
     # Check if user is in restricted mode
-    has_totp = current_user.totp is not None and current_user.totp.is_enabled
-    passkey_count = db.query(Passkey).filter(Passkey.user_id == current_user.id).count()
-    is_restricted = not (
-        current_user.email_verified
-        and (has_totp or passkey_count > 0)
-    )
-    if is_restricted:
+    if current_user.is_restricted:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="您的账户处于受限模式，请先完成邮箱验证和二次验证设置"
