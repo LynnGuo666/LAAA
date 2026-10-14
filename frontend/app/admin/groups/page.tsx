@@ -102,7 +102,12 @@ export default function GroupsPage() {
   const loadGroups = async () => {
     try {
       const response = await groupApi.list()
-      setGroups(Array.isArray(response.data) ? response.data : [])
+      const items: Group[] = Array.isArray(response.data) ? response.data : []
+      setGroups(items)
+      // 同步刷新选中组的 member_count(增删成员后计数不漂移)
+      setSelectedGroup((previous) =>
+        previous ? items.find((item) => item.id === previous.id) || previous : previous,
+      )
     } catch (err: any) {
       setPageError(extractErrorMessage(err, '加载用户组失败'))
       setGroups([])
@@ -242,6 +247,11 @@ export default function GroupsPage() {
     ? users.filter((item) => item.groups?.includes(selectedGroup.name))
     : []
 
+  // 成员计数用后端 Group.member_count(精确);成员列表本身仍来自
+  // 用户列表的前 200 条过滤展示——后端 groups 路由暂无按组查询成员的
+  // 端点,超过 200 人的组列表展示不全,但计数始终准确
+  const memberCount = selectedGroup?.member_count ?? members.length
+
   const togglePendingAdd = (userId: number) => {
     setPendingAddIds((previous) =>
       previous.includes(userId)
@@ -250,8 +260,8 @@ export default function GroupsPage() {
     )
   }
 
-  const handleAddMembers = async () => {
-    if (!selectedGroup || pendingAddIds.length === 0) return
+  const handleAddMembers = async (): Promise<boolean> => {
+    if (!selectedGroup || pendingAddIds.length === 0) return false
 
     setPanelError(null)
     setSavingMembers(true)
@@ -260,8 +270,11 @@ export default function GroupsPage() {
       setPendingAddIds([])
       await Promise.all([loadUsers(), loadGroups()])
       toast('成员已添加')
+      return true
     } catch (err: any) {
       setPanelError(extractErrorMessage(err, '添加成员失败'))
+      // 失败时保留勾选与弹窗,便于直接重试
+      return false
     } finally {
       setSavingMembers(false)
     }
@@ -418,7 +431,7 @@ export default function GroupsPage() {
                 <Tabs.ListContainer>
                   <Tabs.List aria-label="用户组管理">
                     <Tabs.Tab id="info">基本信息<Tabs.Indicator /></Tabs.Tab>
-                    <Tabs.Tab id="members">成员 ({members.length})<Tabs.Indicator /></Tabs.Tab>
+                    <Tabs.Tab id="members">成员 ({memberCount})<Tabs.Indicator /></Tabs.Tab>
                     <Tabs.Tab id="apps">应用权限<Tabs.Indicator /></Tabs.Tab>
                   </Tabs.List>
                 </Tabs.ListContainer>
@@ -449,7 +462,7 @@ export default function GroupsPage() {
                   <Tabs.Panel id="members">
                     <div className="space-y-4">
                       <div className="flex items-center justify-between">
-                        <span className="text-sm text-muted">共 {members.length} 位成员</span>
+                        <span className="text-sm text-muted">共 {memberCount} 位成员</span>
                         <Button variant="primary" size="sm" onPress={() => {
                           if (!selectedGroup) return
                           setSearchMembers('')
@@ -460,7 +473,11 @@ export default function GroupsPage() {
                           loadMemberSearchResults('', selectedGroup.name)
                         }}>添加成员</Button>
                       </div>
-                      {members.length === 0 ? (
+                      {members.length === 0 && memberCount > 0 ? (
+                        <p className="py-6 text-center text-sm text-muted">
+                          共 {memberCount} 位成员，当前仅展示用户列表前 200 条中的成员，请使用下方按钮添加或到用户管理中查看完整名单
+                        </p>
+                      ) : members.length === 0 ? (
                         <p className="py-6 text-center text-sm text-muted">暂无成员，点击上方按钮添加</p>
                       ) : (
                         <Table aria-label="用户组成员列表">
@@ -619,8 +636,10 @@ export default function GroupsPage() {
         }}
         onSubmit={async (e) => {
           e.preventDefault()
-          await handleAddMembers()
-          if (pendingAddIds.length > 0) setShowAddMemberModal(false)
+          // 仅在添加成功时关闭弹窗;失败保留勾选便于重试(此前失败也误关,
+          // 且闭包里的 pendingAddIds 是旧值,判断方向正好相反)
+          const ok = await handleAddMembers()
+          if (ok) setShowAddMemberModal(false)
         }}
         primaryActionLabel={`添加选中用户 (${pendingAddIds.length})`}
         isPending={savingMembers}
