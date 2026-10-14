@@ -26,7 +26,7 @@ from app.services.totp_service import (
     TOTPSecretCorruptedError,
     TOTPService,
 )
-from app.utils.security import verify_password
+from app.utils.security import verify_password_async
 
 router = APIRouter(prefix="/api/totp", tags=["TOTP"])
 
@@ -119,7 +119,7 @@ async def disable_totp(
     Requires password verification.
     """
     # Verify password
-    if not verify_password(request_data.password, current_user.password_hash):
+    if not await verify_password_async(request_data.password, current_user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="密码错误"
@@ -148,7 +148,7 @@ async def regenerate_backup_codes(
     Requires password verification.
     """
     # Verify password
-    if not verify_password(request_data.password, current_user.password_hash):
+    if not await verify_password_async(request_data.password, current_user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="密码错误"

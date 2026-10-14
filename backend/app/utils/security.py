@@ -164,6 +164,25 @@ def get_password_hash(password: str) -> str:
 
 
 # ---------------------------------------------------------------------------
+# 线程池版本:供 async 路由使用。
+#
+# bcrypt cost 12 单次约 250ms,同步 await 上下文里直接调用会卡死整个事件
+# 循环(单 uvicorn worker 下所有并发请求都停摆)。凡 async def 路由中的
+# 密码校验/哈希一律走这两个包装;同步上下文(seed.py、测试)保留同步版。
+# ---------------------------------------------------------------------------
+async def verify_password_async(plain_password: str, hashed_password: str) -> bool:
+    """verify_password 的线程池版本(不阻塞事件循环)"""
+    from fastapi.concurrency import run_in_threadpool
+    return await run_in_threadpool(verify_password, plain_password, hashed_password)
+
+
+async def get_password_hash_async(password: str) -> str:
+    """get_password_hash 的线程池版本(不阻塞事件循环)"""
+    from fastapi.concurrency import run_in_threadpool
+    return await run_in_threadpool(get_password_hash, password)
+
+
+# ---------------------------------------------------------------------------
 # Token creation (access/id → RS256; refresh → HS256 symmetric)
 # ---------------------------------------------------------------------------
 def _sign_asymmetric(to_encode: dict) -> str:

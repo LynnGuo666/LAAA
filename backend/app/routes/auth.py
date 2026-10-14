@@ -121,7 +121,7 @@ def _refresh_failure_detail(db: Session, refresh_token_value: str):
 async def register(request: Request, user_data: UserCreate, db: Session = Depends(get_db)):
     """Register a new user"""
     try:
-        user = AuthService.register_user(
+        user = await AuthService.register_user(
             db,
             username=user_data.username,
             email=user_data.email,
@@ -205,7 +205,7 @@ async def login(
     country = geo_info.get("country") if geo_info else None
 
     # Authenticate user
-    user, failure_reason = AuthService.authenticate_user(
+    user, failure_reason = await AuthService.authenticate_user(
         db, login_data.username, login_data.password,
         ip_address=client_ip, user_agent=user_agent
     )
@@ -1262,10 +1262,10 @@ async def change_email(
     import secrets as _secrets
 
     from app.models import VerificationCode
-    from app.utils.security import verify_password
+    from app.utils.security import verify_password_async
 
     # 1. 确认当前密码(step-up)
-    if not verify_password(request_data.current_password, current_user.password_hash):
+    if not await verify_password_async(request_data.current_password, current_user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="当前密码错误"

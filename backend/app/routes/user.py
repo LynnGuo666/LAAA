@@ -406,24 +406,24 @@ async def change_password(
     db: Session = Depends(get_db)
 ):
     """Change current user password"""
-    from app.utils.security import hash_password, verify_password
+    from app.utils.security import get_password_hash_async, verify_password_async
 
     # Verify current password
-    if not verify_password(password_data.current_password, current_user.password_hash):
+    if not await verify_password_async(password_data.current_password, current_user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="当前密码错误"
         )
 
     # Check if new password is same as current
-    if verify_password(password_data.new_password, current_user.password_hash):
+    if await verify_password_async(password_data.new_password, current_user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="新密码不能与当前密码相同"
         )
 
     # Update password
-    current_user.password_hash = hash_password(password_data.new_password)
+    current_user.password_hash = await get_password_hash_async(password_data.new_password)
     current_user.updated_at = utcnow()
     # 吊销所有现有 token:token_version+1 使旧 access token 立即失效,
     # 删除 refresh token 记录和 session(被窃的 refresh 也无法换新)

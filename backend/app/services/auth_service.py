@@ -13,10 +13,10 @@ from app.utils.security import (
     create_access_token,
     create_refresh_token,
     decode_token,
-    get_password_hash,
+    get_password_hash_async,
     hash_token,
     verify_client_secret,
-    verify_password,
+    verify_password_async,
 )
 from app.utils.time import utcnow
 
@@ -31,7 +31,7 @@ class AuthService:
     """Authentication service"""
 
     @staticmethod
-    def register_user(
+    async def register_user(
         db: Session,
         *,
         username: str,
@@ -64,7 +64,7 @@ class AuthService:
         user = User(
             username=username,
             email=email,
-            password_hash=get_password_hash(password)
+            password_hash=await get_password_hash_async(password)
         )
         db.add(user)
         db.flush()
@@ -94,7 +94,7 @@ class AuthService:
         return user
 
     @staticmethod
-    def authenticate_user(
+    async def authenticate_user(
         db: Session,
         username: str,
         password: str,
@@ -110,9 +110,10 @@ class AuthService:
         user = db.query(User).filter(User.username == username).first()
         if not user:
             # 用户不存在也跑一次 bcrypt 校验,使响应时间与"密码错误"分支一致(防时序枚举)
-            verify_password(password, DUMMY_PASSWORD_HASH)
+            # 同样走线程池,保证两个分支的事件循环占用语义一致
+            await verify_password_async(password, DUMMY_PASSWORD_HASH)
             return None, "user_not_found"
-        if not verify_password(password, user.password_hash):
+        if not await verify_password_async(password, user.password_hash):
             return None, "invalid_password"
         if user.status != 'active':
             return None, "account_suspended"

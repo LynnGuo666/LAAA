@@ -578,7 +578,7 @@ async def token(
             )
             return oauth_error(400, "invalid_request", "username and password required")
 
-        result = OAuthService.password_grant(
+        result = await OAuthService.password_grant(
             db, username, password, client_id, client_secret or "", scope or "profile",
             ip_address=get_client_ip(request),
             user_agent=request.headers.get("user-agent", ""),

@@ -339,7 +339,7 @@ class OAuthService:
         return access_token, refresh_token, settings.access_token_expire_minutes * 60, token.nonce
 
     @staticmethod
-    def password_grant(
+    async def password_grant(
         db: Session,
         username: str,
         password: str,
@@ -387,7 +387,7 @@ class OAuthService:
             return None
 
         # Authenticate user
-        user, failure_reason = AuthService.authenticate_user(
+        user, failure_reason = await AuthService.authenticate_user(
             db, username, password, ip_address=safe_ip, user_agent=safe_ua
         )
         if not user:

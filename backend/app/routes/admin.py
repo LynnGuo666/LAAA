@@ -41,7 +41,7 @@ from app.schemas.admin import (
     UserAppPermissionsUpdate,
 )
 from app.services.session_limit_service import SessionLimitService
-from app.utils.security import get_password_hash
+from app.utils.security import get_password_hash_async
 from app.utils.time import utcnow
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
@@ -207,7 +207,7 @@ async def create_user(
     new_user = User(
         username=user_data.username,
         email=user_data.email,
-        password_hash=get_password_hash(user_data.password),
+        password_hash=await get_password_hash_async(user_data.password),
         status=user_data.status
     )
 
@@ -278,7 +278,7 @@ async def update_user(
         user.status = user_data.status
 
     if user_data.password is not None:
-        user.password_hash = get_password_hash(user_data.password)
+        user.password_hash = await get_password_hash_async(user_data.password)
         # 管理员重置密码:吊销该用户所有现有 token(同改密逻辑)
         user.token_version = (user.token_version or 0) + 1
         from app.models import Session as SessionModel
