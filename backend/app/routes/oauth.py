@@ -86,6 +86,22 @@ async def authorize_get(
     if not OAuthService.verify_redirect_uri(client, redirect_uri):
         raise HTTPException(status_code=400, detail="Invalid redirect_uri")
 
+    # response_type 校验:redirect_uri 已验证合法,按 RFC 6749 §4.1.2.1
+    # 以 302 回传 error=unsupported_response_type(schemas 里的 pattern
+    # 此前没被路由实际使用)
+    if response_type != "code":
+        error_url = _build_redirect_url(
+            redirect_uri,
+            {
+                "error": "unsupported_response_type",
+                "error_description": "only response_type=code is supported",
+                "state": state,
+            },
+        )
+        if is_api_call:
+            return {"redirect_url": error_url}
+        return RedirectResponse(url=error_url, status_code=302)
+
     # Verify scope
     if not OAuthService.verify_scope(client, scope):
         raise HTTPException(status_code=400, detail="Invalid scope")
@@ -235,6 +251,20 @@ async def authorize_post(
     # Verify redirect_uri
     if not OAuthService.verify_redirect_uri(client, redirect_uri):
         raise HTTPException(status_code=400, detail="Invalid redirect_uri")
+
+    # response_type 校验(与 GET 一致:redirect_uri 已验证,302 回传错误)
+    if response_type != "code":
+        error_url = _build_redirect_url(
+            redirect_uri,
+            {
+                "error": "unsupported_response_type",
+                "error_description": "only response_type=code is supported",
+                "state": state,
+            },
+        )
+        if is_api_call:
+            return {"redirect_url": error_url}
+        return RedirectResponse(url=error_url, status_code=302)
 
     # PKCE:与 GET 一致,仅允许 S256 + challenge 格式校验
     if code_challenge:

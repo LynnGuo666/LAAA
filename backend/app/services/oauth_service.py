@@ -546,14 +546,19 @@ class OAuthService:
             return None
 
         # Verify client secret
-        if not verify_client_secret(client_secret, client.client_secret_hash):
+        # public 客户端免 secret(靠 PKCE 换取的 refresh token 本身作凭据);
+        # confidential 保持 secret 校验
+        is_public = (getattr(client, 'client_type', 'confidential') == 'public')
+        if not is_public and not verify_client_secret(client_secret, client.client_secret_hash):
             logger.info("oauth refresh_token: invalid client_secret client_id=%s", client_id)
             return None
 
         # Verify refresh token + 家族轮换统一走 AuthService(重放检测/灭族/惰性回填同源)
         from app.services.auth_service import AuthService
         result = AuthService.refresh_access_token(
-            db, refresh_token, client_id=client_id, client_secret=client_secret
+            db, refresh_token, client_id=client_id,
+            # public 客户端完全免 secret:传入的任意 secret 不参与校验
+            client_secret=None if is_public else client_secret,
         )
         if not result:
             logger.info(

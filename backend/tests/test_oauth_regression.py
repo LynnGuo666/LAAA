@@ -982,6 +982,97 @@ def test_discovery_advertises_s256_only(client):
 
 
 # ---------------------------------------------------------------------------
+# response_type 校验 + public client refresh 免 secret(批次2 修复8c/8d)
+# ---------------------------------------------------------------------------
+
+def test_unsupported_response_type_redirected_with_error(client, admin_token, internal_client):
+    """response_type != code → 302 回传 error=unsupported_response_type(RFC 6749 §4.1.2.1)。"""
+    cid, _ = internal_client
+
+    # 浏览器形态:身份走 authorize_token cookie(不带 Authorization 头
+    # 不会被当作 API 调用)→ 走 RedirectResponse 分支
+    resp = client.get(
+        "/api/oauth/authorize",
+        params={
+            "response_type": "token",  # 不支持
+            "client_id": cid,
+            "redirect_uri": REDIRECT_URI,
+            "scope": "profile",
+            "state": "xyz",
+        },
+        cookies={"authorize_token": admin_token},
+        follow_redirects=False,
+    )
+    assert resp.status_code == 302, resp.text
+    location = resp.headers.get("location", "")
+    qs = parse_qs(urlparse(location).query)
+    assert qs["error"] == ["unsupported_response_type"]
+    assert qs["state"] == ["xyz"]
+
+    # POST(同意流)同样回传错误(cookie 形态)
+    resp = client.post(
+        "/api/oauth/authorize",
+        data={
+            "response_type": "token",
+            "client_id": cid,
+            "redirect_uri": REDIRECT_URI,
+            "scope": "profile",
+            "state": "xyz",
+            "action": "approve",
+        },
+        cookies={"authorize_token": admin_token},
+        follow_redirects=False,
+    )
+    assert resp.status_code == 302, resp.text
+    qs = parse_qs(urlparse(resp.headers.get("location", "")).query)
+    assert qs["error"] == ["unsupported_response_type"]
+
+    # API 形态(Authorization 头)→ JSON 里给 redirect_url
+    resp = client.get(
+        "/api/oauth/authorize",
+        params={
+            "response_type": "token",
+            "client_id": cid,
+            "redirect_uri": REDIRECT_URI,
+            "scope": "profile",
+        },
+        headers={"Authorization": f"Bearer {admin_token}", "Accept": "application/json"},
+    )
+    assert resp.status_code == 200
+    qs = parse_qs(urlparse(resp.json()["redirect_url"]).query)
+    assert qs["error"] == ["unsupported_response_type"]
+
+
+def test_public_client_refresh_without_secret(client, admin_token, public_client):
+    """public client 的 refresh grant 免 client_secret(此前恒 invalid_grant)。"""
+    verifier, challenge = _pkce_pair()
+    code = _approve_for_code(
+        client, admin_token, public_client,
+        code_challenge=challenge, code_challenge_method="S256",
+    )
+
+    # 授权码兑换拿 refresh(免 secret)
+    r1 = client.post("/api/oauth/token", data={
+        "grant_type": "authorization_code",
+        "code": code,
+        "redirect_uri": REDIRECT_URI,
+        "client_id": public_client,
+        "code_verifier": verifier,
+    })
+    assert r1.status_code == 200, r1.text
+    refresh_token = r1.json()["refresh_token"]
+
+    # refresh grant 同样免 secret → 200
+    r2 = client.post("/api/oauth/token", data={
+        "grant_type": "refresh_token",
+        "refresh_token": refresh_token,
+        "client_id": public_client,
+    })
+    assert r2.status_code == 200, r2.text
+    assert "access_token" in r2.json()
+
+
+# ---------------------------------------------------------------------------
 # consent 重定向透传 PKCE/nonce(批次2 修复4)
 # ---------------------------------------------------------------------------
 
