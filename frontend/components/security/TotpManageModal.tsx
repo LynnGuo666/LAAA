@@ -23,7 +23,7 @@ interface TotpManageModalProps {
   onStatusUpdated: (status: TotpStatus) => void;
 }
 
-type TotpView = 'main' | 'disable' | 'regenerate';
+type TotpView = 'main' | 'setup' | 'disable' | 'regenerate';
 
 export function TotpManageModal({ isOpen, onOpenChange, onStatusUpdated }: TotpManageModalProps) {
   const [status, setStatus] = useState<TotpStatus | null>(null);
@@ -33,6 +33,7 @@ export function TotpManageModal({ isOpen, onOpenChange, onStatusUpdated }: TotpM
   const [verificationCode, setVerificationCode] = useState('');
   const [password, setPassword] = useState('');
   const [verifying, setVerifying] = useState(false);
+  const [startingSetup, setStartingSetup] = useState(false);
   const [disabling, setDisabling] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -62,12 +63,22 @@ export function TotpManageModal({ isOpen, onOpenChange, onStatusUpdated }: TotpM
   };
 
   const handleStartSetup = async () => {
+    if (!password) {
+      toast('请输入密码');
+      return;
+    }
+
+    setStartingSetup(true);
     try {
-      const response = await totpApi.setup();
+      // 密码确认:防止会话劫持(偷 cookie/XSS)植入攻击者控制的 TOTP 后门
+      const response = await totpApi.setup(password);
       setSetupData(response.data);
+      setView('main');
       toast('请使用身份验证器扫描二维码并完成验证');
     } catch (err) {
       toast(getErrorMessage(err, '开始设置失败'));
+    } finally {
+      setStartingSetup(false);
     }
   };
 
@@ -76,15 +87,20 @@ export function TotpManageModal({ isOpen, onOpenChange, onStatusUpdated }: TotpM
       toast('请输入 6 位验证码');
       return;
     }
+    if (!password) {
+      toast('请输入密码');
+      return;
+    }
 
     setVerifying(true);
     try {
-      const response = await totpApi.verifySetup(verificationCode);
+      const response = await totpApi.verifySetup(verificationCode, password);
       setBackupCodes(response.data.backup_codes);
       setShowBackupCodes(true);
       setSetupData(null);
       toast('身份验证器已成功启用');
       setVerificationCode('');
+      setPassword('');
       await loadStatus();
     } catch (err) {
       toast(getErrorMessage(err, '验证码错误'));
@@ -188,7 +204,7 @@ export function TotpManageModal({ isOpen, onOpenChange, onStatusUpdated }: TotpM
               <Button onPress={() => setView('disable')} variant="danger" className="text-sm">禁用</Button>
             </div>
           ) : (
-            <Button onPress={() => void handleStartSetup()} variant="primary" className="text-sm">开始设置</Button>
+            <Button onPress={() => { setPassword(''); setView('setup'); }} variant="primary" className="text-sm">开始设置</Button>
           )}
         </div>
 
@@ -201,6 +217,14 @@ export function TotpManageModal({ isOpen, onOpenChange, onStatusUpdated }: TotpM
               </div>
             </div>
             <code className="block px-3 py-2 bg-default-100 rounded font-mono text-sm text-center select-all">{setupData.secret}</code>
+            <Input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="密码确认（完成绑定需验证）"
+              className="w-full"
+              autoComplete="current-password"
+            />
             <div className="flex gap-2 items-end">
               <Input
                 type="text"
@@ -210,12 +234,37 @@ export function TotpManageModal({ isOpen, onOpenChange, onStatusUpdated }: TotpM
                 className="flex-1 text-center text-xl tracking-widest font-mono"
                 maxLength={6}
               />
-              <Button onPress={() => void handleVerifySetup()} isDisabled={verifying || verificationCode.length !== 6} variant="primary" isPending={verifying}>
+              <Button onPress={() => void handleVerifySetup()} isDisabled={verifying || verificationCode.length !== 6 || !password} variant="primary" isPending={verifying}>
                 {verifying ? '验证中...' : '验证'}
               </Button>
             </div>
           </div>
         )}
+      </div>
+    </div>
+  );
+
+  const renderSetupPasswordView = () => (
+    <div className="space-y-4">
+      <div>
+        <h4 className="font-semibold text-foreground">开始设置身份验证器</h4>
+        <p className="text-sm text-default-600 mt-1">
+          绑定身份验证器需要输入密码确认，以防会话被劫持时被他人植入后门。
+        </p>
+      </div>
+      <Input
+        type="password"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+        placeholder="请输入密码"
+        className="w-full"
+        autoFocus
+      />
+      <div className="flex justify-between gap-2">
+        <Button onPress={() => { setView('main'); setPassword(''); }} variant="ghost">返回</Button>
+        <Button onPress={() => void handleStartSetup()} isDisabled={startingSetup || !password} variant="primary" isPending={startingSetup}>
+          {startingSetup ? '验证中...' : '确认并生成二维码'}
+        </Button>
       </div>
     </div>
   );
@@ -249,11 +298,14 @@ export function TotpManageModal({ isOpen, onOpenChange, onStatusUpdated }: TotpM
           <AlertDialog.Dialog>
             <AlertDialog.Header>
               <AlertDialog.Heading>
-                {view === 'main' ? '身份验证器管理' : view === 'disable' ? '禁用身份验证器' : '重新生成备用码'}
+                {view === 'main' ? '身份验证器管理'
+                  : view === 'setup' ? '开始设置身份验证器'
+                  : view === 'disable' ? '禁用身份验证器' : '重新生成备用码'}
               </AlertDialog.Heading>
             </AlertDialog.Header>
             <AlertDialog.Body>
               {view === 'main' && renderMainView()}
+              {view === 'setup' && renderSetupPasswordView()}
               {view === 'disable' && renderPasswordView('禁用身份验证器', '确认禁用', disabling, handleDisable)}
               {view === 'regenerate' && renderPasswordView('重新生成备用码', '重新生成', regenerating, handleRegenerateBackupCodes)}
             </AlertDialog.Body>

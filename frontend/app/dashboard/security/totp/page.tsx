@@ -58,11 +58,16 @@ export default function TOTPSetupPage() {
   };
 
   const handleStartSetup = async () => {
+    if (!password) {
+      setError('请输入密码以确认身份');
+      return;
+    }
+
     setError('');
     setLoading(true);
 
     try {
-      const response = await totpApi.setup();
+      const response = await totpApi.setup(password);
       setSetupData(response.data);
     } catch (err: any) {
       setError(extractErrorMessage(err, '开始设置失败'));
@@ -77,15 +82,20 @@ export default function TOTPSetupPage() {
       setError('请输入 6 位验证码');
       return;
     }
+    if (!password) {
+      setError('请输入密码以确认身份');
+      return;
+    }
 
     setError('');
     setVerifying(true);
 
     try {
-      const response = await totpApi.verifySetup(verificationCode);
+      const response = await totpApi.verifySetup(verificationCode, password);
       setBackupCodes(response.data.backup_codes);
       setShowBackupCodes(true);
       setSetupData(null);
+      setPassword('');
       setSuccess('身份验证器已成功启用！');
 
       // Refresh status
@@ -292,9 +302,24 @@ export default function TOTPSetupPage() {
             </Button>
           </div>
         ) : !setupData && (
-          <Button onPress={handleStartSetup} variant="primary">
-            开始设置
-          </Button>
+          <div className="space-y-3">
+            <p className="text-sm text-default-600">
+              绑定身份验证器需要输入密码确认，以防会话被劫持时被他人植入后门。
+            </p>
+            <div className="flex gap-3 items-end max-w-sm">
+              <Input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="请输入密码"
+                className="flex-1"
+                autoComplete="current-password"
+              />
+              <Button onPress={handleStartSetup} isDisabled={loading || !password} variant="primary" isPending={loading}>
+                {loading ? '验证中...' : '开始设置'}
+              </Button>
+            </div>
+          </div>
         )}
       </div>
 
@@ -350,7 +375,15 @@ export default function TOTPSetupPage() {
               输入应用中显示的 6 位验证码以完成设置
             </p>
 
-            <form onSubmit={handleVerifySetup} className="ml-8">
+            <form onSubmit={handleVerifySetup} className="ml-8 space-y-3">
+              <Input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="密码确认"
+                className="max-w-xs"
+                autoComplete="current-password"
+              />
               <div className="flex gap-3 items-end max-w-xs">
                 <Input
                   type="text"
@@ -360,7 +393,7 @@ export default function TOTPSetupPage() {
                   className="flex-1 text-center text-xl tracking-widest font-mono"
                   maxLength={6}
                 />
-                <Button type="submit" isDisabled={verifying || verificationCode.length !== 6} variant="primary" isPending={verifying}>{verifying ? '验证中...' : '验证'}</Button>
+                <Button type="submit" isDisabled={verifying || verificationCode.length !== 6 || !password} variant="primary" isPending={verifying}>{verifying ? '验证中...' : '验证'}</Button>
               </div>
             </form>
           </div>

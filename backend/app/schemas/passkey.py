@@ -43,6 +43,11 @@ class PasskeyUpdate(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
 
 
+class PasskeyDeleteRequest(BaseModel):
+    """Delete passkey (password confirmation required)"""
+    current_password: str
+
+
 # ==================== Response Schemas ====================
 
 class PasskeyResponse(BaseModel):

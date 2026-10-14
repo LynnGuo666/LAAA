@@ -3,6 +3,7 @@ Passkey/WebAuthn API routes
 """
 
 import json
+import logging
 from typing import List, Union
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
@@ -18,6 +19,7 @@ from app.schemas.passkey import (
     PasskeyAuthenticationOptionsRequest,
     PasskeyAuthenticationVerify,
     PasskeyCheckResponse,
+    PasskeyDeleteRequest,
     PasskeyRegistrationVerify,
     PasskeyResponse,
     PasskeyUpdate,
@@ -29,9 +31,12 @@ from app.services.risk_service import RiskLevel, RiskService
 from app.services.verification_service import VerificationService
 from app.utils.cookies import set_auth_cookies
 from app.utils.device import get_client_ip
+from app.utils.security import verify_password_async
 
 settings = get_settings()
 router = APIRouter(prefix="/api/passkeys", tags=["Passkeys"])
+
+logger = logging.getLogger(__name__)
 
 
 def passkey_to_response(passkey: Passkey) -> PasskeyResponse:
@@ -346,10 +351,22 @@ async def update_passkey(
 @router.delete("/{passkey_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_passkey(
     passkey_id: int,
+    data: PasskeyDeleteRequest,
     current_user: User = Depends(require_unrestricted),
     db: Session = Depends(get_db)
 ):
-    """Delete a passkey"""
+    """Delete a passkey.
+
+    Requires password confirmation: a hijacked session could otherwise
+    delete all of the victim's passkeys (2FA-grade credentials) without
+    any re-authentication.
+    """
+    if not await verify_password_async(data.current_password, current_user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="密码错误"
+        )
+
     passkey = PasskeyService.get_passkey(db, passkey_id, current_user)
     if not passkey:
         raise HTTPException(
@@ -358,4 +375,15 @@ async def delete_passkey(
         )
 
     PasskeyService.delete_passkey(db, passkey)
+
+    # 删除后账号可能不再有任何 2FA 因子(无 passkey 且无 TOTP)——
+    # 日志留痕提醒,便于运维/用户察觉风险并引导重新绑定。
+    remaining = db.query(Passkey).filter(Passkey.user_id == current_user.id).count()
+    has_totp = current_user.totp is not None and current_user.totp.is_enabled
+    if remaining == 0 and not has_totp:
+        logger.warning(
+            "User %s deleted their last passkey and has no TOTP enabled; "
+            "account now has no second factor", current_user.id
+        )
+
     return None

@@ -58,6 +58,8 @@ export default function RestrictedModeOverlay({ user, onComplete }: RestrictedMo
   // TOTP state
   const [totpSetupData, setTotpSetupData] = useState<TOTPSetupData | null>(null);
   const [totpCode, setTotpCode] = useState('');
+  // TOTP 绑定需密码确认（后端 TOTPSetupRequest 必填，防会话劫持植入后门）
+  const [totpPassword, setTotpPassword] = useState('');
   const [backupCodes, setBackupCodes] = useState<string[]>([]);
   const [showBackupCodes, setShowBackupCodes] = useState(false);
 
@@ -155,11 +157,16 @@ export default function RestrictedModeOverlay({ user, onComplete }: RestrictedMo
 
   // TOTP handlers
   const handleStartTOTPSetup = async () => {
+    if (!totpPassword) {
+      setError('请输入密码以确认身份');
+      return;
+    }
+
     setLoading(true);
     setError('');
 
     try {
-      const response = await totpApi.setup();
+      const response = await totpApi.setup(totpPassword);
       setTotpSetupData(response.data);
       setCurrentStep('totp');
     } catch (err: any) {
@@ -174,12 +181,16 @@ export default function RestrictedModeOverlay({ user, onComplete }: RestrictedMo
       setError('请输入 6 位验证码');
       return;
     }
+    if (!totpPassword) {
+      setError('请输入密码以确认身份');
+      return;
+    }
 
     setLoading(true);
     setError('');
 
     try {
-      const response = await totpApi.verifySetup(totpCode);
+      const response = await totpApi.verifySetup(totpCode, totpPassword);
       setBackupCodes(response.data.backup_codes);
       setShowBackupCodes(true);
       setTotpSetupData(null);
@@ -519,7 +530,7 @@ export default function RestrictedModeOverlay({ user, onComplete }: RestrictedMo
                   ) : (
                     <div className="grid gap-3 sm:grid-cols-2">
                       {/* TOTP option */}
-                      <Button onPress={handleStartTOTPSetup} isDisabled={loading || !emailVerified} variant="ghost"
+                      <Button onPress={() => { setTotpPassword(''); setTotpCode(''); setCurrentStep('totp'); }} isDisabled={loading || !emailVerified} variant="ghost"
                       className="flex items-center gap-3 p-4 border border-default-200 rounded-lg hover:bg-default-100 transition-colors text-left h-auto"><ShieldCheck className="w-8 h-8 text-success" />
                       <div>
                         <div className="font-medium text-foreground">
@@ -627,9 +638,30 @@ export default function RestrictedModeOverlay({ user, onComplete }: RestrictedMo
                 </div>
               </div>
             ) : (
-              <div className="text-center py-8">
-                <Spinner size="lg" />
-                <p className="mt-2 text-default-600">加载中...</p>
+              <div>
+                <div className="flex items-center gap-2 mb-4">
+                  <Button onPress={() => setCurrentStep('overview')} variant="ghost"
+                  className="text-default-500 hover:text-default-600 p-1 h-auto w-auto"><ChevronLeft className="w-5 h-5" /></Button>
+                  <h3 className="text-lg font-semibold text-foreground">
+                    设置身份验证器
+                  </h3>
+                </div>
+                <p className="text-sm text-default-600 mb-3">
+                  绑定身份验证器需要输入密码确认，以防会话被劫持时被他人植入后门。
+                </p>
+                <div className="flex gap-3">
+                  <Input
+                    type="password"
+                    value={totpPassword}
+                    onChange={(e) => setTotpPassword(e.target.value)}
+                    placeholder="请输入密码"
+                    className="flex-1"
+                    autoComplete="current-password"
+                  />
+                  <Button onPress={handleStartTOTPSetup} isDisabled={loading || !totpPassword} variant="primary" isPending={loading}>
+                    {loading ? '验证中...' : '下一步'}
+                  </Button>
+                </div>
               </div>
             )}
           </div>

@@ -373,6 +373,11 @@ class PasskeyVerifyCompleteRequest(BaseModel):
 
 
 # TOTP Schemas
+class TOTPSetupRequest(BaseModel):
+    """Request to start TOTP setup (password confirmation required)"""
+    current_password: str
+
+
 class TOTPSetupResponse(BaseModel):
     """Response for TOTP setup initiation"""
     secret: str
@@ -383,6 +388,7 @@ class TOTPSetupResponse(BaseModel):
 class TOTPVerifySetupRequest(BaseModel):
     """Request to verify and enable TOTP"""
     code: str = Field(..., min_length=6, max_length=6)
+    current_password: str
 
 
 class TOTPEnableResponse(BaseModel):

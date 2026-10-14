@@ -519,9 +519,9 @@ export const passkeyApi = {
   rename: (id: number, name: string) =>
     api.put(`/api/passkeys/${id}`, { name }),
 
-  // Delete passkey (requires auth)
-  delete: (id: number) =>
-    api.delete(`/api/passkeys/${id}`),
+  // Delete passkey (requires auth + password confirmation)
+  delete: (id: number, currentPassword: string) =>
+    api.delete(`/api/passkeys/${id}`, { data: { current_password: currentPassword } }),
 };
 
 // Verification API (for multi-step verification during login)
@@ -592,13 +592,13 @@ export const totpApi = {
   getStatus: () =>
     api.get('/api/totp/status'),
 
-  // Start TOTP setup
-  setup: () =>
-    api.post('/api/totp/setup'),
+  // Start TOTP setup (password confirmation required)
+  setup: (currentPassword: string) =>
+    api.post('/api/totp/setup', { current_password: currentPassword }),
 
-  // Verify and enable TOTP
-  verifySetup: (code: string) =>
-    api.post('/api/totp/verify-setup', { code }),
+  // Verify and enable TOTP (password confirmation required)
+  verifySetup: (code: string, currentPassword: string) =>
+    api.post('/api/totp/verify-setup', { code, current_password: currentPassword }),
 
   // Disable TOTP
   disable: (password: string) =>

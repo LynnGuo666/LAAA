@@ -15,6 +15,7 @@ from app.schemas import (
     TOTPBackupCodesResponse,
     TOTPDisableRequest,
     TOTPEnableResponse,
+    TOTPSetupRequest,
     TOTPSetupResponse,
     TOTPStatusResponse,
     TOTPVerifySetupRequest,
@@ -42,6 +43,7 @@ async def get_totp_status(
 
 @router.post("/setup", response_model=TOTPSetupResponse)
 async def setup_totp(
+    request_data: TOTPSetupRequest,
     current_user: User = Depends(require_unrestricted),
     db: Session = Depends(get_db)
 ):
@@ -50,7 +52,17 @@ async def setup_totp(
 
     Returns the secret, provisioning URI, and QR code.
     User must verify with a code before TOTP is enabled.
+
+    Requires password confirmation: prevents a hijacked session (stolen
+    cookie / XSS) from enrolling an attacker-controlled TOTP as a
+    persistent backdoor.
     """
+    if not await verify_password_async(request_data.current_password, current_user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="密码错误"
+        )
+
     try:
         secret, uri, qr_code = TOTPService.setup_totp(db, current_user)
         return TOTPSetupResponse(
@@ -75,7 +87,16 @@ async def verify_totp_setup(
     Verify TOTP code and enable TOTP.
 
     Returns backup codes that user should save securely.
+
+    Requires password confirmation (same rationale as /setup: the enable
+    step turns the enrolled secret into a persistent second factor).
     """
+    if not await verify_password_async(request_data.current_password, current_user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="密码错误"
+        )
+
     try:
         backup_codes = TOTPService.verify_and_enable_totp(
             db, current_user, request_data.code

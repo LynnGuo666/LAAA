@@ -111,6 +111,9 @@ export default function SecurityPage() {
   const [detailPasskeyName, setDetailPasskeyName] = useState('');
   const [renamingPasskey, setRenamingPasskey] = useState(false);
   const [showPasskeyDetailModal, setShowPasskeyDetailModal] = useState(false);
+  const [pendingDeletePasskey, setPendingDeletePasskey] = useState<{ id: number; name: string } | null>(null);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deletingPasskey, setDeletingPasskey] = useState(false);
   const [selectedSession, setSelectedSession] = useState<Session | null>(null);
   const [showSessionDetailModal, setShowSessionDetailModal] = useState(false);
   const [showTotpManageModal, setShowTotpManageModal] = useState(false);
@@ -325,21 +328,28 @@ export default function SecurityPage() {
   };
 
   const handleDeletePasskey = async (id: number, name: string) => {
-    const shouldDelete = await confirmDialog({
-      title: '确认删除通行密钥',
-      description: `确定要删除通行密钥 "${name}" 吗？删除后将无法使用此通行密钥登录。`,
-      confirmText: '删除',
-      cancelText: '取消',
-      status: 'danger',
-      confirmVariant: 'danger',
-    });
-    if (!shouldDelete) return;
+    setDeletePassword('');
+    setDeletingPasskey(false);
+    setPendingDeletePasskey({ id, name });
+  };
 
+  const handleConfirmDeletePasskey = async () => {
+    if (!pendingDeletePasskey) return;
+    if (!deletePassword) {
+      toast('请输入密码');
+      return;
+    }
+
+    setDeletingPasskey(true);
     try {
-      await passkeyApi.delete(id);
+      await passkeyApi.delete(pendingDeletePasskey.id, deletePassword);
+      setPendingDeletePasskey(null);
+      setDeletePassword('');
       await loadPasskeys();
-    } catch {
-      toast('删除失败');
+    } catch (err) {
+      toast(getApiErrorMessage(err, '删除失败'));
+    } finally {
+      setDeletingPasskey(false);
     }
   };
 
@@ -854,6 +864,56 @@ export default function SecurityPage() {
               <AlertDialog.Footer>
                 <Button onPress={handleCloseSessionDetail} variant="primary">
                   知道了
+                </Button>
+              </AlertDialog.Footer>
+            </AlertDialog.Dialog>
+          </AlertDialog.Container>
+        </AlertDialog.Backdrop>
+      </AlertDialog>
+
+      <AlertDialog>
+        <AlertDialog.Backdrop
+          isOpen={pendingDeletePasskey !== null}
+          onOpenChange={(isOpen) => {
+            if (!isOpen) {
+              setPendingDeletePasskey(null);
+              setDeletePassword('');
+            }
+          }}
+        >
+          <AlertDialog.Container>
+            <AlertDialog.Dialog>
+              <AlertDialog.Header>
+                <AlertDialog.Heading>确认删除通行密钥</AlertDialog.Heading>
+              </AlertDialog.Header>
+              <AlertDialog.Body>
+                <p className="text-sm text-default-600 mb-4">
+                  确定要删除通行密钥 <strong className="text-foreground">{pendingDeletePasskey?.name}</strong> 吗？删除后将无法使用此通行密钥登录。
+                </p>
+                <p className="text-sm text-default-600 mb-3">
+                  此操作需要输入密码确认，以防他人盗用会话后移除您的登录凭据。
+                </p>
+                <Input
+                  type="password"
+                  value={deletePassword}
+                  onChange={(e) => setDeletePassword(e.target.value)}
+                  placeholder="请输入密码"
+                  className="w-full"
+                  autoFocus
+                  autoComplete="current-password"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      void handleConfirmDeletePasskey();
+                    }
+                  }}
+                />
+              </AlertDialog.Body>
+              <AlertDialog.Footer>
+                <Button onPress={() => { setPendingDeletePasskey(null); setDeletePassword(''); }} variant="ghost">
+                  取消
+                </Button>
+                <Button onPress={() => void handleConfirmDeletePasskey()} isDisabled={!deletePassword || deletingPasskey} variant="danger" isPending={deletingPasskey}>
+                  {deletingPasskey ? '删除中...' : '删除'}
                 </Button>
               </AlertDialog.Footer>
             </AlertDialog.Dialog>

@@ -273,3 +273,113 @@ def test_totp_legacy_null_timestep_accepts_first_code(db_session, make_user):
 
     code = _totp_code_at(secret, _current_totp_step())
     assert TOTPService.verify_totp_code(db_session, user, code) is True
+
+
+# ==================== 2FA 管理操作密码确认 ====================
+
+def _login_token(client, username: str, password: str = "Passw0rd!") -> str:
+    """登录拿 access_token(make_user 工厂用户默认密码 Passw0rd!)。"""
+    resp = client.post("/api/auth/login", json={"username": username, "password": password})
+    assert resp.status_code == 200, resp.text
+    return resp.json()["access_token"]
+
+
+def _delete_json(client, url: str, headers: dict, payload: dict):
+    """DELETE 带 JSON 请求体(当前 httpx 版本的 TestClient.delete 不支持 json=)。"""
+    import json as _json
+    return client.request(
+        "DELETE", url,
+        headers={**headers, "Content-Type": "application/json"},
+        content=_json.dumps(payload),
+    )
+
+
+def test_totp_setup_endpoint_requires_password(client, db_session, make_user):
+    """TOTP setup 必须带正确密码:无密码 422、错密码 401、正确 200。"""
+    user = make_user()
+    headers = {"Authorization": f"Bearer {_login_token(client, user.username)}"}
+
+    # 缺少 current_password → 422
+    resp = client.post("/api/totp/setup", headers=headers, json={})
+    assert resp.status_code == 422, resp.text
+
+    # 错误密码 → 401
+    resp = client.post("/api/totp/setup", headers=headers, json={"current_password": "WrongPass123!"})
+    assert resp.status_code == 401, resp.text
+    assert "密码错误" in resp.json()["detail"]
+
+    # 正确密码 → 200,返回 secret/二维码
+    resp = client.post("/api/totp/setup", headers=headers, json={"current_password": "Passw0rd!"})
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["secret"]
+
+
+def test_totp_verify_setup_endpoint_requires_password(client, db_session, make_user):
+    """TOTP verify-setup 同样要求密码,且不影响正常绑定流程。"""
+    import pyotp
+
+    user = make_user()
+    headers = {"Authorization": f"Bearer {_login_token(client, user.username)}"}
+
+    # 先走 setup(正确密码)
+    resp = client.post("/api/totp/setup", headers=headers, json={"current_password": "Passw0rd!"})
+    assert resp.status_code == 200, resp.text
+    secret = resp.json()["secret"]
+    code = pyotp.TOTP(secret).now()
+
+    # 无密码 → 422
+    resp = client.post("/api/totp/verify-setup", headers=headers, json={"code": code})
+    assert resp.status_code == 422, resp.text
+
+    # 错密码 → 401
+    resp = client.post(
+        "/api/totp/verify-setup", headers=headers,
+        json={"code": code, "current_password": "WrongPass123!"},
+    )
+    assert resp.status_code == 401, resp.text
+
+    # 正确密码 + 有效验证码 → 200,返回备用码
+    resp = client.post(
+        "/api/totp/verify-setup", headers=headers,
+        json={"code": code, "current_password": "Passw0rd!"},
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["enabled"] is True
+    assert resp.json()["backup_codes"]
+
+
+def test_passkey_delete_endpoint_requires_password(client, db_session, make_user):
+    """passkey 删除必须带正确密码:无密码 422、错密码 401、正确 204。"""
+    from app.models import Passkey
+
+    user = make_user(passkeys=True)
+    headers = {"Authorization": f"Bearer {_login_token(client, user.username)}"}
+    passkey = db_session.query(Passkey).filter(Passkey.user_id == user.id).first()
+    assert passkey is not None
+
+    # 无密码(无请求体) → 422
+    resp = client.delete(f"/api/passkeys/{passkey.id}", headers=headers)
+    assert resp.status_code == 422, resp.text
+
+    # 错误密码 → 401
+    resp = _delete_json(client, f"/api/passkeys/{passkey.id}", headers, {"current_password": "WrongPass123!"})
+    assert resp.status_code == 401, resp.text
+    assert "密码错误" in resp.json()["detail"]
+
+    # 正确密码 → 204,passkey 被删除
+    resp = _delete_json(client, f"/api/passkeys/{passkey.id}", headers, {"current_password": "Passw0rd!"})
+    assert resp.status_code == 204, resp.text
+    assert db_session.query(Passkey).filter(Passkey.id == passkey.id).first() is None
+
+
+def test_passkey_delete_wrong_password_keeps_passkey(client, db_session, make_user):
+    """错密码的删除请求不会误删 passkey。"""
+    from app.models import Passkey
+
+    user = make_user(passkeys=True)
+    headers = {"Authorization": f"Bearer {_login_token(client, user.username)}"}
+    passkey = db_session.query(Passkey).filter(Passkey.user_id == user.id).first()
+
+    _delete_json(client, f"/api/passkeys/{passkey.id}", headers, {"current_password": "WrongPass123!"})
+    db_session.expire_all()
+    assert db_session.query(Passkey).filter(Passkey.id == passkey.id).first() is not None
