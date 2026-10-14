@@ -101,7 +101,17 @@ api.interceptors.response.use(
           // Retry original request with new token
           originalRequest.headers.Authorization = `Bearer ${access_token}`;
           return api(originalRequest);
-        } catch (refreshError) {
+        } catch (refreshError: any) {
+          // 会话被踢/吊销:后端返回结构化标记(code=session_revoked),
+          // 登出前明确告知用户原因,避免无提示静默跳转登录页
+          const failureDetail = refreshError?.response?.data?.detail;
+          if (
+            failureDetail &&
+            typeof failureDetail === 'object' &&
+            failureDetail.code === 'session_revoked'
+          ) {
+            toast.warning(failureDetail.message || '您的会话已终止，请重新登录');
+          }
           // Refresh failed, logout user (let app router navigate, avoid full reload)
           try {
             useAuthStore.getState().logout();

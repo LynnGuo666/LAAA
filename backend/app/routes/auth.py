@@ -11,6 +11,7 @@ from app.config import get_settings
 from app.database import get_db
 from app.middleware.auth import get_current_user
 from app.middleware.ratelimit import limiter
+from app.models import Session as SessionModel
 from app.models import User
 from app.schemas import (
     ChangeEmailRequest,
@@ -55,6 +56,7 @@ from app.services.verification_service import (
     VerificationService,
 )
 from app.utils.device import get_client_ip
+from app.utils.security import decode_token, hash_token
 from app.utils.time import utcnow
 
 settings = get_settings()
@@ -123,6 +125,34 @@ def _clear_auth_cookies(response: Response) -> None:
 
 
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
+
+# 会话被踢原因 → 用户可读文案(session_limit=挤下线 / admin_revoke=管理员终止)
+_SESSION_KICK_MESSAGES = {
+    "session_limit": "您的账号已在其他设备登录，当前设备已下线，请重新登录",
+    "admin_revoke": "您的会话已被管理员终止，请重新登录",
+    "refresh_replay": "检测到刷新令牌重放，出于安全考虑本次会话已终止，请重新登录",
+}
+
+
+def _refresh_failure_detail(db: Session, refresh_token_value: str):
+    """构造 refresh 失败时的 401 detail。
+
+    session 记录仍在但被踢/吊销时,返回结构化标记
+    ({"code": "session_revoked", "message": ...}),前端据此在登出前
+    明确告知用户原因,而不是无提示静默跳转登录页;其余失败保持通用
+    文案,不泄露失败细节。
+    """
+    payload = decode_token(refresh_token_value)
+    if payload and payload.get("type") == "refresh":
+        session = db.query(SessionModel).filter(
+            SessionModel.refresh_token_hash == hash_token(refresh_token_value)
+        ).first()
+        if session and session.kicked_at is not None:
+            message = _SESSION_KICK_MESSAGES.get(
+                session.kicked_reason, "您的会话已终止，请重新登录"
+            )
+            return {"code": "session_revoked", "message": message}
+    return "Invalid or expired refresh token"
 
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
@@ -361,7 +391,7 @@ async def refresh(
     if not result:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired refresh token"
+            detail=_refresh_failure_detail(db, refresh_token_value)
         )
 
     access_token, refresh_token = result

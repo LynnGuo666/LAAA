@@ -183,3 +183,48 @@ def test_openid_configuration_still_works(client):
     assert data["issuer"]
     assert data["authorization_endpoint"].endswith("/api/oauth/authorize")
     assert data["token_endpoint"].endswith("/api/oauth/token")
+
+
+def test_refresh_kicked_session_returns_structured_reason(client, db_session, make_user, seed_admin):
+    """会话被踢/挤下线后 refresh → 401 带 session_revoked 结构化标记(修复4)。
+
+    前端据此在登出前 toast 告知用户原因,而不是无提示静默跳转。
+    """
+    from app.models import Session as SessionModel
+    from app.services.session_limit_service import SessionLimitService
+    from app.utils.security import hash_token
+
+    user = make_user()
+    login = client.post(
+        "/api/auth/login",
+        json={"username": user.username, "password": "Passw0rd!"},
+    )
+    assert login.status_code == 200, login.text
+    refresh_token = login.json()["refresh_token"]
+
+    # 正常刷新成功,拿旋转后的 token(与 session 的 refresh_token_hash 对齐)
+    ok = client.post("/api/auth/refresh", json={"refresh_token": refresh_token})
+    assert ok.status_code == 200, ok.text
+    rotated = ok.json()["refresh_token"]
+
+    # 模拟该会话被挤下线(登录时超会话数限制被踢)
+    session = db_session.query(SessionModel).filter(
+        SessionModel.refresh_token_hash == hash_token(rotated),
+        SessionModel.user_id == user.id,
+    ).first()
+    assert session is not None, "登录后应存在与 refresh token 绑定的 session"
+    SessionLimitService.kick_session(db_session, session, reason="session_limit")
+
+    resp = client.post("/api/auth/refresh", json={"refresh_token": rotated})
+    assert resp.status_code == 401, resp.text
+    detail = resp.json()["detail"]
+    assert isinstance(detail, dict), "被踢会话的 401 应带结构化 detail"
+    assert detail["code"] == "session_revoked"
+    assert "其他设备" in detail["message"]
+
+
+def test_refresh_invalid_token_keeps_generic_detail(client):
+    """普通无效 refresh token → 401 保持通用字符串文案,不泄露失败细节。"""
+    resp = client.post("/api/auth/refresh", json={"refresh_token": "garbage.token.value"})
+    assert resp.status_code == 401
+    assert resp.json()["detail"] == "Invalid or expired refresh token"
