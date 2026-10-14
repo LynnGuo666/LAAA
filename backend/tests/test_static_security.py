@@ -57,8 +57,9 @@ def test_path_traversal_encoded_dots_blocked(client, static_dir):
     让编码路径原样到达服务端(已实验验证),无需绕过高层 API。
     """
     static_root, sentinel_path = static_dir
-    # 直达仓库根的 backend/.env 路径形态(P0 漏洞原始利用形态,同样不得泄漏)
-    urls = _traversal_urls_to_sentinel(static_root, sentinel_path) + [
+    urls = [
+        *_traversal_urls_to_sentinel(static_root, sentinel_path),
+        # 直达仓库根的 backend/.env 路径形态(P0 漏洞原始利用形态,同样不得泄漏)
         "/..%2f..%2f..%2fbackend%2f.env",
     ]
     for url in urls:
