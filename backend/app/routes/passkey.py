@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.database import get_db
-from app.middleware.auth import get_current_user
+from app.middleware.auth import get_current_user, require_unrestricted
 from app.models import Passkey, User
 from app.schemas import TokenResponse, VerificationRequiredResponse
 from app.schemas.passkey import (
@@ -327,7 +327,7 @@ async def update_passkey(
 @router.delete("/{passkey_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_passkey(
     passkey_id: int,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_unrestricted),
     db: Session = Depends(get_db)
 ):
     """Delete a passkey"""

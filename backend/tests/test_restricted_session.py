@@ -135,6 +135,94 @@ def test_normal_login_unaffected(client, make_user):
     assert "restricted" not in payload
 
 
+# ---------------------------------------------------------------------------
+# 敏感端点强制拒绝受限会话(require_unrestricted)
+# ---------------------------------------------------------------------------
+
+def _skip_login(client, db_session, user, *, risk_level="low") -> str:
+    """走 skip 拿受限 access token(直插验证会话,绕过登录 202 流程)。"""
+    session_token = _make_verification_session(db_session, user, risk_level=risk_level)
+    resp = client.post("/api/auth/verify/skip", json={"session_token": session_token})
+    assert resp.status_code == 200, resp.text
+    return resp.json()["access_token"]
+
+
+def test_restricted_token_blocked_on_sensitive_endpoints(client, make_user, db_session):
+    """受限 token 调改密/TOTP/删 passkey/会话吊销全部 403,detail 含「受限会话」。"""
+    user = make_user()
+    token = _skip_login(client, db_session, user)
+    headers = _make_headers(token)
+
+    # 改密
+    resp = client.put(
+        "/api/user/password",
+        headers=headers,
+        json={"current_password": "Passw0rd!", "new_password": "NewPassw0rd!123"},
+    )
+    assert resp.status_code == 403, resp.text
+    assert "受限会话" in resp.json()["detail"]
+
+    # TOTP setup / verify-setup / disable / 重新生成备用码
+    assert client.post("/api/totp/setup", headers=headers).status_code == 403
+    assert client.post(
+        "/api/totp/verify-setup", headers=headers, json={"code": "123456"}
+    ).status_code == 403
+    assert client.request(
+        "DELETE", "/api/totp", headers=headers, json={"password": "Passw0rd!"}
+    ).status_code == 403
+    assert client.post(
+        "/api/totp/backup-codes", headers=headers, json={"password": "Passw0rd!"}
+    ).status_code == 403
+
+    # 删 passkey(依赖守卫先于 handler,不存在的 id 也应 403 而非 404)
+    assert client.delete("/api/passkeys/999999", headers=headers).status_code == 403
+
+    # 会话吊销 / 登出其他设备
+    assert client.delete("/api/user/sessions/999999", headers=headers).status_code == 403
+    assert client.post("/api/user/sessions/revoke-others", headers=headers).status_code == 403
+
+
+def test_restricted_token_change_email_still_allowed(client, make_user, db_session):
+    """change-email 有意不挂 require_unrestricted:受限用户(邮箱打错字)
+    需改邮箱自救,该流程本身有当前密码 step-up。错误密码应得到 400 而非 403。"""
+    user = make_user()
+    token = _skip_login(client, db_session, user)
+
+    resp = client.post(
+        "/api/auth/change-email",
+        headers=_make_headers(token),
+        json={"current_password": "wrong-password", "new_email": "new@example.com"},
+    )
+    assert resp.status_code == 400, resp.text
+    assert "密码" in resp.json()["detail"]
+
+
+def test_normal_token_passes_guard(client, make_user):
+    """正常会话不受守卫影响:改密走业务校验(错误密码 400)而非 403。"""
+    user = make_user()
+    resp = client.post(
+        "/api/auth/login", json={"username": user.username, "password": "Passw0rd!"}
+    )
+    assert resp.status_code == 200, resp.text
+
+    resp = client.put(
+        "/api/user/password",
+        headers=_make_headers(resp.json()["access_token"]),
+        json={"current_password": "wrong-password", "new_password": "NewPassw0rd!123"},
+    )
+    assert resp.status_code == 400, resp.text
+
+
+def test_restricted_token_me_endpoint_allowed(client, make_user, db_session):
+    """非敏感端点(/api/auth/me)对受限会话仍可用(受限≠禁用)。"""
+    user = make_user()
+    token = _skip_login(client, db_session, user)
+
+    resp = client.get("/api/auth/me", headers=_make_headers(token))
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["username"] == user.username
+
+
 def _make_verification_session(db, user, *, risk_level="low", device_token=None):
     """直插验证会话(复用 conftest 的 make_verification_session)。"""
     from conftest import make_verification_session

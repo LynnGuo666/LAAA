@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.middleware.auth import get_current_user
+from app.middleware.auth import get_current_user, require_unrestricted
 from app.models import Client, LoginLog, Token, User, UserAuthorization
 from app.models import Session as SessionModel
 from app.schemas import (
@@ -176,7 +176,7 @@ async def get_sessions(
 @router.delete("/sessions/{session_id}")
 async def revoke_session(
     session_id: int,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_unrestricted),
     db: Session = Depends(get_db)
 ):
     """Revoke a session (forget a device)"""
@@ -348,7 +348,7 @@ async def unmark_session_trusted(
 @router.post("/sessions/revoke-others", response_model=KickedSessionsResponse)
 async def revoke_other_sessions(
     request: Request,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_unrestricted),
     db: Session = Depends(get_db)
 ):
     """Revoke all sessions except the current one"""
@@ -371,7 +371,7 @@ async def revoke_other_sessions(
 @router.put("/password")
 async def change_password(
     password_data: ChangePasswordRequest,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_unrestricted),
     db: Session = Depends(get_db)
 ):
     """Change current user password"""

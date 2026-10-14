@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.middleware.auth import get_current_user
+from app.middleware.auth import get_current_user, require_unrestricted
 from app.models import User
 from app.schemas import (
     TOTPBackupCodesRequest,
@@ -42,7 +42,7 @@ async def get_totp_status(
 
 @router.post("/setup", response_model=TOTPSetupResponse)
 async def setup_totp(
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_unrestricted),
     db: Session = Depends(get_db)
 ):
     """
@@ -68,7 +68,7 @@ async def setup_totp(
 @router.post("/verify-setup", response_model=TOTPEnableResponse)
 async def verify_totp_setup(
     request_data: TOTPVerifySetupRequest,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_unrestricted),
     db: Session = Depends(get_db)
 ):
     """
@@ -110,7 +110,7 @@ async def verify_totp_setup(
 @router.delete("")
 async def disable_totp(
     request_data: TOTPDisableRequest,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_unrestricted),
     db: Session = Depends(get_db)
 ):
     """
@@ -138,7 +138,7 @@ async def disable_totp(
 @router.post("/backup-codes", response_model=TOTPBackupCodesResponse)
 async def regenerate_backup_codes(
     request_data: TOTPBackupCodesRequest,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_unrestricted),
     db: Session = Depends(get_db)
 ):
     """

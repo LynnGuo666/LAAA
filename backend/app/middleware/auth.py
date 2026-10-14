@@ -12,6 +12,7 @@ security = HTTPBearer()
 
 
 def get_current_user(
+    request: Request,
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: Session = Depends(get_db)
 ) -> User:
@@ -74,7 +75,31 @@ def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+    # 把解析出的 JWT payload 挂到 request.state,供下游依赖
+    # (require_unrestricted)读取,避免重复解码签名
+    request.state.token_payload = payload
+
     return user
+
+
+def require_unrestricted(
+    request: Request,
+    current_user: User = Depends(get_current_user)
+) -> User:
+    """敏感端点守卫:拒绝受限会话(跳过验证签发的 restricted token)。
+
+    挂载点:改密 / TOTP 设置与禁用 / 删 passkey / 会话吊销等。
+    有意不挂载:change-email 发起与确认(受限用户需改邮箱自救,
+    该流程本身有当前密码 step-up)、passkey 注册(受限用户绑定
+    passkey 是逃出受限模式的自救路径,且注册需 WebAuthn 用户在场验证)。
+    """
+    payload = getattr(request.state, "token_payload", None) or {}
+    if payload.get("restricted"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="当前为受限会话（跳过验证登录），请重新登录并完成安全验证后再执行此操作",
+        )
+    return current_user
 
 
 def get_optional_user(
