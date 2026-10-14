@@ -1,9 +1,9 @@
 import json
+import logging
 import secrets
 from datetime import timedelta
 from typing import Any, Dict, List, Optional, Tuple
 
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
@@ -22,6 +22,7 @@ from app.utils.security import (
 from app.utils.time import utcnow
 
 settings = get_settings()
+logger = logging.getLogger("uvicorn.error")
 
 # 用于用户不存在时保持常量时间响应:仍跑一次 bcrypt 验证,避免基于响应时序枚举用户名。
 DUMMY_PASSWORD_HASH = "$2b$12$7hCJrIJoByJ9AEiLybrm9Okp2CPh2VB.AbARWEyo9ZqKvWyDtr/nO"
@@ -367,15 +368,29 @@ class AuthService:
             return None
         device_id = payload.get("device_id")
 
-        # Check if refresh token exists and is valid
+        # 按 hash 取记录(不预过滤状态),三分支判定:
+        # 不存在 → 过期/无效;revoked_at 非空 → 旧 token 重放,灭族;
+        # 过期 → 自然失效;活跃 → 正常轮换
         token_hash_value = hash_token(refresh_token)
         token_record = db.query(Token).filter(
             Token.token_hash == token_hash_value,
             Token.type == 'refresh',
-            Token.expires_at > utcnow()
         ).first()
 
         if not token_record:
+            return None
+
+        # 重放检测(OAuth 2.1 BCP):已吊销的旧 token 再次出现 = 疑似被盗,
+        # 吊销整个家族并联动过期其 session(被盗者与受害者都被迫重新认证)
+        if token_record.revoked_at is not None:
+            logger.warning(
+                "refresh token replay detected: revoking family user=%s family=%s",
+                token_record.user_id, token_record.family_id,
+            )
+            AuthService._revoke_token_family(db, token_record)
+            return None
+
+        if token_record.expires_at <= utcnow():
             return None
 
         # Ensure the refresh token is still bound to a valid client
@@ -419,50 +434,94 @@ class AuthService:
             else settings.refresh_token_expire_days
         )
 
-        # Update old refresh token record
-        for _ in range(3):
-            token_record.token_hash = hash_token(new_refresh_token)
-            token_record.expires_at = refresh_expires
+        # 轮换:标记旧 token 吊销 + 插入新 token(同 family)。
+        # 存量无 family 的旧记录在此惰性回填新 family_id。
+        import uuid
+        family_id = token_record.family_id or str(uuid.uuid4())
+        token_record.revoked_at = utcnow()
+        token_record.family_id = family_id
 
-            # Update session if exists
-            session = db.query(SessionModel).filter(
-                SessionModel.refresh_token_hash == token_hash_value
-            ).first()
-            if session:
-                session.refresh_token_hash = hash_token(new_refresh_token)
-                session.last_active = utcnow()
-                session.expires_at = refresh_expires
+        new_token_record = Token(
+            token_hash=hash_token(new_refresh_token),
+            type='refresh',
+            user_id=user.id,
+            client_id=token_record.client_id,
+            scope=token_record.scope,
+            family_id=family_id,
+            expires_at=refresh_expires,
+        )
+        db.add(new_token_record)
 
-            try:
-                db.commit()
-                return new_access_token, new_refresh_token
-            except IntegrityError:
-                db.rollback()
-                new_refresh_token = create_refresh_token(token_data)
+        # Update session if exists
+        session = db.query(SessionModel).filter(
+            SessionModel.refresh_token_hash == token_hash_value
+        ).first()
+        if session:
+            session.refresh_token_hash = hash_token(new_refresh_token)
+            session.last_active = utcnow()
+            session.expires_at = refresh_expires
 
-        return None
+        db.commit()
+        return new_access_token, new_refresh_token
 
     @staticmethod
-    def logout(db: Session, refresh_token: str) -> bool:
-        """Logout user by removing refresh token"""
-        token_hash_value = hash_token(refresh_token)
+    def _revoke_token_family(db: Session, token_record: Token) -> None:
+        """吊销整个 refresh token 家族(OAuth 2.1 BCP 重放响应)。
 
-        # Delete token
+        删除该 family 全部 token(含未过期的),并联动过期挂在其中的 session。
+        """
+        family_id = token_record.family_id
+        if not family_id:
+            # 无家族的孤 token(极老记录):只删自身 + session
+            db.delete(token_record)
+            db.query(SessionModel).filter(
+                SessionModel.refresh_token_hash == token_record.token_hash
+            ).delete()
+            db.commit()
+            return
+
+        family_hashes = [t.token_hash for t in db.query(Token).filter(
+            Token.family_id == family_id
+        ).all()]
+        db.query(Token).filter(Token.family_id == family_id).delete()
+        if family_hashes:
+            db.query(SessionModel).filter(
+                SessionModel.refresh_token_hash.in_(family_hashes)
+            ).update({
+                SessionModel.expires_at: utcnow(),
+                SessionModel.kicked_at: utcnow(),
+                SessionModel.kicked_reason: 'refresh_replay',
+            }, synchronize_session=False)
+        db.commit()
+
+    @staticmethod
+    def logout(db: Session, refresh_token: Optional[str]) -> bool:
+        """Logout user by removing refresh token(整个家族)。
+
+        登出应吊销该登录链路的全部 refresh token(含历史上已轮换的
+        revoked 记录),不只是当前这枚——否则同 family 的在途 token
+        仍可继续刷新。refresh_token 为空(cookie 形态登出且 body 未带)
+        时静默成功。
+        """
+        if not refresh_token:
+            return True
+
+        token_hash_value = hash_token(refresh_token)
         token = db.query(Token).filter(
             Token.token_hash == token_hash_value,
             Token.type == 'refresh'
         ).first()
 
         if token:
-            db.delete(token)
+            if token.family_id:
+                # 整个家族(当前 + 历史轮换记录)全部移除,并联动过期 session
+                AuthService._revoke_token_family(db, token)
+            else:
+                # 孤 token(极老记录)
+                db.delete(token)
+                db.query(SessionModel).filter(
+                    SessionModel.refresh_token_hash == token_hash_value
+                ).delete()
+                db.commit()
 
-        # Delete session
-        session = db.query(SessionModel).filter(
-            SessionModel.refresh_token_hash == token_hash_value
-        ).first()
-
-        if session:
-            db.delete(session)
-
-        db.commit()
         return True

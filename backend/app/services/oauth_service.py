@@ -377,45 +377,19 @@ class OAuthService:
             logger.info("oauth refresh_token: invalid client_secret client_id=%s", client_id)
             return None
 
-        # Verify refresh token
-        token_hash_value = hash_token(refresh_token)
-        token = db.query(Token).filter(
-            Token.token_hash == token_hash_value,
-            Token.type == 'refresh',
-            Token.client_id == client.id,
-            Token.expires_at > utcnow()
-        ).first()
-
-        if not token:
+        # Verify refresh token + 家族轮换统一走 AuthService(重放检测/灭族/惰性回填同源)
+        from app.services.auth_service import AuthService
+        result = AuthService.refresh_access_token(
+            db, refresh_token, client_id=client_id, client_secret=client_secret
+        )
+        if not result:
             logger.info(
-                "oauth refresh_token: token not found/expired client_id=%s token_hash=%s",
+                "oauth refresh_token: refresh failed (invalid/expired/replayed) client_id=%s",
                 client_id,
-                OAuthService._short_hash(refresh_token),
             )
             return None
 
-        # Get user
-        user = token.user
-        if not user or user.status != 'active':
-            logger.info(
-                "oauth refresh_token: user inactive/missing client_id=%s user_id=%s",
-                client_id,
-                getattr(user, "id", None),
-            )
-            return None
-
-        # Create new tokens
-        token_data = {"sub": str(user.id), "scope": token.scope, "client_id": client_id}
-        new_access_token = create_access_token(token_data, token_version=user.token_version)
-        new_refresh_token = create_refresh_token(token_data)
-
-        # Update refresh token
-        refresh_expires = utcnow() + timedelta(days=settings.refresh_token_expire_days)
-        token.token_hash = hash_token(new_refresh_token)
-        token.expires_at = refresh_expires
-
-        db.commit()
-
+        new_access_token, new_refresh_token = result
         return new_access_token, new_refresh_token, settings.access_token_expire_minutes * 60
 
     @staticmethod

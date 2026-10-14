@@ -234,6 +234,11 @@ class Token(Base):
     code_challenge_method = Column(String(10), nullable=True)  # S256 / plain
     # OIDC nonce:授权码请求时透传,签发 id_token 时回填(防重放)
     nonce = Column(String(128), nullable=True)
+    # refresh token 家族(OAuth 2.1 BCP):同一条登录链路的所有 refresh token
+    # 共享 family_id,检测到旧 token 重放即吊销整个家族(被盗场景止损)
+    family_id = Column(String(36), nullable=True, index=True)
+    # 轮换时旧 token 标记 revoked_at(不再删除,保留供重放检测判定)
+    revoked_at = Column(DateTime, nullable=True)
     expires_at = Column(DateTime, nullable=False)
     created_at = Column(DateTime, default=utcnow)
 
