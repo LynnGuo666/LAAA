@@ -128,6 +128,28 @@ def preload():
     _get_ip2region_searcher()
 
 
+def _is_private_ip(ip_address: str) -> bool:
+    """Whether it is a private/internal network address.
+
+    Note the precise range for 172.16.0.0/12: only the 172.16-31 segments are private,
+    172.32-255 is a public segment——the previous `startswith('172.')` wrongly treated the entire 172/8
+    as private, causing legitimate public IP GeoIP lookups to be skipped.
+    """
+    if ip_address in ('127.0.0.1', 'localhost', '::1'):
+        return True
+    if ip_address.startswith('192.168.') or ip_address.startswith('10.'):
+        return True
+    if ip_address.startswith('172.'):
+        parts = ip_address.split('.')
+        if len(parts) == 4:
+            try:
+                second_octet = int(parts[1])
+            except ValueError:
+                return False
+            return 16 <= second_octet <= 31
+    return False
+
+
 class GeoIPService:
     """Service for IP geolocation lookups"""
 
@@ -169,7 +191,9 @@ class GeoIPService:
             return None
 
         # Skip private/local IP addresses
-        if ip_address in ('127.0.0.1', 'localhost', '::1') or ip_address.startswith('192.168.') or ip_address.startswith('10.') or ip_address.startswith('172.'):
+        # (precise private segment determination, see _is_private_ip——172.16-31 is private,
+        #   172.32+ is public and must not be skipped)
+        if _is_private_ip(ip_address):
             return None
 
         reader = _get_reader()

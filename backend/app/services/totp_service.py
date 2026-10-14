@@ -190,8 +190,11 @@ class TOTPService:
         """Generate a list of backup codes"""
         codes = []
         for _ in range(count):
-            # Generate 8-character alphanumeric codes
-            code = secrets.token_hex(4).upper()
+            # Generate 10-character alphanumeric codes (40-bit entropy; 8
+            # chars = 32 bits, which is too small against offline guessing of
+            # stored hash lists — only new codes use the new length; old
+            # 8-character codes are still verifiable, see VerifyBackupCodeRequest)
+            code = secrets.token_hex(5).upper()
             codes.append(code)
         return codes
 

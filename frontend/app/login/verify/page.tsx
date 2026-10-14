@@ -167,9 +167,9 @@ export default function VerifyPage() {
           <>
             <div className="text-center">
               <h2 className="text-lg font-semibold text-foreground">备用码</h2>
-              <p className="text-sm text-default-500 mt-1">输入8位备用码</p>
+              <p className="text-sm text-default-500 mt-1">输入 8-10 位备用码</p>
             </div>
-            <Input type="text" value={backupCode} onChange={e => setBackupCode(e.target.value.toUpperCase().slice(0, 8))} placeholder="XXXXXXXX" className="w-full" maxLength={8} />
+            <Input type="text" value={backupCode} onChange={e => setBackupCode(e.target.value.toUpperCase().slice(0, 10))} placeholder="XXXXXXXXXX" className="w-full" maxLength={10} />
             <Button onPress={() => verify(() => verificationApi.verifyBackupCode(session.session_token, backupCode), 'totp')} isDisabled={loading || backupCode.length !== 8} variant="primary" className="w-full" isPending={loading}>验证</Button>
             <Button onPress={() => setShowBackupCode(false)} variant="ghost" className="w-full text-sm">使用身份验证器</Button>
           </>

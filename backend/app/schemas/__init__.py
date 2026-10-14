@@ -346,9 +346,13 @@ class VerifyTOTPRequest(BaseModel):
 
 
 class VerifyBackupCodeRequest(BaseModel):
-    """Request to verify backup code"""
+    """Request to verify backup code
+
+    Length 8-10: new codes are 10 characters (40-bit entropy), old codes were 8
+    characters (still available and valid, cannot be affected by the entropy upgrade)
+    """
     session_token: str
-    code: str = Field(..., min_length=8, max_length=8)
+    code: str = Field(..., min_length=8, max_length=10)
 
 
 class SendMagicLinkRequest(BaseModel):

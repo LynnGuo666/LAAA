@@ -180,9 +180,12 @@ class LoginAnomalyService:
         """Check for excessive login frequency"""
         time_window = utcnow() - timedelta(minutes=settings.suspicious_login_velocity_minutes)
 
-        # Count recent login attempts (both success and failure)
+        # Only count successful logins: failure records are controlled by the attacker
+        # (they can deliberately fail N times to push the victim's next login to be judged high_velocity, creating friction),
+        # and failures themselves have no "velocity" semantics of account sharing.
         recent_attempts = db.query(LoginLog).filter(
             LoginLog.user_id == user.id,
+            LoginLog.success == True,
             LoginLog.created_at > time_window
         ).count()
 

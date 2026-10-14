@@ -2,6 +2,7 @@
 from datetime import timedelta
 
 import pytest
+from conftest import seed_login_history
 
 from app.utils.security import (
     create_access_token,
@@ -587,3 +588,73 @@ def test_passkey_authentication_rejects_missing_uv_flag(db_session, make_user, s
         PasskeyService.verify_authentication(
             db_session, _passkey_credential(passkey), opts['challenge_id']
         )
+
+
+# ==================== 打包修复:备用码熵 / velocity 统计 / GeoIP 私有段 ====================
+
+def test_backup_codes_10_chars_40bit_entropy():
+    """新生成的备用码为 10 字符(40-bit);存量 8 字符码哈希校验不受影响。"""
+    from app.services.totp_service import TOTPService
+
+    codes = TOTPService.generate_backup_codes()
+    assert len(codes) == 10
+    assert all(len(c) == 10 for c in codes), "新备用码应为 10 字符(40-bit 熵)"
+    assert len(set(codes)) == 10
+    # 8 字符存量码仍可通过哈希比较(校验逻辑与长度无关)
+    legacy = "A1B2C3D4"
+    assert TOTPService.hash_backup_code(legacy) == TOTPService.hash_backup_code(legacy.lower())
+
+
+def test_velocity_ignores_failed_logins(db_session, make_user, seed_admin):
+    """velocity 只统计成功登录:攻击者故意失败不能把受害者下次登录顶成 high_velocity。"""
+    from app.config import get_settings
+    from app.services.login_anomaly_service import LoginAnomalyService
+
+    settings = get_settings()
+    user = make_user()
+
+    # 灌满阈值数量的失败记录(N >= suspicious_login_velocity_count)
+    for _ in range(settings.suspicious_login_velocity_count + 2):
+        seed_login_history(db_session, user, ip="9.9.9.9", success=False)
+    assert LoginAnomalyService._check_login_velocity(db_session, user) is None
+
+    # 1 次成功登录:成功计数远低于阈值 → 仍无异常
+    seed_login_history(db_session, user, ip="9.9.9.9", success=True)
+    assert LoginAnomalyService._check_login_velocity(db_session, user) is None
+
+
+def test_velocity_counts_successful_logins(db_session, make_user, seed_admin):
+    """成功登录达到阈值 → 正常触发 high_velocity(防护不过度)。"""
+    from app.config import get_settings
+    from app.services.login_anomaly_service import LoginAnomalyService
+
+    settings = get_settings()
+    user = make_user()
+
+    for _ in range(settings.suspicious_login_velocity_count):
+        seed_login_history(db_session, user, ip="9.9.9.9", success=True)
+
+    anomaly = LoginAnomalyService._check_login_velocity(db_session, user)
+    assert anomaly is not None
+    assert anomaly["type"] == "high_velocity"
+
+
+def test_geoip_private_ip_precise_172_range():
+    """172.16-31 才是私有段;172.32+ 是公网,不得再被 startswith('172.') 误杀。"""
+    from app.services.geoip_service import _is_private_ip
+
+    # 私有段
+    assert _is_private_ip("172.16.0.1")
+    assert _is_private_ip("172.31.255.255")
+    assert _is_private_ip("10.1.2.3")
+    assert _is_private_ip("192.168.1.1")
+    assert _is_private_ip("127.0.0.1")
+    assert _is_private_ip("::1")
+    assert _is_private_ip("localhost")
+
+    # 公网段(此前 172/8 全被误杀)
+    assert not _is_private_ip("172.32.0.1")
+    assert not _is_private_ip("172.160.0.1")
+    assert not _is_private_ip("172.15.0.1")
+    assert not _is_private_ip("8.8.8.8")
+    assert not _is_private_ip("1.2.3.4")
