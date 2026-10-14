@@ -60,14 +60,20 @@ def cleanup_expired_data(db: Session) -> dict:
 
 
 async def maintenance_loop():
-    """后台循环:每小时清理一次。异常不退出循环。"""
+    """后台循环:每小时清理一次。异常不退出循环。
+
+    清理的同步 DB 操作包进线程池,避免每小时一次的全表删除
+    (带索引后仍可能扫删大量行)阻塞事件循环。
+    """
+    from fastapi.concurrency import run_in_threadpool
+
     from app.database import SessionLocal
 
     while True:
         try:
             db = SessionLocal()
             try:
-                cleanup_expired_data(db)
+                await run_in_threadpool(cleanup_expired_data, db)
             finally:
                 db.close()
         except Exception:

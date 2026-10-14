@@ -103,7 +103,8 @@ class SessionLimitService:
     def kick_session(
         db: Session,
         session: SessionModel,
-        reason: str = 'manual'
+        reason: str = 'manual',
+        commit: bool = True,
     ) -> Dict[str, Any]:
         """
         Kick (terminate) a specific session.
@@ -112,6 +113,8 @@ class SessionLimitService:
             db: Database session
             session: The session to kick
             reason: Reason for kicking (session_limit, manual, security, etc.)
+            commit: 是否立即提交。循环吊销多个会话时传 False,
+                由调用方在循环外统一 commit(避免逐条提交的多次 fsync)
 
         Returns:
             Dictionary with info about the kicked session
@@ -138,7 +141,8 @@ class SessionLimitService:
         # Expire the session
         session.expires_at = utcnow()
 
-        db.commit()
+        if commit:
+            db.commit()
 
         return kicked_info
 
@@ -160,14 +164,17 @@ class SessionLimitService:
                 device_id 匹配失配即全踢」语义，由调用方决定是否兜底）
         """
         kicked_sessions = []
-
         active_sessions = SessionLimitService.get_active_sessions(db, user_id)
 
         for session in active_sessions:
             if session.id != keep_session_id:
                 kicked_info = SessionLimitService.kick_session(
-                    db, session, reason='user_request'
+                    db, session, reason='user_request', commit=False
                 )
                 kicked_sessions.append(kicked_info)
+
+        # 循环外统一提交(逐条 commit 会造成 N 次 fsync)
+        if kicked_sessions:
+            db.commit()
 
         return kicked_sessions

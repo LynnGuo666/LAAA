@@ -827,8 +827,10 @@ async def revoke_all_user_sessions(
         Session.expires_at > utcnow(),
     ).all()
     for session in sessions:
-        # 同上:连带删各会话关联的 refresh token
-        SessionLimitService.kick_session(db, session, reason='admin_revoke')
+        # 同上:连带删各会话关联的 refresh token(循环外统一提交)
+        SessionLimitService.kick_session(db, session, reason='admin_revoke', commit=False)
+    if sessions:
+        db.commit()
 
     return {"message": f"已登出 {len(sessions)} 个会话"}
 
