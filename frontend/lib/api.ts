@@ -509,10 +509,6 @@ export const passkeyApi = {
       device_token: data.device_token || getDeviceToken()
     }, { withCredentials: true }),
 
-  // Check if user has passkeys (no auth required)
-  checkUserPasskeys: (username: string) =>
-    axios.get(`${API_URL}/api/passkeys/check/${username}`, { withCredentials: true }),
-
   // List passkeys (requires auth)
   list: () =>
     api.get('/api/passkeys/'),

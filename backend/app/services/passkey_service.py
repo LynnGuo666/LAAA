@@ -396,15 +396,6 @@ class PasskeyService:
         db.commit()
 
     @staticmethod
-    def user_has_passkeys(db: Session, username: str) -> bool:
-        """Check if a user has any passkeys registered"""
-        user = db.query(User).filter(User.username == username).first()
-        if not user:
-            return False
-        count = db.query(Passkey).filter(Passkey.user_id == user.id).count()
-        return count > 0
-
-    @staticmethod
     def cleanup_expired_challenges(db: Session) -> int:
         """Clean up expired challenges"""
         result = db.query(WebAuthnChallenge).filter(
