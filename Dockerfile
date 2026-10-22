@@ -14,7 +14,7 @@
 #   docker compose -f docker-compose.prod.yml up -d   # 生产:用预构建镜像(可选)
 
 # ───────────────────────── Stage 1: 前端静态导出 ─────────────────────────
-FROM node:20-alpine AS frontend-builder
+FROM node:22.23.4-alpine AS frontend-builder
 WORKDIR /frontend
 
 COPY frontend/package.json frontend/package-lock.json ./
