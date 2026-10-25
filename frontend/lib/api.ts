@@ -270,6 +270,13 @@ export const userApi = {
   revokeSession: (id: number) =>
     api.delete(`/api/user/sessions/${id}`),
 
+  // 已知设备(风控记忆):包含当前没有活跃会话的设备
+  getDevices: () =>
+    api.get('/api/user/devices', { headers: refreshTokenHeader() }),
+
+  forgetDevice: (id: number) =>
+    api.delete(`/api/user/devices/${id}`, { headers: refreshTokenHeader() }),
+
   listApps: () =>
     api.get('/api/user/apps'),
 
@@ -454,6 +461,37 @@ export const adminApi = {
   // 用户安全验证方式
   getUserSecurityMethods: (userId: number) =>
     api.get(`/api/admin/users/${userId}/security-methods`),
+
+  // 二次验证恢复（用户丢失验证器 / 通行密钥时）
+  resetUserTotp: (userId: number) =>
+    api.delete(`/api/admin/users/${userId}/totp`),
+
+  deleteUserPasskey: (userId: number, passkeyId: number) =>
+    api.delete(`/api/admin/users/${userId}/passkeys/${passkeyId}`),
+
+  resetUser2FA: (
+    userId: number,
+    data: { reset_totp?: boolean; remove_passkeys?: boolean; force_relogin?: boolean } = {},
+  ) =>
+    api.post(`/api/admin/users/${userId}/reset-2fa`, {
+      reset_totp: true,
+      remove_passkeys: true,
+      force_relogin: true,
+      ...data,
+    }),
+
+  forceUserRelogin: (userId: number) =>
+    api.post(`/api/admin/users/${userId}/force-relogin`),
+
+  // 管理员操作审计
+  listAuditLogs: (params: {
+    skip?: number;
+    limit?: number;
+    action?: string;
+    target_user_id?: number;
+    actor_id?: number;
+  } = {}) =>
+    api.get('/api/admin/audit-logs', { params }),
 };
 
 // Group API extensions for app permissions

@@ -15,6 +15,7 @@ import {
 } from '@/components/admin/admin-ui'
 import { AdminPagination } from '@/components/admin/pagination'
 import { UICheckbox } from '@/components/ui/primitives'
+import { MobileField, MobileList, MobileListCard } from '@/components/ui/mobile-list'
 import { SkeletonRows } from '@/components/ui/loading'
 import { useConfirmDialog } from '@/components/ui/confirm-dialog-provider'
 import { adminApi, groupApi } from '@/lib/api'
@@ -79,6 +80,8 @@ export default function UsersPage() {
   const [showRolesModal, setShowRolesModal] = useState(false)
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
   const [openMenuId, setOpenMenuId] = useState<number | null>(null)
+  // 桌面表格与移动卡片同时挂载，用来源区分，避免同一个 popover 状态把隐藏端也打开
+  const [openMenuSource, setOpenMenuSource] = useState<'desktop' | 'mobile' | null>(null)
   const [selectedUserGroups, setSelectedUserGroups] = useState<number[]>([])
   const [selectedUserRoles, setSelectedUserRoles] = useState<number[]>([])
 
@@ -376,6 +379,52 @@ export default function UsersPage() {
 
   const totalPages = Math.ceil(total / limit)
 
+  const renderUserActions = (item: User, source: 'desktop' | 'mobile') => (
+    <>
+      <Button
+        size="sm"
+        variant="secondary"
+        onPress={() => router.push(`/admin/users/detail?id=${item.id}`)}
+      >
+        详情
+      </Button>
+      <Popover
+        isOpen={openMenuId === item.id && openMenuSource === source}
+        onOpenChange={(open) => {
+          setOpenMenuId(open ? item.id : null)
+          setOpenMenuSource(open ? source : null)
+        }}
+      >
+        <Popover.Trigger>
+          <Button variant="secondary" size="sm" isIconOnly aria-label="更多操作">
+            <MoreHorizontal className="h-4 w-4" />
+          </Button>
+        </Popover.Trigger>
+        <Popover.Content className="w-36 p-1">
+          <ListBox
+            aria-label="用户操作"
+            onAction={(key) => {
+              setOpenMenuId(null)
+              setOpenMenuSource(null)
+              const action = String(key)
+              if (action === 'edit') openEditModal(item)
+              else if (action === 'groups') openGroupsModal(item)
+              else if (action === 'roles') openRolesModal(item)
+              else if (action === 'permissions') router.push(`/admin/users/permissions?id=${item.id}`)
+              else if (action === 'delete') void handleDeleteUser(item)
+            }}
+          >
+            <ListBoxItem id="edit">编辑</ListBoxItem>
+            <ListBoxItem id="groups">用户组</ListBoxItem>
+            <ListBoxItem id="roles">角色</ListBoxItem>
+            <ListBoxItem id="permissions">应用权限</ListBoxItem>
+            <ListBoxItem id="delete" className="text-danger">删除</ListBoxItem>
+          </ListBox>
+        </Popover.Content>
+      </Popover>
+    </>
+  )
+
   if (!canManageUsers) {
     return (
       <AdminNotice tone="danger" title="无权限" description="该页面仅管理员可访问。" />
@@ -441,90 +490,92 @@ export default function UsersPage() {
               }
             />
           ) : (
-            <Table aria-label="用户列表">
-              <Table.ScrollContainer>
-                <Table.Content>
-                  <Table.Header>
-                    <Table.Column isRowHeader>用户</Table.Column>
-                    <Table.Column>状态</Table.Column>
-                    <Table.Column>用户组 / 角色</Table.Column>
-                    <Table.Column>创建时间</Table.Column>
-                    <Table.Column>操作</Table.Column>
-                  </Table.Header>
-                  <Table.Body>
-                    {users.map((item) => (
-                      <Table.Row key={item.id} id={String(item.id)}>
-                        <Table.Cell>
-                          <div className="flex items-start gap-3">
-                            <EntityAvatar src={item.avatar} name={item.username} rounded="full" />
-                            <div className="min-w-0">
-                              <p className="font-medium text-foreground">{item.username}</p>
-                              <p className="text-sm text-muted">{item.email}</p>
-                              <p className="text-xs text-muted">ID: {item.id}</p>
-                            </div>
-                          </div>
-                        </Table.Cell>
-                        <Table.Cell>{renderStatusChip(item.status)}</Table.Cell>
-                        <Table.Cell>
-                          <div className="space-y-1 text-sm">
-                            <p className="text-foreground">
-                              用户组：{item.groups.length ? item.groups.join('、') : '无'}
-                            </p>
-                            <p className="text-muted">
-                              角色：{item.roles.length ? item.roles.join('、') : '无'}
-                            </p>
-                          </div>
-                        </Table.Cell>
-                        <Table.Cell>
-                          <div className="space-y-1 text-sm text-muted">
-                            <p>{formatDate(item.created_at)}</p>
-                            <p>更新：{formatDate(item.updated_at)}</p>
-                          </div>
-                        </Table.Cell>
-                        <Table.Cell>
-                          <div className="flex items-center gap-2">
-                            <Button
-                              size="sm"
-                              variant="secondary"
-                              onPress={() => router.push(`/admin/users/detail?id=${item.id}`)}
-                            >
-                              详情
-                            </Button>
-                            <Popover isOpen={openMenuId === item.id} onOpenChange={(open) => setOpenMenuId(open ? item.id : null)}>
-                              <Popover.Trigger>
-                                <Button variant="secondary" size="sm" isIconOnly aria-label="更多操作">
-                                  <MoreHorizontal className="h-4 w-4" />
-                                </Button>
-                              </Popover.Trigger>
-                              <Popover.Content className="w-36 p-1">
-                                <ListBox
-                                  aria-label="用户操作"
-                                  onAction={(key) => {
-                                    setOpenMenuId(null)
-                                    const action = String(key)
-                                    if (action === 'edit') openEditModal(item)
-                                    else if (action === 'groups') openGroupsModal(item)
-                                    else if (action === 'roles') openRolesModal(item)
-                                    else if (action === 'permissions') router.push(`/admin/users/permissions?id=${item.id}`)
-                                    else if (action === 'delete') void handleDeleteUser(item)
-                                  }}
-                                >
-                                  <ListBoxItem id="edit">编辑</ListBoxItem>
-                                  <ListBoxItem id="groups">用户组</ListBoxItem>
-                                  <ListBoxItem id="roles">角色</ListBoxItem>
-                                  <ListBoxItem id="permissions">应用权限</ListBoxItem>
-                                  <ListBoxItem id="delete" className="text-danger">删除</ListBoxItem>
-                                </ListBox>
-                              </Popover.Content>
-                            </Popover>
-                          </div>
-                        </Table.Cell>
-                      </Table.Row>
-                    ))}
-                  </Table.Body>
-                </Table.Content>
-              </Table.ScrollContainer>
-            </Table>
+            <>
+              <div className="hidden md:block">
+                <Table aria-label="用户列表">
+                  <Table.ScrollContainer>
+                    <Table.Content>
+                      <Table.Header>
+                        <Table.Column isRowHeader>用户</Table.Column>
+                        <Table.Column>状态</Table.Column>
+                        <Table.Column>用户组 / 角色</Table.Column>
+                        <Table.Column>创建时间</Table.Column>
+                        <Table.Column>操作</Table.Column>
+                      </Table.Header>
+                      <Table.Body>
+                        {users.map((item) => (
+                          <Table.Row key={item.id} id={String(item.id)}>
+                            <Table.Cell>
+                              <div className="flex items-start gap-3">
+                                <EntityAvatar src={item.avatar} name={item.username} rounded="full" />
+                                <div className="min-w-0">
+                                  <p className="font-medium text-foreground">{item.username}</p>
+                                  <p className="text-sm text-muted">{item.email}</p>
+                                  <p className="text-xs text-muted">ID: {item.id}</p>
+                                </div>
+                              </div>
+                            </Table.Cell>
+                            <Table.Cell>{renderStatusChip(item.status)}</Table.Cell>
+                            <Table.Cell>
+                              <div className="space-y-1 text-sm">
+                                <p className="text-foreground">
+                                  用户组：{item.groups.length ? item.groups.join('、') : '无'}
+                                </p>
+                                <p className="text-muted">
+                                  角色：{item.roles.length ? item.roles.join('、') : '无'}
+                                </p>
+                              </div>
+                            </Table.Cell>
+                            <Table.Cell>
+                              <div className="space-y-1 text-sm text-muted">
+                                <p>{formatDate(item.created_at)}</p>
+                                <p>更新：{formatDate(item.updated_at)}</p>
+                              </div>
+                            </Table.Cell>
+                            <Table.Cell>
+                              <div className="flex items-center gap-2">
+                                {renderUserActions(item, 'desktop')}
+                              </div>
+                            </Table.Cell>
+                          </Table.Row>
+                        ))}
+                      </Table.Body>
+                    </Table.Content>
+                  </Table.ScrollContainer>
+                </Table>
+              </div>
+
+              <MobileList>
+                {users.map((item) => (
+                  <MobileListCard key={item.id}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex min-w-0 items-start gap-3">
+                        <EntityAvatar src={item.avatar} name={item.username} rounded="full" />
+                        <div className="min-w-0">
+                          <p className="font-medium text-foreground">{item.username}</p>
+                          <p className="break-all text-sm text-muted">{item.email}</p>
+                          <p className="text-xs text-muted">ID: {item.id}</p>
+                        </div>
+                      </div>
+                      <div className="shrink-0">{renderStatusChip(item.status)}</div>
+                    </div>
+                    <div className="mt-4 space-y-1.5">
+                      <MobileField label="用户组">
+                        {item.groups.length ? item.groups.join('、') : '无'}
+                      </MobileField>
+                      <MobileField label="角色">
+                        {item.roles.length ? item.roles.join('、') : '无'}
+                      </MobileField>
+                      <MobileField label="创建时间">{formatDate(item.created_at)}</MobileField>
+                      <MobileField label="更新时间">{formatDate(item.updated_at)}</MobileField>
+                    </div>
+                    <div className="mt-4 flex items-center gap-2">
+                      {renderUserActions(item, 'mobile')}
+                    </div>
+                  </MobileListCard>
+                ))}
+              </MobileList>
+            </>
           )}
         </Card.Content>
 

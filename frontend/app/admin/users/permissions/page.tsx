@@ -23,6 +23,7 @@ import {
   EntityAvatar,
 } from '@/components/admin/admin-ui'
 import { AdminSimplePagination } from '@/components/admin/pagination'
+import { MobileField, MobileList, MobileListCard } from '@/components/ui/mobile-list'
 import { adminApi } from '@/lib/api'
 import { hasPermission } from '@/lib/authz'
 import { useAuthStore } from '@/lib/store'
@@ -142,6 +143,37 @@ function UserPermissionsContent() {
     )
   }
 
+  const renderPermissionSelect = (item: ComputedAppPermission, fullWidth = false) => (
+    <div className="flex items-center gap-2">
+      <Select
+        placeholder="默认"
+        selectedKey={item.user_permission || undefined}
+        onSelectionChange={(key) => {
+          const nextValue = key ? String(key) : null
+          void handlePermissionChange(
+            item.app_id,
+            nextValue === null ? 'default' : nextValue,
+          )
+        }}
+        isDisabled={updating === item.app_id}
+        className={fullWidth ? 'w-full' : 'w-28'}
+      >
+        <Select.Trigger>
+          <Select.Value />
+          <Select.Indicator />
+        </Select.Trigger>
+        <Select.Popover>
+          <ListBox>
+            <ListBoxItem id="default">默认</ListBoxItem>
+            <ListBoxItem id="allowed">允许</ListBoxItem>
+            <ListBoxItem id="denied">拒绝</ListBoxItem>
+          </ListBox>
+        </Select.Popover>
+      </Select>
+      {updating === item.app_id ? <Spinner size="sm" /> : null}
+    </div>
+  )
+
   if (!canManageUsers) {
     return (
       <AdminNotice tone="danger" title="无权限" description="该页面仅管理员可访问。" />
@@ -216,73 +248,77 @@ function UserPermissionsContent() {
               description={search ? '试试更换搜索关键词。' : '当前用户还没有可展示的应用权限。'}
             />
           ) : (
-            <Table aria-label="用户应用权限列表">
-              <Table.ScrollContainer>
-                <Table.Content>
-                  <Table.Header>
-                    <Table.Column isRowHeader>应用</Table.Column>
-                    <Table.Column>最终结果</Table.Column>
-                    <Table.Column>权限来源</Table.Column>
-                    <Table.Column>用户级设置</Table.Column>
-                  </Table.Header>
-                  <Table.Body>
-                    {data.items.map((item) => (
-                      <Table.Row key={item.app_id} id={String(item.app_id)}>
-                        <Table.Cell>
-                          <div className="flex items-center gap-3">
-                            <EntityAvatar src={item.app_logo} name={item.app_name} size="sm" />
-                            <div className="min-w-0">
-                              <p className="font-medium text-foreground">{item.app_name}</p>
-                              <p className="text-xs text-muted">{item.client_id}</p>
-                            </div>
-                          </div>
-                        </Table.Cell>
-                        <Table.Cell>
-                          <Chip
-                            color={item.can_access ? 'success' : 'danger'}
-                            variant="soft"
-                            size="sm"
-                          >
-                            {item.can_access ? '可访问' : '拒绝'}
-                          </Chip>
-                        </Table.Cell>
-                        <Table.Cell>{renderSourceChip(item)}</Table.Cell>
-                        <Table.Cell>
-                          <div className="flex items-center gap-2">
-                            <Select
-                              placeholder="默认"
-                              selectedKey={item.user_permission || undefined}
-                              onSelectionChange={(key) => {
-                                const nextValue = key ? String(key) : null
-                                void handlePermissionChange(
-                                  item.app_id,
-                                  nextValue === null ? 'default' : nextValue,
-                                )
-                              }}
-                              isDisabled={updating === item.app_id}
-                              className="w-28"
-                            >
-                              <Select.Trigger>
-                                <Select.Value />
-                                <Select.Indicator />
-                              </Select.Trigger>
-                              <Select.Popover>
-                                <ListBox>
-                                  <ListBoxItem id="default">默认</ListBoxItem>
-                                  <ListBoxItem id="allowed">允许</ListBoxItem>
-                                  <ListBoxItem id="denied">拒绝</ListBoxItem>
-                                </ListBox>
-                              </Select.Popover>
-                            </Select>
-                            {updating === item.app_id ? <Spinner size="sm" /> : null}
-                          </div>
-                        </Table.Cell>
-                      </Table.Row>
-                    ))}
-                  </Table.Body>
-                </Table.Content>
-              </Table.ScrollContainer>
-            </Table>
+            <>
+              <div className="hidden md:block">
+                <Table aria-label="用户应用权限列表">
+                  <Table.ScrollContainer>
+                    <Table.Content>
+                      <Table.Header>
+                        <Table.Column isRowHeader>应用</Table.Column>
+                        <Table.Column>最终结果</Table.Column>
+                        <Table.Column>权限来源</Table.Column>
+                        <Table.Column>用户级设置</Table.Column>
+                      </Table.Header>
+                      <Table.Body>
+                        {data.items.map((item) => (
+                          <Table.Row key={item.app_id} id={String(item.app_id)}>
+                            <Table.Cell>
+                              <div className="flex items-center gap-3">
+                                <EntityAvatar src={item.app_logo} name={item.app_name} size="sm" />
+                                <div className="min-w-0">
+                                  <p className="font-medium text-foreground">{item.app_name}</p>
+                                  <p className="text-xs text-muted">{item.client_id}</p>
+                                </div>
+                              </div>
+                            </Table.Cell>
+                            <Table.Cell>
+                              <Chip
+                                color={item.can_access ? 'success' : 'danger'}
+                                variant="soft"
+                                size="sm"
+                              >
+                                {item.can_access ? '可访问' : '拒绝'}
+                              </Chip>
+                            </Table.Cell>
+                            <Table.Cell>{renderSourceChip(item)}</Table.Cell>
+                            <Table.Cell>{renderPermissionSelect(item)}</Table.Cell>
+                          </Table.Row>
+                        ))}
+                      </Table.Body>
+                    </Table.Content>
+                  </Table.ScrollContainer>
+                </Table>
+              </div>
+
+              <MobileList>
+                {data.items.map((item) => (
+                  <MobileListCard key={item.app_id}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <EntityAvatar src={item.app_logo} name={item.app_name} size="sm" />
+                        <div className="min-w-0">
+                          <p className="font-medium text-foreground">{item.app_name}</p>
+                          <p className="break-all text-xs text-muted">{item.client_id}</p>
+                        </div>
+                      </div>
+                      <div className="shrink-0">
+                        <Chip
+                          color={item.can_access ? 'success' : 'danger'}
+                          variant="soft"
+                          size="sm"
+                        >
+                          {item.can_access ? '可访问' : '拒绝'}
+                        </Chip>
+                      </div>
+                    </div>
+                    <div className="mt-3 space-y-2">
+                      <MobileField label="权限来源">{renderSourceChip(item)}</MobileField>
+                      <MobileField label="用户级设置">{renderPermissionSelect(item, true)}</MobileField>
+                    </div>
+                  </MobileListCard>
+                ))}
+              </MobileList>
+            </>
           )}
         </Card.Content>
 

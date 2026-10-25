@@ -174,8 +174,60 @@ EMAIL_TEMPLATES = {
 </html>
 """
     },
-    "verification_code": {
-        "subject": "【验证码】您的登录验证码",
+    "2fa_reset": {
+        "subject": "【安全提醒】您的二次验证已被重置",
+        "html": """
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: #dc2626; color: white; padding: 20px; border-radius: 8px 8px 0 0; }
+        .content { background: #f9fafb; padding: 20px; border: 1px solid #e5e7eb; }
+        .footer { background: #f3f4f6; padding: 15px; border-radius: 0 0 8px 8px; font-size: 12px; color: #6b7280; }
+        .info-table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+        .info-table td { padding: 8px; border-bottom: 1px solid #e5e7eb; }
+        .info-table td:first-child { font-weight: 600; width: 120px; color: #374151; }
+        .warning { background: #fef2f2; border: 1px solid #fecaca; padding: 15px; border-radius: 6px; margin: 15px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h2 style="margin: 0;">⚠️ 二次验证已重置</h2>
+        </div>
+        <div class="content">
+            <p>您好，<strong>{{ username }}</strong>：</p>
+            <p>管理员 <strong>{{ admin_name }}</strong> 于 {{ reset_time }} 重置了您账户的二次验证：</p>
+
+            <div class="warning">
+                <ul style="margin: 0; padding-left: 20px;">
+                    {% for item in changes %}
+                    <li>{{ item }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+
+            <table class="info-table">
+                <tr><td>操作时间</td><td>{{ reset_time }}</td></tr>
+                <tr><td>操作者</td><td>{{ admin_name }}</td></tr>
+                <tr><td>操作来源 IP</td><td>{{ ip_address or '未知' }}</td></tr>
+            </table>
+
+            <p>重置后请使用密码重新登录，并尽快重新绑定身份验证器或通行密钥。</p>
+            <p>如果这不是您请求的操作，请立即联系管理员并修改密码。</p>
+        </div>
+        <div class="footer">
+            <p>此邮件由 {{ site_name }} 系统自动发送，请勿回复。</p>
+        </div>
+    </div>
+</body>
+</html>
+"""
+    },
+    "verification_code": {        "subject": "【验证码】您的登录验证码",
         "html": """
 <!DOCTYPE html>
 <html>
@@ -550,6 +602,42 @@ class EmailService:
             ip_address=ip_address,
             device_name=device_name or "未知设备",
             site_name=site_name
+        )
+
+        return await cls.send_email(to_email, subject, html_content)
+
+    @classmethod
+    async def send_2fa_reset_notification(
+        cls,
+        to_email: str,
+        username: str,
+        admin_name: str,
+        *,
+        totp_reset: bool = False,
+        passkeys_removed: int = 0,
+        force_relogin: bool = False,
+        ip_address: str = "",
+        site_name: str = "LAAA OAuth Server",
+    ) -> bool:
+        """Notify the user that an administrator reset their 2FA."""
+        changes = []
+        if totp_reset:
+            changes.append("身份验证器已解绑，原备用码同时失效")
+        if passkeys_removed:
+            changes.append(f"已移除 {passkeys_removed} 个通行密钥")
+        if force_relogin:
+            changes.append("所有设备已退出登录，需要重新登录")
+        if not changes:
+            changes.append("二次验证状态发生变更")
+
+        subject, html_content = cls.render_template(
+            "2fa_reset",
+            username=username,
+            admin_name=admin_name or "管理员",
+            reset_time=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            changes=changes,
+            ip_address=ip_address,
+            site_name=site_name,
         )
 
         return await cls.send_email(to_email, subject, html_content)

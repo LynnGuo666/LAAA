@@ -244,6 +244,19 @@ class SessionResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class KnownDeviceResponse(BaseModel):
+    """已记住的设备(known_devices 风控记忆,与 session 存活解耦)。"""
+    id: int
+    device_name: Optional[str] = None
+    device_type: Optional[str] = None
+    ip_address: Optional[str] = None
+    country: Optional[str] = None
+    city: Optional[str] = None
+    first_seen: datetime
+    last_seen: datetime
+    is_current: bool = False
+
+
 # Role and Permission
 class RoleResponse(BaseModel):
     id: int

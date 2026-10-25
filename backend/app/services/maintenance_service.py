@@ -2,6 +2,7 @@
 
 Token 表(authorization_code/refresh)、verification_codes、webauthn_challenges
 此前从无清理:过期数据无限累积,表越大登录越慢。login_logs 保留窗口外归档删除。
+known_devices 按最后活跃时间滚动过期(KNOWN_DEVICE_RETENTION_DAYS,默认 180 天)。
 
 由 main.py lifespan 启动后台 asyncio 任务,每小时跑一次;各清理实现幂等。
 """
@@ -11,13 +12,22 @@ from datetime import timedelta
 
 from sqlalchemy.orm import Session
 
-from app.models import LoginLog, Token, VerificationCode, WebAuthnChallenge
+from app.config import get_settings
+from app.models import (
+    AdminAuditLog,
+    KnownDevice,
+    LoginLog,
+    Token,
+    VerificationCode,
+    WebAuthnChallenge,
+)
 from app.utils.time import utcnow
 
 logger = logging.getLogger(__name__)
 
 CLEANUP_INTERVAL_SECONDS = 3600  # 每小时
 LOGIN_LOG_RETENTION_DAYS = 180   # 登录日志保留半年(异常检测只需要近期历史)
+ADMIN_AUDIT_RETENTION_DAYS = 365  # 管理审计保留一年(合规追溯需要更长窗口)
 
 
 def cleanup_expired_data(db: Session) -> dict:
@@ -50,6 +60,22 @@ def cleanup_expired_data(db: Session) -> dict:
     stats['login_logs'] = (
         db.query(LoginLog)
         .filter(LoginLog.created_at < now - timedelta(days=LOGIN_LOG_RETENTION_DAYS))
+        .delete(synchronize_session=False)
+    )
+
+    # 超期管理员审计(保留一年,满足事后追溯)
+    stats['admin_audit_logs'] = (
+        db.query(AdminAuditLog)
+        .filter(AdminAuditLog.created_at < now - timedelta(days=ADMIN_AUDIT_RETENTION_DAYS))
+        .delete(synchronize_session=False)
+    )
+
+    # 长期未活跃的已知设备:设备记忆不能无限堆积。
+    # 普通登出不删(故意),这里只按"最后活跃时间"做滚动过期。
+    retention_days = get_settings().known_device_retention_days
+    stats['known_devices'] = (
+        db.query(KnownDevice)
+        .filter(KnownDevice.last_seen < now - timedelta(days=retention_days))
         .delete(synchronize_session=False)
     )
 

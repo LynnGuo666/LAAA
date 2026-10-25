@@ -2,18 +2,22 @@
 
 背景:sessions 行会因登出/过期/踢除被删除,若"已知设备"判定只查 sessions,
 单设备用户每次登出后都会被风控当成新设备、强制两步验证。
-修复:登录成功时 upsert known_devices(只有"忘记此设备"才删),
-RiskService.is_known_device_token 优先查 known_devices,回落 sessions 兼容存量。
+设计:登录成功时 upsert known_devices;
+- 普通登出/并发超限踢人 → 保留记忆(本文件前半段守护);
+- 主动撤销会话/管理员强退/改密/refresh 重放 → 立即遗忘(本文件后半段守护);
+- 超过 KNOWN_DEVICE_RETENTION_DAYS 未活跃 → maintenance 清理。
 
 测试约定(conftest):共享 session 级 DB,不断言全表计数,只断言自己创建的行;
 单测试内登录类请求 <10 次(IP 限流)。
 """
 import secrets
+from datetime import timedelta
 
-from conftest import make_session
+from conftest import known_device, make_session
 
 from app.models import KnownDevice
 from app.services.risk_service import RiskService
+from app.utils.time import utcnow
 
 
 def _login(client, user, device_token):
@@ -152,3 +156,170 @@ def test_is_known_device_fallback_to_sessions(db_session, make_user):
                  device_token=device_token)
 
     assert RiskService.is_known_device_token(db_session, user.id, device_token) is True
+
+
+# ---------------------------------------------------------------------------
+# 设备遗忘:主动下线/安全事件立即生效,普通登出与并发踢人保留
+# ---------------------------------------------------------------------------
+
+def _auth_headers(data, *, with_refresh: bool = False):
+    headers = {"Authorization": f"Bearer {data['access_token']}"}
+    if with_refresh:
+        # laaa_refresh cookie 的 Path=/api/auth,/api/user/* 收不到,
+        # 必须显式带 X-Refresh-Token 才能反查到当前 session。
+        headers["X-Refresh-Token"] = data["refresh_token"]
+    return headers
+
+
+def _known_row(db, user, device_token):
+    db.expire_all()
+    return db.query(KnownDevice).filter(
+        KnownDevice.user_id == user.id,
+        KnownDevice.device_token == device_token,
+    ).first()
+
+
+def test_revoke_session_forgets_device(client, db_session, make_user):
+    """主动撤销会话 → 该设备的 known_devices 立即删除。"""
+    user = make_user()
+    device_token = f"devtok_{secrets.token_hex(16)}"
+    data = _login(client, user, device_token)
+
+    sessions = client.get(
+        "/api/user/sessions", headers=_auth_headers(data, with_refresh=True)
+    ).json()
+    assert sessions, "login should create a session"
+
+    resp = client.delete(
+        f"/api/user/sessions/{sessions[0]['id']}",
+        headers=_auth_headers(data),
+    )
+    assert resp.status_code == 200, resp.text
+    assert _known_row(db_session, user, device_token) is None
+
+
+def test_revoke_other_sessions_forgets_their_devices(client, db_session, make_user):
+    """"登出其他设备"→ 只遗忘被踢的设备,当前设备保留。"""
+    user = make_user()
+    current_token = f"devtok_{secrets.token_hex(16)}"
+    data = _login(client, user, current_token)
+
+    other_token = f"devtok_{secrets.token_hex(16)}"
+    make_session(
+        db_session, user,
+        device_id=f"sdev_{secrets.token_hex(8)}",
+        device_token=other_token,
+    )
+    known_device(db_session, user, other_token, device_name="other-device")
+
+    resp = client.post(
+        "/api/user/sessions/revoke-others",
+        headers=_auth_headers(data, with_refresh=True),
+        json={},
+    )
+    assert resp.status_code == 200, resp.text
+
+    assert _known_row(db_session, user, other_token) is None
+    assert _known_row(db_session, user, current_token) is not None
+
+
+def test_forget_device_endpoint(client, db_session, make_user):
+    """忘记设备接口:删除记忆 + 吊销该设备会话,并标记 was_current。"""
+    user = make_user()
+    device_token = f"devtok_{secrets.token_hex(16)}"
+    data = _login(client, user, device_token)
+    headers = _auth_headers(data, with_refresh=True)
+
+    devices = client.get("/api/user/devices", headers=headers).json()
+    current = [d for d in devices if d["is_current"]]
+    assert current, f"current device should be listed, got {devices}"
+
+    resp = client.delete(f"/api/user/devices/{current[0]['id']}", headers=headers)
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["was_current"] is True
+    assert body["kicked_count"] >= 1
+
+    assert _known_row(db_session, user, device_token) is None
+
+    # 会话已被吊销:活跃会话列表里不应再有该设备
+    remaining = client.get(
+        "/api/user/sessions", headers=_auth_headers(data, with_refresh=True)
+    ).json()
+    assert all(s["id"] != current[0]["id"] for s in remaining)
+
+
+def test_forget_device_requires_ownership(client, db_session, make_user):
+    """只能忘记自己的设备:别人的设备返回 404。"""
+    owner = make_user()
+    other_token = f"devtok_{secrets.token_hex(16)}"
+    foreign = known_device(db_session, owner, other_token)
+
+    intruder = make_user()
+    intruder_token = f"devtok_{secrets.token_hex(16)}"
+    data = _login(client, intruder, intruder_token)
+
+    resp = client.delete(
+        f"/api/user/devices/{foreign.id}",
+        headers=_auth_headers(data),
+    )
+    assert resp.status_code == 404, resp.text
+    assert _known_row(db_session, owner, other_token) is not None
+
+
+def test_session_limit_kick_keeps_known_device(db_session, make_user):
+    """并发超限自动踢人只腾名额,不遗忘设备(否则每次踢人都触发验证)。"""
+    from app.services.session_limit_service import SessionLimitService
+
+    user = make_user()
+    device_token = f"devtok_{secrets.token_hex(16)}"
+    session = make_session(
+        db_session, user,
+        device_id=f"sdev_{secrets.token_hex(8)}",
+        device_token=device_token,
+    )
+    known_device(db_session, user, device_token)
+
+    SessionLimitService.kick_session(db_session, session, reason='session_limit')
+
+    assert _known_row(db_session, user, device_token) is not None
+
+
+def test_password_change_keeps_current_device_forgets_others(client, db_session, make_user):
+    """改密:清掉其他设备的信任记忆,但保留当前设备,避免改完密码被锁在验证页。"""
+    user = make_user()
+    current_token = f"devtok_{secrets.token_hex(16)}"
+    data = _login(client, user, current_token)
+    headers = _auth_headers(data, with_refresh=True)
+
+    other_token = f"devtok_{secrets.token_hex(16)}"
+    known_device(db_session, user, other_token, device_name="other-device")
+
+    resp = client.put(
+        "/api/user/password",
+        headers=headers,
+        json={"current_password": "Passw0rd!", "new_password": "NewPassw0rd!"},
+    )
+    assert resp.status_code == 200, resp.text
+
+    assert _known_row(db_session, user, other_token) is None
+    assert _known_row(db_session, user, current_token) is not None
+
+
+def test_maintenance_purges_stale_known_devices(db_session, make_user):
+    """超过保留期未活跃的设备由 maintenance 清理。"""
+    from app.services.maintenance_service import cleanup_expired_data
+
+    user = make_user()
+    stale_token = f"devtok_{secrets.token_hex(16)}"
+    fresh_token = f"devtok_{secrets.token_hex(16)}"
+
+    stale = known_device(db_session, user, stale_token)
+    stale.last_seen = utcnow() - timedelta(days=181)
+    known_device(db_session, user, fresh_token)
+    db_session.commit()
+
+    cleanup_expired_data(db_session)
+
+    assert _known_row(db_session, user, stale_token) is None
+    assert _known_row(db_session, user, fresh_token) is not None

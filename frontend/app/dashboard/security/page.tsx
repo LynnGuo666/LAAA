@@ -5,9 +5,11 @@ import { AlertDialog, Alert, Button, Card, Chip, Description, Input, Label, Tabl
 import { authApi, userApi, totpApi, passkeyApi } from '@/lib/api';
 import { formatDateTime } from '@/lib/date';
 import { useAuthStore } from '@/lib/store';
+import { clearDeviceToken } from '@/lib/device';
 import { extractErrorMessage } from '@/lib/errors';
 import { PASSWORD_REQUIREMENT_HINT, validatePasswordStrength } from '@/lib/validation';
 import { useConfirmDialog } from '@/components/ui/confirm-dialog-provider';
+import { MobileField, MobileList, MobileListCard } from '@/components/ui/mobile-list';
 import { TotpManageModal } from '@/components/security/TotpManageModal';
 import { SkeletonRows } from '@/components/ui/loading';
 import { Check, AlertTriangle, Smartphone, Tablet, Monitor, ShieldCheck } from 'lucide-react';
@@ -55,6 +57,18 @@ interface Session {
   is_trusted: boolean;
 }
 
+interface KnownDevice {
+  id: number;
+  device_name?: string;
+  device_type?: string;
+  ip_address?: string;
+  country?: string;
+  city?: string;
+  first_seen: string;
+  last_seen: string;
+  is_current: boolean;
+}
+
 interface PasskeyRegistrationPayload {
   id: string;
   rawId: string;
@@ -88,6 +102,7 @@ export default function SecurityPage() {
   const [totpStatus, setTotpStatus] = useState<TOTPStatus | null>(null);
   const [loginHistory, setLoginHistory] = useState<LoginLog[]>([]);
   const [sessions, setSessions] = useState<Session[]>([]);
+  const [devices, setDevices] = useState<KnownDevice[]>([]);
   const [passkeys, setPasskeys] = useState<PasskeyCredential[]>([]);
   const [loading, setLoading] = useState(true);
   const [revoking, setRevoking] = useState(false);
@@ -159,16 +174,18 @@ export default function SecurityPage() {
   const loadData = async () => {
     try {
       setPageError(null);
-      const [historyRes, totpRes, sessionsRes, passkeysRes] = await Promise.all([
+      const [historyRes, totpRes, sessionsRes, passkeysRes, devicesRes] = await Promise.all([
         userApi.getLoginHistory(0, 10),
         totpApi.getStatus(),
         userApi.getSessions(),
         passkeyApi.list(),
+        userApi.getDevices(),
       ]);
       setLoginHistory(historyRes.data);
       setTotpStatus(totpRes.data);
       setSessions(sessionsRes.data);
       setPasskeys(passkeysRes.data);
+      setDevices(devicesRes.data);
     } catch (err) {
       console.error('Failed to load data', err);
       setPageError('加载安全信息失败，请刷新页面重试');
@@ -183,6 +200,15 @@ export default function SecurityPage() {
       setSessions(response.data);
     } catch (err) {
       console.error('Failed to load sessions', err);
+    }
+  };
+
+  const loadDevices = async () => {
+    try {
+      const response = await userApi.getDevices();
+      setDevices(response.data);
+    } catch (err) {
+      console.error('Failed to load devices', err);
     }
   };
 
@@ -235,6 +261,36 @@ export default function SecurityPage() {
       toast('操作失败');
     } finally {
       setRevoking(false);
+    }
+  };
+
+  const handleForgetDevice = async (device: KnownDevice) => {
+    const label = device.device_name || '未知设备';
+    const shouldForget = await confirmDialog({
+      title: '确认忘记设备',
+      description: device.is_current
+        ? `"${label}" 是当前设备，忘记后将退出登录，下次登录需要重新完成安全验证。确定继续吗？`
+        : `忘记 "${label}" 后，该设备下次登录需要重新完成安全验证。确定继续吗？`,
+      confirmText: '忘记',
+      cancelText: '取消',
+      status: 'warning',
+      confirmVariant: 'danger',
+    });
+    if (!shouldForget) return;
+
+    try {
+      const response = await userApi.forgetDevice(device.id);
+      if (response.data?.was_current) {
+        // 本机设备码一并轮换，否则下次登录会立刻把同一台设备重新写回记忆
+        clearDeviceToken();
+        useAuthStore.getState().logout();
+        window.location.href = '/login';
+        return;
+      }
+      toast('设备已忘记');
+      await Promise.all([loadSessions(), loadDevices()]);
+    } catch (err) {
+      toast(extractErrorMessage(err, '忘记设备失败'));
     }
   };
 
@@ -425,6 +481,18 @@ export default function SecurityPage() {
     }
   };
 
+  const getLoginFailureText = (reason?: string) => {
+    switch (reason) {
+      case 'invalid_password': return '密码错误';
+      case 'user_not_found': return '用户不存在';
+      case 'account_suspended': return '账户已停用';
+      case 'pending_verification': return '待完成二次验证';
+      case 'restricted_user': return '账户受限';
+      case 'risk_blocked': return '风险拦截';
+      default: return reason || '未知原因';
+    }
+  };
+
   const getDeviceIcon = (deviceType?: string) => {
     if (deviceType === 'mobile') {
       return <Smartphone className="w-5 h-5" />;
@@ -480,7 +548,7 @@ export default function SecurityPage() {
         <Tabs selectedKey={activeTab} onSelectionChange={(key) => handleTabChange(String(key))} className="w-full">
           <div className="grid grid-cols-1 lg:grid-cols-[180px_minmax(0,1fr)] gap-3 sm:gap-4">
           <Tabs.ListContainer className="lg:pr-1">
-            <Tabs.List aria-label="安全栏目" className="flex lg:flex-col gap-1 overflow-x-auto lg:overflow-visible">
+            <Tabs.List aria-label="安全栏目" className="grid grid-cols-2 gap-1 lg:flex lg:flex-col">
               <Tabs.Tab id="totp" className="text-sm font-medium whitespace-nowrap justify-start">验证方式<Tabs.Indicator /></Tabs.Tab>
               <Tabs.Tab id="sessions" className="text-sm font-medium whitespace-nowrap justify-start">设备会话<Tabs.Indicator /></Tabs.Tab>
               <Tabs.Tab id="password" className="text-sm font-medium whitespace-nowrap justify-start">密码安全<Tabs.Indicator /></Tabs.Tab>
@@ -497,9 +565,9 @@ export default function SecurityPage() {
               启用两步验证后，当检测到可疑登录时，需要额外的验证步骤才能登录。
             </p>
             <div className="border border-border rounded-lg p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className={`w-10 h-10 shrink-0 rounded-full flex items-center justify-center ${
                     totpStatus?.enabled
                       ? 'bg-success/10'
                       : 'bg-default'
@@ -510,7 +578,7 @@ export default function SecurityPage() {
                         : 'text-foreground/60'
                     }`} />
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <h3 className="font-medium text-foreground">身份验证器 (TOTP)</h3>
                     <p className="text-sm text-muted">
                       {totpStatus?.enabled
@@ -519,7 +587,7 @@ export default function SecurityPage() {
                     </p>
                   </div>
                 </div>
-                <Button onPress={() => setShowTotpManageModal(true)} variant="secondary">
+                <Button onPress={() => setShowTotpManageModal(true)} variant="secondary" className="w-full sm:w-auto shrink-0">
                   {totpStatus?.enabled ? '管理' : '设置'}
                 </Button>
               </div>
@@ -593,6 +661,60 @@ export default function SecurityPage() {
           </ul>
           </div>
         )}
+
+        <div className="pt-4 border-t border-border">
+          <div className="mb-3">
+            <h2 className="text-lg sm:text-xl font-semibold text-foreground">已记住的设备</h2>
+            <p className="text-sm text-muted mt-1">
+              这些设备再次登录时不会被判定为新设备。忘记后会立即吊销其会话，并要求重新验证。
+            </p>
+          </div>
+          {devices.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-muted">暂无已记住的设备</p>
+            </div>
+          ) : (
+            <ul className="list">
+              {devices.map((device) => (
+                <li key={device.id} className="list-item">
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                    <div className="flex items-start gap-3 min-w-0">
+                      <div className="p-2 bg-default rounded-lg text-muted shrink-0">
+                        {getDeviceIcon(device.device_type)}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="text-sm sm:text-base font-semibold text-foreground break-all">
+                            {device.device_name || '未知设备'}
+                          </h3>
+                          {device.is_current && (
+                            <Chip color="success" variant="soft" size="sm">当前</Chip>
+                          )}
+                        </div>
+                        <div className="mt-1 text-xs sm:text-sm text-muted flex items-center gap-1 sm:gap-2 flex-wrap">
+                          <span>
+                            {device.device_type === 'mobile' ? '手机' : device.device_type === 'tablet' ? '平板' : '电脑'}
+                          </span>
+                          <span className="text-foreground/60">·</span>
+                          <span>{[device.city, device.country].filter(Boolean).join(', ') || '位置未知'}</span>
+                          <span className="text-foreground/60">·</span>
+                          <span>最后活跃 {formatDateTime(device.last_seen)}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <Button
+                      onPress={() => handleForgetDevice(device)}
+                      variant="danger"
+                      className="text-xs sm:text-sm shrink-0 ml-10 sm:ml-0"
+                    >
+                      忘记
+                    </Button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </div>
           </Tabs.Panel>
 
@@ -630,7 +752,7 @@ export default function SecurityPage() {
           <div>
             <TextField isRequired isDisabled={changingPassword}>
               <Label>新密码</Label>
-              <Input type="password" minLength={12} autoComplete="new-password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder={PASSWORD_REQUIREMENT_HINT} />
+              <Input type="password" minLength={12} autoComplete="new-password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="至少 12 位，包含 3 类字符" />
               <Description>{PASSWORD_REQUIREMENT_HINT}</Description>
             </TextField>
           </div>
@@ -662,47 +784,80 @@ export default function SecurityPage() {
             <p className="text-muted">暂无登录记录</p>
           </div>
         ) : (
-          <Table aria-label="登录记录">
-            <Table.ScrollContainer>
-              <Table.Content>
-                <Table.Header>
-                  <Table.Column isRowHeader>状态</Table.Column>
-                  <Table.Column>设备</Table.Column>
-                  <Table.Column>登录方式</Table.Column>
-                  <Table.Column>IP / 地点</Table.Column>
-                  <Table.Column>时间</Table.Column>
-                </Table.Header>
-                <Table.Body>
-                  {loginHistory.map((log) => (
-                    <Table.Row key={log.id} id={String(log.id)}>
-                      <Table.Cell>{getStatusBadge(log)}</Table.Cell>
-                      <Table.Cell>
-                        <div className="text-sm font-medium text-foreground">{log.device_name || '未知设备'}</div>
-                        {!log.success && log.failure_reason && (
-                          <div className="mt-1 text-xs text-danger">
-                            失败原因：{log.failure_reason === 'invalid_password' ? '密码错误' :
-                              log.failure_reason === 'user_not_found' ? '用户不存在' :
-                              log.failure_reason === 'account_suspended' ? '账户已停用' :
-                              log.failure_reason}
-                          </div>
-                        )}
-                      </Table.Cell>
-                      <Table.Cell className="text-muted">{getLoginMethodText(log.login_method)}</Table.Cell>
-                      <Table.Cell className="text-muted">
-                        <div className="break-all">{log.ip_address || '-'}</div>
-                        {(log.city || log.country) && (
-                          <div className="text-xs text-muted mt-1">
-                            {[log.city, log.country].filter(Boolean).join(', ')}
-                          </div>
-                        )}
-                      </Table.Cell>
-                      <Table.Cell className="text-xs sm:text-sm text-muted whitespace-nowrap">{formatDateTime(log.created_at)}</Table.Cell>
-                    </Table.Row>
-                  ))}
-                </Table.Body>
-              </Table.Content>
-            </Table.ScrollContainer>
-          </Table>
+          <>
+            <div className="hidden md:block">
+              <Table aria-label="登录记录">
+                <Table.ScrollContainer>
+                  <Table.Content>
+                    <Table.Header>
+                      <Table.Column isRowHeader>状态</Table.Column>
+                      <Table.Column>设备</Table.Column>
+                      <Table.Column>登录方式</Table.Column>
+                      <Table.Column>IP / 地点</Table.Column>
+                      <Table.Column>时间</Table.Column>
+                    </Table.Header>
+                    <Table.Body>
+                      {loginHistory.map((log) => (
+                        <Table.Row key={log.id} id={String(log.id)}>
+                          <Table.Cell>{getStatusBadge(log)}</Table.Cell>
+                          <Table.Cell>
+                            <div className="text-sm font-medium text-foreground">{log.device_name || '未知设备'}</div>
+                            {!log.success && log.failure_reason && (
+                              <div className="mt-1 text-xs text-danger">
+                                失败原因：{getLoginFailureText(log.failure_reason)}
+                              </div>
+                            )}
+                          </Table.Cell>
+                          <Table.Cell className="text-muted">{getLoginMethodText(log.login_method)}</Table.Cell>
+                          <Table.Cell className="text-muted">
+                            <div className="break-all">{log.ip_address || '-'}</div>
+                            {(log.city || log.country) && (
+                              <div className="text-xs text-muted mt-1">
+                                {[log.city, log.country].filter(Boolean).join(', ')}
+                              </div>
+                            )}
+                          </Table.Cell>
+                          <Table.Cell className="text-xs sm:text-sm text-muted whitespace-nowrap">{formatDateTime(log.created_at)}</Table.Cell>
+                        </Table.Row>
+                      ))}
+                    </Table.Body>
+                  </Table.Content>
+                </Table.ScrollContainer>
+              </Table>
+            </div>
+
+            <MobileList>
+              {loginHistory.map((log) => (
+                <MobileListCard key={log.id}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-medium text-foreground">{log.device_name || '未知设备'}</p>
+                      <p className="mt-0.5 text-xs text-muted">{formatDateTime(log.created_at)}</p>
+                    </div>
+                    <div className="shrink-0">{getStatusBadge(log)}</div>
+                  </div>
+
+                  {!log.success && log.failure_reason && (
+                    <p className="mt-2 text-xs text-danger">
+                      失败原因：{getLoginFailureText(log.failure_reason)}
+                    </p>
+                  )}
+
+                  <div className="mt-3 space-y-1.5">
+                    <MobileField label="登录方式">{getLoginMethodText(log.login_method)}</MobileField>
+                    <MobileField label="IP / 地点">
+                      <p className="break-all">{log.ip_address || '-'}</p>
+                      {(log.city || log.country) && (
+                        <p className="text-xs text-muted">
+                          {[log.city, log.country].filter(Boolean).join(', ')}
+                        </p>
+                      )}
+                    </MobileField>
+                  </div>
+                </MobileListCard>
+              ))}
+            </MobileList>
+          </>
         )}
       </div>
           </Tabs.Panel>

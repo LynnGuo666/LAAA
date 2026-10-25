@@ -1,6 +1,7 @@
+import logging
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request, status
 from sqlalchemy import or_
 from sqlalchemy.orm import Session as DBSession
 from sqlalchemy.orm import selectinload
@@ -8,13 +9,16 @@ from sqlalchemy.orm import selectinload
 from app.database import get_db
 from app.middleware.permission import require_permission
 from app.models import (
+    AdminAuditLog,
     Client,
     Group,
+    KnownDevice,
     LoginLog,
     Passkey,
     Permission,
     Role,
     Session,
+    Token,
     User,
     UserAuthorization,
     role_permissions,
@@ -22,9 +26,13 @@ from app.models import (
     user_roles,
 )
 from app.schemas.admin import (
+    AdminAuditLogResponse,
     AdminAuthorizationResponse,
+    AdminForceReloginResponse,
     AdminLoginLogResponse,
     AdminPasskeyResponse,
+    AdminReset2FARequest,
+    AdminReset2FAResponse,
     AdminSessionResponse,
     AdminUserCreate,
     AdminUserGroupsUpdate,
@@ -35,17 +43,72 @@ from app.schemas.admin import (
     AppPermissionItem,
     ComputedAppPermission,
     ComputedAppPermissionsResponse,
+    PaginatedAdminAuditLogsResponse,
     PaginatedLoginLogsResponse,
     PaginatedUsersResponse,
     RoleResponse,
     UserAppPermissionsResponse,
     UserAppPermissionsUpdate,
 )
+from app.services.admin_audit_service import AdminAuditService
+from app.services.email_service import EmailService
 from app.services.session_limit_service import SessionLimitService
+from app.services.site_service import SiteService
+from app.utils.device import get_client_ip
 from app.utils.security import get_password_hash_async
 from app.utils.time import utcnow
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
+
+logger = logging.getLogger(__name__)
+
+
+def _audit_user_action(
+    db: DBSession,
+    request: Request,
+    actor: User,
+    action: str,
+    target: User,
+    detail: Optional[dict] = None,
+) -> None:
+    """在业务事务内追加一条针对用户的审计记录(调用方负责 commit)。"""
+    AdminAuditService.record(
+        db,
+        actor=actor,
+        action=action,
+        target_type='user',
+        target_id=target.id,
+        target_username=target.username,
+        detail=detail,
+        ip_address=get_client_ip(request),
+        user_agent=request.headers.get('user-agent'),
+    )
+
+
+def _queue_2fa_reset_email(
+    background_tasks: BackgroundTasks,
+    *,
+    to_email: str,
+    username: str,
+    actor_username: str,
+    totp_reset: bool,
+    passkeys_removed: int,
+    force_relogin: bool,
+    ip_address: Optional[str],
+    site_name: str,
+) -> None:
+    """异步通知用户二次验证被重置(不阻塞管理端响应)。"""
+    background_tasks.add_task(
+        EmailService.send_2fa_reset_notification,
+        to_email=to_email,
+        username=username,
+        admin_name=actor_username,
+        totp_reset=totp_reset,
+        passkeys_removed=passkeys_removed,
+        force_relogin=force_relogin,
+        ip_address=ip_address or '',
+        site_name=site_name,
+    )
 
 
 def _max_role_level(user: User) -> int:
@@ -107,6 +170,40 @@ def _has_active_admins(db: DBSession) -> bool:
     return count > 0
 
 
+def _force_relogin(db: DBSession, user: User, reason: str) -> int:
+    """让用户在所有设备上立即失效并需要重新登录。
+
+    四件事缺一不可:
+    1. 踢掉活跃会话(标记 kicked + 过期 + 删关联 refresh token);
+    2. 删除该用户剩余的 refresh token(可能挂在已丢失的会话上);
+    3. 清空 known_devices,下次登录按新设备处理(触发设备验证/风控);
+    4. token_version +1,已签发的 access token 立即被鉴权中间件拒绝。
+
+    返回被踢的活跃会话数。
+    """
+    sessions = db.query(Session).filter(
+        Session.user_id == user.id,
+        Session.kicked_at.is_(None),
+        Session.expires_at > utcnow(),
+    ).all()
+    for session in sessions:
+        SessionLimitService.kick_session(
+            db, session, reason=reason, commit=False, forget_trust=True
+        )
+
+    db.query(Token).filter(
+        Token.user_id == user.id,
+        Token.type == 'refresh',
+    ).delete(synchronize_session=False)
+
+    db.query(KnownDevice).filter(
+        KnownDevice.user_id == user.id,
+    ).delete(synchronize_session=False)
+
+    user.token_version = (user.token_version or 0) + 1
+    return len(sessions)
+
+
 @router.get("/users", response_model=PaginatedUsersResponse)
 async def list_users(
     skip: int = Query(0, ge=0),
@@ -152,6 +249,7 @@ async def list_users(
             roles=[r.name for r in user.roles],
             group_ids=[g.id for g in user.groups],
             role_ids=[r.id for r in user.roles],
+            must_change_password=user.must_change_password,
         ))
 
     return PaginatedUsersResponse(total=total, items=items)
@@ -183,14 +281,16 @@ async def get_user(
         roles=[r.name for r in user.roles],
         group_ids=[g.id for g in user.groups],
         role_ids=[r.id for r in user.roles],
+        must_change_password=user.must_change_password,
     )
 
 
 @router.post("/users", response_model=AdminUserResponse, status_code=status.HTTP_201_CREATED)
 async def create_user(
     user_data: AdminUserCreate,
+    request: Request,
     db: DBSession = Depends(get_db),
-    _: User = Depends(require_permission('admin.users'))
+    current_user: User = Depends(require_permission('admin.users'))
 ):
     """创建新用户（管理员）"""
     # 检查用户名是否已存在
@@ -216,6 +316,11 @@ async def create_user(
     )
 
     db.add(new_user)
+    db.flush()  # 取得自增 ID,供审计记录引用
+    _audit_user_action(
+        db, request, current_user, 'user.create', new_user,
+        {'status': new_user.status},
+    )
     db.commit()
     db.refresh(new_user)
 
@@ -236,6 +341,7 @@ async def create_user(
 async def update_user(
     user_id: int,
     user_data: AdminUserUpdate,
+    request: Request,
     db: DBSession = Depends(get_db),
     current_user: User = Depends(require_permission('admin.users'))
 ):
@@ -307,6 +413,19 @@ async def update_user(
                 detail="不能停用最后一名活跃管理员，否则系统将无法管理"
             )
 
+    changed_fields = [
+        field for field in ("email", "avatar", "status", "password")
+        if getattr(user_data, field) is not None
+    ]
+    _audit_user_action(
+        db, request, current_user, 'user.update', user,
+        {
+            'fields': changed_fields,
+            # 只记录"重置了密码"这一事实,绝不落明文/哈希
+            'password_reset': user_data.password is not None,
+        },
+    )
+
     db.commit()
     db.refresh(user)
 
@@ -322,12 +441,14 @@ async def update_user(
         roles=[r.name for r in user.roles],
         group_ids=[g.id for g in user.groups],
         role_ids=[r.id for r in user.roles],
+        must_change_password=user.must_change_password,
     )
 
 
 @router.delete("/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_user(
     user_id: int,
+    request: Request,
     db: DBSession = Depends(get_db),
     current_user: User = Depends(require_permission('admin.users'))
 ):
@@ -349,6 +470,9 @@ async def delete_user(
     # 删除用户前做角色等级保护(删除是最高强度的敏感操作)
     _ensure_role_level_allowed(current_user, user)
 
+    # 先落审计再删:若最后一名管理员保护触发 rollback,审计行一并回滚
+    _audit_user_action(db, request, current_user, 'user.delete', user)
+
     db.delete(user)
     db.flush()  # autoflush=False:让删除对下面的计数查询可见
 
@@ -369,8 +493,9 @@ async def delete_user(
 async def update_user_groups(
     user_id: int,
     groups_data: AdminUserGroupsUpdate,
+    request: Request,
     db: DBSession = Depends(get_db),
-    _: User = Depends(require_permission('admin.users'))
+    current_user: User = Depends(require_permission('admin.users'))
 ):
     """更新用户所属的组（管理员）"""
     user = db.query(User).filter(User.id == user_id).first()
@@ -394,6 +519,11 @@ async def update_user_groups(
 
         db.execute(user_groups.insert().values(user_id=user_id, group_id=group_id))
 
+    _audit_user_action(
+        db, request, current_user, 'user.groups.update', user,
+        {'group_ids': groups_data.group_ids},
+    )
+
     db.commit()
     db.refresh(user)
 
@@ -409,6 +539,7 @@ async def update_user_groups(
         roles=[r.name for r in user.roles],
         group_ids=[g.id for g in user.groups],
         role_ids=[r.id for r in user.roles],
+        must_change_password=user.must_change_password,
     )
 
 
@@ -416,6 +547,7 @@ async def update_user_groups(
 async def update_user_roles(
     user_id: int,
     roles_data: AdminUserRolesUpdate,
+    request: Request,
     db: DBSession = Depends(get_db),
     current_user: User = Depends(require_permission('admin.roles'))
 ):
@@ -466,6 +598,11 @@ async def update_user_roles(
             detail="不能移除最后一名管理员，否则系统将无法管理"
         )
 
+    _audit_user_action(
+        db, request, current_user, 'user.roles.update', user,
+        {'role_ids': roles_data.role_ids},
+    )
+
     db.commit()
     db.refresh(user)
 
@@ -481,6 +618,7 @@ async def update_user_roles(
         roles=[r.name for r in user.roles],
         group_ids=[g.id for g in user.groups],
         role_ids=[r.id for r in user.roles],
+        must_change_password=user.must_change_password,
     )
 
 @router.get("/roles", response_model=List[RoleResponse])
@@ -527,8 +665,9 @@ async def get_user_app_permissions(
 async def update_user_app_permissions(
     user_id: int,
     permissions: UserAppPermissionsUpdate,
+    request: Request,
     db: DBSession = Depends(get_db),
-    _: User = Depends(require_permission('admin.users'))
+    current_user: User = Depends(require_permission('admin.users'))
 ):
     """更新用户的应用权限"""
     user = db.query(User).filter(User.id == user_id).first()
@@ -554,6 +693,14 @@ async def update_user_app_permissions(
     # 更新用户的应用权限
     user.allowed_apps = allowed_apps
     user.denied_apps = denied_apps
+
+    _audit_user_action(
+        db, request, current_user, 'user.app_permissions.update', user,
+        {
+            'allowed_app_ids': permissions.allowed_app_ids,
+            'denied_app_ids': permissions.denied_app_ids,
+        },
+    )
 
     db.commit()
     db.refresh(user)
@@ -694,9 +841,10 @@ async def get_user_computed_app_permissions(
 async def update_user_single_app_permission(
     user_id: int,
     app_id: int,
+    request: Request,
     permission: Optional[str] = Query(None, description="权限设置: allowed, denied, null(清除)"),
     db: DBSession = Depends(get_db),
-    _: User = Depends(require_permission('admin.users'))
+    current_user: User = Depends(require_permission('admin.users'))
 ):
     """更新用户对单个应用的权限"""
     user = db.query(User).filter(User.id == user_id).first()
@@ -725,6 +873,11 @@ async def update_user_single_app_permission(
     elif permission == "denied":
         user.denied_apps.append(client)
     # permission == None 或其他值时，只清除不添加
+
+    _audit_user_action(
+        db, request, current_user, 'user.app_permission.update', user,
+        {'app_id': app_id, 'permission': permission},
+    )
 
     db.commit()
     db.refresh(user)
@@ -788,8 +941,9 @@ async def get_user_sessions(
 async def revoke_user_session(
     user_id: int,
     session_id: int,
+    request: Request,
     db: DBSession = Depends(get_db),
-    _: User = Depends(require_permission('admin.users'))
+    current_user: User = Depends(require_permission('admin.users'))
 ):
     """强制登出用户的单个会话（管理员）"""
     session = db.query(Session).filter(
@@ -803,17 +957,30 @@ async def revoke_user_session(
             detail="会话不存在"
         )
 
+    user = db.query(User).filter(User.id == user_id).first()
+
     # 吊销会话必须连带删 refresh token(走统一 helper),
-    # 否则被强制登出的用户仍可用 refresh token 续命
-    SessionLimitService.kick_session(db, session, reason='admin_revoke')
+    # 否则被强制登出的用户仍可用 refresh token 续命;
+    # 同时遗忘设备信任:管理员强退意味着该设备需要重新验证。
+    # commit=False:审计与吊销在同一事务内提交。
+    SessionLimitService.kick_session(
+        db, session, reason='admin_revoke', commit=False, forget_trust=True
+    )
+    if user is not None:
+        _audit_user_action(
+            db, request, current_user, 'user.session.revoke', user,
+            {'session_id': session_id},
+        )
+    db.commit()
     return None
 
 
 @router.delete("/users/{user_id}/sessions", status_code=status.HTTP_200_OK)
 async def revoke_all_user_sessions(
     user_id: int,
+    request: Request,
     db: DBSession = Depends(get_db),
-    _: User = Depends(require_permission('admin.users'))
+    current_user: User = Depends(require_permission('admin.users'))
 ):
     """强制登出用户的所有会话（管理员）"""
     user = db.query(User).filter(User.id == user_id).first()
@@ -829,10 +996,16 @@ async def revoke_all_user_sessions(
         Session.expires_at > utcnow(),
     ).all()
     for session in sessions:
-        # 同上:连带删各会话关联的 refresh token(循环外统一提交)
-        SessionLimitService.kick_session(db, session, reason='admin_revoke', commit=False)
-    if sessions:
-        db.commit()
+        # 同上:连带删各会话关联的 refresh token,并遗忘设备信任
+        SessionLimitService.kick_session(
+            db, session, reason='admin_revoke', commit=False, forget_trust=True
+        )
+
+    _audit_user_action(
+        db, request, current_user, 'user.sessions.revoke_all', user,
+        {'sessions_revoked': len(sessions)},
+    )
+    db.commit()
 
     return {"message": f"已登出 {len(sessions)} 个会话"}
 
@@ -930,4 +1103,298 @@ async def get_user_security_methods(
         passkey_count=passkey_count,
         email_verified=email_verified,
         email_verified_at=email_verified_at
+    )
+
+
+# ==================== Admin Audit Logs ====================
+
+@router.get("/audit-logs", response_model=PaginatedAdminAuditLogsResponse)
+async def list_admin_audit_logs(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(20, ge=1, le=200),
+    action: Optional[str] = Query(None, description="按操作类型精确过滤"),
+    target_user_id: Optional[int] = Query(None, description="只看针对某用户的操作"),
+    actor_id: Optional[int] = Query(None, description="只看某管理员的操作"),
+    db: DBSession = Depends(get_db),
+    _: User = Depends(require_permission('admin.users'))
+):
+    """查询管理员操作审计(分页)。"""
+    query = db.query(AdminAuditLog)
+    if action:
+        query = query.filter(AdminAuditLog.action == action)
+    if target_user_id is not None:
+        query = query.filter(
+            AdminAuditLog.target_type == 'user',
+            AdminAuditLog.target_id == target_user_id,
+        )
+    if actor_id is not None:
+        query = query.filter(AdminAuditLog.actor_id == actor_id)
+
+    total = query.count()
+    logs = query.order_by(
+        AdminAuditLog.created_at.desc(), AdminAuditLog.id.desc()
+    ).offset(skip).limit(limit).all()
+
+    return PaginatedAdminAuditLogsResponse(
+        total=total,
+        items=[AdminAuditLogResponse.model_validate(log) for log in logs],
+    )
+
+
+# ==================== 2FA Recovery / Force Relogin ====================
+
+@router.post("/users/{user_id}/reset-2fa", response_model=AdminReset2FAResponse)
+async def reset_user_2fa(
+    user_id: int,
+    request_data: AdminReset2FARequest,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    db: DBSession = Depends(get_db),
+    current_user: User = Depends(require_permission('admin.users'))
+):
+    """重置用户的二次验证(管理员)。
+
+    典型场景:用户丢失手机 / 验证器被删 / 备用码也找不到,已无法自行登录。
+    管理员可解绑 TOTP(含备用码)与全部通行密钥,并按需强制其重新登录。
+
+    这是账号接管链上的敏感操作(重置 2FA + 已知密码 = 绕过第二因素),
+    因此沿用改密/封禁同级的角色等级保护。
+    """
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="用户不存在"
+        )
+    _ensure_role_level_allowed(current_user, user)
+
+    totp_reset = False
+    if request_data.reset_totp and user.totp is not None:
+        db.delete(user.totp)
+        totp_reset = True
+
+    passkeys_removed = 0
+    if request_data.remove_passkeys:
+        passkeys = db.query(Passkey).filter(Passkey.user_id == user.id).all()
+        passkeys_removed = len(passkeys)
+        for passkey in passkeys:
+            db.delete(passkey)
+
+    sessions_revoked = 0
+    if request_data.force_relogin:
+        sessions_revoked = _force_relogin(db, user, reason='admin_reset_2fa')
+
+    # 审计与邮件参数必须在 commit 前快照(commit 后对象属性会过期重载)
+    target_email = user.email
+    target_username = user.username
+    site_name = SiteService.get_site_name(db)
+    ip_address = get_client_ip(request)
+
+    _audit_user_action(
+        db, request, current_user, 'user.2fa.reset', user,
+        {
+            'totp_reset': totp_reset,
+            'passkeys_removed': passkeys_removed,
+            'force_relogin': request_data.force_relogin,
+            'sessions_revoked': sessions_revoked,
+        },
+    )
+    db.commit()
+
+    _queue_2fa_reset_email(
+        background_tasks,
+        to_email=target_email,
+        username=target_username,
+        actor_username=current_user.username,
+        totp_reset=totp_reset,
+        passkeys_removed=passkeys_removed,
+        force_relogin=request_data.force_relogin,
+        ip_address=ip_address,
+        site_name=site_name,
+    )
+
+    logger.warning(
+        "admin=%s reset 2FA for user=%s (totp=%s passkeys=%s sessions=%s)",
+        current_user.id, user.id, totp_reset, passkeys_removed, sessions_revoked,
+    )
+
+    return AdminReset2FAResponse(
+        totp_reset=totp_reset,
+        passkeys_removed=passkeys_removed,
+        sessions_revoked=sessions_revoked,
+        message=(
+            f"已重置二次验证：身份验证器{'已解绑' if totp_reset else '未变'}，"
+            f"移除 {passkeys_removed} 个通行密钥，"
+            f"登出 {sessions_revoked} 个会话"
+        ),
+    )
+
+
+@router.delete("/users/{user_id}/totp", status_code=status.HTTP_200_OK)
+async def reset_user_totp(
+    user_id: int,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    db: DBSession = Depends(get_db),
+    current_user: User = Depends(require_permission('admin.users'))
+):
+    """解绑用户身份验证器(TOTP + 备用码),保留通行密钥与其他会话。"""
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="用户不存在"
+        )
+    _ensure_role_level_allowed(current_user, user)
+
+    if user.totp is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="该用户未启用身份验证器"
+        )
+
+    target_email = user.email
+    target_username = user.username
+    site_name = SiteService.get_site_name(db)
+    ip_address = get_client_ip(request)
+
+    db.delete(user.totp)
+    _audit_user_action(
+        db, request, current_user, 'user.totp.reset', user,
+        {'backup_codes_cleared': True},
+    )
+    db.commit()
+
+    _queue_2fa_reset_email(
+        background_tasks,
+        to_email=target_email,
+        username=target_username,
+        actor_username=current_user.username,
+        totp_reset=True,
+        passkeys_removed=0,
+        force_relogin=False,
+        ip_address=ip_address,
+        site_name=site_name,
+    )
+
+    logger.warning(
+        "admin=%s reset TOTP for user=%s", current_user.id, user.id
+    )
+    return {"message": "身份验证器已重置"}
+
+
+@router.delete("/users/{user_id}/passkeys/{passkey_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_user_passkey(
+    user_id: int,
+    passkey_id: int,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    db: DBSession = Depends(get_db),
+    current_user: User = Depends(require_permission('admin.users'))
+):
+    """移除用户指定的通行密钥(管理员)。"""
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="用户不存在"
+        )
+    _ensure_role_level_allowed(current_user, user)
+
+    passkey = db.query(Passkey).filter(
+        Passkey.id == passkey_id,
+        Passkey.user_id == user_id,
+    ).first()
+    if not passkey:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="通行密钥不存在"
+        )
+
+    passkey_name = passkey.name
+    target_email = user.email
+    target_username = user.username
+    site_name = SiteService.get_site_name(db)
+    ip_address = get_client_ip(request)
+
+    db.delete(passkey)
+    _audit_user_action(
+        db, request, current_user, 'user.passkey.delete', user,
+        {'passkey_id': passkey_id, 'passkey_name': passkey_name},
+    )
+    db.commit()
+
+    _queue_2fa_reset_email(
+        background_tasks,
+        to_email=target_email,
+        username=target_username,
+        actor_username=current_user.username,
+        totp_reset=False,
+        passkeys_removed=1,
+        force_relogin=False,
+        ip_address=ip_address,
+        site_name=site_name,
+    )
+
+    logger.warning(
+        "admin=%s deleted passkey=%s for user=%s",
+        current_user.id, passkey_id, user.id,
+    )
+    return None
+
+
+@router.post("/users/{user_id}/force-relogin", response_model=AdminForceReloginResponse)
+async def force_user_relogin(
+    user_id: int,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    db: DBSession = Depends(get_db),
+    current_user: User = Depends(require_permission('admin.users'))
+):
+    """强制用户在所有设备上退出并重新登录(管理员)。
+
+    与「登出全部会话」的区别:除踢会话外还递增 token_version 并清空
+    设备信任,已签发但未过期的 access token 也会立即失效。
+    """
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="用户不存在"
+        )
+    _ensure_role_level_allowed(current_user, user)
+
+    sessions_revoked = _force_relogin(db, user, reason='admin_force_relogin')
+
+    target_email = user.email
+    target_username = user.username
+    site_name = SiteService.get_site_name(db)
+    ip_address = get_client_ip(request)
+
+    _audit_user_action(
+        db, request, current_user, 'user.force_relogin', user,
+        {'sessions_revoked': sessions_revoked},
+    )
+    db.commit()
+
+    _queue_2fa_reset_email(
+        background_tasks,
+        to_email=target_email,
+        username=target_username,
+        actor_username=current_user.username,
+        totp_reset=False,
+        passkeys_removed=0,
+        force_relogin=True,
+        ip_address=ip_address,
+        site_name=site_name,
+    )
+
+    logger.warning(
+        "admin=%s forced relogin for user=%s (sessions=%s)",
+        current_user.id, user.id, sessions_revoked,
+    )
+
+    return AdminForceReloginResponse(
+        sessions_revoked=sessions_revoked,
+        message=f"已强制该用户重新登录，登出 {sessions_revoked} 个会话",
     )

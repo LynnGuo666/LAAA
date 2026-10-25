@@ -14,6 +14,7 @@ import {
 } from '@heroui/react'
 import {
   AdminEmptyState,
+  AdminFieldGroup,
   AdminFormField,
   AdminLoadingState,
   AdminNotice,
@@ -21,6 +22,8 @@ import {
   AdminSection,
 } from '@/components/admin/admin-ui'
 import { AdminPagination } from '@/components/admin/pagination'
+import { DateTimePicker } from '@/components/ui/date-time-picker'
+import { MobileField, MobileList, MobileListCard } from '@/components/ui/mobile-list'
 import { useConfirmDialog } from '@/components/ui/confirm-dialog-provider'
 import { adminApi, groupApi } from '@/lib/api'
 import { hasPermission } from '@/lib/authz'
@@ -263,18 +266,35 @@ export default function InvitesPage() {
               </Select>
             </AdminFormField>
 
-            <AdminFormField label="过期时间" description="留空表示不过期" isDisabled={creating}>
-              <Input
-                type="datetime-local"
+            <AdminFieldGroup label="过期时间" description="留空表示不过期">
+              <DateTimePicker
                 value={createForm.expiresAtLocal}
-                onChange={(event) =>
+                onChange={(value) =>
                   setCreateForm((previous) => ({
                     ...previous,
-                    expiresAtLocal: event.target.value,
+                    expiresAtLocal: value,
                   }))
                 }
+                isDisabled={creating}
+                ariaLabel="过期时间"
               />
-            </AdminFormField>
+              {createForm.expiresAtLocal ? (
+                <Button
+                  type="button"
+                  variant="tertiary"
+                  size="sm"
+                  className="w-fit px-0 text-xs text-muted"
+                  onPress={() =>
+                    setCreateForm((previous) => ({
+                      ...previous,
+                      expiresAtLocal: '',
+                    }))
+                  }
+                >
+                  清除过期时间
+                </Button>
+              ) : null}
+            </AdminFieldGroup>
 
             <AdminFormField label="使用次数" description="留空表示不限制" isDisabled={creating}>
               <Input
@@ -350,85 +370,158 @@ export default function InvitesPage() {
               description="生成一个邀请码后，这里会显示完整使用记录。"
             />
           ) : (
-            <Table aria-label="邀请码列表">
-              <Table.ScrollContainer>
-                <Table.Content>
-                  <Table.Header>
-                    <Table.Column isRowHeader>邀请码</Table.Column>
-                    <Table.Column>用户组</Table.Column>
-                    <Table.Column>状态</Table.Column>
-                    <Table.Column>使用情况</Table.Column>
-                    <Table.Column>备注</Table.Column>
-                    <Table.Column>操作</Table.Column>
-                  </Table.Header>
-                  <Table.Body>
-                    {invites.map((invite) => {
-                      const usedCount = invite.used_count ?? 0
-                      const limitText = invite.max_uses
-                        ? `${usedCount}/${invite.max_uses}`
-                        : `${usedCount}/∞`
+            <>
+              <div className="hidden md:block">
+                <Table aria-label="邀请码列表">
+                  <Table.ScrollContainer>
+                    <Table.Content>
+                      <Table.Header>
+                        <Table.Column isRowHeader>邀请码</Table.Column>
+                        <Table.Column>用户组</Table.Column>
+                        <Table.Column>状态</Table.Column>
+                        <Table.Column>使用情况</Table.Column>
+                        <Table.Column>备注</Table.Column>
+                        <Table.Column>操作</Table.Column>
+                      </Table.Header>
+                      <Table.Body>
+                        {invites.map((invite) => {
+                          const usedCount = invite.used_count ?? 0
+                          const limitText = invite.max_uses
+                            ? `${usedCount}/${invite.max_uses}`
+                            : `${usedCount}/∞`
 
-                      return (
-                        <Table.Row key={invite.id} id={String(invite.id)}>
-                          <Table.Cell>
-                            <div className="flex items-center gap-2">
-                              <code className="rounded-lg bg-default px-2 py-1 text-xs font-medium">
-                                {invite.code}
-                              </code>
-                              <Button
-                                variant="tertiary"
-                                size="sm"
-                                onPress={() => void handleCopy(invite.code)}
-                              >
-                                复制
-                              </Button>
-                            </div>
-                          </Table.Cell>
-                          <Table.Cell>{invite.group_name || `#${invite.group_id}`}</Table.Cell>
-                          <Table.Cell>
-                            <div className="space-y-2">
-                              <Chip
-                                color={invite.is_active ? 'success' : 'default'}
-                                variant="soft"
-                                size="sm"
-                              >
-                                {invite.is_active ? '有效' : '无效'}
-                              </Chip>
-                              {invite.expires_at ? (
-                                <p className="text-xs text-muted">
-                                  到期：{formatDateTime(invite.expires_at)}
-                                </p>
-                              ) : null}
-                            </div>
-                          </Table.Cell>
-                          <Table.Cell>
-                            <div className="space-y-1 text-sm">
-                              <p>{limitText}</p>
-                              {invite.used_at ? (
-                                <p className="text-xs text-muted">
-                                  最后一次：{formatDateTime(invite.used_at)}
-                                </p>
-                              ) : null}
-                            </div>
-                          </Table.Cell>
-                          <Table.Cell>{invite.note || '—'}</Table.Cell>
-                          <Table.Cell>
-                            <Button
-                              variant="danger"
-                              size="sm"
-                              isDisabled={!invite.is_active}
-                              onPress={() => void handleDeactivate(invite)}
-                            >
-                              停用
-                            </Button>
-                          </Table.Cell>
-                        </Table.Row>
-                      )
-                    })}
-                  </Table.Body>
-                </Table.Content>
-              </Table.ScrollContainer>
-            </Table>
+                          return (
+                            <Table.Row key={invite.id} id={String(invite.id)}>
+                              <Table.Cell>
+                                <div className="flex items-center gap-2">
+                                  <code className="rounded-lg bg-default px-2 py-1 text-xs font-medium">
+                                    {invite.code}
+                                  </code>
+                                  <Button
+                                    variant="tertiary"
+                                    size="sm"
+                                    onPress={() => void handleCopy(invite.code)}
+                                  >
+                                    复制
+                                  </Button>
+                                </div>
+                              </Table.Cell>
+                              <Table.Cell>{invite.group_name || `#${invite.group_id}`}</Table.Cell>
+                              <Table.Cell>
+                                <div className="space-y-2">
+                                  <Chip
+                                    color={invite.is_active ? 'success' : 'default'}
+                                    variant="soft"
+                                    size="sm"
+                                  >
+                                    {invite.is_active ? '有效' : '无效'}
+                                  </Chip>
+                                  {invite.expires_at ? (
+                                    <p className="text-xs text-muted">
+                                      到期：{formatDateTime(invite.expires_at)}
+                                    </p>
+                                  ) : null}
+                                </div>
+                              </Table.Cell>
+                              <Table.Cell>
+                                <div className="space-y-1 text-sm">
+                                  <p>{limitText}</p>
+                                  {invite.used_at ? (
+                                    <p className="text-xs text-muted">
+                                      最后一次：{formatDateTime(invite.used_at)}
+                                    </p>
+                                  ) : null}
+                                </div>
+                              </Table.Cell>
+                              <Table.Cell>{invite.note || '—'}</Table.Cell>
+                              <Table.Cell>
+                                <Button
+                                  variant="danger"
+                                  size="sm"
+                                  isDisabled={!invite.is_active}
+                                  onPress={() => void handleDeactivate(invite)}
+                                >
+                                  停用
+                                </Button>
+                              </Table.Cell>
+                            </Table.Row>
+                          )
+                        })}
+                      </Table.Body>
+                    </Table.Content>
+                  </Table.ScrollContainer>
+                </Table>
+              </div>
+
+              <MobileList>
+                {invites.map((invite) => {
+                  const usedCount = invite.used_count ?? 0
+                  const limitText = invite.max_uses
+                    ? `${usedCount}/${invite.max_uses}`
+                    : `${usedCount}/∞`
+
+                  return (
+                    <MobileListCard key={invite.id}>
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex min-w-0 flex-wrap items-center gap-2">
+                          <code className="break-all rounded-lg bg-default px-2 py-1 text-xs font-medium">
+                            {invite.code}
+                          </code>
+                          <Button
+                            variant="tertiary"
+                            size="sm"
+                            onPress={() => void handleCopy(invite.code)}
+                          >
+                            复制
+                          </Button>
+                        </div>
+                        <div className="shrink-0">
+                          <Chip
+                            color={invite.is_active ? 'success' : 'default'}
+                            variant="soft"
+                            size="sm"
+                          >
+                            {invite.is_active ? '有效' : '无效'}
+                          </Chip>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 space-y-1.5">
+                        <MobileField label="用户组">
+                          {invite.group_name || `#${invite.group_id}`}
+                        </MobileField>
+                        <MobileField label="使用情况">
+                          <p>{limitText}</p>
+                          {invite.used_at ? (
+                            <p className="text-xs text-muted">
+                              最后一次：{formatDateTime(invite.used_at)}
+                            </p>
+                          ) : null}
+                        </MobileField>
+                        {invite.expires_at ? (
+                          <MobileField label="到期时间">
+                            {formatDateTime(invite.expires_at)}
+                          </MobileField>
+                        ) : null}
+                        <MobileField label="备注">{invite.note || '—'}</MobileField>
+                      </div>
+
+                      <div className="mt-4">
+                        <Button
+                          variant="danger"
+                          size="sm"
+                          className="w-full"
+                          isDisabled={!invite.is_active}
+                          onPress={() => void handleDeactivate(invite)}
+                        >
+                          停用
+                        </Button>
+                      </div>
+                    </MobileListCard>
+                  )
+                })}
+              </MobileList>
+            </>
           )}
         </Card.Content>
 

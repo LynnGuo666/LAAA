@@ -54,9 +54,13 @@ export default function Home() {
           <span className="text-xl font-bold tracking-wide">{siteName}</span>
         </div>
 
-        {/* 中央动画角色群 */}
-        <div className="relative z-10 flex items-end justify-center py-8">
-          <AnimatedCharacters />
+        {/* 中央动画角色群（窄屏按比例缩放，避免右侧角色被裁掉） */}
+        <div className="relative z-10 w-full py-6 sm:py-8">
+          <div className="relative mx-auto h-[240px] w-full max-w-[550px] sm:h-[400px]">
+            <div className="absolute bottom-0 left-1/2 origin-bottom -translate-x-1/2 scale-[0.58] sm:static sm:translate-x-0 sm:scale-100">
+              <AnimatedCharacters />
+            </div>
+          </div>
         </div>
 
         {/* 底部标语 */}

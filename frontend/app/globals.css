@@ -10,6 +10,58 @@
 /* 启用基于 data-theme 属性的 dark: 变体（配合 HeroUI 主题系统） */
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
+/* 让浏览器原生控件（日期选择器图标、下拉箭头、滚动条、自动填充）跟随主题，
+   否则暗色页面里 datetime-local 的日历图标仍是黑的、几乎看不见 */
+html {
+  color-scheme: light;
+
+  /* 浅色主题默认依赖透明阴影区分字段，卡片内（尤其 disabled 字段）
+     几乎看不到输入框边界。统一补一条 1px 细边，保证可辨识 */
+  --field-border: color-mix(in oklab, var(--foreground) 14%, transparent);
+  --field-border-width: 1px;
+}
+
+html[data-theme="dark"] {
+  color-scheme: dark;
+
+  /* HeroUI 暗色主题的 --field-background 与 Card/surface 同色且 field-shadow
+     为透明，导致卡片内的 Input/Select/TextArea 整体“消失”。
+     这里改用与 secondary 变体一致的 --default，保证字段在表面上有对比度 */
+  --field-background: var(--default);
+  --field-border: color-mix(in oklab, var(--foreground) 16%, transparent);
+  --field-border-width: 1px;
+}
+
+/* HeroUI Table 在窄屏会把列压扁、文本竖排。
+   让表格按内容自然展开（至少铺满容器），交给 ScrollContainer 横向滚动，
+   避免固定 min-width 导致部分列继续折行、行高被撑大 */
+@media (max-width: 767px) {
+  .table__content {
+    width: max-content;
+    min-width: 100%;
+  }
+}
+
+/* Checkbox / Radio 控件未选中时只有一层与背景接近的 field 底色，
+   在深浅主题下都容易被忽略；补一圈细描边提升可发现性 */
+.checkbox__control,
+.radio__control {
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--foreground) 22%, transparent);
+}
+
+/* 状态 Chip 在窄列里会被逐字换行（如“激/活”竖排），统一禁止折行 */
+.chip {
+  white-space: nowrap;
+}
+
+/* @heroui/react 3.0.x 的 Spinner 内部 svg 没有宽高，会按 SVG 默认 300×150
+   渲染，溢出到 32px 容器外。这里让图形撑满 Spinner 自身的尺寸 */
+.spinner > svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
 /* 页面/卡片淡入动画：多个页面通过 animate-fade-in 引用 */
 @utility animate-fade-in {
   animation: fade-in 0.3s ease-out both;

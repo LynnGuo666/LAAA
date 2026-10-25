@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 from app.config import get_settings
 from app.models import Session as SessionModel
 from app.models import Token, User
+from app.services.device_service import forget_devices_for_sessions
 from app.utils.time import utcnow
 
 settings = get_settings()
@@ -105,6 +106,7 @@ class SessionLimitService:
         session: SessionModel,
         reason: str = 'manual',
         commit: bool = True,
+        forget_trust: bool = False,
     ) -> Dict[str, Any]:
         """
         Kick (terminate) a specific session.
@@ -115,6 +117,10 @@ class SessionLimitService:
             reason: Reason for kicking (session_limit, manual, security, etc.)
             commit: 是否立即提交。循环吊销多个会话时传 False,
                 由调用方在循环外统一 commit(避免逐条提交的多次 fsync)
+            forget_trust: 是否同时遗忘该设备的信任记忆(known_devices)。
+                主动撤销/管理员强退/安全事件传 True;
+                并发超限自动踢人(session_limit)保持 False——只是腾名额,
+                不代表设备失宠,否则每次踢人都触发一次强制验证。
 
         Returns:
             Dictionary with info about the kicked session
@@ -141,6 +147,12 @@ class SessionLimitService:
         # Expire the session
         session.expires_at = utcnow()
 
+        # 主动下线语义:该设备不再被信任,下次登录要重新完成设备验证
+        if forget_trust:
+            forget_devices_for_sessions(
+                db, session.user_id, [session], commit=False
+            )
+
         if commit:
             db.commit()
 
@@ -151,6 +163,7 @@ class SessionLimitService:
         db: Session,
         user_id: int,
         keep_session_id: Optional[int] = None,
+        forget_trust: bool = True,
     ) -> List[Dict[str, Any]]:
         """
         Kick all sessions except the specified one.
@@ -162,6 +175,8 @@ class SessionLimitService:
                 session，由调用方通过 refresh token 反查得到。为 None 时
                 表示无法识别当前会话，会踢掉全部会话——保留旧的「按
                 device_id 匹配失配即全踢」语义，由调用方决定是否兜底）
+            forget_trust: 是否遗忘被踢设备的信任记忆。默认 True
+                ("登出其他设备"是用户主动的安全动作)。
         """
         kicked_sessions = []
         active_sessions = SessionLimitService.get_active_sessions(db, user_id)
@@ -169,7 +184,8 @@ class SessionLimitService:
         for session in active_sessions:
             if session.id != keep_session_id:
                 kicked_info = SessionLimitService.kick_session(
-                    db, session, reason='user_request', commit=False
+                    db, session, reason='user_request',
+                    commit=False, forget_trust=forget_trust,
                 )
                 kicked_sessions.append(kicked_info)
 

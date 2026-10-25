@@ -6,13 +6,14 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.database import get_db
 from app.middleware.auth import get_current_user, require_unrestricted
-from app.models import Client, LoginLog, Role, Token, User, UserAuthorization
+from app.models import Client, KnownDevice, LoginLog, Role, Token, User, UserAuthorization
 from app.models import Session as SessionModel
 from app.schemas import (
     AuthorizationListItem,
     ChangePasswordRequest,
     ClientPublicResponse,
     KickedSessionsResponse,
+    KnownDeviceResponse,
     LoginLogResponse,
     SecuritySettingsResponse,
     SecuritySettingsUpdate,
@@ -261,10 +262,97 @@ async def revoke_session(
         Token.token_hash == session.refresh_token_hash
     ).delete()
 
+    # 主动撤销 = 不再信任该设备。普通 logout 保留设备记忆(避免验证循环),
+    # 但用户主动"撤销会话"必须遗忘,否则被盗设备重新登录仍会被判为已知设备。
+    from app.services.device_service import forget_device as forget_known_device
+
+    device_token = session.device_token
     db.delete(session)
+    forget_known_device(db, current_user.id, device_token, commit=False)
     db.commit()
 
     return {"message": "Session revoked"}
+
+
+@router.get("/devices", response_model=List[KnownDeviceResponse])
+async def list_known_devices(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """列出已记住的设备(含当前没有活跃会话的设备)。
+
+    这是风控使用的设备信任记忆,不等同于会话列表:设备登出后仍会保留,
+    直到用户主动忘记、被撤销/强退,或超过保留期被清理。
+    """
+    from app.services.device_service import list_devices
+
+    current_session = _resolve_current_session(request, db, current_user)
+    current_token = current_session.device_token if current_session else None
+
+    return [
+        KnownDeviceResponse(
+            id=device.id,
+            device_name=device.device_name,
+            device_type=device.device_type,
+            ip_address=device.ip_address,
+            country=device.country,
+            city=device.city,
+            first_seen=device.first_seen,
+            last_seen=device.last_seen,
+            is_current=bool(current_token and device.device_token == current_token),
+        )
+        for device in list_devices(db, current_user.id)
+    ]
+
+
+@router.delete("/devices/{device_id}")
+async def forget_known_device(
+    device_id: int,
+    request: Request,
+    current_user: User = Depends(require_unrestricted),
+    db: Session = Depends(get_db)
+):
+    """忘记设备:删除信任记忆,并吊销该设备上的全部会话。
+
+    忘记后,该设备下次登录会被判为新设备,需要重新完成安全验证。
+    """
+    from app.services.device_service import forget_device
+    from app.services.session_limit_service import SessionLimitService
+
+    device = db.query(KnownDevice).filter(
+        KnownDevice.id == device_id,
+        KnownDevice.user_id == current_user.id,
+    ).first()
+
+    if not device:
+        raise HTTPException(status_code=404, detail="设备不存在")
+
+    current_session = _resolve_current_session(request, db, current_user)
+    was_current = bool(
+        current_session
+        and current_session.device_token
+        and current_session.device_token == device.device_token
+    )
+
+    sessions = db.query(SessionModel).filter(
+        SessionModel.user_id == current_user.id,
+        SessionModel.device_token == device.device_token,
+    ).all()
+    for session in sessions:
+        # 设备行由下面统一删除,这里只踢会话(kick_session 内不再重复删记忆)
+        SessionLimitService.kick_session(
+            db, session, reason='user_forget', commit=False, forget_trust=False
+        )
+
+    forget_device(db, current_user.id, device.device_token, commit=False)
+    db.commit()
+
+    return {
+        "message": "设备已忘记",
+        "kicked_count": len(sessions),
+        "was_current": was_current,
+    }
 
 
 @router.get("/apps", response_model=List[ClientPublicResponse])
@@ -426,7 +514,8 @@ async def revoke_other_sessions(
     current_session = _resolve_current_session(request, db, current_user)
 
     kicked_sessions = SessionLimitService.kick_all_other_sessions(
-        db, current_user.id, current_session.id if current_session else None
+        db, current_user.id, current_session.id if current_session else None,
+        forget_trust=True,
     )
 
     return KickedSessionsResponse(
@@ -438,10 +527,12 @@ async def revoke_other_sessions(
 @router.put("/password")
 async def change_password(
     password_data: ChangePasswordRequest,
+    request: Request,
     current_user: User = Depends(require_unrestricted),
     db: Session = Depends(get_db)
 ):
     """Change current user password"""
+    from app.services.device_service import forget_all_devices
     from app.utils.security import get_password_hash_async, verify_password_async
 
     # Verify current password
@@ -463,11 +554,17 @@ async def change_password(
     current_user.updated_at = utcnow()
     # 用户本人完成改密:清除首登/重置后的强制改密标志
     current_user.must_change_password = False
+    # 改密是安全动作:除当前设备外,其他设备的信任记忆一并清除。
+    # 保留当前设备是为了避免"改完密码立刻被锁在验证页"(SMTP 未配置时尤其危险)。
+    current_session = _resolve_current_session(request, db, current_user)
+    keep_device_token = current_session.device_token if current_session else None
+
     # 吊销所有现有 token:token_version+1 使旧 access token 立即失效,
     # 删除 refresh token 记录和 session(被窃的 refresh 也无法换新)
     current_user.token_version = (current_user.token_version or 0) + 1
     db.query(Token).filter(Token.user_id == current_user.id, Token.type == 'refresh').delete()
     db.query(SessionModel).filter(SessionModel.user_id == current_user.id).delete()
+    forget_all_devices(db, current_user.id, keep_token=keep_device_token, commit=False)
     db.commit()
 
     return {"message": "密码修改成功,其他设备已登出"}

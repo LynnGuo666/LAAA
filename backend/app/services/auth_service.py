@@ -429,7 +429,7 @@ class AuthService:
                 "refresh token replay detected: revoking family user=%s family=%s",
                 token_record.user_id, token_record.family_id,
             )
-            AuthService._revoke_token_family(db, token_record)
+            AuthService._revoke_token_family(db, token_record, forget_trust=True)
             return None
 
         if token_record.expires_at <= utcnow():
@@ -501,7 +501,8 @@ class AuthService:
                 Token.id == token_record.id
             ).populate_existing().first()
             if current is not None:
-                AuthService._revoke_token_family(db, current)
+                # 抢占失败按重放处理:与显式重放分支一致,设备信任一并降级
+                AuthService._revoke_token_family(db, current, forget_trust=True)
             return None
 
         new_token_record = Token(
@@ -528,24 +529,49 @@ class AuthService:
         return new_access_token, new_refresh_token
 
     @staticmethod
-    def _revoke_token_family(db: Session, token_record: Token) -> None:
+    def _revoke_token_family(
+        db: Session,
+        token_record: Token,
+        forget_trust: bool = False,
+    ) -> None:
         """吊销整个 refresh token 家族(OAuth 2.1 BCP 重放响应)。
 
         删除该 family 全部 token(含未过期的),并联动过期挂在其中的 session。
+
+        forget_trust: 是否同时遗忘这些会话对应的设备记忆。
+        - 普通登出走 False(session 消失但设备仍"认识",避免验证循环);
+        - refresh token 重放等安全事件走 True(被盗设备不再被信任)。
         """
+        user_id = token_record.user_id
         family_id = token_record.family_id
         if not family_id:
             # 无家族的孤 token(极老记录):只删自身 + session
+            sessions = db.query(SessionModel).filter(
+                SessionModel.refresh_token_hash == token_record.token_hash
+            ).all()
+            device_tokens = [s.device_token for s in sessions if s.device_token]
             db.delete(token_record)
             db.query(SessionModel).filter(
                 SessionModel.refresh_token_hash == token_record.token_hash
             ).delete()
+            if forget_trust and device_tokens:
+                db.query(KnownDevice).filter(
+                    KnownDevice.user_id == user_id,
+                    KnownDevice.device_token.in_(device_tokens),
+                ).delete(synchronize_session=False)
             db.commit()
             return
 
         family_hashes = [t.token_hash for t in db.query(Token).filter(
             Token.family_id == family_id
         ).all()]
+        sessions = []
+        if family_hashes:
+            sessions = db.query(SessionModel).filter(
+                SessionModel.refresh_token_hash.in_(family_hashes)
+            ).all()
+        device_tokens = [s.device_token for s in sessions if s.device_token]
+
         db.query(Token).filter(Token.family_id == family_id).delete()
         if family_hashes:
             db.query(SessionModel).filter(
@@ -555,6 +581,13 @@ class AuthService:
                 SessionModel.kicked_at: utcnow(),
                 SessionModel.kicked_reason: 'refresh_replay',
             }, synchronize_session=False)
+
+        if forget_trust and device_tokens:
+            db.query(KnownDevice).filter(
+                KnownDevice.user_id == user_id,
+                KnownDevice.device_token.in_(device_tokens),
+            ).delete(synchronize_session=False)
+
         db.commit()
 
     @staticmethod

@@ -23,6 +23,7 @@ import {
   EntityAvatar,
 } from '@/components/admin/admin-ui'
 import { UICheckbox } from '@/components/ui/primitives'
+import { MobileList, MobileListCard } from '@/components/ui/mobile-list'
 import { useConfirmDialog } from '@/components/ui/confirm-dialog-provider'
 import { adminApi, clientApi, groupApi, groupAppApi } from '@/lib/api'
 import { hasPermission } from '@/lib/authz'
@@ -480,34 +481,62 @@ export default function GroupsPage() {
                       ) : members.length === 0 ? (
                         <p className="py-6 text-center text-sm text-muted">暂无成员，点击上方按钮添加</p>
                       ) : (
-                        <Table aria-label="用户组成员列表">
-                          <Table.ScrollContainer>
-                            <Table.Content>
-                              <Table.Header>
-                                <Table.Column isRowHeader>用户</Table.Column>
-                                <Table.Column>操作</Table.Column>
-                              </Table.Header>
-                              <Table.Body>
-                                {members.map((member) => (
-                                  <Table.Row key={member.id} id={String(member.id)}>
-                                    <Table.Cell>
-                                      <div className="flex items-center gap-3">
-                                        <EntityAvatar src={member.avatar} name={member.username} size="sm" rounded="full" />
-                                        <div>
-                                          <p className="font-medium text-foreground">{member.username}</p>
-                                          <p className="text-xs text-muted">{member.email}</p>
-                                        </div>
-                                      </div>
-                                    </Table.Cell>
-                                    <Table.Cell>
-                                      <Button variant="danger" size="sm" onPress={() => void handleRemoveMember(member.id)}>移除</Button>
-                                    </Table.Cell>
-                                  </Table.Row>
-                                ))}
-                              </Table.Body>
-                            </Table.Content>
-                          </Table.ScrollContainer>
-                        </Table>
+                        <>
+                          <div className="hidden md:block">
+                            <Table aria-label="用户组成员列表">
+                              <Table.ScrollContainer>
+                                <Table.Content>
+                                  <Table.Header>
+                                    <Table.Column isRowHeader>用户</Table.Column>
+                                    <Table.Column>操作</Table.Column>
+                                  </Table.Header>
+                                  <Table.Body>
+                                    {members.map((member) => (
+                                      <Table.Row key={member.id} id={String(member.id)}>
+                                        <Table.Cell>
+                                          <div className="flex items-center gap-3">
+                                            <EntityAvatar src={member.avatar} name={member.username} size="sm" rounded="full" />
+                                            <div>
+                                              <p className="font-medium text-foreground">{member.username}</p>
+                                              <p className="text-xs text-muted">{member.email}</p>
+                                            </div>
+                                          </div>
+                                        </Table.Cell>
+                                        <Table.Cell>
+                                          <Button variant="danger" size="sm" onPress={() => void handleRemoveMember(member.id)}>移除</Button>
+                                        </Table.Cell>
+                                      </Table.Row>
+                                    ))}
+                                  </Table.Body>
+                                </Table.Content>
+                              </Table.ScrollContainer>
+                            </Table>
+                          </div>
+
+                          <MobileList>
+                            {members.map((member) => (
+                              <MobileListCard key={member.id}>
+                                <div className="flex items-center justify-between gap-3">
+                                  <div className="flex min-w-0 items-center gap-3">
+                                    <EntityAvatar src={member.avatar} name={member.username} size="sm" rounded="full" />
+                                    <div className="min-w-0">
+                                      <p className="font-medium text-foreground">{member.username}</p>
+                                      <p className="truncate text-xs text-muted" title={member.email}>{member.email}</p>
+                                    </div>
+                                  </div>
+                                  <Button
+                                    variant="danger"
+                                    size="sm"
+                                    className="shrink-0"
+                                    onPress={() => void handleRemoveMember(member.id)}
+                                  >
+                                    移除
+                                  </Button>
+                                </div>
+                              </MobileListCard>
+                            ))}
+                          </MobileList>
+                        </>
                       )}
                     </div>
                   </Tabs.Panel>
@@ -522,38 +551,60 @@ export default function GroupsPage() {
                       {filteredApps.length === 0 ? (
                         <p className="py-6 text-center text-sm text-muted">暂无应用</p>
                       ) : (
-                        <Table aria-label="用户组应用权限">
-                          <Table.ScrollContainer>
-                            <Table.Content>
-                              <Table.Header>
-                                <Table.Column isRowHeader>应用</Table.Column>
-                                <Table.Column>允许</Table.Column>
-                                <Table.Column>拒绝</Table.Column>
-                              </Table.Header>
-                              <Table.Body>
-                                {filteredApps.map((app) => (
-                                  <Table.Row key={app.id} id={String(app.id)}>
-                                    <Table.Cell>
-                                      <div className="flex items-center gap-3">
-                                        <EntityAvatar src={app.logo} name={app.name} size="sm" />
-                                        <div className="min-w-0">
-                                          <p className="font-medium text-foreground">{app.name}</p>
-                                          <p className="text-xs text-muted">{app.client_id}</p>
-                                        </div>
-                                      </div>
-                                    </Table.Cell>
-                                    <Table.Cell>
-                                      <UICheckbox isSelected={selectedGroupAllowedApps.includes(app.id)} onChange={() => toggleAllowedApp(app.id)}>允许</UICheckbox>
-                                    </Table.Cell>
-                                    <Table.Cell>
-                                      <UICheckbox isSelected={selectedGroupDeniedApps.includes(app.id)} onChange={() => toggleDeniedApp(app.id)}>拒绝</UICheckbox>
-                                    </Table.Cell>
-                                  </Table.Row>
-                                ))}
-                              </Table.Body>
-                            </Table.Content>
-                          </Table.ScrollContainer>
-                        </Table>
+                        <>
+                          <div className="hidden md:block">
+                            <Table aria-label="用户组应用权限">
+                              <Table.ScrollContainer>
+                                <Table.Content>
+                                  <Table.Header>
+                                    <Table.Column isRowHeader>应用</Table.Column>
+                                    <Table.Column>允许</Table.Column>
+                                    <Table.Column>拒绝</Table.Column>
+                                  </Table.Header>
+                                  <Table.Body>
+                                    {filteredApps.map((app) => (
+                                      <Table.Row key={app.id} id={String(app.id)}>
+                                        <Table.Cell>
+                                          <div className="flex items-center gap-3">
+                                            <EntityAvatar src={app.logo} name={app.name} size="sm" />
+                                            <div className="min-w-0">
+                                              <p className="font-medium text-foreground">{app.name}</p>
+                                              <p className="text-xs text-muted">{app.client_id}</p>
+                                            </div>
+                                          </div>
+                                        </Table.Cell>
+                                        <Table.Cell>
+                                          <UICheckbox isSelected={selectedGroupAllowedApps.includes(app.id)} onChange={() => toggleAllowedApp(app.id)}>允许</UICheckbox>
+                                        </Table.Cell>
+                                        <Table.Cell>
+                                          <UICheckbox isSelected={selectedGroupDeniedApps.includes(app.id)} onChange={() => toggleDeniedApp(app.id)}>拒绝</UICheckbox>
+                                        </Table.Cell>
+                                      </Table.Row>
+                                    ))}
+                                  </Table.Body>
+                                </Table.Content>
+                              </Table.ScrollContainer>
+                            </Table>
+                          </div>
+
+                          <MobileList>
+                            {filteredApps.map((app) => (
+                              <MobileListCard key={app.id}>
+                                <div className="flex items-center gap-3">
+                                  <EntityAvatar src={app.logo} name={app.name} size="sm" />
+                                  <div className="min-w-0">
+                                    <p className="font-medium text-foreground">{app.name}</p>
+                                    <p className="break-all text-xs text-muted">{app.client_id}</p>
+                                  </div>
+                                </div>
+                                <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2">
+                                  <UICheckbox isSelected={selectedGroupAllowedApps.includes(app.id)} onChange={() => toggleAllowedApp(app.id)}>允许</UICheckbox>
+                                  <UICheckbox isSelected={selectedGroupDeniedApps.includes(app.id)} onChange={() => toggleDeniedApp(app.id)}>拒绝</UICheckbox>
+                                </div>
+                              </MobileListCard>
+                            ))}
+                          </MobileList>
+                        </>
                       )}
                     </div>
                   </Tabs.Panel>

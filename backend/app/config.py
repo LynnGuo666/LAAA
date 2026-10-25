@@ -53,9 +53,14 @@ class Settings(BaseSettings):
     webauthn_challenge_timeout_seconds: int = 300
 
     # Session security settings
-    # Env vars: DEFAULT_MAX_SESSIONS, ENABLE_LOGIN_ANOMALY_DETECTION
+    # Env vars: DEFAULT_MAX_SESSIONS, ENABLE_LOGIN_ANOMALY_DETECTION, KNOWN_DEVICE_RETENTION_DAYS
     default_max_sessions: int = 3  # Default max concurrent sessions per user
     enable_login_anomaly_detection: bool = True  # Enable anomaly detection
+    # 已知设备记忆保留天数:超过该时长未再登录的设备由 maintenance 清理。
+    # 普通登出不删除记忆(避免"登出即判新设备"的验证循环);
+    # 主动撤销/管理员强退/安全事件会立即遗忘。
+    # Env var: KNOWN_DEVICE_RETENTION_DAYS
+    known_device_retention_days: int = 180
 
     # Anomaly detection thresholds
     # Env vars: SUSPICIOUS_IP_CHANGE_HOURS, SUSPICIOUS_LOCATION_DISTANCE_KM, SUSPICIOUS_LOGIN_VELOCITY_MINUTES, SUSPICIOUS_LOGIN_VELOCITY_COUNT

@@ -45,6 +45,7 @@ interface User {
   updated_at: string
   groups: string[]
   roles: string[]
+  must_change_password?: boolean
 }
 
 interface Group {
@@ -116,7 +117,88 @@ interface SecurityMethods {
   email_verified_at?: string
 }
 
-type Tab = 'info' | 'logs' | 'sessions' | 'passkeys' | 'authorizations'
+interface AuditLog {
+  id: number
+  actor_id?: number
+  actor_username?: string
+  action: string
+  target_type?: string
+  target_id?: number
+  target_username?: string
+  detail?: string
+  ip_address?: string
+  user_agent?: string
+  created_at: string
+}
+
+const AUDIT_ACTION_LABELS: Record<string, string> = {
+  'user.create': '创建用户',
+  'user.update': '更新用户',
+  'user.delete': '删除用户',
+  'user.groups.update': '更新用户组',
+  'user.roles.update': '更新角色',
+  'user.app_permissions.update': '更新应用权限',
+  'user.app_permission.update': '更新单个应用权限',
+  'user.session.revoke': '强制登出会话',
+  'user.sessions.revoke_all': '登出全部会话',
+  'user.totp.reset': '重置身份验证器',
+  'user.passkey.delete': '移除通行密钥',
+  'user.2fa.reset': '重置二次验证',
+  'user.force_relogin': '强制重新登录',
+}
+
+const AUDIT_DETAIL_LABELS: Record<string, string> = {
+  fields: '变更字段',
+  password_reset: '重置密码',
+  status: '状态',
+  group_ids: '用户组 ID',
+  role_ids: '角色 ID',
+  allowed_app_ids: '允许应用 ID',
+  denied_app_ids: '拒绝应用 ID',
+  app_id: '应用 ID',
+  permission: '权限',
+  session_id: '会话 ID',
+  sessions_revoked: '登出会话数',
+  totp_reset: '解绑验证器',
+  passkeys_removed: '移除通行密钥数',
+  force_relogin: '强制重新登录',
+  backup_codes_cleared: '备用码作废',
+  passkey_id: '通行密钥 ID',
+  passkey_name: '通行密钥名称',
+}
+
+const AUDIT_FIELD_LABELS: Record<string, string> = {
+  email: '邮箱',
+  avatar: '头像',
+  status: '状态',
+  password: '密码',
+}
+
+function formatAuditDetail(raw?: string): string {
+  if (!raw) return '—'
+  try {
+    const data = JSON.parse(raw) as Record<string, unknown>
+    return Object.entries(data)
+      .map(([key, value]) => {
+        const label = AUDIT_DETAIL_LABELS[key] || key
+        if (Array.isArray(value)) {
+          const items = key === 'fields'
+            ? value.map((item) => AUDIT_FIELD_LABELS[String(item)] || String(item))
+            : value.map(String)
+          return `${label}: ${items.length ? items.join('、') : '空'}`
+        }
+        if (typeof value === 'boolean') {
+          return `${label}: ${value ? '是' : '否'}`
+        }
+        return `${label}: ${String(value ?? '—')}`
+      })
+      .join(' · ')
+  } catch {
+    return raw
+  }
+}
+
+type Tab = 'info' | 'logs' | 'sessions' | 'passkeys' | 'authorizations' | 'audit'
 
 function UserDetailContent() {
   const confirmDialog = useConfirmDialog()
@@ -139,6 +221,9 @@ function UserDetailContent() {
   const [loginLogs, setLoginLogs] = useState<LoginLog[]>([])
   const [logsTotal, setLogsTotal] = useState(0)
   const [logsPage, setLogsPage] = useState(0)
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([])
+  const [auditTotal, setAuditTotal] = useState(0)
+  const [auditPage, setAuditPage] = useState(0)
   const [sessions, setSessions] = useState<Session[]>([])
   const [passkeys, setPasskeys] = useState<Passkey[]>([])
   const [authorizations, setAuthorizations] = useState<Authorization[]>([])
@@ -217,6 +302,29 @@ function UserDetailContent() {
     }
   }, [logsPage, userId])
 
+  const loadAuditLogs = useCallback(async () => {
+    if (!userId) return
+    const seq = ++tabLoadSeqRef.current
+    setTabLoading(true)
+    try {
+      const response = await adminApi.listAuditLogs({
+        skip: auditPage * 20,
+        limit: 20,
+        target_user_id: userId,
+      })
+      if (seq !== tabLoadSeqRef.current) return
+      setAuditLogs(response.data.items)
+      setAuditTotal(response.data.total)
+    } catch {
+      if (seq === tabLoadSeqRef.current) {
+        setAuditLogs([])
+        setAuditTotal(0)
+      }
+    } finally {
+      if (seq === tabLoadSeqRef.current) setTabLoading(false)
+    }
+  }, [auditPage, userId])
+
   const loadSessions = useCallback(async () => {
     if (!userId) return
     const seq = ++tabLoadSeqRef.current
@@ -281,10 +389,13 @@ function UserDetailContent() {
       void loadPasskeys()
     } else if (activeTab === 'authorizations') {
       void loadAuthorizations()
+    } else if (activeTab === 'audit') {
+      void loadAuditLogs()
     }
   }, [
     activeTab,
     canManageUsers,
+    loadAuditLogs,
     loadAuthorizations,
     loadLoginLogs,
     loadPasskeys,
@@ -428,6 +539,94 @@ function UserDetailContent() {
     }
   }
 
+  const handleResetTotp = async () => {
+    const shouldReset = await confirmDialog({
+      title: '重置身份验证器',
+      description:
+        '将解绑该用户的 TOTP 身份验证器，已生成的备用码同时失效。用户下次登录需重新绑定；若其没有其他二次验证方式，将暂时进入受限模式。',
+      confirmText: '确认重置',
+      cancelText: '取消',
+      status: 'danger',
+      confirmVariant: 'danger',
+    })
+    if (!shouldReset) return
+
+    try {
+      const response = await adminApi.resetUserTotp(userId)
+      await loadSecurityMethods()
+      toast(response.data.message)
+    } catch (err: any) {
+      setError(extractErrorMessage(err, '重置身份验证器失败'))
+    }
+  }
+
+  const handleDeletePasskey = async (passkey: Passkey) => {
+    const shouldDelete = await confirmDialog({
+      title: '移除通行密钥',
+      description: `确定移除「${passkey.name}」吗？移除后该凭证将无法再用于登录或二次验证。`,
+      confirmText: '确认移除',
+      cancelText: '取消',
+      status: 'danger',
+      confirmVariant: 'danger',
+    })
+    if (!shouldDelete) return
+
+    try {
+      await adminApi.deleteUserPasskey(userId, passkey.id)
+      await Promise.all([loadPasskeys(), loadSecurityMethods()])
+      toast('通行密钥已移除')
+    } catch (err: any) {
+      setError(extractErrorMessage(err, '移除通行密钥失败'))
+    }
+  }
+
+  const handleForceRelogin = async () => {
+    const shouldForce = await confirmDialog({
+      title: '强制重新登录',
+      description:
+        '将登出该用户在所有设备上的会话，已签发的访问令牌立即失效，并清除设备信任记录。用户需重新输入密码登录。',
+      confirmText: '强制重新登录',
+      cancelText: '取消',
+      status: 'danger',
+      confirmVariant: 'danger',
+    })
+    if (!shouldForce) return
+
+    try {
+      const response = await adminApi.forceUserRelogin(userId)
+      toast(response.data.message)
+      if (activeTab === 'sessions') {
+        await loadSessions()
+      }
+    } catch (err: any) {
+      setError(extractErrorMessage(err, '操作失败'))
+    }
+  }
+
+  const handleReset2FA = async () => {
+    const shouldReset = await confirmDialog({
+      title: '重置二次验证',
+      description:
+        '将解绑身份验证器、移除全部通行密钥，并强制该用户在所有设备上退出登录。适用于用户丢失验证器且无法自行登录的情况。重置后用户可凭密码重新登录，但需重新绑定二次验证。',
+      confirmText: '确认重置',
+      cancelText: '取消',
+      status: 'danger',
+      confirmVariant: 'danger',
+    })
+    if (!shouldReset) return
+
+    try {
+      const response = await adminApi.resetUser2FA(userId)
+      await loadSecurityMethods()
+      if (activeTab === 'passkeys') {
+        await loadPasskeys()
+      }
+      toast(response.data.message)
+    } catch (err: any) {
+      setError(extractErrorMessage(err, '重置二次验证失败'))
+    }
+  }
+
   if (!canManageUsers) {
     return (
       <AdminNotice tone="danger" title="无权限" description="该页面仅管理员可访问。" />
@@ -466,6 +665,7 @@ function UserDetailContent() {
     { key: 'sessions', label: '活跃会话' },
     { key: 'passkeys', label: '通行密钥' },
     { key: 'authorizations', label: '应用授权' },
+    { key: 'audit', label: '操作审计' },
   ]
 
   return (
@@ -524,9 +724,9 @@ function UserDetailContent() {
             variant="primary"
           >
             <Tabs.ListContainer>
-              <Tabs.List>
+              <Tabs.List className="grid grid-cols-2 gap-1 sm:flex sm:flex-nowrap">
                 {tabs.map((tab) => (
-                  <Tabs.Tab key={tab.key} id={tab.key}>
+                  <Tabs.Tab key={tab.key} id={tab.key} className="whitespace-nowrap">
                     {tab.label}
                     <Tabs.Indicator />
                   </Tabs.Tab>
@@ -547,6 +747,12 @@ function UserDetailContent() {
                       <div className="flex justify-between"><span className="text-muted">状态</span>{renderStatusChip(user.status)}</div>
                       <div className="flex justify-between"><span className="text-muted">创建时间</span><span className="text-foreground">{formatDateTime(user.created_at)}</span></div>
                       <div className="flex justify-between"><span className="text-muted">更新时间</span><span className="text-foreground">{formatDateTime(user.updated_at)}</span></div>
+                      {user.must_change_password ? (
+                        <div className="flex items-center justify-between">
+                          <span className="text-muted">密码状态</span>
+                          <Chip size="sm" variant="soft" color="warning">需修改密码</Chip>
+                        </div>
+                      ) : null}
                     </Card.Content>
                   </Card>
 
@@ -556,6 +762,22 @@ function UserDetailContent() {
                       <div className="flex items-center justify-between"><span className="text-muted">邮箱验证</span><Chip size="sm" variant="soft" color={securityMethods?.email_verified ? 'success' : 'default'}>{securityMethods?.email_verified ? '已验证' : '未验证'}</Chip></div>
                       <div className="flex items-center justify-between"><span className="text-muted">身份验证器</span><Chip size="sm" variant="soft" color={securityMethods?.totp_enabled ? 'success' : 'default'}>{securityMethods?.totp_enabled ? '已启用' : '未启用'}</Chip></div>
                       <div className="flex items-center justify-between"><span className="text-muted">通行密钥</span><Chip size="sm" variant="soft" color={securityMethods?.passkey_count ? 'accent' : 'default'}>{securityMethods?.passkey_count || 0} 个</Chip></div>
+                      <div className="mt-4 flex flex-wrap gap-2 border-t border-border/70 pt-4">
+                        {securityMethods?.totp_enabled ? (
+                          <Button size="sm" variant="secondary" onPress={() => void handleResetTotp()}>
+                            重置验证器
+                          </Button>
+                        ) : null}
+                        <Button size="sm" variant="secondary" onPress={() => void handleForceRelogin()}>
+                          强制重新登录
+                        </Button>
+                        <Button size="sm" variant="danger" onPress={() => void handleReset2FA()}>
+                          重置二次验证
+                        </Button>
+                      </div>
+                      <p className="text-xs text-muted">
+                        用户丢失验证器或通行密钥、无法自行登录时，可在此解绑其二次验证并强制重新登录。
+                      </p>
                     </Card.Content>
                   </Card>
                 </div>
@@ -741,6 +963,7 @@ function UserDetailContent() {
                         <Table.Column isRowHeader>名称</Table.Column>
                         <Table.Column>创建与使用</Table.Column>
                         <Table.Column>状态</Table.Column>
+                        <Table.Column>操作</Table.Column>
                       </Table.Header>
                       <Table.Body>
                         {passkeys.map((passkey) => (
@@ -768,6 +991,15 @@ function UserDetailContent() {
                               >
                                 {passkey.backup_eligible ? '可同步' : '本地设备'}
                               </Chip>
+                            </Table.Cell>
+                            <Table.Cell>
+                              <Button
+                                variant="danger"
+                                size="sm"
+                                onPress={() => void handleDeletePasskey(passkey)}
+                              >
+                                移除
+                              </Button>
                             </Table.Cell>
                           </Table.Row>
                         ))}
@@ -815,6 +1047,66 @@ function UserDetailContent() {
                       </Table.Body>
                     </Table.Content>
                   </Table.ScrollContainer>
+                </Table>
+              )
+            ) : null}
+
+            {!tabLoading && activeTab === 'audit' ? (
+              auditLogs.length === 0 ? (
+                <AdminEmptyState
+                  title="暂无操作记录"
+                  description="该用户还没有被管理员操作过的记录。"
+                />
+              ) : (
+                <Table aria-label="管理员操作审计">
+                  <Table.ScrollContainer>
+                    <Table.Content>
+                      <Table.Header>
+                        <Table.Column isRowHeader>时间</Table.Column>
+                        <Table.Column>操作</Table.Column>
+                        <Table.Column>管理员</Table.Column>
+                        <Table.Column>详情</Table.Column>
+                      </Table.Header>
+                      <Table.Body>
+                        {auditLogs.map((log) => (
+                          <Table.Row key={log.id} id={String(log.id)}>
+                            <Table.Cell>{formatDateTime(log.created_at)}</Table.Cell>
+                            <Table.Cell>
+                              <div className="space-y-1">
+                                <p className="font-medium text-foreground">
+                                  {AUDIT_ACTION_LABELS[log.action] || log.action}
+                                </p>
+                                <p className="text-xs text-muted">{log.action}</p>
+                              </div>
+                            </Table.Cell>
+                            <Table.Cell>
+                              {log.actor_username || (log.actor_id ? `#${log.actor_id}` : '—')}
+                            </Table.Cell>
+                            <Table.Cell>
+                              <div className="space-y-1 text-sm text-muted">
+                                <p>{formatAuditDetail(log.detail)}</p>
+                                <p>{log.ip_address || '未知 IP'}</p>
+                              </div>
+                            </Table.Cell>
+                          </Table.Row>
+                        ))}
+                      </Table.Body>
+                    </Table.Content>
+                  </Table.ScrollContainer>
+                  {auditTotal > 20 ? (
+                    <Table.Footer>
+                      <AdminSimplePagination
+                        page={auditPage}
+                        total={auditTotal}
+                        limit={20}
+                        onPageChange={setAuditPage}
+                        summary={(page, totalPages) =>
+                          `第 ${page + 1} / ${totalPages} 页`
+                        }
+                        className="flex w-full items-center justify-between gap-4 px-6 py-4 text-sm text-muted"
+                      />
+                    </Table.Footer>
+                  ) : null}
                 </Table>
               )
             ) : null}

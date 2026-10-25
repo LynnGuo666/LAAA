@@ -19,6 +19,7 @@ class AdminUserResponse(BaseModel):
     roles: List[str] = []  # Role names
     group_ids: List[int] = []  # Group IDs(前端免于按名反查)
     role_ids: List[int] = []  # Role IDs
+    must_change_password: bool = False  # 管理员重置密码后为 True(前端强引导)
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -210,4 +211,48 @@ class AdminUserSecurityMethodsResponse(BaseModel):
     passkey_count: int = 0
     email_verified: bool = False
     email_verified_at: Optional[datetime] = None
+
+
+class AdminReset2FARequest(BaseModel):
+    """管理员重置用户二次验证"""
+    reset_totp: bool = True
+    remove_passkeys: bool = True
+    force_relogin: bool = True
+
+
+class AdminReset2FAResponse(BaseModel):
+    """管理员重置二次验证的结果"""
+    totp_reset: bool = False
+    passkeys_removed: int = 0
+    sessions_revoked: int = 0
+    message: str
+
+
+class AdminForceReloginResponse(BaseModel):
+    """管理员强制用户重新登录的结果"""
+    sessions_revoked: int = 0
+    message: str
+
+
+class AdminAuditLogResponse(BaseModel):
+    """管理员操作审计记录"""
+    id: int
+    actor_id: Optional[int] = None
+    actor_username: Optional[str] = None
+    action: str
+    target_type: Optional[str] = None
+    target_id: Optional[int] = None
+    target_username: Optional[str] = None
+    detail: Optional[str] = None
+    ip_address: Optional[str] = None
+    user_agent: Optional[str] = None
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class PaginatedAdminAuditLogsResponse(BaseModel):
+    """管理员操作审计分页响应"""
+    total: int
+    items: List[AdminAuditLogResponse] = []
 

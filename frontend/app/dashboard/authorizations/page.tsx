@@ -6,6 +6,7 @@ import { userApi } from '@/lib/api';
 import { formatDateTime } from '@/lib/date';
 import { useConfirmDialog } from '@/components/ui/confirm-dialog-provider';
 import { EntityAvatar } from '@/components/admin/admin-ui';
+import { MobileField, MobileList, MobileListCard } from '@/components/ui/mobile-list';
 import { PageLoadingState } from '@/components/ui/loading';
 
 interface Authorization {
@@ -77,48 +78,81 @@ export default function AuthorizationsPage() {
           </div>
         </Card>
       ) : (
-        <Card>
-          <Table aria-label="授权应用列表">
-            <Table.ScrollContainer>
-              <Table.Content>
-                <Table.Header>
-                  <Table.Column isRowHeader>应用</Table.Column>
-                  <Table.Column>授权范围</Table.Column>
-                  <Table.Column>首次授权</Table.Column>
-                  <Table.Column>最近使用</Table.Column>
-                  <Table.Column>操作</Table.Column>
-                </Table.Header>
-                <Table.Body>
-                  {authorizations.map((auth) => (
-                    <Table.Row key={auth.id} id={String(auth.id)}>
-                      <Table.Cell>
-                        <div className="flex items-center gap-3">
-                          <EntityAvatar src={auth.client_logo} name={auth.client_name} size="sm" />
-                          <span className="font-medium text-foreground">{auth.client_name}</span>
-                        </div>
-                      </Table.Cell>
-                      <Table.Cell>
-                        <div className="flex flex-wrap gap-1">
-                          {auth.scope ? auth.scope.split(' ').map((s) => (
-                            <Chip key={s} size="sm" variant="soft">{s}</Chip>
-                          )) : <span className="text-foreground/60">-</span>}
-                        </div>
-                      </Table.Cell>
-                      <Table.Cell className="text-muted text-sm">{formatDateTime(auth.created_at)}</Table.Cell>
-                      <Table.Cell className="text-muted text-sm">{formatDateTime(auth.last_used_at)}</Table.Cell>
-                      <Table.Cell>
-                        <div className="flex items-center gap-2">
-                          <Button onPress={() => handleShowDetail(auth)} variant="tertiary" size="sm">详情</Button>
-                          <Button onPress={() => handleRevoke(auth)} variant="danger" size="sm">撤回</Button>
-                        </div>
-                      </Table.Cell>
-                    </Table.Row>
-                  ))}
-                </Table.Body>
-              </Table.Content>
-            </Table.ScrollContainer>
-          </Table>
-        </Card>
+        <>
+          <Card className="hidden md:block">
+            <Table aria-label="授权应用列表">
+              <Table.ScrollContainer>
+                <Table.Content>
+                  <Table.Header>
+                    <Table.Column isRowHeader>应用</Table.Column>
+                    <Table.Column>授权范围</Table.Column>
+                    <Table.Column>首次授权</Table.Column>
+                    <Table.Column>最近使用</Table.Column>
+                    <Table.Column>操作</Table.Column>
+                  </Table.Header>
+                  <Table.Body>
+                    {authorizations.map((auth) => (
+                      <Table.Row key={auth.id} id={String(auth.id)}>
+                        <Table.Cell>
+                          <div className="flex items-center gap-3">
+                            <EntityAvatar src={auth.client_logo} name={auth.client_name} size="sm" />
+                            <span className="font-medium text-foreground">{auth.client_name}</span>
+                          </div>
+                        </Table.Cell>
+                        <Table.Cell>
+                          <div className="flex flex-wrap gap-1">
+                            {auth.scope ? auth.scope.split(' ').map((s) => (
+                              <Chip key={s} size="sm" variant="soft">{s}</Chip>
+                            )) : <span className="text-foreground/60">-</span>}
+                          </div>
+                        </Table.Cell>
+                        <Table.Cell className="text-muted text-sm">{formatDateTime(auth.created_at)}</Table.Cell>
+                        <Table.Cell className="text-muted text-sm">{formatDateTime(auth.last_used_at)}</Table.Cell>
+                        <Table.Cell>
+                          <div className="flex items-center gap-2">
+                            <Button onPress={() => handleShowDetail(auth)} variant="tertiary" size="sm">详情</Button>
+                            <Button onPress={() => handleRevoke(auth)} variant="danger" size="sm">撤回</Button>
+                          </div>
+                        </Table.Cell>
+                      </Table.Row>
+                    ))}
+                  </Table.Body>
+                </Table.Content>
+              </Table.ScrollContainer>
+            </Table>
+          </Card>
+
+          <MobileList>
+            {authorizations.map((auth) => (
+              <MobileListCard key={auth.id}>
+                <div className="flex items-center gap-3">
+                  <EntityAvatar src={auth.client_logo} name={auth.client_name} size="sm" />
+                  <span className="min-w-0 font-medium text-foreground">{auth.client_name}</span>
+                </div>
+
+                <div className="mt-3 flex flex-wrap gap-1">
+                  {auth.scope ? auth.scope.split(' ').map((s) => (
+                    <Chip key={s} size="sm" variant="soft">{s}</Chip>
+                  )) : <span className="text-sm text-muted">无授权范围</span>}
+                </div>
+
+                <div className="mt-3 space-y-1.5">
+                  <MobileField label="首次授权">{formatDateTime(auth.created_at)}</MobileField>
+                  <MobileField label="最近使用">{formatDateTime(auth.last_used_at)}</MobileField>
+                </div>
+
+                <div className="mt-4 flex gap-2">
+                  <Button onPress={() => handleShowDetail(auth)} variant="tertiary" size="sm" className="flex-1">
+                    详情
+                  </Button>
+                  <Button onPress={() => handleRevoke(auth)} variant="danger" size="sm" className="flex-1">
+                    撤回
+                  </Button>
+                </div>
+              </MobileListCard>
+            ))}
+          </MobileList>
+        </>
       )}
 
       <AlertDialog>

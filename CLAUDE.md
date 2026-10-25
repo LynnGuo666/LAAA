@@ -114,6 +114,7 @@ Access at: http://localhost:8000
 - `User`, `Client`, `Token`, `Session`, `Role`, `Permission`, `Group`, `UserAuthorization`
 - Invite system: `InviteCode`, `InviteRedemption`
 - Security: `Passkey`, `WebAuthnChallenge`, `UserTOTP`, `VerificationSession`, `VerificationCode`, `LoginLog`
+- `AdminAuditLog` (管理员敏感操作审计,用户名快照,保留一年)
 - `SystemSetting` (site-wide config)
 - `KnownDevice` (persistent device-trust memory, decoupled from session lifetime)
 - Many-to-many: `user_roles`, `role_permissions`, `user_groups`, `user_allowed_apps`, `user_denied_apps`, `group_allowed_apps`, `group_denied_apps`
@@ -129,7 +130,7 @@ Access at: http://localhost:8000
 - `app/routes/totp.py` — `/api/totp/*` — TOTP setup/verify/disable
 - `app/routes/site.py` — `/api/site/*` — public site settings
 - `app/routes/groups.py` — `/api/groups/*` — user group management (admin)
-- `app/routes/admin.py` — `/api/admin/*` — users, roles, clients, login logs, app permissions
+- `app/routes/admin.py` — `/api/admin/*` — users, roles, clients, login logs, app permissions, 2FA recovery, audit logs
 - `app/routes/invites.py` — `/api/admin/invites/*` — invite code management
 
 **Services** (business logic in `app/services/`):
@@ -143,6 +144,7 @@ Access at: http://localhost:8000
 - `session_limit_service.py` — concurrent session enforcement
 - `geoip_service.py` — IP geolocation (MaxMind + ip2region + a CN-country reader)
 - `email_service.py` — async SMTP via aiosmtplib
+- `admin_audit_service.py` — 管理员操作审计写入(与业务变更同事务)
 - `group_service.py` — user group management
 - `site_service.py` — site settings
 

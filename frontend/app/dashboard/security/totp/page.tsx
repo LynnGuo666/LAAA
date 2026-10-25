@@ -188,12 +188,13 @@ export default function TOTPSetupPage() {
 
   return (
     <div className="px-4 sm:px-0 animate-fade-in space-y-6">
-      <div className="flex items-center gap-4">
+      <div className="space-y-3">
         <Link
           href="/dashboard/security"
-          className="text-muted hover:text-muted"
+          className="inline-flex items-center gap-1 text-sm text-muted transition-colors hover:text-foreground"
         >
-          <ChevronLeft className="w-5 h-5" />
+          <ChevronLeft className="w-4 h-4" />
+          返回安全设置
         </Link>
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-foreground">身份验证器</h1>

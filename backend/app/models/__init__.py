@@ -291,7 +291,12 @@ class KnownDevice(Base):
 
     sessions 行会因登出/过期/踢除被删除,若"已知设备"判定依赖 session 存活,
     单设备用户每次登出后都会被风控当成新设备、强制两步验证。
-    本表在登录成功时 upsert,只有用户主动"忘记此设备"时才删除。
+    本表在登录成功时 upsert。
+
+    生命周期(见 ADR-0002):
+    - 普通登出保留;并发超限自动踢人也保留;
+    - 用户主动撤销会话、管理员强退、refresh token 重放等安全事件立即删除;
+    - KNOWN_DEVICE_RETENTION_DAYS(默认 180 天)未活跃由 maintenance 清理。
     """
     __tablename__ = 'known_devices'
     __table_args__ = (
@@ -590,3 +595,31 @@ class UserTOTP(Base):
 
     # Relationships
     user = relationship('User', back_populates='totp')
+
+
+class AdminAuditLog(Base):
+    """管理员敏感操作审计。
+
+    与 login_logs(面向登录安全)分离:本表记录管理域的写操作,
+    回答"谁在什么时候对谁做了什么"。actor/target 用户名均做快照,
+    即使账号随后被删除,历史记录仍可还原;detail 存 JSON 文本。
+
+    有意不建 ORM 关系:审计行不应因用户删除而级联消失。
+    """
+    __tablename__ = 'admin_audit_logs'
+
+    id = Column(Integer, primary_key=True, index=True)
+    actor_id = Column(
+        Integer, ForeignKey('users.id', ondelete='SET NULL'),
+        nullable=True, index=True,
+    )
+    actor_username = Column(String(50), nullable=True)
+    action = Column(String(64), nullable=False, index=True)
+    target_type = Column(String(32), nullable=True)
+    # 目标可能被删除,故不加外键;保留快照即可
+    target_id = Column(Integer, nullable=True, index=True)
+    target_username = Column(String(50), nullable=True)
+    detail = Column(Text, nullable=True)  # JSON 文本
+    ip_address = Column(String(50), nullable=True)
+    user_agent = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=utcnow, index=True)

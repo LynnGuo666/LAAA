@@ -101,7 +101,9 @@ LAAA 后端所有 HTTP 端点,按模块分组。鉴权要求含义:
 | GET | `/api/user/authorizations` | user | 获取当前用户已授权的应用列表 |
 | DELETE | `/api/user/authorizations/{auth_id}` | user | 撤销对某应用的授权及相关 token |
 | GET | `/api/user/sessions` | user | 获取当前用户的活跃会话(设备)列表,标记当前设备 |
-| DELETE | `/api/user/sessions/{session_id}` | user | 注销指定会话(忘记设备) |
+| DELETE | `/api/user/sessions/{session_id}` | user | 注销指定会话,并遗忘该设备的信任记忆 |
+| GET | `/api/user/devices` | user | 获取已记住的设备(含当前无活跃会话的设备) |
+| DELETE | `/api/user/devices/{device_id}` | user | 忘记设备:删除信任记忆并吊销该设备全部会话 |
 | GET | `/api/user/apps` | user | 获取当前用户可访问的应用列表(基于权限) |
 | GET | `/api/user/login-history` | user | 获取当前用户的登录历史(分页) |
 | GET | `/api/user/security-settings` | user | 获取用户安全设置(最大会话数 / 新登录通知) |
@@ -109,7 +111,7 @@ LAAA 后端所有 HTTP 端点,按模块分组。鉴权要求含义:
 | POST | `/api/user/sessions/{session_id}/trust` | user | 将指定会话标记为受信任设备 |
 | DELETE | `/api/user/sessions/{session_id}/trust` | user | 取消指定会话的受信任标记 |
 | POST | `/api/user/sessions/revoke-others` | user | 注销除当前会话外的所有其他会话 |
-| PUT | `/api/user/password` | user | 修改当前用户密码并吊销其他设备的 token / 会话(`token_version+1`) |
+| PUT | `/api/user/password` | user | 修改当前用户密码并吊销其他设备的 token / 会话与设备信任(`token_version+1`) |
 
 ---
 
@@ -214,6 +216,11 @@ LAAA 后端所有 HTTP 端点,按模块分组。鉴权要求含义:
 | GET | `/api/admin/users/{user_id}/passkeys` | admin:admin.users | 获取用户的通行密钥 |
 | GET | `/api/admin/users/{user_id}/authorizations` | admin:admin.users | 获取用户的应用授权记录 |
 | GET | `/api/admin/users/{user_id}/security-methods` | admin:admin.users | 获取用户的安全验证方式(TOTP / Passkey / 邮箱状态) |
+| DELETE | `/api/admin/users/{user_id}/totp` | admin:admin.users | 解绑用户的身份验证器(TOTP + 备用码),保留通行密钥与会话 |
+| DELETE | `/api/admin/users/{user_id}/passkeys/{passkey_id}` | admin:admin.users | 移除用户指定的通行密钥 |
+| POST | `/api/admin/users/{user_id}/reset-2fa` | admin:admin.users | 重置二次验证:解绑 TOTP、移除全部通行密钥,默认同时强制重新登录 |
+| POST | `/api/admin/users/{user_id}/force-relogin` | admin:admin.users | 强制重新登录:踢全部会话、吊销 refresh token、清设备信任、旧 access token 立即失效 |
+| GET | `/api/admin/audit-logs` | admin:admin.users | 查询管理员操作审计(分页;可按操作类型 / 目标用户 / 操作者过滤) |
 
 ---
 
@@ -278,7 +285,7 @@ LAAA 后端所有 HTTP 端点,按模块分组。鉴权要求含义:
 |---|---|---|
 | `/admin` | 管理控制台 | 统计卡片 + 四个快捷入口,非管理员重定向到用户面板 |
 | `/admin/users` | 用户管理 | 分页搜索、创建 / 编辑、管理用户组与角色、跳转详情与权限、删除 |
-| `/admin/users/detail` | 用户详情 | 基本信息 / 登录日志 / 会话 / 通行密钥 / 应用授权五个标签,可强制登出 |
+| `/admin/users/detail` | 用户详情 | 基本信息 / 登录日志 / 会话 / 通行密钥 / 应用授权 / 操作审计六个标签,可强制登出、重置二次验证、强制重新登录 |
 | `/admin/users/permissions` | 用户应用权限 | 单用户对每应用的最终访问结果与权限来源,可逐应用设置 |
 | `/admin/groups` | 用户组 | 选组后编辑信息、管理成员、配置组级应用权限 |
 | `/admin/apps` | 应用管理 | 创建应用(一次性显示 ID/Secret)、编辑、重置密钥、访问控制、删除 |
