@@ -77,7 +77,7 @@ curl http://localhost:8000/api/health   # 应返回 {"status":"ok"}
 | `SECRET_KEY` | refresh token 签名密钥，**必改**(≥32 字符) | `openssl rand -hex 32` 生成 |
 | `JWT_PRIVATE_KEY_PATH` / `JWT_PUBLIC_KEY_PATH` | RS256 密钥对(access/id token),**必配** | `jwt_keys/jwt_private.pem` 等(见上方生成步骤) |
 | `OIDC_ISSUER` | OIDC issuer，反代后**必须显式设**避免 http/内网地址 | `https://laaa.example.com` |
-| `DATABASE_URL` | SQLite 路径，保持默认即可 | `sqlite:///./oauth.db` |
+| `DATABASE_URL` | SQLite 路径，保持默认即可 | `sqlite:///./db/oauth.db` |
 | `DEBUG` | 生产置 `False`(prod compose 已强制) | `False` |
 | `ALLOWED_ORIGINS` | 前端来源（逗号分隔） | `https://laaa.example.com` |
 | `FRONTEND_URL` | 邮件魔法链接里的前端地址 | `https://laaa.example.com` |
@@ -107,13 +107,23 @@ curl http://localhost:8000/api/health   # 应返回 {"status":"ok"}
 
 `docker-compose.prod.yml`(及本地版)挂了三个卷，**不要删**：
 
-- `./oauth.db:/app/oauth.db` — SQLite 数据库。容器升级/重建后用户、会话、应用配置全靠它保留。
+- `./db:/app/db` — SQLite 数据库目录（`oauth.db` 及同目录的 `-wal`/`-shm`）。容器升级/重建后用户、会话、应用配置全靠它保留；WAL 必须和主库放在同一个持久化目录，不能只挂载单个 `oauth.db` 文件。
 - `./jwt_keys:/app/jwt_keys` — RS256 JWT 签名密钥对。私钥用于签发 access/id token，**不入镜像、不进 git**，随卷持久化（密钥丢了所有已签发 token 立即失效，用户需重新登录；可重新生成但 RP 侧 JWKS 缓存会过期自动刷新）。
 - `./data:/app/data` — 可选。若想用**自有** GeoIP 数据库覆盖镜像内置的，把 `ip2region.xdb` / `GeoIP2-CN.mmdb` / `GeoLite2-City.mmdb` 放进 `./data/` 即可；不放则用镜像自带的。
 
 > 本地构建版还多挂一个 `./backend/app:/app/app` —— 后端代码 bind mount,配合 `--reload` 热重载。生产版不挂此项,代码已在镜像内。
 
-> 首次 `up` 前无需手动创建 `oauth.db`/`data`，compose 会自动建空目录/空文件。SQLite 会在首次启动时由应用自动建表。`jwt_keys/` 须先按上方步骤生成密钥对再 up。
+> 首次 `up` 前无需手动创建 `db`/`data`，compose 会自动建空目录。SQLite 会在首次启动时由应用自动建表。`jwt_keys/` 须先按上方步骤生成密钥对再 up。
+>
+> **从旧版单文件挂载升级**：旧版只挂载 `./oauth.db` 时，SQLite 的 `-wal`/`-shm` 位于容器层，强制重建/异常退出可能丢失最近写入。升级步骤：
+> ```bash
+> # 1) 用旧 compose 正常停止（SIGTERM 会让 SQLite checkpoint WAL）
+> docker compose -f docker-compose.prod.yml down
+> # 2) 把数据库移入目录（连同可能存在的 -wal/-shm）
+> mkdir -p db && mv oauth.db oauth.db-wal oauth.db-shm db/ 2>/dev/null || true
+> # 3) 换成新 compose（本仓库版本）后启动
+> docker compose -f docker-compose.prod.yml up -d
+> ```
 
 ### 非 root 用户与卷属主（重要）
 
@@ -121,7 +131,7 @@ curl http://localhost:8000/api/health   # 应返回 {"status":"ok"}
 
 ```bash
 # 首次 up 前（或遇到"database is locked / permission denied"时）对齐属主：
-sudo chown -R 1000:1000 ./oauth.db ./jwt_keys ./data
+sudo chown -R 1000:1000 ./db ./jwt_keys ./data
 
 # 若想让 compose 自动以宿主机某用户身份跑，可在 service 里显式指定（二选一即可）：
 #   user: "1000:1000"
@@ -129,8 +139,8 @@ sudo chown -R 1000:1000 ./oauth.db ./jwt_keys ./data
 
 常见坑：
 
-- 以 root 执行 `docker compose up` 时，compose 自动创建的空 `oauth.db`/`jwt_keys`/`data` 属主是 **root** → 容器内 uid 1000 无法写 → entrypoint 的 seed/迁移直接失败。
-- 提示 `permission denied`、`unable to open database file`、seed 失败时，先查属主：`ls -ln oauth.db jwt_keys`（看第三列数字是不是 1000）。
+- 以 root 执行 `docker compose up` 时，compose 自动创建的空 `db`/`jwt_keys`/`data` 目录属主是 **root** → 容器内 uid 1000 无法写 → entrypoint 的 seed/迁移直接失败。
+- 提示 `permission denied`、`unable to open database file`、seed 失败时，先查属主：`ls -ln db db/oauth.db jwt_keys`（看第三列数字是不是 1000）。
 - uid 1000 通常恰好等于宿主机第一个普通用户（多数发行版如此），此时直接可用你的用户跑 compose，无需 chown。
 
 ### 3. 拉起与升级
@@ -143,7 +153,7 @@ docker compose -f docker-compose.prod.yml logs -f laaa  # 看日志
 docker compose -f docker-compose.prod.yml down          # 停止（保留数据）
 ```
 
-**升级**：`docker compose -f docker-compose.prod.yml pull && docker compose -f docker-compose.prod.yml up -d`，`oauth.db` 会保留。
+**升级**：`docker compose -f docker-compose.prod.yml pull && docker compose -f docker-compose.prod.yml up -d`，数据库目录 `./db` 会保留。
 
 ---
 
@@ -252,7 +262,7 @@ GitHub Actions（`.github/workflows/docker-publish.yml`）在以下情况自动�
 - [ ] `/login` 能打开登录页并能成功登录（验证 RS256 签发正常）
 - [ ] 登录后「会话列表」的「位置」字段有值（验证 GeoIP 生效）
 - [ ] 容器日志无 `database not found` / `JWT RS256 keys not configured` 警告：`docker compose logs laaa | grep -iE "not found|not configured"`
-- [ ] `docker compose down && docker compose up -d` 后，用户/会话数据仍在（验证 `oauth.db` 持久化）
+- [ ] `docker compose down && docker compose up -d` 后，用户/会话数据仍在（验证 `./db/oauth.db` 持久化）
 - [ ] Passkey 注册+登录成功（验证 `WEBAUTHN_RP_*` 域名对齐）
 
 ---
@@ -268,7 +278,7 @@ GitHub Actions（`.github/workflows/docker-publish.yml`）在以下情况自动�
 | 登录后位置为空 | GeoIP 库缺失或 `GEOIP_ENABLED=false`。`docker exec -it laaa ls /app/data/` 应见三个库文件 |
 | Passkey 注册失败 | `WEBAUTHN_RP_ID` 必须等于访问域名，`WEBAUTHN_RP_ORIGIN` 必须是 `https://<域名>` |
 | 邮件链接 404 | `FRONTEND_URL` 未对齐实际访问地址 |
-| 升级后数据丢失 | `./oauth.db` 没正确挂载，检查 `docker compose config` 里 volumes |
+| 升级后数据丢失 | `./db` 没正确挂载，或 WAL 留在容器层；检查 `docker compose config` 里 volumes，并确认 `db/` 下同时存在 `oauth.db` 与 `-wal`/`-shm`（运行中） |
 | 升级后所有用户被踢下线 | `./jwt_keys` 未持久化或被重新生成，密钥变了旧 token 全部失效（预期行为）；保留好 `jwt_keys` 卷即可避免 |
 | 拉不到镜像 | ghcr.io 镜像默认是 private；到 GitHub 包设置页改 public，或用 `docker login ghcr.io` 拉取 |
 | 本地构建版改后端代码不生效 | 确认 `docker-compose.yml` 挂了 `./backend/app:/app/app`,且 `command` 带 `--reload --reload-dir /app/app`;`docker compose up -d` 不带 `--build` 即可(代码是挂载的,无需重建) |

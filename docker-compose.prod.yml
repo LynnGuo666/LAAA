@@ -15,15 +15,17 @@
 #   4. 访问 http://<host>:8000
 #
 # 数据持久化:
-#   - ./oauth.db   → /app/oauth.db   (SQLite)
+#   - ./db        → /app/db          (SQLite 数据库目录，含 WAL/SHM)
 #   - ./jwt_keys   → /app/jwt_keys   (RS256 密钥对)
 #   - ./data       → /app/data       (可选:覆盖镜像内置 GeoIP)
 #
 # ⚠️ 容器以非 root 用户运行(镜像内 uid/gid 1000)。bind mount 的宿主机目录/
 #    文件属主若是 root,容器内无法写 SQLite/jwt_keys。首次 up 前请对齐属主:
-#      sudo chown -R 1000:1000 ./oauth.db ./jwt_keys ./data
+#      sudo chown -R 1000:1000 ./db ./jwt_keys ./data
 #    或取消注释下方 user: 行(详解见 DEPLOY.md「非 root 用户与卷属主」)。
-#    docker compose 由 root 跑时自动创建的空 oauth.db 属 root,尤其注意。
+#    docker compose 由 root 跑时自动创建的空 db 目录属 root,尤其注意。
+#   - SQLite 的 -wal/-shm 必须和 oauth.db 在同一个持久化目录里；只挂载单个
+#     oauth.db 文件会让 WAL 留在容器层，容器重建/异常退出时丢失最近写入。
 
 services:
   laaa:
@@ -38,13 +40,13 @@ services:
       - HOST=0.0.0.0
       - PORT=8000
       - STATIC_DIR=/app/frontend/out
-      - DATABASE_URL=sqlite:///./oauth.db
+      - DATABASE_URL=sqlite:///./db/oauth.db
       - DEBUG=False
     # 显式以 uid/gid 1000 运行(与镜像内 USER 一致;挂载卷属主对齐见文件头说明)
     # user: "1000:1000"
     volumes:
       # 属主需为 1000:1000(容器非 root 运行,写不进会启动失败,见文件头说明)
-      - ./oauth.db:/app/oauth.db
+      - ./db:/app/db
       - ./jwt_keys:/app/jwt_keys
       - ./data:/app/data
     healthcheck:

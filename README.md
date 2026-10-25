@@ -223,7 +223,7 @@ npm run dev            # 开发模式;生产用 npm run build 生成 frontend/ou
 | 变量 | 必填 | 说明 |
 |---|---|---|
 | `SECRET_KEY` | ✅ | ≥32 字符随机串,用于 refresh token 签名;占位串会被启动校验拒绝 |
-| `DATABASE_URL` | ✅ | SQLite 路径,默认 `sqlite:///./oauth.db` |
+| `DATABASE_URL` | ✅ | SQLite 路径,默认 `sqlite:///./db/oauth.db` |
 | `JWT_PRIVATE_KEY_PATH` / `JWT_PUBLIC_KEY_PATH` | ✅ | RS256 密钥对路径,用 `scripts/generate_jwt_keys.py` 生成 |
 | `ALLOWED_ORIGINS` | | CORS 允许来源(逗号分隔) |
 | `FRONTEND_URL` | | 邮件魔法链接里的前端地址 |
